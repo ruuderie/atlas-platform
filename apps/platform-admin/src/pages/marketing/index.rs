@@ -16,8 +16,8 @@ pub fn MarketingLanding() -> impl IntoView {
                     <a href="#contact" class="hover:text-primary transition-colors">"Contact"</a>
                 </div>
                 <div class="flex items-center gap-3">
-                    <a href="/login" class="btn-ghost px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-outline-variant/30 hover:bg-surface-bright/20">"Sign In"</a>
-                    <a href="/login" class="btn-primary-gradient px-3.5 py-1.5 rounded-lg text-xs font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90">"Request Demo →"</a>
+                    <a href="/login" class="btn btn-ghost">"Sign In"</a>
+                    <a href="/login" class="btn btn-primary">"Request Demo →"</a>
                 </div>
             </nav>
 
@@ -28,12 +28,12 @@ pub fn MarketingLanding() -> impl IntoView {
                     "One platform for" <br/>
                     <span class="text-primary">"property, fleet, and creator ops"</span>
                 </h1>
-                <p class="text-base text-on-surface-variant/80 max-w-xl mx-auto leading-relaxed">
+                <p class="text-base text-on-surface-variant max-w-xl mx-auto leading-relaxed">
                     "Atlas Platform gives operators a unified command center — property management, STR compliance, creator monetization, and fleet G-27 scorecards. Built on Bitcoin rails."
                 </p>
                 <div class="flex items-center justify-center gap-3 pt-4">
-                    <a href="/login" class="btn-primary-gradient px-6 py-3 rounded-lg text-sm font-bold text-on-primary-container shadow-lg shadow-primary/15 hover:opacity-95">"Get Started →"</a>
-                    <a href="/login" class="btn-ghost px-6 py-3 rounded-lg text-sm font-semibold border border-outline-variant/30 hover:bg-surface-bright/20">"Sign In"</a>
+                    <a href="/login" class="btn btn-primary">"Get Started →"</a>
+                    <a href="/login" class="btn btn-ghost">"Sign In"</a>
                 </div>
             </section>
 
@@ -141,7 +141,7 @@ pub fn MarketingLanding() -> impl IntoView {
                     "Book a 30-minute demo. We'll show you the full platform configured for your vertical."
                 </p>
                 <div class="pt-2">
-                    <a href="/login" class="btn-primary-gradient px-6 py-3 rounded-lg text-sm font-bold text-on-primary-container shadow-lg shadow-primary/15 hover:opacity-95">"Book Demo →"</a>
+                    <a href="/login" class="btn btn-primary">"Book Demo →"</a>
                 </div>
             </section>
 

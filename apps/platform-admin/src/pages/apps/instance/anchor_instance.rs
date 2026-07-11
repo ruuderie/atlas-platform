@@ -63,15 +63,6 @@ pub fn AnchorInstance(
         get_instance_stats(instance_id).await.ok()
     });
 
-    let tab_classes = move |tab: &str| -> String {
-        let base = "px-4 py-2.5 text-xs font-semibold rounded-lg transition-all";
-        if active_tab.get() == tab {
-            format!("{base} bg-primary text-on-primary shadow-sm")
-        } else {
-            format!("{base} text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50")
-        }
-    };
-
     view! {
         <div class="w-full space-y-6">
 
@@ -147,7 +138,7 @@ pub fn AnchorInstance(
                         {move || if is_suspended.get() {
                             view! {
                                 <button
-                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-emerald-500/40 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/15 transition-all"
+                                    class="btn btn-primary"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -164,7 +155,8 @@ pub fn AnchorInstance(
                         } else {
                             view! {
                                 <button
-                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:border-error/40 hover:text-error hover:bg-error/5 transition-all"
+                                    class="btn btn-ghost"
+                                    style="color:var(--error)"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -184,7 +176,7 @@ pub fn AnchorInstance(
             </div>
 
             // ── Tab bar ──
-            <div class="flex flex-wrap gap-1.5">
+            <div class="tab-bar">
                 {vec![
                     ("t-overview",          "Overview"),
                     ("t-content",           "Content"),
@@ -194,10 +186,11 @@ pub fn AnchorInstance(
                 ].into_iter().map(|(id, label)| {
                     let id_str = id.to_string();
                     let id_for_click = id_str.clone();
+                    let id_for_class = id_str.clone();
                     let label_str = label.to_string();
                     view! {
                         <button
-                            class=move || tab_classes(&id_str)
+                            class=move || if active_tab.get() == id_for_class { "tab active" } else { "tab" }
                             on:click={
                                 let id2 = id_for_click.clone();
                                 move |_| active_tab.set(id2.clone())
@@ -398,7 +391,7 @@ pub fn AnchorInstance(
                             // Save button — right-aligned, same weight as all other primary CTAs
                             <div class="flex justify-end">
                             <button
-                                class="px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold shadow transition-all hover:opacity-90 disabled:opacity-50"
+                                class="btn btn-primary"
                                 disabled=move || saving_domain.get()
                                 on:click=move |_| {
                                     let id = instance_id;

@@ -86,6 +86,10 @@ Intentional no-canvas components: `billing/tenant.rs`, `billing/products.rs`, `f
 | `text-primary` | Cobalt action color |
 | `border-outline-variant` | Card / input border |
 
+**Opacity modifiers** (`bg-primary/15`, `text-on-surface-variant/40`, …) work because
+`tailwind.config.js` wraps CSS vars with `color-mix`. Prefer named classes
+(`.btn`, `.seg-btn`, `.filter-nav-item`) over composing controls from utilities.
+
 #### Correct inline `style=` syntax
 
 ```rust
@@ -474,6 +478,9 @@ style="background:var(--cobalt-dim);color:var(--cobalt)"
 | `.tab-bar` | Tab navigation container |
 | `.tab` | Tab button |
 | `.tab.active` | Active tab state |
+| `.seg-control` / `.seg-btn` | Horizontal segment toggle (Pilot/Catalog/Customer) |
+| `.filter-nav` / `.filter-nav-item` | Vertical sidebar filter list |
+| `.app-pill` | Landing-page app context chips |
 | `.modal-overlay` | Fixed overlay backdrop (hidden by default) |
 | `.modal-overlay.open` | Visible modal |
 | `.modal` | Modal panel |

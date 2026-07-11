@@ -44,15 +44,6 @@ pub fn NetworkInstance(
         get_instance_stats(instance_id).await.ok()
     });
 
-    let tab_classes = move |tab: &str| -> String {
-        let base = "px-4 py-2.5 text-xs font-semibold rounded-lg transition-all";
-        if active_tab.get() == tab {
-            format!("{base} bg-primary text-on-primary shadow-sm")
-        } else {
-            format!("{base} text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50")
-        }
-    };
-
     view! {
         <div class="w-full space-y-6">
             // ── Instance header ──
@@ -95,7 +86,7 @@ pub fn NetworkInstance(
                         {move || if is_suspended.get() {
                             view! {
                                 <button
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                                    class="btn btn-primary"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -112,7 +103,8 @@ pub fn NetworkInstance(
                         } else {
                             view! {
                                 <button
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold border border-error/30 text-error hover:bg-error/10 transition-all"
+                                    class="btn btn-ghost"
+                                    style="color:var(--error)"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -128,7 +120,7 @@ pub fn NetworkInstance(
                             }.into_any()
                         }}
                         <button
-                            class="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold shadow"
+                            class="btn btn-primary"
                             on:click=move |_| toast.show_toast("Saved", "Instance changes applied.", "success")
                         >
                             "Save Changes"
@@ -138,7 +130,7 @@ pub fn NetworkInstance(
             </div>
 
             // ── Tab bar ──
-            <div class="flex flex-wrap gap-1.5">
+            <div class="tab-bar">
                 {vec![
                     ("t-overview", "Overview"),
                     ("t-listings", "Listings"),
@@ -150,10 +142,11 @@ pub fn NetworkInstance(
                 ].into_iter().map(|(id, label)| {
                     let id_str = id.to_string();
                     let id_for_click = id_str.clone();
+                    let id_for_class = id_str.clone();
                     let label_str = label.to_string();
                     view! {
                         <button
-                            class=move || tab_classes(&id_str)
+                            class=move || if active_tab.get() == id_for_class { "tab active" } else { "tab" }
                             on:click={
                                 let id2 = id_for_click.clone();
                                 move |_| active_tab.set(id2.clone())

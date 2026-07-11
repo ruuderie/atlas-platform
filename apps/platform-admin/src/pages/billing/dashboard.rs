@@ -34,9 +34,9 @@ pub fn BillingDashboard() -> impl IntoView {
     let filter_rail = RwSignal::new("All Rails".to_string());
     let filter_status = RwSignal::new("All Statuses".to_string());
 
-    // Derived style helpers — use lp-tab pattern from components.css
+    // Derived style helpers
     let tab_class = move |tab_id: &str| {
-        if active_tab.get() == tab_id { "lp-tab active" } else { "lp-tab" }
+        if active_tab.get() == tab_id { "tab active" } else { "tab" }
     };
 
     // ── Real data resources ──
@@ -222,7 +222,7 @@ pub fn BillingDashboard() -> impl IntoView {
             </div>
 
             // ── Tab Bar ───────────────────────────────────────────────────────
-            <div class="lp-tab-bar">
+            <div class="tab-bar">
                 <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>"Products & Plans"</button>
                 <button class=move || tab_class("rev_intel")       on:click=move |_| active_tab.set("rev_intel".to_string())>"Revenue Intel"</button>
                 <button class=move || tab_class("ledger")          on:click=move |_| active_tab.set("ledger".to_string())>"Ledger · G-03"</button>

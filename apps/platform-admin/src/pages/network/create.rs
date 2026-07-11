@@ -371,13 +371,13 @@ pub fn NetworkCreate() -> impl IntoView {
                 // Wizard Footer
                 <div class="px-8 py-4 bg-surface-container-high/20 border-t border-outline-variant/20 flex justify-between items-center">
                     <button 
-                        class="px-4 py-2 border border-outline-variant/30 hover:bg-surface-bright/20 rounded-lg text-xs font-semibold text-on-surface-variant transition-colors"
+                        class="btn btn-ghost"
                         on:click=move |_| move_step(-1)
                     >
                         {move || if current_step.get() == 1 { "Cancel" } else { "Back" }}
                     </button>
                     <button 
-                        class="btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md active:scale-95 transition-all"
+                        class="btn btn-primary"
                         on:click=move |_| move_step(1)
                     >
                         {move || if current_step.get() == 3 { "Provision Network" } else { "Next Step" }}

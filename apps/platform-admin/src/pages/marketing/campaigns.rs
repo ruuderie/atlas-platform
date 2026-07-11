@@ -48,9 +48,9 @@ fn status_dot(s: &str) -> &'static str {
         "active"    => "text-emerald-400",
         "scheduled" => "text-amber-400",
         "paused"    => "text-orange-400",
-        "completed" => "text-on-surface-variant/50",
-        "draft"     => "text-on-surface-variant/40",
-        _           => "text-on-surface-variant/40",
+        "completed" => "text-on-surface-variant",
+        "draft"     => "text-on-surface-variant",
+        _           => "text-on-surface-variant",
     }
 }
 
@@ -179,7 +179,7 @@ pub fn CampaignsPage() -> impl IntoView {
                                 "This is usually a backend or database configuration issue. Contact your platform administrator if this persists."
                             </p>
                             <button
-                                class="mt-2 px-4 py-2 text-xs font-semibold border border-outline-variant/30 rounded-lg text-on-surface-variant hover:text-on-surface transition-colors"
+                                class="mt-2 btn btn-ghost btn-sm"
                                 on:click=move |_| { let _ = campaigns.refetch(); }
                             >
                                 "↺ Retry"
@@ -194,7 +194,7 @@ pub fn CampaignsPage() -> impl IntoView {
                                 "Create a campaign to start tracking outreach, members, and landing page conversions."
                             </p>
                             <button
-                                class="mt-4 btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold"
+                                class="mt-4 btn btn-primary"
                                 on:click=move |_| show_new_modal.set(true)
                             >"+ New Campaign"</button>
                         </div>
@@ -215,7 +215,7 @@ pub fn CampaignsPage() -> impl IntoView {
                 <div class="bg-surface-container border border-outline-variant/30 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
                     <div class="px-6 py-4 border-b border-outline-variant/20 flex items-center justify-between">
                         <h2 class="text-sm font-bold text-on-surface">"New Campaign"</h2>
-                        <button class="text-on-surface-variant hover:text-on-surface" on:click=move |_| show_new_modal.set(false)>
+                        <button class="btn btn-ghost btn-icon btn-sm" on:click=move |_| show_new_modal.set(false)>
                             <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
                         </button>
                     </div>
@@ -312,10 +312,10 @@ pub fn CampaignsPage() -> impl IntoView {
                         </div>
                     </div>
                     <div class="px-6 py-4 border-t border-outline-variant/20 flex justify-end gap-3">
-                        <button class="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:text-on-surface border border-outline-variant/30 rounded-lg"
+                        <button class="btn btn-ghost"
                             on:click=move |_| show_new_modal.set(false)>"Cancel"</button>
                         <button
-                            class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold"
+                            class="btn btn-primary"
                         on:click=move |_| {
                                 let name = new_name.get();
                                 if name.is_empty() { return; }
@@ -374,10 +374,10 @@ fn CampaignCard(campaign: CampaignModel) -> impl IntoView {
                     {campaign.name}
                 </h3>
                 {if utm_campaign.is_empty() {
-                    view! { <p class="text-[10px] text-on-surface-variant/40 mt-0.5 font-mono italic">"No UTM slug — not linked to landing page"</p> }.into_any()
+                    view! { <p class="text-[10px] mt-0.5 font-mono italic" style="color:var(--amber)">"No UTM slug — not linked to landing page"</p> }.into_any()
                 } else {
                     view! {
-                        <p class="text-[10px] text-primary/70 mt-0.5 font-mono">
+                        <p class="text-[10px] text-primary mt-0.5 font-mono">
                             {format!("utm_campaign={}", utm_campaign)}
                         </p>
                     }.into_any()
@@ -390,32 +390,32 @@ fn CampaignCard(campaign: CampaignModel) -> impl IntoView {
                     <div class="text-sm font-bold font-mono text-on-surface">
                         {campaign.total_contacts}
                     </div>
-                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-0.5">"Members"</div>
+                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant mt-0.5">"Members"</div>
                 </div>
                 <div>
                     <div class="text-sm font-bold font-mono text-emerald-400">
                         {campaign.total_conversions}
                     </div>
-                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-0.5">"Converted"</div>
+                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant mt-0.5">"Converted"</div>
                 </div>
                 <div class="flex flex-col gap-1">
                     <div class="text-sm font-bold font-mono text-primary">
                         {conv_rate_str.clone()}
                     </div>
-                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-0.5">"Conv. Rate"</div>
+                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant mt-0.5">"Conv. Rate"</div>
                 </div>
                 <div class="flex flex-col gap-1">
                     <div class=format!("text-sm font-bold font-mono {}",
-                        if cac_str == "—" { "text-on-surface-variant/40" } else { "text-amber-400" })>
+                        if cac_str == "—" { "text-on-surface-variant" } else { "text-amber-400" })>
                         {cac_str.clone()}
                     </div>
-                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-0.5">"CAC"</div>
+                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant mt-0.5">"CAC"</div>
                 </div>
             </div>
 
             // Budget progress bar
             <div class="px-5 pb-4">
-                <div class="flex justify-between text-[9px] text-on-surface-variant/60 mb-1.5">
+                <div class="flex justify-between text-[9px] text-on-surface-variant mb-1.5">
                     <span>{format!("Spent: {}", spent_str)}</span>
                     <span>{format!("Budget: {}", budget_str)}</span>
                 </div>
@@ -489,7 +489,7 @@ pub fn CampaignDetail() -> impl IntoView {
                                         </div>
                                         <h1 class="text-xl font-extrabold text-on-surface tracking-tight">{campaign_name.clone()}</h1>
                                         {if utm_cmp.is_empty() {
-                                            view! { <p class="text-xs text-on-surface-variant/40 mt-0.5 font-mono italic">"utm_campaign not set"</p> }.into_any()
+                                            view! { <p class="text-xs text-on-surface-variant mt-0.5 font-mono italic">"utm_campaign not set"</p> }.into_any()
                                         } else {
                                             view! {
                                                 <p class="text-xs text-primary/70 mt-0.5 font-mono">
@@ -501,7 +501,8 @@ pub fn CampaignDetail() -> impl IntoView {
                                 </div>
                                 // Export button — opens CSV download
                                 <a href=export_url target="_blank"
-                                    class="flex items-center gap-2 px-4 py-2 border border-outline-variant/40 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:border-outline-variant/70 transition-colors"
+                                    class="btn btn-ghost"
+                                    style="text-decoration:none"
                                 >
                                     <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M8 2v8M5 7l3 3 3-3M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1"/>
@@ -533,7 +534,7 @@ pub fn CampaignDetail() -> impl IntoView {
                             </div>
 
                             // ── Tabs ─────────────────────────────────────────
-                            <div class="flex gap-0.5 border-b border-outline-variant/20">
+                            <div class="tab-bar">
                                 {[("overview", "Overview"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
                                     let slug = slug.to_string();
                                     let label = label.to_string();
@@ -541,9 +542,9 @@ pub fn CampaignDetail() -> impl IntoView {
                                     view! {
                                         <button
                                             class=move || if active_tab.get() == slug {
-                                                "px-4 py-2.5 text-xs font-semibold border-b-2 border-primary text-primary transition-colors"
+                                                "tab active"
                                             } else {
-                                                "px-4 py-2.5 text-xs font-semibold border-b-2 border-transparent text-on-surface-variant hover:text-on-surface transition-colors"
+                                                "tab"
                                             }
                                             on:click=move |_| active_tab.set(slug2.clone())
                                         >{label}</button>
@@ -622,7 +623,7 @@ fn OverviewTab(campaign_id: uuid::Uuid) -> impl IntoView {
                             }
                         }).collect_view()}
                     </div>
-                    <p class="text-[10px] text-on-surface-variant/40 mt-4">
+                    <p class="text-[10px] text-on-surface-variant mt-4">
                         "Funnel data aggregates attribution touchpoints. Enable UTM tracking on your landing page to see live funnel metrics."
                     </p>
                 </div>
@@ -674,9 +675,9 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
                         view! {
                             <button
                                 class=move || if filter.get() == f {
-                                    "px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/20 border border-primary/30 text-primary"
+                                    "pill active"
                                 } else {
-                                    "px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-surface-container-high/30 border border-outline-variant/20 text-on-surface-variant hover:text-on-surface"
+                                    "pill"
                                 }
                                 on:click=move |_| filter.set(f2.clone())
                             >{f.clone()}</button>
@@ -685,11 +686,11 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
                 </div>
                 <div class="flex gap-2">
                     // Add leads/contacts button (simplified — in production opens a picker modal)
-                    <button class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors">
+                    <button class="btn btn-ghost btn-sm">
                         <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
                         "Add Leads"
                     </button>
-                    <button class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors">
+                    <button class="btn btn-ghost btn-sm">
                         <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
                         "Add Contacts"
                     </button>
@@ -707,8 +708,8 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
                     if filtered.is_empty() {
                         view! {
                             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-10 text-center">
-                                <p class="text-sm text-on-surface-variant/60">"No members match this filter."</p>
-                                <p class="text-xs text-on-surface-variant/40 mt-1">
+                                <p class="text-sm text-on-surface-variant">"No members match this filter."</p>
+                                <p class="text-xs text-on-surface-variant mt-1">
                                     "Use \"Add Leads\" or \"Add Contacts\" to enroll members, or use "
                                     <span class="font-mono text-primary/60">"POST /api/folio/campaigns/{id}/enroll-leads"</span>
                                     " via API."
@@ -746,7 +747,7 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
                                                     "active" => "text-emerald-400",
                                                     "converted" => "text-primary",
                                                     "exited" => "text-error/70",
-                                                    _ => "text-on-surface-variant/50",
+                                                    _ => "text-on-surface-variant",
                                                 };
                                                 view! {
                                                     <tr class="hover:bg-surface-bright/5 transition-colors">
@@ -764,7 +765,7 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
                                                             {if has_address {
                                                                 view! { <span class="text-emerald-400 font-semibold">"✓ Yes"</span> }.into_any()
                                                             } else {
-                                                                view! { <span class="text-on-surface-variant/40 text-[10px]">"Missing"</span> }.into_any()
+                                                                view! { <span class="text-on-surface-variant text-[10px]">"Missing"</span> }.into_any()
                                                             }}
                                                         </td>
                                                         <td class="py-3 px-4 text-on-surface-variant/60 font-mono">
@@ -873,7 +874,7 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                                                     <p class="text-[9px] font-mono text-primary/60 max-w-xs truncate">{lp_url.clone()}</p>
                                                 </div>
                                                 <button
-                                                    class="px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                    class="btn btn-ghost btn-sm"
                                                     on:click=move |_| {
                                                         #[cfg(target_arch = "wasm32")]
                                                         if let Some(w) = web_sys::window() {
@@ -883,7 +884,8 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                                                     }
                                                 >"Copy URL"</button>
                                                 <a href="/products"
-                                                    class="px-3 py-1.5 bg-surface-container-high/40 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                    class="btn btn-ghost btn-sm"
+                                                    style="text-decoration:none"
                                                 >"Edit Page →"</a>
                                             </div>
                                         </div>

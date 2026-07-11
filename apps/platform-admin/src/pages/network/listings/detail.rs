@@ -127,7 +127,8 @@ pub fn ListingDetail() -> impl IntoView {
                                                             view! {
                                                                 <button
                                                                     on:click=move |_| { end_test_action.dispatch(test_id_uuid); }
-                                                                    class="px-2 py-1 text-xs font-semibold border border-error/30 text-error rounded hover:bg-error/10 transition-all"
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    style="color:var(--error)"
                                                                 >
                                                                     "End Test"
                                                                 </button>

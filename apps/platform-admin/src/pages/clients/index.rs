@@ -107,7 +107,8 @@ fn LinkAccountModal(
                 </div>
                 <button
                     on:click=move |_| on_close.run(())
-                    class="p-1.5 rounded hover:bg-surface-container-high/50 text-on-surface-variant transition-colors"
+                    class="btn btn-ghost btn-icon btn-sm"
+                    title="Close"
                 >
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
                         <path d="M3 3l10 10M13 3L3 13"/>
@@ -126,14 +127,15 @@ fn LinkAccountModal(
             </div>
 
             // Account list
-            <div class="flex-1 overflow-y-auto px-5 pb-4 space-y-1">
+            <div class="flex-1 overflow-y-auto px-5 pb-4">
+                <div class="filter-nav">
                 // "No link" option
                 <button
                     class=move || {
                         if selected.get().is_none() {
-                            "w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30 text-primary"
+                            "filter-nav-item active"
                         } else {
-                            "w-full text-left px-3 py-2.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-container-high/40 transition-colors"
+                            "filter-nav-item"
                         }
                     }
                     on:click=move |_| selected.set(None)
@@ -146,7 +148,7 @@ fn LinkAccountModal(
                     </div>
                 </button>
 
-                <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant/50 text-center py-4 animate-pulse">"Loading..."</p> }>
+                <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant text-center py-4 animate-pulse">"Loading..."</p> }>
                     {move || {
                         let accounts = accounts_res.get().unwrap_or_default();
                         let q = search.get().to_lowercase();
@@ -154,10 +156,10 @@ fn LinkAccountModal(
                             .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
                             .collect();
                         if filtered.is_empty() {
-                            view! { <p class="text-xs text-on-surface-variant/50 text-center py-4">"No accounts found"</p> }.into_any()
+                            view! { <p class="text-xs text-on-surface-variant text-center py-4">"No accounts found"</p> }.into_any()
                         } else {
                             view! {
-                                <div class="space-y-1">
+                                <>
                                     {filtered.into_iter().map(|acct| {
                                         let aid = acct.id.clone();
                                         let aid2 = aid.clone();
@@ -166,23 +168,24 @@ fn LinkAccountModal(
                                             <button
                                                 class=move || {
                                                     if selected.get().as_deref() == Some(&aid2) {
-                                                        "w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30 text-primary"
+                                                        "filter-nav-item active"
                                                     } else {
-                                                        "w-full text-left px-3 py-2.5 rounded-lg text-xs text-on-surface hover:bg-surface-container-high/40 transition-colors"
+                                                        "filter-nav-item"
                                                     }
                                                 }
                                                 on:click=move |_| selected.set(Some(aid.clone()))
                                             >
                                                 <div class="font-medium">{acct.name.clone()}</div>
-                                                <div class="text-[10px] text-on-surface-variant/50 mt-0.5 font-mono">{id_short}</div>
+                                                <div class="text-[10px] text-on-surface-variant mt-0.5 font-mono">{id_short}</div>
                                             </button>
                                         }
                                     }).collect_view()}
-                                </div>
+                                </>
                             }.into_any()
                         }
                     }}
                 </Suspense>
+                </div>
             </div>
 
             // Footer
@@ -193,7 +196,7 @@ fn LinkAccountModal(
                 <button
                     on:click=on_save
                     disabled=saving
-                    class="w-full px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                    class="btn btn-primary w-full disabled:opacity-50"
                 >
                     {move || if saving.get() { "Saving..." } else { "Save Link" }}
                 </button>
@@ -317,9 +320,9 @@ pub fn ClientsPage() -> impl IntoView {
                         view! {
                             <button
                                 class=move || if filter_status.get() == f {
-                                    "px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/20 border border-primary/30 text-primary"
+                                    "pill active"
                                 } else {
-                                    "px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-surface-container-low border border-outline-variant/20 text-on-surface-variant hover:text-on-surface"
+                                    "pill"
                                 }
                                 on:click=move |_| filter_status.set(f2.clone())
                             >{f.clone()}</button>
@@ -423,7 +426,7 @@ pub fn ClientsPage() -> impl IntoView {
                                                                     view! {
                                                                         <a href=format!("/apps/{}", aid2) class="block group/link">
                                                                             <div class="font-semibold text-on-surface group-hover/link:text-primary transition-colors" style="font-size:12px;">{t.name.clone()}</div>
-                                                                            <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
+                                                                            <div class="text-[9px] font-mono text-on-surface-variant mt-0.5">
                                                                                 {tenant_id_str.clone().chars().take(8).collect::<String>()}
                                                                                 "..."
                                                                             </div>
@@ -433,7 +436,7 @@ pub fn ClientsPage() -> impl IntoView {
                                                                     view! {
                                                                         <div>
                                                                             <div class="font-semibold text-on-surface" style="font-size:12px;">{t.name.clone()}</div>
-                                                                            <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
+                                                                            <div class="text-[9px] font-mono text-on-surface-variant mt-0.5">
                                                                                 {tenant_id_str.clone().chars().take(8).collect::<String>()}
                                                                                 "..."
                                                                             </div>
@@ -471,7 +474,7 @@ pub fn ClientsPage() -> impl IntoView {
                                                             <span class="font-mono font-semibold text-on-surface">{mrr_str}</span>
                                                         </td>
                                                         // Joined
-                                                        <td class="py-3.5 px-5 text-[11px] text-on-surface-variant/70 font-mono">
+                                                        <td class="py-3.5 px-5 text-[11px] text-on-surface-variant font-mono">
                                                             {joined_str}
                                                         </td>
                                                         // Actions
@@ -480,12 +483,13 @@ pub fn ClientsPage() -> impl IntoView {
                                                                 // View instance — always shown when anchor_id is set
                                                                 {anchor_id.clone().map(|aid| view! {
                                                                     <a href={format!("/apps/{}", aid)}
-                                                                        class="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                                                        class="btn btn-ghost btn-sm"
+                                                                        style="text-decoration:none;"
                                                                     >"View →"</a>
                                                                 })}
                                                                 // Link Account
                                                                 <button
-                                                                    class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
+                                                                    class="btn btn-ghost btn-sm"
                                                                     on:click={
                                                                         let tid = tenant_id_str.clone();
                                                                         let acct = crm_account_id.clone();
@@ -496,12 +500,13 @@ pub fn ClientsPage() -> impl IntoView {
                                                                     }
                                                                 >"Link Acct"</button>
                                                                 <a href={format!("/tenants/{}", tenant_id_str.clone())}
-                                                                    class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
+                                                                    class="btn btn-ghost btn-sm"
                                                                     style="text-decoration:none;"
                                                                     title="View Tenant Detail"
                                                                 >"Tenant →"</a>
                                                                 <a href={format!("/billing/tenant/{}", tenant_id_str)}
-                                                                    class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    style="text-decoration:none;"
                                                                 >"Billing"</a>
                                                             </div>
                                                         </td>
@@ -518,11 +523,11 @@ pub fn ClientsPage() -> impl IntoView {
             </Suspense>
 
             // ── Footer note ──────────────────────────────────────────────────
-            <p class="text-[10px] text-on-surface-variant/40 text-center">
+            <p class="text-[10px] text-on-surface-variant text-center">
                 "Showing subscriber tenants. For internally managed deployments, see "
-                <a href="/internal-instances" class="text-primary/60 hover:text-primary">"Internal Instances"</a>
+                <a href="/internal-instances" class="text-primary hover:underline">"Internal Instances"</a>
                 ". For infrastructure-level instance control, see "
-                <a href="/apps" class="text-primary/60 hover:text-primary">"Apps"</a>
+                <a href="/apps" class="text-primary hover:underline">"Apps"</a>
                 "."
             </p>
         </div>

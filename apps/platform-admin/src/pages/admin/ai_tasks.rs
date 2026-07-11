@@ -286,7 +286,7 @@ pub fn AiTasks() -> impl IntoView {
                             view! {
                                 <button 
                                     on:click=move |_| active_filter.set(click_cls.clone())
-                                    class=move || if active_filter.get() == active_cls { "px-3 py-1.5 text-xs font-semibold rounded bg-surface-container text-surface-tint border border-surface-tint/20 shrink-0" } else { "px-3 py-1.5 text-xs font-semibold rounded text-on-surface-variant hover:bg-surface-container/30 hover:text-on-surface transition-all shrink-0 bg-transparent border border-transparent" }
+                                    class=move || if active_filter.get() == active_cls { "pill active" } else { "pill" }
                                 >
                                     {lbl.clone()}
                                 </button>
@@ -389,7 +389,7 @@ pub fn AiTasks() -> impl IntoView {
                                                 {if is_filtered {
                                                     view! {
                                                         <button
-                                                            class="mt-4 px-3 py-1.5 text-xs font-semibold bg-surface-container border border-outline-variant/30 hover:border-primary/40 rounded-lg transition-all text-on-surface-variant"
+                                                            class="btn btn-ghost btn-sm mt-4"
                                                             on:click=move |_| {
                                                                 active_filter.set("all".to_string());
                                                                 search_query.set(String::new());
@@ -430,7 +430,7 @@ pub fn AiTasks() -> impl IntoView {
                                             <td class="px-6 py-4 text-right">
                                                 <button
                                                     on:click=move |e| { e.stop_propagation(); select_task(t.id.clone()); }
-                                                    class="px-2.5 py-1 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all"
+                                                    class="btn btn-ghost btn-sm"
                                                 >
                                                     "Inspect"
                                                 </button>
@@ -479,7 +479,7 @@ pub fn AiTasks() -> impl IntoView {
                                     view! {
                                         <button 
                                             on:click=move |_| handle_abort(item_val.get_value())
-                                            class="px-3 py-1.5 text-xs font-semibold bg-red-600/20 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-600/30 transition-colors"
+                                            class="btn btn-danger btn-sm"
                                         >
                                             "Abort Task"
                                         </button>
@@ -488,7 +488,7 @@ pub fn AiTasks() -> impl IntoView {
                                     view! {
                                         <button 
                                             on:click=move |_| handle_rerun(item_val.get_value())
-                                            class="btn-primary-gradient px-3 py-1.5 text-xs font-bold text-on-primary rounded-lg shadow-sm"
+                                            class="btn btn-primary btn-sm"
                                         >
                                             "Rerun Task"
                                         </button>
@@ -496,18 +496,16 @@ pub fn AiTasks() -> impl IntoView {
                                 }}
                             </div>
 
-                            <div class="panel-tabs" style="display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0 20px;">
+                            <div class="tab-bar">
                                 <button 
-                                    class=move || if detail_tab.get() == "console" { "panel-tab active" } else { "panel-tab" }
+                                    class=move || if detail_tab.get() == "console" { "tab active" } else { "tab" }
                                     on:click=move |_| detail_tab.set("console".to_string())
-                                    style="padding: 10px 12px; font-size: 12px; font-weight: 450; color: #8B92A8; cursor: pointer; border-bottom: 2px solid transparent; border-top:none; border-left:none; border-right:none; background:none; font-family:inherit;"
                                 >
                                     "Console Output Logs"
                                 </button>
                                 <button 
-                                    class=move || if detail_tab.get() == "details" { "panel-tab active" } else { "panel-tab" }
+                                    class=move || if detail_tab.get() == "details" { "tab active" } else { "tab" }
                                     on:click=move |_| detail_tab.set("details".to_string())
-                                    style="padding: 10px 12px; font-size: 12px; font-weight: 450; color: #8B92A8; cursor: pointer; border-bottom: 2px solid transparent; border-top:none; border-left:none; border-right:none; background:none; font-family:inherit;"
                                 >
                                     "Details & Metadata"
                                 </button>

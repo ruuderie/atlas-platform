@@ -144,7 +144,7 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                     </div>
                                 </div>
 
-                                <div style="display:flex;gap:2px;padding:0 0 0;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:20px;">
+                                <div class="tab-bar">
                                     {["overview", "domain", "users", "deployment", "danger"].map(|tab| {
                                         let label = match tab {
                                             "overview"   => "Overview",
@@ -157,20 +157,8 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                         view! {
                                             <button
                                                 on:click=move |_| active_tab.set(tab.to_string())
-                                                class=move || format!(
-                                                    "px-4 py-2 text-xs font-semibold transition-all border-b-2 {}",
-                                                    if active_tab.get() == tab {
-                                                        if tab == "danger" {
-                                                            "border-error text-error"
-                                                        } else {
-                                                            "border-primary text-primary"
-                                                        }
-                                                    } else if tab == "danger" {
-                                                        "border-transparent text-error/60 hover:text-error hover:bg-error/5"
-                                                    } else {
-                                                        "border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/40"
-                                                    }
-                                                )
+                                                class=move || if active_tab.get() == tab { "tab active" } else { "tab" }
+                                                style=move || if tab == "danger" { "color:var(--error)" } else { "" }
                                             >{label}</button>
                                         }
                                     }).collect_view()}
@@ -500,8 +488,7 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                                         let is_reprovisioning_w = RwSignal::new(false);
                                         view! {
                                             <button
-                                                class="btn btn-sm self-start"
-                                                style="border:1px solid rgba(52,211,153,0.3);color:#34d399;background:rgba(52,211,153,0.06);"
+                                                class="btn btn-ghost btn-sm self-start"
                                                 disabled=move || is_reprovisioning_w.get()
                                                 on:click=move |_| {
                                                     is_reprovisioning_w.set(true);
@@ -833,8 +820,7 @@ fn DangerZoneTab(instance_id: String, instance_name: String) -> impl IntoView {
                             on:input=move |e| { confirm_reset.set(event_target_value(&e)); }
                         />
                         <button
-                            class="btn btn-sm"
-                            style="border-color:rgba(245,158,11,0.3);color:var(--amber);"
+                            class="btn btn-warn btn-sm"
                             disabled=move || is_resetting.get() || confirm_reset.get() != expected.get()
                             on:click=move |_| {
                                 is_resetting.set(true);
@@ -881,8 +867,7 @@ fn DangerZoneTab(instance_id: String, instance_name: String) -> impl IntoView {
                             on:input=move |e| { confirm_archive.set(event_target_value(&e)); }
                         />
                         <button
-                            class="btn btn-sm"
-                            style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--error);"
+                            class="btn btn-danger btn-sm"
                             disabled=move || is_archiving.get() || confirm_archive.get() != expected.get()
                             on:click=move |_| {
                                 is_archiving.set(true);

@@ -177,7 +177,8 @@ pub fn SecurityPasskeys() -> impl IntoView {
                                                             <td class="px-4 py-3.5 text-right">
                                                                 <button
                                                                     on:click=move |_| { revoke_action.dispatch(pk_id); }
-                                                                    class="px-3 py-1.5 text-xs font-semibold text-error border border-error/30 rounded-lg hover:bg-error/10 transition-all"
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    style="color:var(--error)"
                                                                 >
                                                                     "Revoke"
                                                                 </button>

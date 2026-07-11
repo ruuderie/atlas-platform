@@ -75,12 +75,7 @@ pub fn TenantLedger() -> impl IntoView {
 
     // Derived style helpers
     let tab_class = move |tab_id: &str| {
-        let active = active_tab.get() == tab_id;
-        if active {
-            "px-4 py-2.5 text-xs font-bold text-primary border-b-2 border-primary bg-transparent outline-none transition-all"
-        } else {
-            "px-4 py-2.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface bg-transparent outline-none transition-all"
-        }
+        if active_tab.get() == tab_id { "tab active" } else { "tab" }
     };
 
     // Fetch user roster for this tenant using the admin users endpoint
@@ -275,7 +270,7 @@ pub fn TenantLedger() -> impl IntoView {
             </div>
 
             // ── Tabs Bar ──
-            <div class="flex border-b border-outline-variant/15 overflow-x-auto shrink-0 select-none">
+            <div class="tab-bar">
                 <button class=move || tab_class("subscription") on:click=move |_| active_tab.set("subscription".to_string())>
                     "Subscription"
                 </button>
@@ -412,7 +407,7 @@ pub fn TenantLedger() -> impl IntoView {
                                     <div class="font-bold text-xs">"Priya Sharma"</div>
                                     <div class="text-[10.5px] text-on-surface-variant/80 truncate">"priya@atlasplatform.co · ext 204"</div>
                                 </div>
-                                <a href="mailto:priya@atlasplatform.co" class="px-3 py-1.5 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold">
+                                <a href="mailto:priya@atlasplatform.co" class="btn btn-ghost btn-sm">
                                     "Email"
                                 </a>
                             </div>
@@ -697,7 +692,7 @@ pub fn TenantLedger() -> impl IntoView {
                             ("Custom Domain Matrix", "CNAME domain overrides, dynamic Ingress route sidecar.", true),
                         ].into_iter().map(|(title, desc, active)| view! {
                             <div class="flex items-start gap-3 p-4 bg-surface-container-high/40 rounded-xl border border-outline-variant/10">
-                                <span class=format!("material-symbols-outlined text-base mt-0.5 {}", if active { "text-emerald-400" } else { "text-on-surface-variant/40" })>
+                                <span class=format!("material-symbols-outlined text-base mt-0.5 {}", if active { "text-emerald-400" } else { "text-on-surface-variant" })>
                                     {if active { "check_circle" } else { "cancel" }}
                                 </span>
                                 <div>
@@ -714,7 +709,7 @@ pub fn TenantLedger() -> impl IntoView {
             <Show when=move || show_credit_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_credit_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_credit_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Issue Custom Billing Credit"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Apply a manual ledger deduction adjustment to the tenant's current MRR cycle balance."</p>
                         
@@ -741,7 +736,7 @@ pub fn TenantLedger() -> impl IntoView {
             <Show when=move || show_invoice_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_invoice_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_invoice_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Generate Manual Invoice"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Dispatched direct invoice request containing flat fees or custom platform transaction totals."</p>
                         
@@ -768,7 +763,7 @@ pub fn TenantLedger() -> impl IntoView {
             <Show when=move || show_plan_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_plan_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_plan_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Modify Subscription Plan Tier"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Select a new template pricing model list loaded from platform database nodes."</p>
                         
@@ -809,7 +804,7 @@ pub fn TenantLedger() -> impl IntoView {
             <Show when=move || show_invite_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_invite_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_invite_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Invite Team Member"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Invite an operator to join Nexus Property Group's active roster."</p>
                         

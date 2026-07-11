@@ -485,7 +485,7 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
                 <h2 class="text-sm font-bold tracking-tight text-on-surface">"Deployments"</h2>
                 <button
                     type="button"
-                    class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-outline-variant/30 bg-surface-container-highest text-on-surface disabled:opacity-50"
+                    class="btn btn-primary btn-sm"
                     disabled=move || saving.get() || !loaded.get()
                     on:click=on_save
                 >

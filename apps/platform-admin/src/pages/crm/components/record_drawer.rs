@@ -39,8 +39,8 @@ pub fn RecordDrawer(
                     </a>
                     {extra_actions}
                 </div>
-                <div class="panel-tabs">
-                    <button class="panel-tab active">"Overview"</button>
+                <div class="tab-bar">
+                    <button class="tab active">"Overview"</button>
                 </div>
             </div>
             <div class="panel-content" style="padding: 16px 20px;">

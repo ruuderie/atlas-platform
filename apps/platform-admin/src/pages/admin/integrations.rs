@@ -415,15 +415,15 @@ pub fn Integrations() -> impl IntoView {
                                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
                             </button>
                         </div>
-                        <div class="panel-tabs">
+                        <div class="tab-bar">
                             <button
-                                class=move || if panel_tab.get() == "payload" { "panel-tab active" } else { "panel-tab" }
+                                class=move || if panel_tab.get() == "payload" { "tab active" } else { "tab" }
                                 on:click=move |_| panel_tab.set("payload".to_string())
                             >
                                 "JSON Payload"
                             </button>
                             <button
-                                class=move || if panel_tab.get() == "overview" { "panel-tab active" } else { "panel-tab" }
+                                class=move || if panel_tab.get() == "overview" { "tab active" } else { "tab" }
                                 on:click=move |_| panel_tab.set("overview".to_string())
                             >
                                 "Delivery Info"

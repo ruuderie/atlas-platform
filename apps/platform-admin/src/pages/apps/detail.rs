@@ -307,7 +307,7 @@ pub fn AppDashboard() -> impl IntoView {
                             view! {
                                 <button
                                     class=move || format!("btn {} transition-all {}",
-                                        if is_suspended.get() { "btn-primary" } else { "btn-ghost border border-error/40 text-error hover:bg-error hover:text-white" },
+                                        if is_suspended.get() { "btn-primary" } else { "btn-danger" },
                                         if is_suspending.get() { "opacity-40 cursor-not-allowed" } else { "" }
                                     )
                                     disabled=move || is_suspending.get()

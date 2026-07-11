@@ -154,7 +154,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                     <h2 class="text-lg font-semibold text-on-surface">"API Keys"</h2>
                                     <p class="text-sm text-on-surface-variant">"Keys provide blanket access to your tenant data."</p>
                                 </div>
-                                <button on:click=move |_| { create_key_action.dispatch(()); } class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+                                <button on:click=move |_| { create_key_action.dispatch(()); } class="btn btn-primary">
                                     "Generate Root Key"
                                 </button>
                             </div>
@@ -164,7 +164,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                     <p class="text-sm font-bold text-primary mb-2">"Key generated! Please copy it now, it will not be shown again:"</p>
                                     <div class="flex items-center gap-2">
                                         <input type="text" readonly class="w-full bg-surface-container-highest border border-outline/20 p-2 text-sm rounded font-mono" value=move || new_api_token.get().unwrap_or_default() />
-                                        <button class="bg-surface-bright px-3 py-2 rounded hover:bg-surface-highest transition-colors flex items-center" on:click=move |_| new_api_token.set(None)>
+                                        <button class="btn btn-ghost btn-sm" on:click=move |_| new_api_token.set(None)>
                                             "Done"
                                         </button>
                                     </div>
@@ -191,7 +191,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                                                         </div>
                                                                         <div class="text-xs text-on-surface-variant mt-1 font-mono">{key.prefix.unwrap_or_default()}"••••••"</div>
                                                                     </div>
-                                                                    <button on:click=move |_| { revoke_token_action.dispatch(kid); } class="text-error hover:text-error-container text-sm font-medium transition-colors">
+                                                                    <button on:click=move |_| { revoke_token_action.dispatch(kid); } class="btn btn-ghost btn-sm" style="color:var(--error)">
                                                                         "Revoke"
                                                                     </button>
                                                                 </li>
@@ -226,7 +226,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                         required
                                     />
                                 </div>
-                                <button type="submit" class="bg-surface-container-high border border-outline/20 px-4 py-3 rounded-lg text-sm font-bold text-on-surface shadow-sm hover:bg-surface-bright/20 transition-all">
+                                <button type="submit" class="btn btn-ghost">
                                     "Add Webhook"
                                 </button>
                             </form>
@@ -246,7 +246,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                                                 <li class="px-4 py-4 sm:px-6 flex flex-col gap-2 hover:bg-surface-bright/5">
                                                                     <div class="flex justify-between items-start">
                                                                         <div class="font-medium text-on-surface break-all pr-4">{hook.target_url}</div>
-                                                                        <button on:click=move |_| { delete_webhook_action.dispatch(hid); } class="text-error hover:text-error-container font-medium shrink-0">"Delete"</button>
+                                                                        <button on:click=move |_| { delete_webhook_action.dispatch(hid); } class="btn btn-ghost btn-sm" style="color:var(--error)">"Delete"</button>
                                                                     </div>
                                                                     <div class="flex justify-between items-center">
                                                                         <div class="text-xs text-on-surface-variant font-mono bg-surface-container-highest px-2 py-1 rounded">"Secret: " {hook.secret_key}</div>
@@ -279,7 +279,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                     <section class="p-6 rounded-2xl bg-surface border border-outline-variant/10 shadow-sm">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-lg font-semibold text-on-surface">"Delivery Logs"</h2>
-                            <button on:click=move |_| refetch_trigger.update(|v| *v += 1) class="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1">
+                            <button on:click=move |_| refetch_trigger.update(|v| *v += 1) class="btn btn-ghost btn-sm">
                                 <span class="material-symbols-outlined text-sm">"refresh"</span>
                                 "Refresh"
                             </button>

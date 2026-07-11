@@ -74,7 +74,7 @@ pub fn Analytics() -> impl IntoView {
                         }).collect_view()}
                     </select>
                     <button 
-                        class="btn-ghost text-xs px-3.5 py-2 border border-outline-variant/30 rounded-lg hover:bg-surface-bright/20 transition-all font-semibold flex items-center gap-1.5"
+                        class="btn btn-ghost"
                         on:click=move |_| refresh.update(|n| *n += 1)
                     >
                         <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -83,7 +83,7 @@ pub fn Analytics() -> impl IntoView {
                         "Refresh"
                     </button>
                     <button 
-                        class="btn-ghost text-xs px-3.5 py-2 border border-outline-variant/30 rounded-lg hover:bg-surface-bright/20 transition-all font-semibold"
+                        class="btn btn-ghost"
                         on:click=move |_| toast.show_toast("Export Queue", "Analytics CSV export triggered.", "success")
                     >
                         "↓ Export CSV"
@@ -178,7 +178,7 @@ pub fn Analytics() -> impl IntoView {
             </div>
 
             // ── Tab Navigation Bar ──
-            <div class="flex border-b border-outline-variant/20 overflow-x-auto shrink-0 select-none">
+            <div class="tab-bar">
                 {
                     let tab_btn = move |id: &str, label: &str| {
                         let id = id.to_string();
@@ -187,7 +187,7 @@ pub fn Analytics() -> impl IntoView {
                         let id_click = id.clone();
                         view! {
                             <button 
-                                class=move || if active_tab.get() == id_class { "px-4 py-2.5 text-sm font-semibold text-primary border-b-2 border-primary transition-all shrink-0 bg-transparent" } else { "px-4 py-2.5 text-sm text-on-surface-variant hover:text-on-surface transition-all shrink-0 bg-transparent" }
+                                class=move || if active_tab.get() == id_class { "tab active" } else { "tab" }
                                 on:click=move |_| active_tab.set(id_click.clone())
                             >
                                 {label.clone()}
@@ -370,7 +370,7 @@ pub fn Analytics() -> impl IntoView {
                                         </div>
                                         <div class="p-5 text-center">
                                             <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Total GMV / Commission"</span>
-                                            <h4 class="text-2xl font-black text-on-surface-variant/40 font-mono mt-1">"—"</h4>
+                                            <h4 class="text-2xl font-black text-on-surface-variant font-mono mt-1">"—"</h4>
                                             <span class="text-[10px] text-on-surface-variant/50">"Pending platform_metrics_daily endpoint"</span>
                                         </div>
                                     </div>
@@ -606,7 +606,7 @@ pub fn Analytics() -> impl IntoView {
                                             <td class="py-2.5 px-4 font-bold">"Event (G-21)"</td>
                                             <td class="py-2.5 px-4 text-center font-mono">"3"</td>
                                             <td class="py-2.5 px-4 text-center font-mono">"0"</td>
-                                            <td class="py-2.5 px-4 text-center text-on-surface-variant/40 font-semibold">"0%"</td>
+                                            <td class="py-2.5 px-4 text-center text-on-surface-variant font-semibold">"0%"</td>
                                             <td class="py-2.5 px-4 text-center text-amber-400 font-bold font-mono">"6.2"</td>
                                         </tr>
                                     </tbody>
@@ -632,7 +632,7 @@ pub fn Analytics() -> impl IntoView {
                                     <option>"First Touch"</option>
                                     <option>"Time Decay"</option>
                                 </select>
-                                <button class="btn-ghost text-[10px] font-bold px-2 py-1 border border-outline-variant/30 rounded" on:click=move |_| toast.show_toast("Attribution Export", "Generating touchpoints report", "success")>"Export"</button>
+                                <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Attribution Export", "Generating touchpoints report", "success")>"Export"</button>
                             </div>
                         </div>
                         <div class="overflow-x-auto">
@@ -653,9 +653,9 @@ pub fn Analytics() -> impl IntoView {
                                 <tbody class="divide-y divide-outline-variant/5 font-mono text-[11px]">
                                     <tr class="hover:bg-surface-bright/5 transition-colors font-sans text-xs">
                                         <td class="py-3 px-4 font-bold text-on-surface">"direct"</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/40">"—"</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/40">"—"</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/40">"—"</td>
+                                        <td class="py-3 px-4 text-on-surface-variant">"—"</td>
+                                        <td class="py-3 px-4 text-on-surface-variant">"—"</td>
+                                        <td class="py-3 px-4 text-on-surface-variant">"—"</td>
                                         <td class="py-3 px-4 text-center font-mono">"4,812"</td>
                                         <td class="py-3 px-4 text-center text-emerald-400 font-mono">"3"</td>
                                         <td class="py-3 px-4 text-right text-primary font-bold font-mono">"$680,000"</td>
@@ -666,7 +666,7 @@ pub fn Analytics() -> impl IntoView {
                                         <td class="py-3 px-4 font-bold text-on-surface">"organic_search"</td>
                                         <td class="py-3 px-4 text-on-surface-variant/70">"google"</td>
                                         <td class="py-3 px-4 text-on-surface-variant/70">"organic"</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/40">"—"</td>
+                                        <td class="py-3 px-4 text-on-surface-variant">"—"</td>
                                         <td class="py-3 px-4 text-center font-mono">"3,240"</td>
                                         <td class="py-3 px-4 text-center text-emerald-400 font-mono">"4"</td>
                                         <td class="py-3 px-4 text-right text-primary font-bold font-mono">"$512,000"</td>
@@ -763,7 +763,7 @@ pub fn Analytics() -> impl IntoView {
                         <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                             "Active Campaigns Registry"
                         </h3>
-                        <button class="btn-primary-gradient px-3 py-1 rounded text-xs font-semibold text-on-primary-container" on:click=move |_| show_campaign_modal.set(true)>"+ New Campaign"</button>
+                        <button class="btn btn-primary btn-sm" on:click=move |_| show_campaign_modal.set(true)>"+ New Campaign"</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-xs">
@@ -803,7 +803,7 @@ pub fn Analytics() -> impl IntoView {
                                     <td class="py-3 px-4 text-right font-mono text-error">$9,840</td>
                                     <td class="py-3 px-4 text-center font-mono text-error">"0"</td>
                                     <td class="py-3 px-4 text-center text-error font-bold">"0%"</td>
-                                    <td class="py-3 px-4 text-right text-on-surface-variant/40 font-mono">$0</td>
+                                    <td class="py-3 px-4 text-right text-on-surface-variant font-mono">$0</td>
                                     <td class="py-3 px-4 text-center text-on-surface-variant/50 font-mono">"14d"</td>
                                 </tr>
                                 <tr class="hover:bg-surface-bright/5 transition-colors">
@@ -815,7 +815,7 @@ pub fn Analytics() -> impl IntoView {
                                     <td class="py-3 px-4 text-right font-mono">$2,000</td>
                                     <td class="py-3 px-4 text-center font-mono text-amber-400">"0"</td>
                                     <td class="py-3 px-4 text-center text-amber-400 font-bold">"0%"</td>
-                                    <td class="py-3 px-4 text-right text-on-surface-variant/40 font-mono">$0</td>
+                                    <td class="py-3 px-4 text-right text-on-surface-variant font-mono">$0</td>
                                     <td class="py-3 px-4 text-center text-on-surface-variant/50 font-mono">"7d"</td>
                                 </tr>
                             </tbody>
@@ -1068,9 +1068,9 @@ pub fn Analytics() -> impl IntoView {
                         </div>
 
                         <div class="flex justify-end gap-3">
-                            <button class="btn-ghost px-4 py-2 border border-outline-variant/30 rounded-lg text-xs font-semibold hover:bg-surface-bright/20" on:click=move |_| show_campaign_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_campaign_modal.set(false)>"Cancel"</button>
                             <button 
-                                class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold text-on-primary-container"
+                                class="btn btn-primary"
                                 on:click=move |_| {
                                     let name = campaign_name.get();
                                     let ctype = campaign_type.get();

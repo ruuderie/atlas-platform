@@ -225,11 +225,13 @@ pub fn NetworkDetail() -> impl IntoView {
                 <div>
                     <button 
                         class=move || {
-                            format!("px-4 py-2 rounded-lg text-xs font-bold transition-all {}",
-                                if is_suspended.get() { "btn-primary shadow-md active:scale-95" }
-                                else { "border border-error/40 text-error bg-error/5 hover:bg-error hover:text-white" }
-                            )
+                            if is_suspended.get() {
+                                "btn btn-primary".to_string()
+                            } else {
+                                "btn btn-ghost".to_string()
+                            }
                         }
+                        style=move || if is_suspended.get() { "" } else { "color:var(--error)" }
                         on:click=toggle_status
                     >
                         {move || if is_suspended.get() { "Resume Network" } else { "Suspend Network" }}
@@ -238,33 +240,33 @@ pub fn NetworkDetail() -> impl IntoView {
             </div>
 
             // ── Navigation Tabs Bar ──
-            <div class="border-b border-outline-variant/20 flex gap-1 bg-surface-container-low/40 px-2 rounded-t-xl">
+            <div class="tab-bar">
                 <button 
-                    class=move || format!("px-4 py-3 text-xs font-semibold border-b-2 transition-all {}", if active_tab.get() == "overview" { "border-primary text-primary font-bold" } else { "border-transparent text-on-surface-variant hover:text-on-surface" })
+                    class=move || if active_tab.get() == "overview" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("overview".to_string())
                 >
                     "Overview & Settings"
                 </button>
                 <button 
-                    class=move || format!("px-4 py-3 text-xs font-semibold border-b-2 transition-all {}", if active_tab.get() == "domains" { "border-primary text-primary font-bold" } else { "border-transparent text-on-surface-variant hover:text-on-surface" })
+                    class=move || if active_tab.get() == "domains" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("domains".to_string())
                 >
                     "Domains & SSL"
                 </button>
                 <button 
-                    class=move || format!("px-4 py-3 text-xs font-semibold border-b-2 transition-all {}", if active_tab.get() == "tenants" { "border-primary text-primary font-bold" } else { "border-transparent text-on-surface-variant hover:text-on-surface" })
+                    class=move || if active_tab.get() == "tenants" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("tenants".to_string())
                 >
                     "Syndicated Tenants"
                 </button>
                 <button 
-                    class=move || format!("px-4 py-3 text-xs font-semibold border-b-2 transition-all {}", if active_tab.get() == "branding" { "border-primary text-primary font-bold" } else { "border-transparent text-on-surface-variant hover:text-on-surface" })
+                    class=move || if active_tab.get() == "branding" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("branding".to_string())
                 >
                     "Theme & Branding"
                 </button>
                 <button 
-                    class=move || format!("px-4 py-3 text-xs font-semibold border-b-2 transition-all {}", if active_tab.get() == "telemetry" { "border-primary text-primary font-bold" } else { "border-transparent text-on-surface-variant hover:text-on-surface" })
+                    class=move || if active_tab.get() == "telemetry" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("telemetry".to_string())
                 >
                     "Telemetry & Logs"
@@ -387,9 +389,9 @@ pub fn NetworkDetail() -> impl IntoView {
                             </div>
 
                             <div class="flex justify-end gap-3">
-                                <button class="btn-ghost px-4 py-2 border border-outline-variant/30 hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Discarded", "Modifications discarded.", "warning")>"Discard"</button>
+                                <button class="btn btn-ghost" on:click=move |_| toast.show_toast("Discarded", "Modifications discarded.", "warning")>"Discard"</button>
                                 <button
-                                    class=move || format!("btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md transition-all {}", if saving.get() { "opacity-40 cursor-not-allowed" } else { "active:scale-95" })
+                                    class=move || format!("btn btn-primary{}", if saving.get() { " opacity-40 cursor-not-allowed" } else { "" })
                                     disabled=move || saving.get()
                                     on:click=save_overview
                                 >
@@ -414,7 +416,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                     prop:value=new_domain
                                     on:input=move |ev| new_domain.set(event_target_value(&ev))
                                 />
-                                <button class="btn-primary px-3 py-2 rounded-lg text-xs font-semibold shrink-0" on:click=add_domain_action>"Add Domain"</button>
+                                <button class="btn btn-primary" on:click=add_domain_action>"Add Domain"</button>
                             </div>
 
                             <Suspense fallback=move || view! { <div class="text-xs text-on-surface-variant">"Loading domains…"</div> }>
@@ -438,7 +440,8 @@ pub fn NetworkDetail() -> impl IntoView {
                                                     <td class="p-3 font-mono text-on-surface-variant">"app.atlas-platform.com"</td>
                                                     <td class="p-3 text-right">
                                                         <button 
-                                                            class="p-1 hover:bg-error/10 text-on-surface-variant hover:text-error rounded transition-colors flex items-center justify-center ml-auto"
+                                                            class="btn btn-ghost btn-icon btn-sm"
+                                                            style="color:var(--error)"
                                                             on:click=move |_| {
                                                                 let id = id_str.clone();
                                                                 let d  = dom_remove.clone();
@@ -479,7 +482,7 @@ pub fn NetworkDetail() -> impl IntoView {
                         <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20 space-y-4">
                             <div class="flex justify-between items-center">
                                 <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Connected Tenants"</h3>
-                                <button class="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs" on:click=move |_| show_connect_modal.set(true)>
+                                <button class="btn btn-primary btn-sm" on:click=move |_| show_connect_modal.set(true)>
                                     "+ Connect Tenant"
                                 </button>
                             </div>
@@ -596,10 +599,10 @@ pub fn NetworkDetail() -> impl IntoView {
                             </div>
 
                             <div class="flex justify-end gap-3">
-                                <button class="btn-ghost px-4 py-2 border border-outline-variant/30 hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Discarded", "Branding adjustments discarded.", "warning")>"Discard"</button>
+                                <button class="btn btn-ghost" on:click=move |_| toast.show_toast("Discarded", "Branding adjustments discarded.", "warning")>"Discard"</button>
                                 <button
-                                    class=move || format!("btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md transition-all {}",
-                                        if saving_branding.get() { "opacity-40 cursor-not-allowed" } else { "active:scale-95" })
+                                    class=move || format!("btn btn-primary{}",
+                                        if saving_branding.get() { " opacity-40 cursor-not-allowed" } else { "" })
                                     disabled=move || saving_branding.get()
                                     on:click=save_branding
                                 >
@@ -663,7 +666,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <p class="text-[10px] text-on-surface-variant/70 mt-0.5">"Select a registered tenant to syndicate into this network instance."</p>
                             </div>
                             <button
-                                class="p-1.5 rounded-lg hover:bg-surface-bright/20 text-on-surface-variant hover:text-on-surface transition-colors"
+                                class="btn btn-ghost btn-icon btn-sm"
                                 on:click=move |_| { show_connect_modal.set(false); connect_search.set(String::new()); }
                             >
                                 <span class="material-symbols-outlined text-[18px]">"close"</span>
@@ -711,7 +714,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                                                 <p class="text-[10px] text-on-surface-variant/60 mt-0.5">{format!("Plan: {}", plan)}</p>
                                                             </div>
                                                             <button
-                                                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all active:scale-95"
+                                                                class="btn btn-primary btn-sm"
                                                                 on:click=move |_| {
                                                                     toast3.show_toast(
                                                                         "Tenant Connected",
@@ -737,7 +740,7 @@ pub fn NetworkDetail() -> impl IntoView {
                         // Footer
                         <div class="px-6 py-3 border-t border-outline-variant/20 flex justify-end">
                             <button
-                                class="btn-ghost px-4 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30"
+                                class="btn btn-ghost"
                                 on:click=move |_| { show_connect_modal.set(false); connect_search.set(String::new()); }
                             >
                                 "Cancel"

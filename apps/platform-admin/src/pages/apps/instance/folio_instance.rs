@@ -74,15 +74,6 @@ pub fn FolioInstance(
     let billing_tier_display = StoredValue::new(cfg.billing_tier.clone());
     let provisioned_at = "Feb 14, 2024"; // TODO: surface from atlas_app_deployment_config.created_at
 
-    let tab_classes = move |tab: &str| -> String {
-        let base = "px-4 py-2.5 text-xs font-semibold rounded-lg transition-all";
-        if active_tab.get() == tab {
-            format!("{base} bg-primary text-on-primary shadow-sm")
-        } else {
-            format!("{base} text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50")
-        }
-    };
-
     view! {
         <div class="w-full space-y-6">
             // ── Instance header ──
@@ -132,7 +123,7 @@ pub fn FolioInstance(
                         {move || if is_suspended.get() {
                             view! {
                                 <button
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                                    class="btn btn-primary"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -149,7 +140,8 @@ pub fn FolioInstance(
                         } else {
                             view! {
                                 <button
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold border border-error/30 text-error hover:bg-error/10 transition-all"
+                                    class="btn btn-ghost"
+                                    style="color:var(--error)"
                                     on:click=move |_| show_suspend_modal.set(true)
                                 >
                                     "Suspend Instance"
@@ -157,7 +149,7 @@ pub fn FolioInstance(
                             }.into_any()
                         }}
                         <button
-                            class="btn-primary-gradient px-4 py-2 rounded-xl text-xs font-semibold shadow"
+                            class="btn btn-primary"
                             on:click=move |_| toast.show_toast("Saved", "Instance changes applied.", "success")
                         >
                             "Save Changes"
@@ -167,7 +159,7 @@ pub fn FolioInstance(
             </div>
 
             // ── Tab bar ──
-            <div class="flex flex-wrap gap-1.5">
+            <div class="tab-bar">
                 {vec![
                     ("t-overview", "Overview"),
                     ("t-onboarding", "Onboarding"),
@@ -182,10 +174,11 @@ pub fn FolioInstance(
                 ].into_iter().map(|(id, label)| {
                     let id_str = id.to_string();
                     let id_for_click = id_str.clone();
+                    let id_for_class = id_str.clone();
                     let label_str = label.to_string();
                     view! {
                         <button
-                            class=move || tab_classes(&id_str)
+                            class=move || if active_tab.get() == id_for_class { "tab active" } else { "tab" }
                             on:click={
                                 let id2 = id_for_click.clone();
                                 move |_| active_tab.set(id2.clone())
@@ -335,7 +328,7 @@ pub fn FolioInstance(
                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                         <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Domain Configuration"</h3>
-                            <button class="text-xs text-primary hover:underline" on:click=move |_| show_edit_config_modal.set(true)>"Edit"</button>
+                            <button class="btn btn-ghost btn-sm" on:click=move |_| show_edit_config_modal.set(true)>"Edit"</button>
                         </div>
                         <div class="divide-y divide-outline-variant/10 text-xs">
                             <div class="flex justify-between items-center px-5 py-3">
@@ -477,7 +470,7 @@ pub fn FolioInstance(
                         ].into_iter().map(|(step, label, done)| {
                             view! {
                                 <div class="flex items-center gap-3 py-2 border-b border-outline-variant/10">
-                                    <span class=if done { "text-emerald-400 font-bold" } else { "text-on-surface-variant/40 font-bold" }>
+                                    <span class=if done { "text-emerald-400 font-bold" } else { "text-on-surface-variant font-bold" }>
                                         {if done { "✓" } else { "○" }}
                                     </span>
                                     <span class="text-on-surface-variant/70">{format!("Step {step}: {label}")}</span>

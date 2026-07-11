@@ -179,7 +179,7 @@ pub fn PlatformProducts() -> impl IntoView {
                                     </div>
                                     <a
                                         href="/products/new"
-                                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                        class="btn btn-primary"
                                     >
                                         "+ New Landing Page"
                                     </a>

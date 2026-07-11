@@ -244,21 +244,11 @@ pub fn BillingProducts() -> impl IntoView {
 
     // Derived style closures
     let pill_class = move |status: &'static str| {
-        let active = filter_status.get() == status;
-        if active {
-            "px-3 py-1.5 rounded-md bg-surface-container-high text-primary text-xs font-bold transition-all border border-outline-variant/50"
-        } else {
-            "px-3 py-1.5 rounded-md text-on-surface-variant text-xs font-bold hover:text-on-surface transition-all border border-transparent"
-        }
+        if filter_status.get() == status { "pill active" } else { "pill" }
     };
 
     let tab_class = move |tab: &'static str| {
-        let active = active_tab.get() == tab;
-        if active {
-            "px-4 py-3 text-xs font-bold text-primary border-b-2 border-primary outline-none transition-all"
-        } else {
-            "px-4 py-3 text-xs font-semibold text-on-surface-variant hover:text-on-surface outline-none transition-all"
-        }
+        if active_tab.get() == tab { "tab active" } else { "tab" }
     };
 
     let card_class = move |pid: Uuid| {
@@ -361,8 +351,8 @@ pub fn BillingProducts() -> impl IntoView {
                     <p class="text-on-surface-variant text-sm max-w-2xl">"Manage regional product lines, waitlist pages, domain aliases, and auto-generated localization assets."</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button class="px-4 py-2 border border-outline-variant/30 text-on-surface bg-surface-container-high hover:bg-surface-bright/20 rounded-lg text-xs font-semibold uppercase tracking-wider" on:click=move |_| show_variant_gen_modal.set(true)>"Bulk Generate Variants"</button>
-                    <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/10" on:click=move |_| show_create_modal.set(true)>"+ New Product"</button>
+                    <button class="btn btn-ghost" on:click=move |_| show_variant_gen_modal.set(true)>"Bulk Generate Variants"</button>
+                    <button class="btn btn-primary" on:click=move |_| show_create_modal.set(true)>"+ New Product"</button>
                 </div>
             </div>
 
@@ -472,13 +462,13 @@ pub fn BillingProducts() -> impl IntoView {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 flex-shrink-0">
-                                        <button class="px-3.5 py-2 border border-outline-variant/20 text-on-surface-variant/40 rounded-lg text-xs font-semibold cursor-not-allowed" title="Export endpoint pending — not yet available" disabled>"Export Waitlist"</button>
-                                        <button class="px-3.5 py-2 bg-primary text-white hover:opacity-90 rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| show_publish_modal.set(true)>"Publish Marketing →"</button>
+                                        <button class="btn btn-ghost opacity-40 cursor-not-allowed" title="Export endpoint pending — not yet available" disabled>"Export Waitlist"</button>
+                                        <button class="btn btn-primary" on:click=move |_| show_publish_modal.set(true)>"Publish Marketing →"</button>
                                     </div>
                                 </div>
 
                                 // Tabs Navigation
-                                <div class="flex border-b border-outline-variant/10 px-4 bg-[var(--bg-base)]/40 flex-shrink-0">
+                                <div class="tab-bar">
                                     <button class=move || tab_class("overview") on:click=move |_| active_tab.set("overview".into())>"Overview"</button>
                                     <button class=move || tab_class("pages") on:click=move |_| active_tab.set("pages".into())>"Templates & Variants"</button>
                                     <button class=move || tab_class("localization") on:click=move |_| active_tab.set("localization".into())>"AI Localization"</button>
@@ -551,7 +541,7 @@ pub fn BillingProducts() -> impl IntoView {
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
                                             <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Domain Aliases"</span>
-                                                <button class="px-2.5 py-1 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold" on:click=move |_| show_add_alias_modal.set(true)>"+ Add Alias"</button>
+                                                <button class="btn btn-ghost btn-sm" on:click=move |_| show_add_alias_modal.set(true)>"+ Add Alias"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
@@ -594,7 +584,7 @@ pub fn BillingProducts() -> impl IntoView {
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
                                             <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Page Templates"</span>
-                                                <button class="px-2.5 py-1 border border-outline-variant/20 text-on-surface-variant/40 rounded text-[11px] font-semibold cursor-not-allowed" title="Template creation pending CMS editor integration" disabled>"+ New Template"</button>
+                                                <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Template creation pending CMS editor integration" disabled>"+ New Template"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
@@ -614,7 +604,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-mono">"7"</td>
                                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-200/10 text-teal-200 border border-teal-200/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
-                                                                <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
+                                                                <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
@@ -623,7 +613,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-mono">"7"</td>
                                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-200/10 text-teal-200 border border-teal-200/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
-                                                                <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
+                                                                <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
@@ -632,7 +622,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-mono">"7"</td>
                                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-200/10 text-teal-200 border border-teal-200/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
-                                                                <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
+                                                                <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
                                                         </tr>
                                                     </tbody>
@@ -644,7 +634,7 @@ pub fn BillingProducts() -> impl IntoView {
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
                                             <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Locale Variants — Homepage"</span>
-                                                <button class="px-2.5 py-1 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold" on:click=move |_| show_add_locale_modal.set(true)>"+ Add Locale"</button>
+                                                <button class="btn btn-ghost btn-sm" on:click=move |_| show_add_locale_modal.set(true)>"+ Add Locale"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
@@ -701,10 +691,10 @@ pub fn BillingProducts() -> impl IntoView {
                                                                             <Show
                                                                                 when=move || v.localization_status == LocalizationStatus::Pending
                                                                                 fallback=move || view! {
-                                                                                    <button class="px-2 py-1 bg-surface-bright text-on-surface rounded text-[10px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Opening locale config...", "success")>"Config"</button>
+                                                                                    <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Success", "Opening locale config...", "success")>"Config"</button>
                                                                                 }
                                                                             >
-                                                                                <button class="px-2.5 py-1 bg-primary/20 text-primary border border-primary/30 rounded text-[10px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Opening translations review panel...", "success")>"Review"</button>
+                                                                                <button class="btn btn-primary btn-sm" on:click=move |_| toast.show_toast("Success", "Opening translations review panel...", "success")>"Review"</button>
                                                                             </Show>
                                                                         </td>
                                                                     </tr>
@@ -725,7 +715,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                     <h3 class="text-sm font-bold text-on-surface">"AI Translation & Localization Registry"</h3>
                                                     <p class="text-[10px] text-on-surface-variant">"Auto-localize all marketing page templates using advanced LLM pipelines."</p>
                                                 </div>
-                                                <button class="px-4 py-2 bg-violet hover:opacity-90 text-white rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| toast.show_toast("Warning", "Enqueuing AI localization...", "warn")>"Run Translation Engine"</button>
+                                                <button class="btn btn-primary" on:click=move |_| toast.show_toast("Warning", "Enqueuing AI localization...", "warn")>"Run Translation Engine"</button>
                                             </div>
 
                                             // Active localization worker status
@@ -735,7 +725,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                     <div class="text-xs font-bold text-violet-400">"localize_product_page · ACTIVE"</div>
                                                     <div class="text-[10px] text-on-surface-variant/80 mt-0.5">{p.name.clone()} " · fr-FR · Gemini 1.5 Pro · 1m 02s elapsed"</div>
                                                 </div>
-                                                <button class="px-3 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface hover:bg-surface-bright/20 rounded text-[10.5px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Active localization job aborted.", "success")>"Abort"</button>
+                                                <button class="btn btn-warn btn-sm" on:click=move |_| toast.show_toast("Success", "Active localization job aborted.", "success")>"Abort"</button>
                                             </div>
 
                                             // History Table
@@ -805,8 +795,8 @@ pub fn BillingProducts() -> impl IntoView {
                                                     <input type="text" class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-[11px]" value=p.deploy_hook_url.clone().unwrap_or_default() />
                                                 </div>
                                                 <div class="flex justify-end gap-3 pt-4 border-t border-outline-variant/10">
-                                                    <button class="px-4 py-2 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Warning", "Changes discarded.", "warn")>"Discard"</button>
-                                                    <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold" on:click=handle_save_settings>"Save Settings"</button>
+                                                    <button class="btn btn-ghost" on:click=move |_| toast.show_toast("Warning", "Changes discarded.", "warn")>"Discard"</button>
+                                                    <button class="btn btn-primary" on:click=handle_save_settings>"Save Settings"</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -892,7 +882,7 @@ pub fn BillingProducts() -> impl IntoView {
             <Show when=move || show_create_modal.get()>
                 <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_create_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_create_modal.set(false)>"✕"</button>
                         <h3 class="text-lg font-bold text-on-surface mb-4">"New Platform Product"</h3>
                         <div class="space-y-4 mb-6">
                             <div class="space-y-1.5">
@@ -913,8 +903,8 @@ pub fn BillingProducts() -> impl IntoView {
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface hover:bg-surface-bright/20 transition-all" on:click=move |_| show_create_modal.set(false)>"Cancel"</button>
-                            <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold transition-all" on:click=handle_create_product>"Create Product"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_create_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_create_product>"Create Product"</button>
                         </div>
                     </div>
                 </div>
@@ -924,12 +914,12 @@ pub fn BillingProducts() -> impl IntoView {
             <Show when=move || show_publish_modal.get()>
                 <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_publish_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_publish_modal.set(false)>"✕"</button>
                         <h3 class="text-lg font-bold text-on-surface mb-2">"Publish Marketing Page"</h3>
                         <p class="text-on-surface-variant text-xs leading-relaxed mb-6">"This action fires a secure deploy webhook to Cloudflare Pages. The public landing marketing layout for this product catalog will be updated in production."</p>
                         <div class="flex justify-end gap-3">
-                            <button class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface hover:bg-surface-bright/20 transition-all" on:click=move |_| show_publish_modal.set(false)>"Cancel"</button>
-                            <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold transition-all" on:click=handle_publish>"Trigger Deploy"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_publish_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_publish>"Trigger Deploy"</button>
                         </div>
                     </div>
                 </div>
@@ -939,12 +929,12 @@ pub fn BillingProducts() -> impl IntoView {
             <Show when=move || show_variant_gen_modal.get()>
                 <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_variant_gen_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_variant_gen_modal.set(false)>"✕"</button>
                         <h3 class="text-lg font-bold text-on-surface mb-2">"Bulk Generate Variants"</h3>
                         <p class="text-on-surface-variant text-xs leading-relaxed mb-6">"Trigger pricing variants generation for regional sub-pages? This will create country x language variant records and queue translation."</p>
                         <div class="flex justify-end gap-3">
-                            <button class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface hover:bg-surface-bright/20 transition-all" on:click=move |_| show_variant_gen_modal.set(false)>"Cancel"</button>
-                            <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold transition-all" on:click=handle_bulk_generate>"Generate & Queue"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_variant_gen_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_bulk_generate>"Generate & Queue"</button>
                         </div>
                     </div>
                 </div>
@@ -954,7 +944,7 @@ pub fn BillingProducts() -> impl IntoView {
             <Show when=move || show_add_alias_modal.get()>
                 <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_add_alias_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_add_alias_modal.set(false)>"✕"</button>
                         <h3 class="text-lg font-bold text-on-surface mb-4">"Add Custom URL Alias"</h3>
                         <div class="space-y-4 mb-6">
                             <div class="space-y-1.5">
@@ -963,8 +953,8 @@ pub fn BillingProducts() -> impl IntoView {
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface hover:bg-surface-bright/20 transition-all" on:click=move |_| show_add_alias_modal.set(false)>"Cancel"</button>
-                            <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold transition-all" on:click=move |_| { show_add_alias_modal.set(false); toast.show_toast("Success", "Custom domain alias pending DNS resolution.", "success") }>"Verify Alias"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_add_alias_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=move |_| { show_add_alias_modal.set(false); toast.show_toast("Success", "Custom domain alias pending DNS resolution.", "success") }>"Verify Alias"</button>
                         </div>
                     </div>
                 </div>
@@ -974,7 +964,7 @@ pub fn BillingProducts() -> impl IntoView {
             <Show when=move || show_add_locale_modal.get()>
                 <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_add_locale_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon" on:click=move |_| show_add_locale_modal.set(false)>"✕"</button>
                         <h3 class="text-lg font-bold text-on-surface mb-4">"Create Regional Variant"</h3>
                         <div class="space-y-4 mb-6">
                             <div class="space-y-1.5">
@@ -988,8 +978,8 @@ pub fn BillingProducts() -> impl IntoView {
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface hover:bg-surface-bright/20 transition-all" on:click=move |_| show_add_locale_modal.set(false)>"Cancel"</button>
-                            <button class="btn-primary-gradient px-4 py-2 text-on-primary-container rounded-lg text-xs font-bold transition-all" on:click=move |_| { show_add_locale_modal.set(false); toast.show_toast("Success", "German locale variant created & translation queued.", "success") }>"Add Variant"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_add_locale_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=move |_| { show_add_locale_modal.set(false); toast.show_toast("Success", "German locale variant created & translation queued.", "success") }>"Add Variant"</button>
                         </div>
                     </div>
                 </div>

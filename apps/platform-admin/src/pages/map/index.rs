@@ -347,7 +347,7 @@ pub fn PlatformMap() -> impl IntoView {
             <Show when=move || show_impersonate_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_impersonate_modal.set(false)>"✕"</button>
+                        <button class="btn btn-ghost btn-icon btn-sm absolute top-4 right-4" on:click=move |_| show_impersonate_modal.set(false)>"✕"</button>
                         <div class="flex items-center gap-3 mb-4">
                             <span class="material-symbols-outlined text-error text-3xl">"warning"</span>
                             <h3 class="text-lg font-bold text-on-surface">"Audit-Logged Impersonation"</h3>
@@ -360,9 +360,9 @@ pub fn PlatformMap() -> impl IntoView {
                             ". All actions performed under this session will be recorded in the security audit logs under your administrative identity."
                         </p>
                         <div class="flex justify-end gap-3">
-                            <button class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface hover:bg-surface-bright/20 transition-all" on:click=move |_| show_impersonate_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-ghost" on:click=move |_| show_impersonate_modal.set(false)>"Cancel"</button>
                             <button 
-                                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all"
+                                class="btn btn-danger"
                                 on:click=handle_confirm_impersonate
                             >
                                 "Audit & Impersonate"

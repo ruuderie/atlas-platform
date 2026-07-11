@@ -306,8 +306,8 @@ pub fn ProductDetail() -> impl IntoView {
                     <div class="flex items-center gap-2 shrink-0">
                         <button
                             class=move || format!(
-                                "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 text-on-surface-variant transition-all {}",
-                                if saving.get() { "opacity-40 cursor-not-allowed" } else { "hover:bg-surface-container-high/60" }
+                                "btn btn-ghost {}",
+                                if saving.get() { "opacity-40 cursor-not-allowed" } else { "" }
                             )
                             disabled=move || saving.get()
                             on:click=handle_save
@@ -316,8 +316,8 @@ pub fn ProductDetail() -> impl IntoView {
                         </button>
                         <button
                             class=move || format!(
-                                "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-on-primary shadow-sm transition-all {}",
-                                if publishing.get() { "opacity-40 cursor-not-allowed" } else { "hover:opacity-90" }
+                                "btn btn-primary {}",
+                                if publishing.get() { "opacity-40 cursor-not-allowed" } else { "" }
                             )
                             disabled=move || publishing.get()
                             on:click=handle_publish
@@ -328,7 +328,7 @@ pub fn ProductDetail() -> impl IntoView {
                 </div>
 
                 // ── Tab Navigation ──
-                <div class="flex border-b border-outline-variant/20 overflow-x-auto flex-shrink-0 select-none">
+                <div class="tab-bar">
                     {
                         let tab_btn = move |id: &str, label: &str| {
                             let id = id.to_string();
@@ -338,9 +338,9 @@ pub fn ProductDetail() -> impl IntoView {
                             view! {
                                 <button
                                     class=move || if active_tab.get() == id_class {
-                                        "px-4 py-2.5 text-sm font-semibold text-primary border-b-2 border-primary transition-all shrink-0 bg-transparent"
+                                        "tab active"
                                     } else {
-                                        "px-4 py-2.5 text-sm text-on-surface-variant hover:text-on-surface transition-all shrink-0 bg-transparent"
+                                        "tab"
                                     }
                                     on:click=move |_| active_tab.set(id_click.clone())
                                 >
@@ -446,7 +446,7 @@ pub fn ProductDetail() -> impl IntoView {
                                     <h3 class="text-sm font-bold">
                                         {move || if edit_plan_id.get().is_some() { "Edit Billing Plan" } else { "Create Billing Plan" }}
                                     </h3>
-                                    <button class="icon-btn text-on-surface-variant" on:click=move |_| show_plan_modal.set(false)>
+                                    <button class="btn btn-ghost btn-icon" on:click=move |_| show_plan_modal.set(false)>
                                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
                                     </button>
                                 </div>
@@ -491,14 +491,15 @@ pub fn ProductDetail() -> impl IntoView {
                                             let pid = edit_plan_id.get_untracked().unwrap_or_default();
                                             view! {
                                                 <button
-                                                    class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold text-error border border-error/30"
+                                                    class="btn btn-ghost"
+                                                    style="color:var(--error)"
                                                     on:click=move |_| handle_delete_plan(pid.clone())
                                                 >"Delete Plan"</button>
                                             }
                                         }}
                                     </Show>
-                                    <button class="btn-ghost px-4 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30" on:click=move |_| show_plan_modal.set(false)>"Cancel"</button>
-                                    <button class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold" on:click=handle_save_plan>"Save Plan"</button>
+                                    <button class="btn btn-ghost" on:click=move |_| show_plan_modal.set(false)>"Cancel"</button>
+                                    <button class="btn btn-primary" on:click=handle_save_plan>"Save Plan"</button>
                                 </div>
                             </div>
                         </div>
@@ -509,7 +510,7 @@ pub fn ProductDetail() -> impl IntoView {
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Pricing Plans & Feature Matrix"</h3>
                                 <button
-                                    class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 text-xs font-bold uppercase tracking-wider hover:bg-surface-bright/20 transition-all active:scale-95"
+                                    class="btn btn-ghost btn-sm"
                                     on:click=open_create_plan
                                 >"+ Add Tier"</button>
                             </div>
@@ -538,7 +539,7 @@ pub fn ProductDetail() -> impl IntoView {
                                                             <p class="text-xs text-on-surface-variant/70 mb-4">{plan.currency.to_uppercase()} " · " {plan.interval.clone()}</p>
                                                         </div>
                                                         <button
-                                                            class="btn-ghost w-full mt-4 text-xs justify-center py-2 border border-outline-variant/30 rounded-md hover:bg-surface-bright/20 transition-all active:scale-95"
+                                                            class="btn btn-ghost btn-sm w-full mt-4 justify-center"
                                                             on:click=move |_| open_edit_plan(&plan_clone)
                                                         >"Edit plan"</button>
                                                     </div>
@@ -717,7 +718,7 @@ pub fn ProductDetail() -> impl IntoView {
                             </div>
                             <a
                                 href=move || format!("/products/{}/variants/new", product_slug.get())
-                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                class="btn btn-primary btn-sm"
                                 id="btn-new-variant"
                             >
                                 <span class="material-symbols-outlined text-[14px]">"add"</span>
@@ -816,14 +817,14 @@ pub fn ProductDetail() -> impl IntoView {
                                                                         <a
                                                                             href=preview_url
                                                                             target="_blank"
-                                                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 transition-all"
+                                                                            class="btn btn-ghost btn-sm"
                                                                             title="Preview page data"
                                                                         >
                                                                             <span class="material-symbols-outlined text-[11px]">"open_in_new"</span>
                                                                             "Preview"
                                                                         </a>
                                                                         <button
-                                                                            class="inline-flex items-center px-2.5 py-1 rounded text-[10px] font-semibold border border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:border-outline-variant/60 transition-all"
+                                                                            class="btn btn-ghost btn-sm"
                                                                             title="Duplicate variant"
                                                                         >
                                                                             "Duplicate"
@@ -848,10 +849,10 @@ pub fn ProductDetail() -> impl IntoView {
                                 {move || format!("{} variant(s)", variants_res.get().unwrap_or_default().len())}
                             </span>
                             <div class="ml-auto flex gap-2">
-                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high/50 transition-all">
+                                <button class="btn btn-ghost btn-sm">
                                     "Bulk Localize (AI)"
                                 </button>
-                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high/50 transition-all">
+                                <button class="btn btn-ghost btn-sm">
                                     "Bulk Publish"
                                 </button>
                             </div>
@@ -870,7 +871,7 @@ pub fn ProductDetail() -> impl IntoView {
                                 </p>
                             </div>
                             <button
-                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                class="btn btn-primary btn-sm"
                                 id="btn-add-pixel"
                                 on:click=move |_: web_sys::MouseEvent| show_pixel_form.update(|v| *v = !*v)
                             >
@@ -904,8 +905,8 @@ pub fn ProductDetail() -> impl IntoView {
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-2">
-                                    <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs border border-outline-variant/30" on:click=move |_: web_sys::MouseEvent| show_pixel_form.set(false)>"Cancel"</button>
-                                    <button class="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold" on:click=handle_add_pixel>"Add Pixel"</button>
+                                    <button class="btn btn-ghost btn-sm" on:click=move |_: web_sys::MouseEvent| show_pixel_form.set(false)>"Cancel"</button>
+                                    <button class="btn btn-primary btn-sm" on:click=handle_add_pixel>"Add Pixel"</button>
                                 </div>
                             </div>
                         </Show>
@@ -951,7 +952,7 @@ pub fn ProductDetail() -> impl IntoView {
                                 </p>
                             </div>
                             <button
-                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                class="btn btn-primary btn-sm"
                                 id="btn-add-domain"
                                 on:click=move |_: web_sys::MouseEvent| show_domain_form.update(|v| *v = !*v)
                             >
@@ -975,8 +976,8 @@ pub fn ProductDetail() -> impl IntoView {
                                     <p class="text-[10px] text-on-surface-variant/50 mt-0.5">"Must be DNS-pointed to the Atlas platform edge before activating."</p>
                                 </div>
                                 <div class="flex justify-end gap-2">
-                                    <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs border border-outline-variant/30" on:click=move |_: web_sys::MouseEvent| show_domain_form.set(false)>"Cancel"</button>
-                                    <button class="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold" on:click=handle_add_domain>"Add Domain"</button>
+                                    <button class="btn btn-ghost btn-sm" on:click=move |_: web_sys::MouseEvent| show_domain_form.set(false)>"Cancel"</button>
+                                    <button class="btn btn-primary btn-sm" on:click=handle_add_domain>"Add Domain"</button>
                                 </div>
                             </div>
                         </Show>

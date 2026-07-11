@@ -4,8 +4,19 @@
 // defined in style/index.css, NOT hardcoded hex values. This ensures shared-ui
 // components automatically inherit the correct palette for this app.
 //
-// See apps/shared-ui/THEMING.md for the full architecture guide.
+// Opacity modifiers (bg-primary/15, text-on-surface-variant/40, etc.) use the
+// `<alpha-value>` placeholder so DEFAULT utilities stay solid and `/N` variants
+// mix correctly. Do NOT use a JS function that Number()-multiplies opacityValue —
+// Tailwind often passes `var(--tw-*-opacity)` for DEFAULT, which becomes NaN%.
 //
+// See apps/shared-ui/THEMING.md and designs/stitch/.../shared/design-system.css.
+//
+
+/** @param {string} variable CSS custom property name including leading -- */
+function withAlpha(variable) {
+  return `color-mix(in srgb, var(${variable}) calc(<alpha-value> * 100%), transparent)`;
+}
+
 module.exports = {
   darkMode: "class",
   corePlugins: {
@@ -21,79 +32,76 @@ module.exports = {
       colors: {
         // ── shared-ui semantic tokens (mapped to CSS vars) ─────────────────
         "primary": {
-          DEFAULT:    "var(--color-primary)",
-          foreground: "var(--color-primary-foreground)",
+          DEFAULT:    withAlpha("--color-primary"),
+          foreground: withAlpha("--color-primary-foreground"),
         },
         "card": {
-          DEFAULT:    "var(--color-card)",
-          foreground: "var(--color-card-foreground)",
+          DEFAULT:    withAlpha("--color-card"),
+          foreground: withAlpha("--color-card-foreground"),
         },
-        "background":  "var(--color-background)",
-        "foreground":  "var(--color-foreground)",
+        "background":  withAlpha("--color-background"),
+        "foreground":  withAlpha("--color-foreground"),
         "popover": {
-          DEFAULT:    "var(--color-popover)",
-          foreground: "var(--color-popover-foreground)",
+          DEFAULT:    withAlpha("--color-popover"),
+          foreground: withAlpha("--color-popover-foreground"),
         },
         "muted": {
-          DEFAULT:    "var(--color-muted)",
-          foreground: "var(--color-muted-foreground)",
+          DEFAULT:    withAlpha("--color-muted"),
+          foreground: withAlpha("--color-muted-foreground"),
         },
         "accent": {
-          DEFAULT:    "var(--color-accent)",
-          foreground: "var(--color-accent-foreground)",
+          DEFAULT:    withAlpha("--color-accent"),
+          foreground: withAlpha("--color-accent-foreground"),
         },
         "secondary": {
-          DEFAULT:    "var(--color-secondary)",
-          foreground: "var(--color-secondary-foreground)",
+          DEFAULT:    withAlpha("--color-secondary"),
+          foreground: withAlpha("--color-secondary-foreground"),
         },
         "destructive": {
-          DEFAULT:    "var(--color-destructive)",
-          foreground: "var(--color-destructive-foreground)",
+          DEFAULT:    withAlpha("--color-destructive"),
+          foreground: withAlpha("--color-destructive-foreground"),
         },
         "success": {
-          DEFAULT:    "var(--color-success)",
-          foreground: "var(--color-success-foreground)",
+          DEFAULT:    withAlpha("--color-success"),
+          foreground: withAlpha("--color-success-foreground"),
         },
         "warning": {
-          DEFAULT:    "var(--color-warning)",
-          foreground: "var(--color-warning-foreground)",
+          DEFAULT:    withAlpha("--color-warning"),
+          foreground: withAlpha("--color-warning-foreground"),
         },
-        "border": "var(--color-border)",
-        "input":  "var(--color-input)",
-        "ring":   "var(--color-ring)",
+        "border": withAlpha("--color-border"),
+        "input":  withAlpha("--color-input"),
+        "ring":   withAlpha("--color-ring"),
 
         // ── Platform-admin legacy MD3 token bridge ──────────────────────────
-        // ALL values now reference CSS custom properties from style/index.css.
-        // Hardcoded navy hex values (#031d4b, #06122d, #05183c etc.) have been
-        // replaced — they were the root cause of the unauthorized blue bleed.
-        "outline":                   "var(--border-subtle)",
-        "surface-dim":               "var(--bg-base)",
-        "on-secondary-container":    "var(--text-secondary)",
-        "on-secondary":              "var(--text-muted)",
-        "secondary-dim":             "var(--text-muted)",
-        "on-primary-container":      "var(--text-primary)",
-        "surface-container-high":    "var(--bg-elevated)",
-        "surface-container":         "var(--bg-surface)",
-        "on-primary-fixed-variant":  "var(--cobalt)",
-        "inverse-surface":           "var(--text-primary)",
-        "on-background":             "var(--text-primary)",
-        "on-surface-variant":        "var(--text-secondary)",
-        "surface":                   "var(--bg-base)",
-        "on-error-container":        "var(--red)",
-        "secondary-container":       "var(--bg-raised)",
-        "on-primary":                "var(--text-primary)",
-        "surface-tint":              "var(--cobalt)",
-        "surface-bright":            "var(--bg-elevated)",
-        "inverse-primary":           "var(--cobalt)",
-        "surface-variant":           "var(--bg-surface)",
-        "surface-container-lowest":  "var(--bg-base)",
-        "on-surface":                "var(--text-primary)",
-        "surface-container-highest": "var(--bg-elevated)",
-        "outline-variant":           "var(--border-default)",
-        "surface-container-low":     "var(--bg-surface)",
-        "primary-container":         "var(--cobalt-dim)",
-        "on-error":                  "var(--red)",
-        "error":                     "var(--color-destructive)",
+        "outline":                   withAlpha("--border-subtle"),
+        "surface-dim":               withAlpha("--bg-base"),
+        "on-secondary-container":    withAlpha("--text-secondary"),
+        "on-secondary":              withAlpha("--text-muted"),
+        "secondary-dim":             withAlpha("--text-muted"),
+        "on-primary-container":      withAlpha("--text-primary"),
+        "surface-container-high":    withAlpha("--bg-elevated"),
+        "surface-container":         withAlpha("--bg-surface"),
+        "on-primary-fixed-variant":  withAlpha("--cobalt"),
+        "inverse-surface":           withAlpha("--text-primary"),
+        "on-background":             withAlpha("--text-primary"),
+        "on-surface-variant":        withAlpha("--text-secondary"),
+        "surface":                   withAlpha("--bg-base"),
+        "on-error-container":        withAlpha("--red"),
+        "secondary-container":       withAlpha("--bg-surface-alt"),
+        "on-primary":                withAlpha("--text-primary"),
+        "surface-tint":              withAlpha("--cobalt"),
+        "surface-bright":            withAlpha("--bg-elevated"),
+        "inverse-primary":           withAlpha("--cobalt"),
+        "surface-variant":           withAlpha("--bg-surface"),
+        "surface-container-lowest":  withAlpha("--bg-base"),
+        "on-surface":                withAlpha("--text-primary"),
+        "surface-container-highest": withAlpha("--bg-elevated"),
+        "outline-variant":           withAlpha("--border-default"),
+        "surface-container-low":     withAlpha("--bg-surface"),
+        "primary-container":         withAlpha("--cobalt-dim"),
+        "on-error":                  withAlpha("--red"),
+        "error":                     withAlpha("--color-destructive"),
       },
       fontFamily: {
         "headline": ["Inter", "sans-serif"],

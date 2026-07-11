@@ -32,11 +32,11 @@ fn lens_subtitle(lens: &str) -> &'static str {
     }
 }
 
-fn lens_btn_class(active: &str, name: &str) -> &'static str {
+fn lens_btn_class(active: &str, name: &str) -> String {
     if active == name {
-        "px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/15 text-primary border border-primary/40 transition-all"
+        "seg-btn active".to_string()
     } else {
-        "px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-container text-on-surface-variant border border-outline-variant/30 hover:text-on-surface hover:border-outline-variant/50 transition-all"
+        "seg-btn".to_string()
     }
 }
 
@@ -137,7 +137,7 @@ pub fn Scorecards() -> impl IntoView {
                             {move || lens_subtitle(&lens.get())}
                         </p>
                     </div>
-                    <div class="flex items-center gap-1.5">
+                    <div class="seg-control">
                         <button
                             type="button"
                             class=move || lens_btn_class(&lens.get(), "pilot")
@@ -180,9 +180,9 @@ pub fn Scorecards() -> impl IntoView {
                             }
                             class=move || {
                                 if selected_tenant_id.get().is_empty() {
-                                    "btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 opacity-40 pointer-events-none"
+                                    "btn btn-primary opacity-40 pointer-events-none".to_string()
                                 } else {
-                                    "btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90 active:scale-95 transition-all"
+                                    "btn btn-primary".to_string()
                                 }
                             }
                         >
@@ -193,8 +193,9 @@ pub fn Scorecards() -> impl IntoView {
             </div>
 
             // ── Sub Navigation ──
-            <div class="flex border-b border-outline-variant/20 overflow-x-auto shrink-0 select-none">
+            <div class="tab-bar" style="padding:0;">
                 <button
+                    type="button"
                     class=move || tab_class(&active_tab.get(), "templates")
                     on:click=move |_| active_tab.set("templates".to_string())
                 >
@@ -202,6 +203,7 @@ pub fn Scorecards() -> impl IntoView {
                 </button>
                 <Show when=move || lens.get() != "catalog">
                     <button
+                        type="button"
                         class=move || tab_class(&active_tab.get(), "analytics")
                         on:click=move |_| active_tab.set("analytics".to_string())
                     >
@@ -248,11 +250,11 @@ pub fn Scorecards() -> impl IntoView {
     }
 }
 
-fn tab_class(active: &str, name: &str) -> &'static str {
+fn tab_class(active: &str, name: &str) -> String {
     if active == name {
-        "px-4 py-2.5 text-sm font-semibold text-primary border-b-2 border-primary transition-all shrink-0 bg-transparent"
+        "tab active".to_string()
     } else {
-        "px-4 py-2.5 text-sm text-on-surface-variant hover:text-on-surface transition-all shrink-0 bg-transparent"
+        "tab".to_string()
     }
 }
 
@@ -597,7 +599,7 @@ fn AnalyticsTab(
                 </label>
 
                 <button
-                    class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95 disabled:opacity-50"
+                    class="btn btn-primary"
                     disabled=move || refreshing.get() || analytics_template_id.get().is_empty()
                     on:click=on_refresh
                 >

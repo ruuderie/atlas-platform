@@ -150,7 +150,7 @@ pub fn SyndicationOffers() -> impl IntoView {
                         "View Active Links →"
                     </a>
                     <button
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md hover:opacity-90 active:scale-95 transition-all"
+                        class="btn btn-primary"
                         on:click=move |_| show_create.set(true)
                     >
                         "+ New Offer"
@@ -272,14 +272,14 @@ pub fn SyndicationOffers() -> impl IntoView {
                                                         </span>
                                                     }.into_any()
                                                 } else {
-                                                    view! { <span class="text-xs text-on-surface-variant/40">"optional"</span> }.into_any()
+                                                    view! { <span class="text-xs text-on-surface-variant">"optional"</span> }.into_any()
                                                 }}
                                             </td>
                                             <td class="px-6 py-4">
                                                 {if self_service {
                                                     view! { <span class="text-emerald-400 text-xs font-semibold">"✓ Yes"</span> }.into_any()
                                                 } else {
-                                                    view! { <span class="text-on-surface-variant/40 text-xs">"Admin only"</span> }.into_any()
+                                                    view! { <span class="text-on-surface-variant text-xs">"Admin only"</span> }.into_any()
                                                 }}
                                             </td>
                                             <td class="px-6 py-4 text-xs text-on-surface-variant font-mono">
@@ -292,7 +292,7 @@ pub fn SyndicationOffers() -> impl IntoView {
                                                         let oname3 = oname.clone();
                                                         view! {
                                                             <button
-                                                                class="text-[10px] font-bold uppercase tracking-wider text-amber-400 hover:underline px-2 py-1 rounded hover:bg-amber-500/10 transition-colors"
+                                                                class="btn btn-warn btn-sm"
                                                                 title="Auto-provision mandatory links for all instances on matching tiers"
                                                                 on:click=move |_| {
                                                                     provision_offer_id.set(Some(oid3.clone()));
@@ -307,7 +307,8 @@ pub fn SyndicationOffers() -> impl IntoView {
                                                         view! { <span></span> }.into_any()
                                                     }}
                                                     <button
-                                                        class="text-[10px] font-bold uppercase tracking-wider text-error hover:underline px-2 py-1 rounded hover:bg-error/10 transition-colors"
+                                                        class="btn btn-ghost btn-sm"
+                                                        style="color:var(--error)"
                                                         on:click=move |_| hr(oid2.clone(), oname2.clone())
                                                     >
                                                         "Retire"
@@ -457,11 +458,11 @@ pub fn SyndicationOffers() -> impl IntoView {
 
                         <div class="flex justify-end gap-3 pt-2">
                             <button
-                                class="px-4 py-2 rounded-lg text-sm border border-outline-variant/30 text-on-surface-variant hover:bg-surface-bright/10 transition-colors"
+                                class="btn btn-ghost"
                                 on:click=move |_| show_create.set(false)
                             >"Cancel"</button>
                             <button
-                                class="btn-primary-gradient px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                class="btn btn-primary"
                                 disabled=move || is_saving.get()
                                 on:click=handle_create.clone()
                             >
@@ -497,11 +498,11 @@ pub fn SyndicationOffers() -> impl IntoView {
                         })}
                         <div class="flex justify-end gap-3">
                             <button
-                                class="px-4 py-2 rounded-lg text-sm border border-outline-variant/30 text-on-surface-variant hover:bg-surface-bright/10 transition-colors"
+                                class="btn btn-ghost"
                                 on:click=move |_| { provision_offer_id.set(None); provision_result.set(None); }
                             >"Close"</button>
                             <button
-                                class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition-colors disabled:opacity-40"
+                                class="btn btn-warn"
                                 disabled=move || is_provisioning.get()
                                 on:click=handle_provision.clone()
                             >

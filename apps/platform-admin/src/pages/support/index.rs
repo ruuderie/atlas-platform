@@ -248,10 +248,7 @@ pub fn SupportQueue() -> impl IntoView {
                                         selected_id.set(None);
                                         refresh.update(|n| *n += 1);
                                     }
-                                    class=move || format!("px-2.5 py-1 text-[10px] font-bold border rounded-lg whitespace-nowrap transition-all {}",
-                                        if active() { "bg-primary-container border-primary text-primary" }
-                                        else { "bg-surface-container/20 border-outline-variant/20 text-on-surface-variant hover:text-on-surface" }
-                                    )
+                                    class=move || if active() { "pill active" } else { "pill" }
                                 >{label}</button>
                             }
                         };
@@ -391,7 +388,7 @@ pub fn SupportQueue() -> impl IntoView {
                                                     <div class="flex items-center gap-2 flex-shrink-0">
                                                         <button
                                                             on:click=move |_| show_impersonate_modal.set(true)
-                                                            class="px-3 py-1.5 text-xs font-semibold bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container/60 rounded-lg flex items-center gap-1.5"
+                                                            class="btn btn-ghost btn-sm"
                                                         >
                                                             <span class="material-symbols-outlined text-sm">"key"</span>
                                                             "Impersonate"
@@ -399,7 +396,7 @@ pub fn SupportQueue() -> impl IntoView {
                                                         <Show when=move || is_open>
                                                             <button
                                                                 on:click=handle_close
-                                                                class="px-3 py-1.5 text-xs font-bold text-on-primary bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all rounded-lg flex items-center gap-1"
+                                                                class="btn btn-primary btn-sm"
                                                             >
                                                                 <span class="material-symbols-outlined text-sm">"check"</span>
                                                                 "Close Thread"
@@ -508,14 +505,14 @@ pub fn SupportQueue() -> impl IntoView {
                                                             <div class="flex items-center gap-2">
                                                                 <button
                                                                     on:click=move |_| show_internal_modal.set(true)
-                                                                    class="px-3 py-1.5 text-xs font-semibold bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded-lg flex items-center gap-1"
+                                                                    class="btn btn-ghost btn-sm"
                                                                 >
                                                                     <span class="material-symbols-outlined text-[14px]">"lock"</span>
                                                                     "Internal Note"
                                                                 </button>
                                                                 <button
                                                                     on:click=move |_| show_escalate_modal.set(true)
-                                                                    class="px-3 py-1.5 text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 rounded-lg flex items-center gap-1"
+                                                                    class="btn btn-warn btn-sm"
                                                                 >
                                                                     <span class="material-symbols-outlined text-[14px]">"campaign"</span>
                                                                     "Escalate"
@@ -524,7 +521,7 @@ pub fn SupportQueue() -> impl IntoView {
                                                             <button
                                                                 on:click=handle_send_reply
                                                                 disabled=move || sending.get()
-                                                                class="px-4 py-2 text-xs font-bold text-on-primary bg-primary border-none hover:opacity-90 active:scale-95 transition-all rounded-lg flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                                                             >
                                                                 {move || if sending.get() { "Sending…" } else { "Send Reply" }}
                                                                 <span class="material-symbols-outlined text-sm">"send"</span>
@@ -572,8 +569,8 @@ pub fn SupportQueue() -> impl IntoView {
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_internal_modal.set(false) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                            <button on:click=handle_save_internal_note class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-bold text-on-primary">"Save Internal Note"</button>
+                            <button on:click=move |_| show_internal_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                            <button on:click=handle_save_internal_note class="btn btn-primary">"Save Internal Note"</button>
                         </div>
                     </div>
                 </div>
@@ -623,8 +620,8 @@ pub fn SupportQueue() -> impl IntoView {
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_escalate_modal.set(false) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                            <button on:click=handle_save_escalation class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all">"Escalate Thread"</button>
+                            <button on:click=move |_| show_escalate_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                            <button on:click=handle_save_escalation class="btn btn-warn">"Escalate Thread"</button>
                         </div>
                     </div>
                 </div>
@@ -646,8 +643,8 @@ pub fn SupportQueue() -> impl IntoView {
                             "This grants access to view private listings, customer billing data, and run platform adjustments. Use strictly for resolving support cases."
                         </p>
                         <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_impersonate_modal.set(false) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                            <button on:click=handle_confirm_impersonate class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all">"Audit & Impersonate"</button>
+                            <button on:click=move |_| show_impersonate_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                            <button on:click=handle_confirm_impersonate class="btn btn-danger">"Audit & Impersonate"</button>
                         </div>
                     </div>
                 </div>

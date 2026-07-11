@@ -166,8 +166,8 @@ fn DetailBody(
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         <button
                             type="button"
+                            class="btn btn-primary btn-sm"
                             disabled=move || busy.get()
-                            style=action_btn_style()
                             on:click=move |_| {
                                 let tid = tid_sv.get_value();
                                 busy.set(true);
@@ -186,8 +186,8 @@ fn DetailBody(
                         </button>
                         <button
                             type="button"
+                            class="btn btn-ghost btn-sm"
                             disabled=move || busy.get()
-                            style=action_btn_style()
                             on:click=move |_| {
                                 let tid = tid_sv.get_value();
                                 busy.set(true);
@@ -206,7 +206,7 @@ fn DetailBody(
                         </button>
                     </div>
 
-                    <div style="display:flex;gap:4px;border-bottom:1px solid var(--border-default);padding-bottom:0;">
+                    <div class="tab-bar" style="padding:0;">
                         {tab_btn(active_tab, "overview", "Overview")}
                         {tab_btn(active_tab, "dimensions", "Dimensions")}
                         {tab_btn(active_tab, "timeseries", "Time Series")}
@@ -297,22 +297,11 @@ fn DetailBody(
     }
 }
 
-fn action_btn_style() -> &'static str {
-    "font-size:12px;font-weight:600;padding:6px 12px;border-radius:4px;border:1px solid var(--border-default);background:var(--bg-elevated, transparent);color:var(--text-primary);cursor:pointer;"
-}
-
 fn tab_btn(active_tab: RwSignal<String>, id: &'static str, label: &'static str) -> impl IntoView {
     view! {
         <button
             type="button"
-            style=move || {
-                let active = active_tab.get() == id;
-                format!(
-                    "font-size:12px;font-weight:600;padding:8px 12px;border:none;border-bottom:2px solid {};background:transparent;color:{};cursor:pointer;",
-                    if active { "var(--text-link, #60a5fa)" } else { "transparent" },
-                    if active { "var(--text-primary)" } else { "var(--text-muted)" },
-                )
-            }
+            class=move || if active_tab.get() == id { "tab active" } else { "tab" }
             on:click=move |_| active_tab.set(id.to_string())
         >
             {label}
@@ -760,7 +749,7 @@ fn SessionRow(
                                                             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                                                 <button
                                                                     type="button"
-                                                                    style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border-default);background:transparent;color:var(--text-primary);cursor:pointer;"
+                                                                    class="btn btn-ghost btn-sm"
                                                                     disabled=move || entry_busy.get().is_some()
                                                                     on:click=move |_| {
                                                                         if entry_busy.get_untracked().is_some() {
@@ -808,7 +797,8 @@ fn SessionRow(
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border-default);background:transparent;color:var(--text-muted);cursor:pointer;"
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    style="color:var(--text-muted);"
                                                                     disabled=move || entry_busy.get().is_some()
                                                                     on:click=move |_| {
                                                                         if entry_busy.get_untracked().is_some() {

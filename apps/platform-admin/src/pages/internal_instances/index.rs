@@ -260,6 +260,7 @@ pub fn InternalInstancesPage() -> impl IntoView {
 
                     // Purpose filter group
                     <div style="padding:4px 12px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:6px;">"Purpose"</div>
+                    <div class="filter-nav">
                     {
                         let pf = purpose_filter;
                         let pills: Vec<(&'static str, &'static str)> = vec![
@@ -272,22 +273,18 @@ pub fn InternalInstancesPage() -> impl IntoView {
                         pills.into_iter().map(move |(id, label)| {
                             view! {
                                 <button
+                                    type="button"
                                     on:click=move |_| pf.set(id.to_string())
-                                    class=move || format!(
-                                        "w-full text-left px-3 py-1.5 text-xs rounded transition-all {}",
-                                        if pf.get() == id {
-                                            "bg-primary/15 text-primary font-semibold"
-                                        } else {
-                                            "text-on-surface-variant hover:bg-surface-container-high/40"
-                                        }
-                                    )
+                                    class=move || if pf.get() == id { "filter-nav-item active" } else { "filter-nav-item" }
                                 >{label}</button>
                             }
                         }).collect_view()
                     }
+                    </div>
 
                     // App type filter group
                     <div style="padding:4px 12px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-top:10px;">"App Type"</div>
+                    <div class="filter-nav">
                     {
                         let tf = app_type_filter;
                         let type_pills: Vec<(&'static str, &'static str)> = vec![
@@ -299,39 +296,34 @@ pub fn InternalInstancesPage() -> impl IntoView {
                         type_pills.into_iter().map(move |(id, label)| {
                             view! {
                                 <button
+                                    type="button"
                                     on:click=move |_| tf.set(id.to_string())
-                                    class=move || format!(
-                                        "w-full text-left px-3 py-1.5 text-xs rounded transition-all {}",
-                                        if tf.get() == id {
-                                            "bg-primary/15 text-primary font-semibold"
-                                        } else {
-                                            "text-on-surface-variant hover:bg-surface-container-high/40"
-                                        }
-                                    )
+                                    class=move || if tf.get() == id { "filter-nav-item active" } else { "filter-nav-item" }
                                 >{label}</button>
                             }
                         }).collect_view()
                     }
+                    </div>
                 </div>
 
                 // ── Right: instance card grid ──
                 <div style="flex:1;overflow-y:auto;">
                     <Suspense fallback=|| view! {
-                        <div class="text-xs text-on-surface-variant/60 animate-pulse text-center py-8">"Loading instances..."</div>
+                        <div class="text-xs text-on-surface-variant animate-pulse text-center py-8">"Loading instances..."</div>
                     }>
                         {move || {
                             let apps = filtered.get();
                             if apps.is_empty() {
                                 view! {
                                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-10 text-center">
-                                        <p class="text-sm text-on-surface-variant/60">"No instances match the current filter."</p>
+                                        <p class="text-sm text-on-surface-variant">"No instances match the current filter."</p>
                                     </div>
                                 }.into_any()
                             } else {
                                 let count = apps.len();
                                 view! {
                                     <div class="space-y-3">
-                                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant/50 font-bold">
+                                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
                                             {format!("{} instance{}", count, if count == 1 { "" } else { "s" })}
                                         </p>
                                         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -412,13 +404,15 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                                                     let tid = app.tenant_id.clone();
                                                                     format!("/apps/{}/instance", tid)
                                                                 }
-                                                                    class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high/40 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    style="text-decoration:none"
                                                                 >
                                                                     <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="8" y1="5" x2="8" y2="11"/></svg>
                                                                     "Manage"
                                                                 </a>
                                                                 <a href=format!("/internal-instances/{}/config", iid2)
-                                                                    class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    style="text-decoration:none"
                                                                 >
                                                                     "Config"
                                                                 </a>

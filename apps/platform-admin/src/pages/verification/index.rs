@@ -437,11 +437,11 @@ pub fn Verification() -> impl IntoView {
                             </div>
 
                             // Detail Tabs
-                            <div class="rev-tabs">
-                                <button class=move || if active_rev_tab.get() == "rv-documents" { "rev-tab active" } else { "rev-tab" } on:click=move |_| active_rev_tab.set("rv-documents".into())>"Documents"</button>
-                                <button class=move || if active_rev_tab.get() == "rv-checklist" { "rev-tab active" } else { "rev-tab" } on:click=move |_| active_rev_tab.set("rv-checklist".into())>"Review Checklist"</button>
-                                <button class=move || if active_rev_tab.get() == "rv-entity" { "rev-tab active" } else { "rev-tab" } on:click=move |_| active_rev_tab.set("rv-entity".into())>"Entity Summary"</button>
-                                <button class=move || if active_rev_tab.get() == "rv-notes" { "rev-tab active" } else { "rev-tab" } on:click=move |_| active_rev_tab.set("rv-notes".into())>"Reviewer Notes"</button>
+                            <div class="tab-bar">
+                                <button class=move || if active_rev_tab.get() == "rv-documents" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-documents".into())>"Documents"</button>
+                                <button class=move || if active_rev_tab.get() == "rv-checklist" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-checklist".into())>"Review Checklist"</button>
+                                <button class=move || if active_rev_tab.get() == "rv-entity" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-entity".into())>"Entity Summary"</button>
+                                <button class=move || if active_rev_tab.get() == "rv-notes" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-notes".into())>"Reviewer Notes"</button>
                             </div>
 
                             // Detail Content
@@ -597,7 +597,7 @@ pub fn Verification() -> impl IntoView {
                                                             <div class="flex items-center gap-2">
                                                                 <span class="text-xs font-bold text-on-surface">{item.author}</span>
                                                                 <span class="px-1.5 py-0.2 bg-surface-container border border-outline-variant/20 rounded text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60">"Super-Admin"</span>
-                                                                <span class="text-[10px] text-on-surface-variant/40 font-mono ml-auto">{item.timestamp}</span>
+                                                                <span class="text-[10px] text-on-surface-variant font-mono ml-auto">{item.timestamp}</span>
                                                             </div>
                                                             <p class="text-xs text-on-surface-variant mt-1 leading-relaxed bg-surface-container p-3 rounded-lg border border-outline-variant/10">{item.text}</p>
                                                         </div>

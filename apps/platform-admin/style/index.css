@@ -16,10 +16,10 @@
   --bg-elevated:        #1C2236;
   --bg-input:           #1C2236;
 
-  /* Text */
+  /* Text — secondary/muted lifted for dark-theme vibrancy (Apple §12/§14) */
   --text-primary:       #E8EAF0;
-  --text-secondary:     #8B92A8;
-  --text-muted:         #525A72;
+  --text-secondary:     #A4ABC0;
+  --text-muted:         #7A8299;
   --text-link:          #0A84FF;
 
   /* Borders */
@@ -109,6 +109,28 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── UA control reset (preflight:false) ─────────────────────────────────────
+ * Without this, bare <button> paints the light-mode ButtonFace (white boxes)
+ * whenever a Tailwind opacity utility fails to emit. Prefer .btn / .app-pill /
+ * .filter-nav-item for real controls; this only neutralizes the browser default.
+ */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+button:active:not(:disabled) {
+  transform: scale(0.98);
+  transition: transform 100ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled) { transform: none; }
 }
 
 /* Material Symbols baseline */
@@ -1200,6 +1222,76 @@ thead th.sortable:hover::after { opacity: 1; }
 .btn-warn:hover { background: var(--amber); color: #fff; }
 .btn-icon { padding: 5px 8px; }
 .btn-sm { padding: 4px 9px; font-size: 11px; }
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Filter nav (sidebar filter lists — Stitch .pill / .pill.active) ──────── */
+.filter-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 8px;
+}
+.filter-nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 450;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.filter-nav-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+.filter-nav-item.active {
+  color: var(--cobalt);
+  background: var(--cobalt-dim);
+  border-color: rgba(10, 132, 255, 0.35);
+  font-weight: 600;
+}
+.filter-nav-item:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ── Segment control (Pilot / Catalog / Customer, status chips) ───────────── */
+.seg-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+.seg-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.seg-btn:hover {
+  color: var(--text-primary);
+}
+.seg-btn.active {
+  color: var(--cobalt);
+  background: var(--cobalt-dim);
+  border-color: rgba(10, 132, 255, 0.4);
+  font-weight: 600;
+}
+.seg-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
 
 /* ── Right Sidebar Panels ─────────────────────────────────────────────────── */
 .intel-panel {
@@ -1374,7 +1466,7 @@ thead th.sortable:hover::after { opacity: 1; }
 
 /* ── Billing Tabs ─────────────────────────────────────────────────────────── */
 .tab-bar { display: flex; gap: 2px; padding: 0 24px; border-bottom: 1px solid var(--border-default); flex-shrink: 0; overflow-x: auto; }
-.tab { padding: 9px 14px; font-size: 12px; font-weight: 450; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; white-space: nowrap; }
+.tab { padding: 9px 14px; font-size: 12px; font-weight: 450; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; white-space: nowrap; }
 .tab:hover { color: var(--text-primary); }
 .tab.active { color: var(--text-primary); border-bottom-color: var(--cobalt); font-weight: 500; }
 
@@ -1454,7 +1546,42 @@ thead th.sortable:hover::after { opacity: 1; }
 .pm-fill { height: 100%; border-radius: 2px; background: var(--cobalt); }
 .pm-val { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 
-.pill { display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; border-radius: 3px; padding: 2px 6px; border: 1px solid; }
+/* Status badges AND interactive filter chips.
+ * Badges: set color/border via inline style or .plan-badge.
+ * Filters: use <button class="pill"> / <button class="pill active">. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+button.pill, a.pill {
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+button.pill:hover, a.pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.pill.active {
+  background: var(--cobalt-dim);
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+}
+button.pill:active:not(:disabled) {
+  transform: scale(0.97);
+}
 
 /* ── Chart simulated elements ── */
 .chart-ph {
@@ -2477,7 +2604,7 @@ label.ft input:checked ~ .ft-track .ft-thumb {
 .rev-meta{font-size:12px;color:var(--text-muted);margin-top:3px;}
 .rev-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
 .rev-tabs{display:flex;gap:0;padding:0 20px;border-bottom:1px solid var(--border-default);flex-shrink:0;}
-.rev-tab{padding:9px 12px;font-size:12px;font-weight:450;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.12s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
+.rev-tab{padding:9px 12px;font-size:12px;font-weight:450;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.12s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;}
 .rev-tab:hover{color:var(--text-primary);}
 .rev-tab.active{color:var(--text-primary);border-bottom-color:var(--cobalt);font-weight:500;}
 .rev-content{flex:1;overflow-y:auto;padding:16px 20px;}

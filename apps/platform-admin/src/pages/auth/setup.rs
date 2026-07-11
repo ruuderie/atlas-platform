@@ -164,7 +164,7 @@ pub fn Setup() -> impl IntoView {
                                 <p class="text-on-surface-variant text-sm mb-8 leading-relaxed">
                                     "The intelligence layer has already been securely configured. No further setup is required."
                                 </p>
-                                <a href="/login" class="inline-flex items-center justify-center px-6 py-3 bg-primary text-on-primary font-bold rounded-xl shadow-[0_0_15px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all">
+                                <a href="/login" class="btn btn-primary">
                                     <span class="material-symbols-outlined mr-2">"login"</span>
                                     "Proceed to Authorization"
                                 </a>
@@ -227,7 +227,7 @@ pub fn Setup() -> impl IntoView {
                                 </div>
 
                                 <Button 
-                                    class="w-full mt-6 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
+                                    class="w-full mt-6 btn btn-primary".to_string() 
                                     on:click=move |ev| handle_webauthn_start.run(ev) 
                                 >
                                     {move || if is_loading.get() { "Preparing Passkey..." } else { "Create Admin & Continue" }}
@@ -249,7 +249,7 @@ pub fn Setup() -> impl IntoView {
                                 </div>
 
                                 <Button 
-                                    class="w-full mt-6 bg-primary text-on-primary border-none shadow-[0_0_15px_rgba(123,208,255,0.15)] hover:shadow-[0_0_20px_rgba(123,208,255,0.3)] transition-all font-bold".to_string() 
+                                    class="w-full mt-6 btn btn-primary".to_string() 
                                     on:click=move |ev| handle_initialize_finish.run(ev) 
                                 >
                                     {move || if is_loading.get() { "Awaiting Challenge..." } else { "Generate Passkey & Finalize" }}

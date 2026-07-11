@@ -105,16 +105,17 @@ pub fn SyndicationLinks() -> impl IntoView {
                                                 {if is_mandatory {
                                                     view! { <span class="text-amber-400 text-xs font-bold">"🔒 Yes"</span> }.into_any()
                                                 } else {
-                                                    view! { <span class="text-on-surface-variant/40 text-xs">"No"</span> }.into_any()
+                                                    view! { <span class="text-on-surface-variant text-xs">"No"</span> }.into_any()
                                                 }}
                                             </td>
                                             <td class="px-6 py-4 text-right">
                                                 <button
                                                     class=move || if is_mandatory {
-                                                        "text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/30 cursor-not-allowed"
+                                                        "btn btn-ghost btn-sm opacity-40 cursor-not-allowed"
                                                     } else {
-                                                        "text-[10px] font-bold uppercase tracking-wider text-error hover:underline"
+                                                        "btn btn-ghost btn-sm"
                                                     }
+                                                    style=move || if is_mandatory { "" } else { "color:var(--error)" }
                                                     on:click=move |_| hr(lid.clone(), is_mandatory)
                                                 >
                                                     "Revoke"
