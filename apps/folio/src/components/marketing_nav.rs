@@ -55,10 +55,10 @@ impl MarketingNavRole {
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Landlords => "For Landlords",
-            Self::PropertyManagers => "For Property Managers",
-            Self::Brokers => "For Brokers",
-            Self::Vendors => "For Vendors",
+            Self::Landlords => "Landlords",
+            Self::PropertyManagers => "Property Managers",
+            Self::Brokers => "Brokers",
+            Self::Vendors => "Vendors",
             Self::Cohosts => "Cohost Network",
             Self::None => "",
         }
@@ -66,11 +66,11 @@ impl MarketingNavRole {
 
     pub const fn subtitle(self) -> &'static str {
         match self {
-            Self::Landlords => "Own your properties",
-            Self::PropertyManagers => "Manage for clients",
-            Self::Brokers => "Represent buyers & sellers",
-            Self::Vendors => "Offer services",
-            Self::Cohosts => "Co-manage STRs",
+            Self::Landlords => "Own and manage your properties",
+            Self::PropertyManagers => "Manage portfolios for clients",
+            Self::Brokers => "Represent buyers and sellers",
+            Self::Vendors => "Get jobs from PMs and landlords",
+            Self::Cohosts => "Co-manage short-term rentals",
             Self::None => "",
         }
     }
@@ -135,12 +135,39 @@ pub const HOME_MARKETING_SECTION_LINKS: &[MarketingNavSectionLink] = &[
     },
 ];
 
+/// Canonical primary CTA across all Folio marketing pages.
+/// Keep this in sync with stitch `pub_marketing_*` nav buttons.
+pub const DEFAULT_MARKETING_NAV_CTA: &str = "Get started";
+
+/// Map CMS / page-specific CTA aliases onto the shared nav label so role pages
+/// do not drift ("Join waitlist" vs "Join Folio" vs "Get early access").
+pub fn resolve_marketing_nav_cta(label: &str) -> String {
+    let trimmed = label.trim();
+    if trimmed.is_empty() {
+        return DEFAULT_MARKETING_NAV_CTA.to_string();
+    }
+    let key = trimmed
+        .trim_end_matches(['→', '›', '»'])
+        .trim()
+        .to_ascii_lowercase();
+    match key.as_str() {
+        "join waitlist"
+        | "join the waitlist"
+        | "get early access"
+        | "join folio"
+        | "join marketplace"
+        | "get started"
+        | "get started free" => DEFAULT_MARKETING_NAV_CTA.to_string(),
+        _ => trimmed.to_string(),
+    }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /// Shared Folio marketing top nav + mobile drawer.
 #[component]
 pub fn MarketingNav(
-    /// Highlighted role in the "For your role" panel.
+    /// Highlighted role in the "Who it's for" panel.
     #[prop(default = MarketingNavRole::None)]
     active: MarketingNavRole,
     /// Desktop / mobile section links. Defaults to [`DEFAULT_MARKETING_SECTION_LINKS`].
@@ -149,8 +176,8 @@ pub fn MarketingNav(
     /// Runtime CMS section links. When present, these replace `section_links`.
     #[prop(default = None)]
     section_link_overrides: Option<Vec<(String, String)>>,
-    /// Primary CTA label. Defaults to `"Join waitlist"`.
-    #[prop(default = "Join waitlist".to_string(), into)]
+    /// Primary CTA label. Defaults to [`DEFAULT_MARKETING_NAV_CTA`].
+    #[prop(default = DEFAULT_MARKETING_NAV_CTA.to_string(), into)]
     cta_label: String,
     /// Primary CTA href. Defaults to `"/#waitlist-wrap"`.
     #[prop(default = "/#waitlist-wrap")]
@@ -184,15 +211,15 @@ pub fn MarketingNav(
                         })
                         .collect_view()}
                     <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "For your role"
+                        <summary aria-label="Who it's for">
+                            "Who it's for"
                             <span class="mktg-nav-role-arrow">
                                 <span class="material-symbols-outlined" style="font-size:15px">
                                     "expand_more"
                                 </span>
                             </span>
                         </summary>
-                        <div class="mktg-nav-role-panel">
+                        <div class="mktg-nav-role-panel" role="menu">
                             {MarketingNavRole::ALL
                                 .into_iter()
                                 .map(|role| {
@@ -202,10 +229,10 @@ pub fn MarketingNav(
                                         "mktg-nav-role-item"
                                     };
                                     view! {
-                                        <a href=role.href() class=class rel="external">
-                                            <span class="mktg-nav-role-icon">{role.icon()}</span>
-                                            <span class="mktg-nav-role-label">
-                                                {role.label()}
+                                        <a href=role.href() class=class rel="external" role="menuitem">
+                                            <span class="mktg-nav-role-icon" aria-hidden="true">{role.icon()}</span>
+                                            <span class="mktg-nav-role-copy">
+                                                <span class="mktg-nav-role-title">{role.label()}</span>
                                                 <span class="mktg-nav-role-sub">{role.subtitle()}</span>
                                             </span>
                                         </a>

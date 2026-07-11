@@ -4348,13 +4348,15 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 }
 .mktg-nav-links {
   display: flex; gap: 1rem; margin-left: .5rem;
+  align-items: center;
 }
-.mktg-nav-links a {
+/* Direct children only — do not style role-panel links (nested <a>s). */
+.mktg-nav-links > a {
   color: var(--mk-muted); text-decoration: none; font-size: .83rem;
   white-space: nowrap; padding: .4rem .5rem; border-radius: 6px;
   transition: color .15s, background .15s;
 }
-.mktg-nav-links a:hover { color: var(--mk-text); }
+.mktg-nav-links > a:hover { color: var(--mk-text); }
 /* broker page back-link — visually separated from primary nav items */
 .mktg-nav-broker-link {
   color: var(--mk-muted) !important;
@@ -4399,12 +4401,12 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-arrow { transform: rotate(18
   display: none;
   position: absolute; top: calc(100% + .6rem); left: 50%;
   transform: translateX(-50%);
-  min-width: 220px;
+  min-width: 260px;
   background: rgba(10,18,40,0.97);
   border: 1px solid rgba(255,255,255,.09);
   border-radius: 12px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   box-shadow: 0 20px 60px rgba(0,0,0,.5);
   padding: .5rem;
   z-index: 200;
@@ -4418,21 +4420,50 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .mktg-nav-role-item {
-  display: flex; align-items: center; gap: .65rem;
-  padding: .6rem .8rem; border-radius: 8px;
+  display: flex; align-items: flex-start; gap: .75rem;
+  padding: .7rem .85rem; border-radius: 8px;
   color: var(--mk-muted); text-decoration: none;
   font-size: .85rem; font-weight: 500;
-  transition: background .12s, color .12s;
-  white-space: nowrap;
+  transition: background .12s, color .12s, transform .1s ease-out;
+  white-space: normal;
 }
 .mktg-nav-role-item:hover { background: rgba(255,255,255,.07); color: var(--mk-text); }
+.mktg-nav-role-item:active { transform: scale(0.98); }
 .mktg-nav-role-item--active {
   color: #06d6a0;
   border-left: 2px solid #06d6a0;
-  padding-left: calc(.8rem - 2px);
+  padding-left: calc(.85rem - 2px);
+  background: rgba(6,214,160,.06);
 }
-.mktg-nav-role-item--active:hover { color: #06d6a0; background: rgba(6,214,160,.07); }
-.mktg-nav-role-icon { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+.mktg-nav-role-item--active:hover { color: #06d6a0; background: rgba(6,214,160,.1); }
+.mktg-nav-role-icon { font-size: 1.05rem; line-height: 1.35; flex-shrink: 0; }
+.mktg-nav-role-copy {
+  display: flex; flex-direction: column; gap: .15rem; min-width: 0;
+}
+.mktg-nav-role-title {
+  display: block;
+  color: var(--mk-text);
+  font-size: .88rem; font-weight: 600; line-height: 1.25;
+  letter-spacing: -.01em;
+}
+.mktg-nav-role-item--active .mktg-nav-role-title { color: #06d6a0; }
+.mktg-nav-role-sub {
+  display: block;
+  color: var(--mk-muted);
+  font-size: .72rem; font-weight: 400; line-height: 1.35;
+  letter-spacing: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
+    animation: none;
+  }
+  .mktg-btn-accent:hover,
+  .mktg-btn-accent:active,
+  .mktg-nav-role-item:active {
+    transform: none;
+  }
+}
 
 /* Founders ghost button in nav actions area */
 .mktg-btn-founders {
@@ -4507,13 +4538,24 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
 .lang-option--active:hover { background: rgba(6,214,160,.15); }
 
 .mktg-btn-accent {
-  padding: .5rem 1.2rem; border-radius: 8px;
-  background: var(--mk-accent); color: #fff;
-  text-decoration: none; font-size: .875rem; font-weight: 600;
-  transition: transform .15s, box-shadow .15s;
+  padding: .55rem 1.35rem; border-radius: 8px;
+  background: linear-gradient(135deg, var(--mk-accent), #ff8a4c);
+  color: #fff;
+  text-decoration: none; font-size: .875rem; font-weight: 700;
+  letter-spacing: -.01em;
+  box-shadow: 0 2px 10px rgba(255,107,53,.35);
+  transition: transform .1s ease-out, box-shadow .15s, filter .15s;
   cursor: pointer; border: none; display: inline-flex; align-items: center; gap: .4rem;
+  white-space: nowrap;
 }
-.mktg-btn-accent:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,53,.35); }
+.mktg-btn-accent:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(255,107,53,.45); filter: brightness(1.05); }
+.mktg-btn-accent:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(255,107,53,.3); }
+/* Primary nav CTA — stronger than Sign in / Founders so it reads as the action */
+.mktg-nav-actions .mktg-btn-accent {
+  padding: .55rem 1.25rem;
+  font-size: .88rem;
+  box-shadow: 0 2px 12px rgba(255,107,53,.4);
+}
 .mktg-btn-lg { padding: .75rem 1.75rem; font-size: .95rem; border-radius: 10px; }
 .mktg-btn-full { width: 100%; justify-content: center; }
 .mktg-btn-green {
@@ -6209,11 +6251,11 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
 
 /* ── Nav scroll-spy active state ──────────────────────────────────────────── */
 /* Applied by IntersectionObserver in MktgScripts when a section enters viewport */
-.mktg-nav-links a.mktg-nav--active {
+.mktg-nav-links > a.mktg-nav--active {
   color: var(--mk-text);
   position: relative;
 }
-.mktg-nav-links a.mktg-nav--active::after {
+.mktg-nav-links > a.mktg-nav--active::after {
   content: '';
   position: absolute;
   bottom: -4px;

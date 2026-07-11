@@ -20,7 +20,10 @@ use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
 use shared_ui::marketing::FolioMarketingSlug;
 
-use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
+use crate::components::marketing_nav::{
+    resolve_marketing_nav_cta, MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+    DEFAULT_MARKETING_NAV_CTA,
+};
 use crate::pages::marketing::block_renderer::{
     has_full_page_block, parse_section_blocks, BetaStripBlock, BlockRenderer, CtaBlock,
     FeatureGridBlock, FooterBlock, SectionBlocks,
@@ -77,11 +80,7 @@ pub fn BrokerLandingPage() -> impl IntoView {
                         let description = data.meta_description.clone().unwrap_or_default();
                         let plans = data.plans.clone();
                         let hero = HeroContent::from_value(&data.hero_payload);
-                        let cta_label = if data.cta_label.trim().is_empty() {
-                            "Get early access".to_string()
-                        } else {
-                            data.cta_label.clone()
-                        };
+                        let cta_label = resolve_marketing_nav_cta(&data.cta_label);
                         fire_lp_view_event(data.page_id, data.variant_id);
                         view! {
                             <Title text=title.clone()/>
@@ -109,7 +108,7 @@ pub fn BrokerLandingPage() -> impl IntoView {
                             <BrokerDefault
                                 plans=data.plans
                                 hero=hero
-                                cta_label=data.cta_label
+                                cta_label=resolve_marketing_nav_cta(&data.cta_label)
                                 section_blocks=section_blocks
                             />
                         }.into_any()
@@ -118,7 +117,7 @@ pub fn BrokerLandingPage() -> impl IntoView {
                         <BrokerDefault
                             plans=Vec::new()
                             hero=HeroContent::default()
-                            cta_label="Get early access".to_string()
+                            cta_label=DEFAULT_MARKETING_NAV_CTA.to_string()
                             section_blocks=SectionBlocks::default()
                         />
                     }.into_any(),
@@ -139,11 +138,7 @@ fn BrokerDefault(
 ) -> impl IntoView {
     let title = "Folio for Brokers & Real Estate Agents — Run Your Whole Brokerage";
     let description = "Listing management, buyer & seller CRM, commission tracking, and agent accounts — built for licensed brokers and real estate teams.";
-    let nav_cta_label = if cta_label.trim().is_empty() {
-        "Get early access".to_string()
-    } else {
-        cta_label.clone()
-    };
+    let nav_cta_label = resolve_marketing_nav_cta(&cta_label);
     let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
         block
             .items
@@ -214,11 +209,7 @@ fn BrokerHero(hero: HeroContent, cta_label: String) -> impl IntoView {
             .cloned()
             .collect()
     };
-    let primary_cta = if cta_label.trim().is_empty() {
-        "Reserve beta access →".to_string()
-    } else {
-        cta_label
-    };
+    let primary_cta = resolve_marketing_nav_cta(&cta_label);
 
     view! {
         <section id="broker-hero" class="mktg-hero">
@@ -430,7 +421,7 @@ fn broker_fallback_plans() -> Vec<MarketingPlan> {
                 "Commission tracking".into(),
                 "Transaction timelines".into(),
             ],
-            cta_label: "Join waitlist".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("/#waitlist-wrap".into()),
             is_featured: false,
             sort_order: 0,
@@ -449,7 +440,7 @@ fn broker_fallback_plans() -> Vec<MarketingPlan> {
                 "Commission tracking".into(),
                 "Team analytics dashboard".into(),
             ],
-            cta_label: "Get early access".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("/#waitlist-wrap".into()),
             is_featured: true,
             sort_order: 1,
@@ -468,7 +459,7 @@ fn broker_fallback_plans() -> Vec<MarketingPlan> {
                 "Brokerage analytics".into(),
                 "Priority support".into(),
             ],
-            cta_label: "Get early access".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("/#waitlist-wrap".into()),
             is_featured: false,
             sort_order: 2,

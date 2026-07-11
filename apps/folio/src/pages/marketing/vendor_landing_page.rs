@@ -13,7 +13,10 @@
 //! Freemium: free marketplace listing + job acceptance;
 //! paid tiers unlock priority placement, auto-invoicing, and 0% platform fee.
 
-use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
+use crate::components::marketing_nav::{
+    resolve_marketing_nav_cta, MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+    DEFAULT_MARKETING_NAV_CTA,
+};
 use crate::pages::marketing::block_renderer::{
     has_full_page_block, parse_section_blocks, BlockRenderer, CtaBlock, FeatureGridBlock, FooterBlock,
     SectionBlocks, TradeCategoriesBlock,
@@ -67,7 +70,7 @@ pub fn VendorLandingPage() -> impl IntoView {
             <VendorDefault
                 plans=Vec::new()
                 hero=HeroContent::default()
-                cta_label="Join marketplace".to_string()
+                cta_label=DEFAULT_MARKETING_NAV_CTA.to_string()
                 section_blocks=SectionBlocks::default()
             />
         }>
@@ -78,11 +81,7 @@ pub fn VendorLandingPage() -> impl IntoView {
                         let description = data.meta_description.clone().unwrap_or_default();
                         let plans = data.plans.clone();
                         let hero = HeroContent::from_value(&data.hero_payload);
-                        let cta_label = if data.cta_label.trim().is_empty() {
-                            "Join marketplace".to_string()
-                        } else {
-                            data.cta_label.clone()
-                        };
+                        let cta_label = resolve_marketing_nav_cta(&data.cta_label);
                         fire_lp_view_event(data.page_id, data.variant_id);
                         view! {
                             <Title text=title.clone()/>
@@ -110,7 +109,7 @@ pub fn VendorLandingPage() -> impl IntoView {
                             <VendorDefault
                                 plans=data.plans
                                 hero=hero
-                                cta_label=data.cta_label
+                                cta_label=resolve_marketing_nav_cta(&data.cta_label)
                                 section_blocks=section_blocks
                             />
                         }.into_any()
@@ -119,7 +118,7 @@ pub fn VendorLandingPage() -> impl IntoView {
                         <VendorDefault
                             plans=Vec::new()
                             hero=HeroContent::default()
-                            cta_label="Join marketplace".to_string()
+                            cta_label=DEFAULT_MARKETING_NAV_CTA.to_string()
                             section_blocks=SectionBlocks::default()
                         />
                     }.into_any(),
@@ -136,11 +135,7 @@ fn VendorDefault(
     cta_label: String,
     section_blocks: SectionBlocks,
 ) -> impl IntoView {
-    let nav_cta_label = if cta_label.trim().is_empty() {
-        "Join marketplace".to_string()
-    } else {
-        cta_label.clone()
-    };
+    let nav_cta_label = resolve_marketing_nav_cta(&cta_label);
     let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
         block
             .items
@@ -200,11 +195,7 @@ fn VendorHero(
     let subhead = hero.subhead.clone().unwrap_or_else(|| {
         "Property managers and landlords on Folio dispatch jobs directly to verified tradespeople in their area. You get the job details, accept with one tap, invoice in the app, and get paid in 24 hours. No cold calls. No chasing checks.".to_string()
     });
-    let primary_cta = if cta_label.trim().is_empty() {
-        "Join the marketplace".to_string()
-    } else {
-        cta_label
-    };
+    let primary_cta = resolve_marketing_nav_cta(&cta_label);
     let primary_cta = RwSignal::new(primary_cta);
     let step = RwSignal::new(0u8); // 0=trade, 1=details, 2=success
     let trade = RwSignal::new(String::new());
@@ -1032,7 +1023,7 @@ fn vendor_fallback_plans() -> Vec<MarketingPlan> {
                 "Job analytics dashboard".into(),
                 "Verified badge".into(),
             ],
-            cta_label: "Get early access".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#vendor-signup".into()),
             is_featured: true,
             sort_order: 1,
@@ -1051,7 +1042,7 @@ fn vendor_fallback_plans() -> Vec<MarketingPlan> {
                 "Branded company profile".into(),
                 "Dedicated account manager".into(),
             ],
-            cta_label: "Get early access".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#vendor-signup".into()),
             is_featured: false,
             sort_order: 2,

@@ -24,7 +24,9 @@
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 
-use crate::components::marketing_nav::{MarketingNav, MarketingNavRole};
+use crate::components::marketing_nav::{
+    MarketingNav, MarketingNavRole, DEFAULT_MARKETING_NAV_CTA,
+};
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 
@@ -170,7 +172,7 @@ pub fn CohostMarketplace() -> impl IntoView {
         <div class="folio-mktg">
             <MarketingNav
                 active=MarketingNavRole::Cohosts
-                cta_label="Join Folio"
+                cta_label=DEFAULT_MARKETING_NAV_CTA
                 cta_href="/#waitlist-wrap"
             />
 

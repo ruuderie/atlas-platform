@@ -37,7 +37,7 @@ use shared_ui::marketing::{CtaAction, FolioMarketingSlug};
 use uuid::Uuid;
 
 use crate::components::marketing_nav::{
-    MarketingNav, MarketingNavRole, HOME_MARKETING_SECTION_LINKS,
+    MarketingNav, MarketingNavRole, DEFAULT_MARKETING_NAV_CTA, HOME_MARKETING_SECTION_LINKS,
 };
 use crate::geo::{get_visitor_geo, VisitorGeo};
 use crate::pages::marketing::block_renderer::{
@@ -405,7 +405,7 @@ fn MktgHero(
             .collect()
     };
     let primary_cta = if cta_label.trim().is_empty() {
-        "Get early access →".to_string()
+        format!("{DEFAULT_MARKETING_NAV_CTA} →")
     } else {
         cta_label
     };
@@ -1271,7 +1271,7 @@ fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pri
                 "Tenant portal".into(),
                 "Maintenance requests".into(),
             ],
-            cta_label: "Join waitlist".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#waitlist-wrap".into()),
             is_featured: false,
             sort_order: 0,
@@ -1290,7 +1290,7 @@ fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pri
                 "Contractor marketplace".into(),
                 "Basic analytics".into(),
             ],
-            cta_label: "Join waitlist".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#waitlist-wrap".into()),
             is_featured: false,
             sort_order: 1,
@@ -1310,7 +1310,7 @@ fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pri
                 "Multi-country (US, Canada, Brazil)".into(),
                 "Priority support".into(),
             ],
-            cta_label: "Join waitlist".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#waitlist-wrap".into()),
             is_featured: true,
             sort_order: 2,
@@ -1329,7 +1329,7 @@ fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pri
                 "Dedicated onboarding".into(),
                 "API access".into(),
             ],
-            cta_label: "Join waitlist".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#waitlist-wrap".into()),
             is_featured: false,
             sort_order: 3,

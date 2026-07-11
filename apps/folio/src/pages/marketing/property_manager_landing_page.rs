@@ -13,7 +13,10 @@
 //! In the "Landing Pages" section, select "🏢 Property Manager Page" to manage
 //! this page independently.
 
-use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
+use crate::components::marketing_nav::{
+    resolve_marketing_nav_cta, MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+    DEFAULT_MARKETING_NAV_CTA,
+};
 use crate::pages::marketing::block_renderer::{
     has_full_page_block, parse_section_blocks, BetaStripBlock, BlockRenderer, CtaBlock,
     FeatureGridBlock, FooterBlock, SectionBlocks,
@@ -69,7 +72,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
             <PropertyManagerDefault
                 plans=Vec::new()
                 hero=HeroContent::default()
-                cta_label="Get early access".to_string()
+                cta_label=DEFAULT_MARKETING_NAV_CTA.to_string()
                 section_blocks=SectionBlocks::default()
             />
         }>
@@ -80,11 +83,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
                         let description = data.meta_description.clone().unwrap_or_default();
                         let plans = data.plans.clone();
                         let hero = HeroContent::from_value(&data.hero_payload);
-                        let cta_label = if data.cta_label.trim().is_empty() {
-                            "Get early access".to_string()
-                        } else {
-                            data.cta_label.clone()
-                        };
+                        let cta_label = resolve_marketing_nav_cta(&data.cta_label);
                         fire_lp_view_event(data.page_id, data.variant_id);
                         view! {
                             <Title text=title.clone()/>
@@ -112,7 +111,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
                             <PropertyManagerDefault
                                 plans=data.plans
                                 hero=hero
-                                cta_label=data.cta_label
+                                cta_label=resolve_marketing_nav_cta(&data.cta_label)
                                 section_blocks=section_blocks
                             />
                         }.into_any()
@@ -121,7 +120,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
                         <PropertyManagerDefault
                             plans=Vec::new()
                             hero=HeroContent::default()
-                            cta_label="Get early access".to_string()
+                            cta_label=DEFAULT_MARKETING_NAV_CTA.to_string()
                             section_blocks=SectionBlocks::default()
                         />
                     }.into_any(),
@@ -138,11 +137,7 @@ fn PropertyManagerDefault(
     cta_label: String,
     section_blocks: SectionBlocks,
 ) -> impl IntoView {
-    let nav_cta_label = if cta_label.trim().is_empty() {
-        "Get early access".to_string()
-    } else {
-        cta_label.clone()
-    };
+    let nav_cta_label = resolve_marketing_nav_cta(&cta_label);
     let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
         block
             .items
@@ -193,11 +188,7 @@ fn PmHero(hero: HeroContent, cta_label: String) -> impl IntoView {
     let subhead = hero.subhead.clone().unwrap_or_else(|| {
         "Professional property management runs on owner trust. Folio gives you branded portals, automated statements, trust accounting, and maintenance dispatch — so you run like a firm of 50, even when you're a team of three.".to_string()
     });
-    let primary_cta = if cta_label.trim().is_empty() {
-        "Get early access".to_string()
-    } else {
-        cta_label
-    };
+    let primary_cta = resolve_marketing_nav_cta(&cta_label);
     let primary_cta = RwSignal::new(primary_cta);
     let email = RwSignal::new(String::new());
     let submitted = RwSignal::new(false);
@@ -318,7 +309,7 @@ fn PmProblem() -> impl IntoView {
         <section class="mktg-section" style="background:rgba(255,107,53,.03);border-top:1px solid rgba(255,107,53,.12);border-bottom:1px solid rgba(255,107,53,.12);">
             <div class="mktg-section-inner" style="text-align:center;">
                 <p class="mktg-section-eyebrow" style="color:#ff6b35;">"The problem with PM software today"</p>
-                <h2 class="mktg-section-h2" style="max-width:700px;margin:0 auto 1rem;">"You’re running a professional business on consumer tools. Your owners deserve better."</h2>
+                <h2 class="mktg-section-h2" style="max-width:700px;margin:0 auto 1rem;">"You're running a professional business on consumer tools. Your owners deserve better."</h2>
                 <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 3rem;">
                     "Enterprise platforms cost $280/mo before you touch a unit. \
                      Lightweight tools lack trust accounting and owner portals. \
@@ -445,7 +436,7 @@ fn PmOwnerPortal() -> impl IntoView {
                         </div>
                     </div>
                     <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center;">
-                        <span style="color:var(--mk-muted);font-size:.85rem;">"Disbursed to owner"</span>
+                        <span style="color:var(--mk-muted);font-size:.85rem;">"Owner payout"</span>
                         <span style="color:#f59e0b;font-size:1.1rem;font-weight:700;">"$3,667"</span>
                     </div>
                 </div>
@@ -524,7 +515,7 @@ fn pm_fallback_plans() -> Vec<MarketingPlan> {
                 "Maintenance dispatch".into(),
                 "Requires 2+ owner-clients".into(),
             ],
-            cta_label: "Join waitlist".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#pm-waitlist".into()),
             is_featured: false,
             sort_order: 0,
@@ -543,7 +534,7 @@ fn pm_fallback_plans() -> Vec<MarketingPlan> {
                 "Portfolio analytics".into(),
                 "Vacancy marketing".into(),
             ],
-            cta_label: "Get early access".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#pm-waitlist".into()),
             is_featured: true,
             sort_order: 1,
@@ -562,7 +553,7 @@ fn pm_fallback_plans() -> Vec<MarketingPlan> {
                 "Priority support".into(),
                 "Advanced reporting".into(),
             ],
-            cta_label: "Get early access".into(),
+            cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
             cta_href: Some("#pm-waitlist".into()),
             is_featured: false,
             sort_order: 2,
