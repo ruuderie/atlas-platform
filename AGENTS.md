@@ -15,7 +15,12 @@ durable, non-obvious context for actually running things.
 | backend (Axum + SeaORM API) | `backend/` | `cargo run` (from `backend/`) | 8000 |
 | platform-admin (Leptos CSR/WASM) | `apps/platform-admin/` | `env -u NO_COLOR trunk serve --port 8081 --address 0.0.0.0` | 8081 |
 | network-instance (Leptos SSR) | `apps/network-instance/` | `env -u NO_COLOR cargo-leptos watch` | 8080 |
+| folio (Leptos SSR, "Property Management" app) | `apps/folio/` | `ATLAS_API_URL=http://localhost:8000 env -u NO_COLOR cargo-leptos watch` | 3100 |
 | proxy (Caddy, `.localhost` routing) | root `Caddyfile` | see "Caddy" below | 80 |
+
+`folio` is a `dev`-only app (not present on `main`); it reads `ATLAS_API_URL` (fallback
+`http://localhost:8000`) for its backend calls and serves on `127.0.0.1:3100`. Its landing page
+renders standalone; seeded `folio*.atlas.oply.co` domains map to folio app instances.
 
 `apps/anchor/` is a separate, optional secondary app (edition 2021, **nightly** toolchain,
 Leptos 0.6, its own Postgres) — not part of the core product and not needed to run the above.
