@@ -1,35 +1,33 @@
-pub mod client;
-pub mod models;
-pub mod auth;
-pub mod networks;
-pub mod crm;
-pub mod listings;
-pub mod files;
-pub mod setup;
-pub mod network_types;
-pub mod categories;
-pub mod templates;
-pub mod listing_attributes;
-pub mod profile;
 pub mod admin;
-pub mod search;
 pub mod analytics;
-pub mod developer;
 pub mod audit_logs;
-pub mod onboarding;
-pub mod seeds;
-pub mod syndication;
-pub mod provision;
-pub mod pages;
+pub mod auth;
+pub mod categories;
+pub mod client;
+pub mod crm;
+pub mod developer;
+pub mod files;
 pub mod landing_pages; // Platform-admin Landing Page Builder API client
+pub mod listing_attributes;
+pub mod listings;
 pub mod menus;
+pub mod models;
+pub mod network_types;
+pub mod networks;
+pub mod onboarding;
+pub mod pages;
+pub mod profile;
+pub mod programs;
+pub mod provision;
+pub mod search;
+pub mod seeds;
+pub mod setup;
+pub mod syndication;
+pub mod templates;
 pub mod version;
 
-pub mod products;
 pub mod billing;
+pub mod communications;
+pub mod products;
 pub mod scorecards;
 pub mod verification;
-pub mod communications;
-
-
-

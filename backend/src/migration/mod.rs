@@ -140,7 +140,7 @@ pub mod m20260525_000001_extend_notes_and_activities;
 pub mod m20260601_g09_portfolios;
 pub mod m20260601_g10_assets;
 pub mod m20260601_g11_contracts;
-pub mod m20260601_g11b_atlas_leases;               // Folio: atlas_leases — LTR tenancy ledger (depends on g11 contracts + atlas_assets)
+pub mod m20260601_g11b_atlas_leases; // Folio: atlas_leases — LTR tenancy ledger (depends on g11 contracts + atlas_assets)
 pub mod m20260601_g12_service_providers;
 pub mod m20260601_g13_cases;
 pub mod m20260601_g14_documents;
@@ -175,9 +175,9 @@ pub mod m20260701_g26_catalog;
 pub mod m20260601_g01_geo_postgis;
 pub mod m20260601_g02_vault_extension;
 pub mod m20260601_g03_payments;
+pub mod m20260601_g04_subscriptions;
 pub mod m20260601_g05_external_integrations;
 pub mod m20260601_g06_verification_queue;
-pub mod m20260601_g04_subscriptions;
 pub mod m20260601_g07_realtime;
 pub mod m20260601_g08_ai_tasks;
 
@@ -261,82 +261,85 @@ pub mod m20260802_g23_atlas_reservations;
 pub mod m20260803_g26_atlas_catalog; // GENERIC-26: Product catalog, pricebook & availability grid
 pub mod m20260804_g19_atlas_campaigns; // GENERIC-19: Multi-channel campaign management
 pub mod m20260805_g20_atlas_attribution; // GENERIC-20: Multi-channel attribution touchpoints
-pub mod m20260806_g21_atlas_events;      // GENERIC-21: Event management, ticketing & check-in
+pub mod m20260806_g21_atlas_events; // GENERIC-21: Event management, ticketing & check-in
 pub mod m20260807_g22_atlas_record_relationships; // GENERIC-22: Universal M:M junction table
-pub mod m20260808_g24_atlas_quotes;               // GENERIC-24: Pre-purchase pricing proposals
-pub mod m20260809_g26_catalog_forward;             // G26 forward: enum, GENERATED column, triggers, indexes
-pub mod m20260810_add_folio_role_to_user_account;  // Folio multi-role: folio_role column on user_account
-pub mod m20260811_g32_atlas_rbac;                  // G-32: atlas_role_profiles, atlas_user_app_roles, atlas_role_profile_permissions
-pub mod m20260812_g32_folio_role_seed;             // G-32: platform-default Folio role profiles seed
-pub mod m20260813_g32_migrate_folio_roles;         // G-32: backfill atlas_user_app_roles from folio_role column
-pub mod m20260814_g32_drop_folio_role_column;      // G-32: drop user_account.folio_role (superseded by G-32)
-pub mod m20260815_g33_app_deployment_config;       // G-33: atlas_app_deployment_config — platform-generic app mode config
+pub mod m20260808_g24_atlas_quotes; // GENERIC-24: Pre-purchase pricing proposals
+pub mod m20260809_g26_catalog_forward; // G26 forward: enum, GENERATED column, triggers, indexes
+pub mod m20260810_add_folio_role_to_user_account; // Folio multi-role: folio_role column on user_account
+pub mod m20260811_g32_atlas_rbac; // G-32: atlas_role_profiles, atlas_user_app_roles, atlas_role_profile_permissions
+pub mod m20260812_g32_folio_role_seed; // G-32: platform-default Folio role profiles seed
+pub mod m20260813_g32_migrate_folio_roles; // G-32: backfill atlas_user_app_roles from folio_role column
+pub mod m20260814_g32_drop_folio_role_column; // G-32: drop user_account.folio_role (superseded by G-32)
+pub mod m20260815_g33_app_deployment_config; // G-33: atlas_app_deployment_config — platform-generic app mode config
 // G-33/Folio: property_manager role profile + permissions seed (base vec — platform generic schema change)
 pub mod m20260816_g33_folio_pmc_seed;
 // Folio PMC: managed_account_id FK on contract/asset/portfolio/lead (base vec — platform generic schema change)
 pub mod m20260817_folio_managed_account_id;
-pub mod m20260818_folio_client_role_scope;         // Folio PMC: client_account_id scope FK on atlas_user_app_roles
-pub mod m20260819_g34_vendor_marketplace;          // G-34: vendor marketplace opt-in columns on atlas_service_providers
-pub mod m20260820_g35_service_requests;            // G-35: atlas_service_requests — renter→vendor service request table
-pub mod m20260900_g10_asset_lifecycle;             // G-10: universal asset lifecycle extension (scheduled_service_date, expiry_date, condition, lifecycle_metadata)
-pub mod m20260901_platform_products;              // Platform Admin: platform_products registry (Folio, Anchor, Network, Meridian) + deploy hooks
-pub mod m20260902_app_instance_public_config;    // Platform Admin: public_slug + custom_domain + instance_status on atlas_app_deployment_config
+pub mod m20260818_folio_client_role_scope; // Folio PMC: client_account_id scope FK on atlas_user_app_roles
+pub mod m20260819_g34_vendor_marketplace; // G-34: vendor marketplace opt-in columns on atlas_service_providers
+pub mod m20260820_g35_service_requests; // G-35: atlas_service_requests — renter→vendor service request table
+pub mod m20260900_g10_asset_lifecycle; // G-10: universal asset lifecycle extension (scheduled_service_date, expiry_date, condition, lifecycle_metadata)
+pub mod m20260901_platform_products; // Platform Admin: platform_products registry (Folio, Anchor, Network, Meridian) + deploy hooks
+pub mod m20260902_app_instance_public_config; // Platform Admin: public_slug + custom_domain + instance_status on atlas_app_deployment_config
 pub mod m20260903_platform_products_launch_engine; // Product Launch Engine: launch_mode, pre-order, waitlist_count on platform_products
-pub mod m20260904_product_page_variants;          // Product Launch Engine: product_page_templates + product_page_variants (programmatic SEO)
-pub mod m20260905_product_domain_localization;    // Product Launch Engine: apex_domain, AI localization fields, product_domain_aliases
-pub mod m20260906_subscription_grace_period;       // Billing Grace Period: adds is_billing_exempt, billing_exemption_reason, grace_period_ends_at
-pub mod m20260907_feature_flags;                   // Feature Flags: feature_flags, flag_overrides, flag_audit_log tables
-pub mod m20260908_platform_invitations;            // Platform Invitations: platform_invite table
+pub mod m20260904_product_page_variants; // Product Launch Engine: product_page_templates + product_page_variants (programmatic SEO)
+pub mod m20260905_product_domain_localization; // Product Launch Engine: apex_domain, AI localization fields, product_domain_aliases
+pub mod m20260906_subscription_grace_period; // Billing Grace Period: adds is_billing_exempt, billing_exemption_reason, grace_period_ends_at
+pub mod m20260907_feature_flags; // Feature Flags: feature_flags, flag_overrides, flag_audit_log tables
+pub mod m20260908_platform_invitations; // Platform Invitations: platform_invite table
 
-pub mod m20260909_folio_instance_mode;            // Folio instance mode: typed folio_mode column (standard/pmc/brokerage) replacing pmc_enabled JSON boolean
-pub mod m20260912_atlas_syndication_offer;         // Platform-generic syndication offer catalog (platform admin controlled)
-pub mod m20260913_atlas_app_instance_syndication;  // Platform-generic instance syndication active links
-pub mod m20260914_atlas_listing_asset_fk;          // atlas_listing: add asset_id FK to atlas_assets
-pub mod m20260915_atlas_syndication_outbox;        // G-05 Syndication Event Bus: outbox + integration events ledger
-pub mod m20260916_product_tracking_pixels;         // GTM Landing Page Engine: per-product tracking pixels (GA4, GTM, Meta, LinkedIn, custom)
-pub mod m20260917_platform_products_app_slug;      // GTM Landing Page Engine: app_slug on platform_products — explicit product→app binary binding
-pub mod m20260918_deployment_config_account_link;  // Client Mgmt: platform_account_id FK on atlas_app_deployment_config → CRM Account cross-link
+pub mod m20260909_folio_instance_mode; // Folio instance mode: typed folio_mode column (standard/pmc/brokerage) replacing pmc_enabled JSON boolean
+pub mod m20260912_atlas_syndication_offer; // Platform-generic syndication offer catalog (platform admin controlled)
+pub mod m20260913_atlas_app_instance_syndication; // Platform-generic instance syndication active links
+pub mod m20260914_atlas_listing_asset_fk; // atlas_listing: add asset_id FK to atlas_assets
+pub mod m20260915_atlas_syndication_outbox; // G-05 Syndication Event Bus: outbox + integration events ledger
+pub mod m20260916_product_tracking_pixels; // GTM Landing Page Engine: per-product tracking pixels (GA4, GTM, Meta, LinkedIn, custom)
+pub mod m20260917_platform_products_app_slug; // GTM Landing Page Engine: app_slug on platform_products — explicit product→app binary binding
+pub mod m20260918_deployment_config_account_link; // Client Mgmt: platform_account_id FK on atlas_app_deployment_config → CRM Account cross-link
 // G-19 gap-fill: adds parent_campaign_id (self-referential FK) to atlas_campaigns.
 // The original m20260804 migration created the table without this column despite the
 // entity model referencing it, causing HTTP 500 on every admin campaigns API call.
 pub mod m20260919_g19_campaigns_parent_id;
-pub mod m20260920_atlas_notifications;     // G-07 ext: atlas_notification inbox + atlas_user_notification_pref
+pub mod m20260920_atlas_notifications; // G-07 ext: atlas_notification inbox + atlas_user_notification_pref
 pub mod m20260921_platform_invite_enhancements; // Onboarding: enhanced invite (display_name, folio_role, app_instance_id, target_app_url, message)
-pub mod m20260922_app_pages_app_id;        // Landing Page Builder: app_id column on app_pages for platform-admin GTM builder
-pub mod m20260923_app_page_variants;       // Landing Page Builder: A/B test variants table (app_page_variants)
-pub mod m20260924_app_utm_presets;         // Landing Page Builder: reusable UTM parameter sets (app_utm_presets)
-pub mod m20260925_atlas_lp_events;         // Landing Page Builder: funnel analytics events table
-pub mod m20260926_folio_product_seed;           // Folio Launch Engine: set launch_mode=waitlist + seed master page template
-pub mod m20260927_folio_broker_product_seed;    // Folio Broker Edition: register folio-broker product + page template
+pub mod m20260922_app_pages_app_id; // Landing Page Builder: app_id column on app_pages for platform-admin GTM builder
+pub mod m20260923_app_page_variants; // Landing Page Builder: A/B test variants table (app_page_variants)
+pub mod m20260924_app_utm_presets; // Landing Page Builder: reusable UTM parameter sets (app_utm_presets)
+pub mod m20260925_atlas_lp_events; // Landing Page Builder: funnel analytics events table
+pub mod m20260926_folio_product_seed; // Folio Launch Engine: set launch_mode=waitlist + seed master page template
+pub mod m20260927_folio_broker_product_seed; // Folio Broker Edition: register folio-broker product + page template
 pub mod m20260928_cohost_marketplace_product_seed; // Cohost Network: register folio-cohost-market product + page template
-pub mod m20260929_folio_pm_product_seed;        // Folio PM Edition: register folio-pm product + page template
-pub mod m20260930_folio_vendor_product_seed;    // Folio Vendor Marketplace: register folio-vendor product + page template
-pub mod m20260931_app_pages_locale;             // i18n: add locale column (en/pt/es/fr) to app_pages + compound index
+pub mod m20260929_folio_pm_product_seed; // Folio PM Edition: register folio-pm product + page template
+pub mod m20260930_folio_vendor_product_seed; // Folio Vendor Marketplace: register folio-vendor product + page template
+pub mod m20260931_app_pages_locale; // i18n: add locale column (en/pt/es/fr) to app_pages + compound index
+pub mod m20260932_folio_master_app_pages; // Folio CMS master page seeds for public marketing routes
 pub mod m20261001_fix_existing_ruuderie_domains;
-pub mod m20261002_seed_ruuderie_folio_domain;  // Create ruuderie tenant+app_instance+domain if missing
-pub mod m20261003_platform_invite_account_id;  // Add account_id to platform_invite for workspace-scoped invites
+pub mod m20261002_seed_ruuderie_folio_domain; // Create ruuderie tenant+app_instance+domain if missing
+pub mod m20261003_platform_invite_account_id; // Add account_id to platform_invite for workspace-scoped invites
 pub mod m20261004_platform_invite_asset_lease_scope; // Add asset_ids[] + lease_id to platform_invite
-pub mod m20261005_atlas_user_asset_access;     // Create atlas_user_asset_access for per-asset permission grants
+pub mod m20261005_atlas_user_asset_access; // Create atlas_user_asset_access for per-asset permission grants
 pub mod m20261006_folio_missing_role_profiles; // Seed cohost, agent, broker role profiles (str_host removed)
-pub mod m20261007_asset_str_traits;            // Add str_eligible, str_listing_active, str_syndicated to atlas_assets
-pub mod m20261008_lease_type;                  // Add lease_type (ltr|str) to atlas_leases
-pub mod m20261009_atlas_bookings;              // Create atlas_bookings for STR guest reservations
+pub mod m20261007_asset_str_traits; // Add str_eligible, str_listing_active, str_syndicated to atlas_assets
+pub mod m20261008_lease_type; // Add lease_type (ltr|str) to atlas_leases
+pub mod m20261009_atlas_bookings; // Create atlas_bookings for STR guest reservations
 pub mod m20261010_platform_invite_booking_tenancy; // Add booking_id, asset_id, tenancy_status to platform_invite
-pub mod m20261011_atlas_invite_codes;          // Short invite code table for deep-link provisioning
-pub mod m20261012_platform_invite_code_fk;     // Link platform_invite → atlas_invite_codes for audit trail
-pub mod m20261013_invite_employer_fk;          // Invite codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at
-pub mod m20261014_atlas_otp_tokens;            // Inline OTP auth — wizard pre-step (6-digit email code)
+pub mod m20261011_atlas_invite_codes; // Short invite code table for deep-link provisioning
+pub mod m20261012_platform_invite_code_fk; // Link platform_invite → atlas_invite_codes for audit trail
+pub mod m20261013_invite_employer_fk; // Invite codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at
+pub mod m20261014_atlas_otp_tokens; // Inline OTP auth — wizard pre-step (6-digit email code)
 // Property Owner Lite + Vendor Reviews + Value Tracking
-pub mod m20261015_platform_invite_review_purpose;    // platform_invite: add invite_purpose + context_entity_id for review requests
-pub mod m20261015_rating_sessions_review_fields;     // atlas_rating_sessions: add testimonial, is_flagged, flag_reason, published_at
 pub mod m20261015_atlas_asset_status_owner_occupied; // atlas_asset_status enum: add 'owner_occupied' for PO Lite assets
-pub mod m20261015_atlas_asset_value_history;         // NEW TABLE: G-10 extension — property valuation ledger (PropertyValueSource)
-pub mod m20261015_g32_property_owner_lite_seed;      // G-32 seed: property_owner_lite RBAC profile + permissions
+pub mod m20261015_atlas_asset_value_history; // NEW TABLE: G-10 extension — property valuation ledger (PropertyValueSource)
+pub mod m20261015_g32_property_owner_lite_seed; // G-32 seed: property_owner_lite RBAC profile + permissions
+pub mod m20261015_platform_invite_review_purpose; // platform_invite: add invite_purpose + context_entity_id for review requests
+pub mod m20261015_rating_sessions_review_fields; // atlas_rating_sessions: add testimonial, is_flagged, flag_reason, published_at
 pub mod m20261016_atlas_scorecard_template_deployments; // G-27 Phase 1b: template ↔ app-instance deployments
-pub mod m20261017_rating_sessions_app_instance_id;      // G-27 Phase C: app_instance_id on rating sessions
-pub mod m20261018_g36_atlas_programs;                   // G-36: atlas_programs + actions + outcomes + rewards
-pub mod m20261019_g36_network_invite_reward_rules;      // G-36: seed NetworkInvite reward rules (grants only)
-pub mod m20261020_g36_subscription_credit_ledger;       // G-36: apply subscription_credit_days to ledger
+pub mod m20261017_rating_sessions_app_instance_id; // G-27 Phase C: app_instance_id on rating sessions
+pub mod m20261018_g36_atlas_programs; // G-36: atlas_programs + actions + outcomes + rewards
+pub mod m20261019_g36_network_invite_reward_rules; // G-36: seed NetworkInvite reward rules (grants only)
+pub mod m20261020_g36_subscription_credit_ledger; // G-36: apply subscription_credit_days to ledger
+pub mod m20261021_g36_program_instance_enablements; // G-36: per-app-instance program enablement overrides
+pub mod m20261022_platform_product_plans; // Product-scoped marketing pricing plans
 
 pub struct Migrator;
 
@@ -618,6 +621,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260929_folio_pm_product_seed::Migration),
             Box::new(m20260930_folio_vendor_product_seed::Migration),
             Box::new(m20260931_app_pages_locale::Migration),
+            Box::new(m20260932_folio_master_app_pages::Migration),
             Box::new(m20261001_fix_existing_ruuderie_domains::Migration),
             Box::new(m20261002_seed_ruuderie_folio_domain::Migration),
             Box::new(m20261003_platform_invite_account_id::Migration),
@@ -644,7 +648,6 @@ impl MigratorTrait for Migrator {
             Box::new(m20261016_atlas_scorecard_template_deployments::Migration),
             Box::new(m20261017_rating_sessions_app_instance_id::Migration),
             // G-36 atlas_programs is registered via CorePlatformApp::migrations()
-
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

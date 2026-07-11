@@ -13,57 +13,56 @@
 //   - Migrations:  Owned by CorePlatformApp (shared platform schema — no tenant-scoped tables)
 //   - Background:  None — platform-admin is a read/write UI tool, not a service
 use leptos::prelude::*;
-use leptos_router::components::{Router, Route, Routes};
+use leptos_router::components::{Route, Router, Routes};
 use leptos_router::path;
 
-use crate::pages::dashboard::Dashboard;
-use crate::pages::crm::leads::LeadsPage;
-use crate::pages::crm::contacts::ContactsPage;
-use crate::pages::crm::accounts::AccountsPage;
-use crate::pages::crm::opportunities::OpportunitiesPage;
-use crate::pages::products::index::PlatformProducts;
-use crate::pages::products::detail::ProductDetail;
-use crate::pages::billing::scorecards::Scorecards;
 use crate::pages::billing::scorecard_configure::ScorecardConfigure;
 use crate::pages::billing::scorecard_detail::ScorecardDetailPage;
-use crate::pages::network::syndication::SyndicationManager;
+use crate::pages::billing::scorecards::Scorecards;
+use crate::pages::crm::accounts::AccountsPage;
+use crate::pages::crm::contacts::ContactsPage;
+use crate::pages::crm::leads::LeadsPage;
+use crate::pages::crm::opportunities::OpportunitiesPage;
+use crate::pages::dashboard::Dashboard;
 use crate::pages::network::create::NetworkCreate;
 use crate::pages::network::detail::NetworkDetail;
+use crate::pages::network::syndication::SyndicationManager;
+use crate::pages::products::detail::ProductDetail;
+use crate::pages::products::index::PlatformProducts;
 // MarketingLanding is intentionally NOT imported here.
 // The /marketing route is a public-facing product page (served unauthenticated);
 // it must not appear in the authenticated operator shell.
-use crate::pages::auth::login::Login;
-use crate::pages::auth::verify_token::VerifyToken;
-use crate::pages::auth::setup::Setup;
-use crate::pages::network::types::index::NetworkTypes;
-use crate::pages::network::types::detail::NetworkTypeDetail;
-use crate::pages::network::types::create::NetworkTypeCreate;
-use crate::pages::network::categories::index::Categories;
-use crate::pages::network::categories::detail::CategoryDetail;
-use crate::pages::network::categories::create::CategoryCreate;
-use crate::pages::network::templates::index::Templates;
-use crate::pages::network::templates::detail::TemplateDetail;
-use crate::pages::network::templates::create::TemplateCreate;
-use crate::pages::network::listings::index::Listings;
-use crate::pages::network::listings::create::ListingCreate;
-use crate::pages::network::listings::detail::ListingDetail;
-use crate::pages::admin::users::PlatformAdmins;
-use crate::pages::apps::instance::AppInstance;
-use crate::pages::analytics::index::Analytics;
-use crate::pages::verification::index::Verification;
-use crate::pages::admin::ai_tasks::AiTasks;
-use crate::pages::admin::integrations::Integrations;
-use crate::pages::admin::compliance::Compliance;
-use crate::pages::flags::index::FeatureFlags;
-use crate::pages::support::index::SupportQueue;
-use crate::api::auth::{get_session, cache_clear};
-use crate::api::models::{UserInfo, PlatformAppModel};
+use crate::api::auth::{cache_clear, get_session};
+use crate::api::models::{PlatformAppModel, UserInfo};
 use crate::api::networks::get_networks;
 use crate::api::version::get_version;
 use crate::components::intel_sidebar::IntelSidebar;
-use crate::pages::syndication::offers::SyndicationOffers;
+use crate::pages::admin::ai_tasks::AiTasks;
+use crate::pages::admin::compliance::Compliance;
+use crate::pages::admin::integrations::Integrations;
+use crate::pages::admin::users::PlatformAdmins;
+use crate::pages::analytics::index::Analytics;
+use crate::pages::apps::instance::AppInstance;
+use crate::pages::auth::login::Login;
+use crate::pages::auth::setup::Setup;
+use crate::pages::auth::verify_token::VerifyToken;
+use crate::pages::flags::index::FeatureFlags;
+use crate::pages::network::categories::create::CategoryCreate;
+use crate::pages::network::categories::detail::CategoryDetail;
+use crate::pages::network::categories::index::Categories;
+use crate::pages::network::listings::create::ListingCreate;
+use crate::pages::network::listings::detail::ListingDetail;
+use crate::pages::network::listings::index::Listings;
+use crate::pages::network::templates::create::TemplateCreate;
+use crate::pages::network::templates::detail::TemplateDetail;
+use crate::pages::network::templates::index::Templates;
+use crate::pages::network::types::create::NetworkTypeCreate;
+use crate::pages::network::types::detail::NetworkTypeDetail;
+use crate::pages::network::types::index::NetworkTypes;
+use crate::pages::support::index::SupportQueue;
 use crate::pages::syndication::links::SyndicationLinks;
-
+use crate::pages::syndication::offers::SyndicationOffers;
+use crate::pages::verification::index::Verification;
 
 #[derive(Clone, Debug)]
 pub struct ToastPayload {
@@ -106,7 +105,9 @@ pub fn App() -> impl IntoView {
     provide_context(active_network);
     provide_context(set_active_network);
 
-    let toast = GlobalToast { payload: RwSignal::new(None) };
+    let toast = GlobalToast {
+        payload: RwSignal::new(None),
+    };
     provide_context(toast);
 
     // Validate session on load — uses 15-second client-side cache (see §5.6)
@@ -183,18 +184,18 @@ pub fn App() -> impl IntoView {
 #[component]
 pub fn AuthenticatedLayout() -> impl IntoView {
     let user = use_context::<ReadSignal<Option<UserInfo>>>().expect("user context");
-    let set_user = use_context::<WriteSignal<Option<crate::api::models::UserInfo>>>().expect("set user context");
+    let set_user = use_context::<WriteSignal<Option<crate::api::models::UserInfo>>>()
+        .expect("set user context");
     let auth_checked = use_context::<ReadSignal<bool>>().expect("auth checked context");
     let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
     let _active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network");
-    let set_active_network = use_context::<WriteSignal<Option<uuid::Uuid>>>().expect("set active network");
+    let set_active_network =
+        use_context::<WriteSignal<Option<uuid::Uuid>>>().expect("set active network");
     let navigate = leptos_router::hooks::use_navigate();
     let location = leptos_router::hooks::use_location();
     let (show_profile_menu, set_show_profile_menu) = signal(false);
 
-    let version_res = LocalResource::new(|| async move {
-        get_version().await.unwrap_or_default()
-    });
+    let version_res = LocalResource::new(|| async move { get_version().await.unwrap_or_default() });
 
     Effect::new(move |_| {
         if user.get().is_none() && auth_checked.get() {
@@ -233,7 +234,11 @@ pub fn AuthenticatedLayout() -> impl IntoView {
 
     // shell class: adds sidebar-open when drawer is active on mobile
     let shell_class = move || {
-        if sidebar_open.get() { "shell sidebar-open" } else { "shell" }
+        if sidebar_open.get() {
+            "shell sidebar-open"
+        } else {
+            "shell"
+        }
     };
 
     view! {
@@ -267,7 +272,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </div>
                     <div class="topbar-center">
                         <div class="search-wrap">
-                            <input 
+                            <input
                                 type="text"
                                 placeholder="Search tenants, leads, products… ⌘K"
                             />
@@ -333,9 +338,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                     <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
                                 </div>
                                 <a href="/settings" data-label="Settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
-                                <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { 
-                                    e.stop_propagation(); 
-                                    set_show_profile_menu.set(false); 
+                                <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| {
+                                    e.stop_propagation();
+                                    set_show_profile_menu.set(false);
                                     leptos::task::spawn_local(async move {
                                         cache_clear();
                                         let _ = crate::api::auth::logout().await;
@@ -472,11 +477,25 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v5c0 2.5-2.5 4.5-6 5-3.5-.5-6-2.5-6-5V5z"/><path d="M8 8l2 1.5-2 1"/></svg>
                         "Campaigns"
                     </a>
-                    <a href="/network/syndication" data-label="Syndication" class=move || side_active_class("/network/syndication")>
+                    // Programs = G-36 growth/incentive templates administered for downstream apps.
+                    <a href="/programs" data-label="Programs" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/programs") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v3H3zM3 8h10v5H3z"/><path d="M6 10.5h4"/></svg>
+                        "Programs"
+                    </a>
+                    <a href="/syndication/offers" data-label="Syndication" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/syndication") || p.starts_with("/network/syndication") {
+                            "nav-item active"
+                        } else {
+                            "nav-item"
+                        }
+                    }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 4.5l-2-2m2 2l-2 2m2-2H2.5v4m-1 3.5l2 2m-2-2l2-2m-2 2h11v-4"/></svg>
                         "Syndication"
                     </a>
-                    // Offer Catalog is a tab inside Syndication — no separate nav item needed
                     <a href="/verification" data-label="Verification" class=move || side_active_class("/verification")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Verification"
@@ -590,6 +609,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/products/:id") view=ProductDetail />
                         <Route path=path!("/campaigns") view=crate::pages::marketing::campaigns::CampaignsPage />
                         <Route path=path!("/campaigns/:id") view=crate::pages::marketing::campaigns::CampaignDetail />
+                        <Route path=path!("/programs") view=crate::pages::programs::index::ProgramsPage />
+                        <Route path=path!("/programs/:id") view=crate::pages::programs::detail::ProgramDetail />
                         <Route path=path!("/landing-pages") view=crate::pages::marketing::landing_pages::LandingPagesPage />
                         <Route path=path!("/team") view=PlatformAdmins />
                         <Route path=path!("/billing") view=crate::pages::billing::dashboard::BillingDashboard />

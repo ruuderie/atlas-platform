@@ -7,16 +7,22 @@
 use leptos::prelude::*;
 
 use crate::api::syndication::{list_syndication_links, revoke_syndication_link};
+use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
 
 #[component]
 pub fn SyndicationLinks() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    let links_res = LocalResource::new(|| async { list_syndication_links().await.unwrap_or_default() });
+    let links_res =
+        LocalResource::new(|| async { list_syndication_links().await.unwrap_or_default() });
 
     let t1 = toast.clone();
     let handle_revoke = move |id: String, is_mandatory: bool| {
         if is_mandatory {
-            t1.show_toast("Cannot Revoke", "Mandatory links cannot be revoked. Change the operator's billing tier.", "error");
+            t1.show_toast(
+                "Cannot Revoke",
+                "Mandatory links cannot be revoked. Change the operator's billing tier.",
+                "error",
+            );
             return;
         }
         let t = t1.clone();
@@ -33,12 +39,22 @@ pub fn SyndicationLinks() -> impl IntoView {
 
     view! {
         <div class="main-canvas">
+            <GtmProcessStrip
+                active=GtmStage::Syndication
+                subtitle="Active syndication links across Network Instances.".to_string()
+            />
             <div class="page-header">
                 <div>
                     <div class="page-title">"Syndication Links"</div>
                     <div class="page-subtitle">"All live source → network syndication relationships. Mandatory links cannot be revoked here."</div>
                 </div>
                 <a href="/syndication/offers" class="btn btn-ghost btn-sm">"← Offer Catalog"</a>
+            </div>
+
+            <div class="tab-bar" style="margin-bottom:12px;">
+                <a class="tab" href="/syndication/offers">"Offers"</a>
+                <a class="tab active" href="/syndication/links">"Links"</a>
+                <a class="tab" href="/network/syndication">"Grants"</a>
             </div>
 
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">

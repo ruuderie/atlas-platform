@@ -3,11 +3,11 @@
 //! Async functions that call the `/api/admin/landing-pages/*` and
 //! `/api/admin/utm-presets/*` backend routes from the Leptos WASM frontend.
 
-use super::client::{api_url, create_client, with_credentials, api_request};
+use super::client::{api_request, api_url, create_client, with_credentials};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ── Models ─────────────────────────────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ pub struct LandingPageSummary {
     pub slug: String,
     pub title: String,
     pub page_type: String,
-    pub locale: String,           // "en" | "pt" | "es" | "fr"
+    pub locale: String, // "en" | "pt" | "es" | "fr"
     pub is_published: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -34,7 +34,7 @@ pub struct LandingPage {
     pub title: String,
     pub description: String,
     pub page_type: String,
-    pub locale: String,           // "en" | "pt" | "es" | "fr"
+    pub locale: String, // "en" | "pt" | "es" | "fr"
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub is_published: bool,
@@ -82,7 +82,7 @@ pub struct CreateLandingPagePayload {
     pub title: String,
     pub description: Option<String>,
     pub page_type: Option<String>,
-    pub locale: Option<String>,   // defaults to "en" on the backend
+    pub locale: Option<String>, // defaults to "en" on the backend
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub is_published: Option<bool>,
@@ -93,7 +93,7 @@ pub struct UpdateLandingPagePayload {
     pub title: Option<String>,
     pub description: Option<String>,
     pub page_type: Option<String>,
-    pub locale: Option<String>,   // change locale of an existing page
+    pub locale: Option<String>, // change locale of an existing page
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub slug: Option<String>,
@@ -179,7 +179,11 @@ pub async fn delete_landing_page(page_id: Uuid) -> Result<(), String> {
     let url = api_url(&format!("/api/admin/landing-pages/{}", page_id));
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", res.status()))
+    }
 }
 
 // ── Variant API functions ──────────────────────────────────────────────────────
@@ -193,7 +197,10 @@ pub async fn list_variants(page_id: Uuid) -> Result<Vec<PageVariant>, String> {
 }
 
 /// `POST /api/admin/landing-pages/{page_id}/variants`
-pub async fn create_variant(page_id: Uuid, payload: CreateVariantPayload) -> Result<PageVariant, String> {
+pub async fn create_variant(
+    page_id: Uuid,
+    payload: CreateVariantPayload,
+) -> Result<PageVariant, String> {
     let client = create_client();
     let url = api_url(&format!("/api/admin/landing-pages/{}/variants", page_id));
     let req = with_credentials(client.post(&url).json(&payload));
@@ -207,7 +214,10 @@ pub async fn update_variant(
     payload: UpdateVariantPayload,
 ) -> Result<PageVariant, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/admin/landing-pages/{}/variants/{}", page_id, variant_id));
+    let url = api_url(&format!(
+        "/api/admin/landing-pages/{}/variants/{}",
+        page_id, variant_id
+    ));
     let req = with_credentials(client.put(&url).json(&payload));
     api_request::<PageVariant>(req).await
 }
@@ -215,10 +225,17 @@ pub async fn update_variant(
 /// `DELETE /api/admin/landing-pages/{page_id}/variants/{variant_id}`
 pub async fn delete_variant(page_id: Uuid, variant_id: Uuid) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("/api/admin/landing-pages/{}/variants/{}", page_id, variant_id));
+    let url = api_url(&format!(
+        "/api/admin/landing-pages/{}/variants/{}",
+        page_id, variant_id
+    ));
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", res.status()))
+    }
 }
 
 /// `POST /api/admin/landing-pages/{page_id}/variants/{variant_id}/promote`
@@ -256,7 +273,11 @@ pub async fn delete_utm_preset(preset_id: Uuid) -> Result<(), String> {
     let url = api_url(&format!("/api/admin/utm-presets/{}", preset_id));
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", res.status()))
+    }
 }
 
 // ── Pixel tracking API ────────────────────────────────────────────────────────
@@ -269,19 +290,19 @@ pub struct PixelConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PagePixelConfig {
-    pub ga4:      PixelConfig,
-    pub meta:     PixelConfig,
+    pub ga4: PixelConfig,
+    pub meta: PixelConfig,
     pub linkedin: PixelConfig,
-    pub gtm:      PixelConfig,
+    pub gtm: PixelConfig,
 }
 
 impl Default for PagePixelConfig {
     fn default() -> Self {
         Self {
-            ga4:      PixelConfig::default(),
-            meta:     PixelConfig::default(),
+            ga4: PixelConfig::default(),
+            meta: PixelConfig::default(),
             linkedin: PixelConfig::default(),
-            gtm:      PixelConfig::default(),
+            gtm: PixelConfig::default(),
         }
     }
 }
@@ -308,7 +329,10 @@ pub async fn set_pixel(
     snippet: Option<String>,
 ) -> Result<PagePixelConfig, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/admin/landing-pages/{}/pixels/{}", page_id, pixel_type));
+    let url = api_url(&format!(
+        "/api/admin/landing-pages/{}/pixels/{}",
+        page_id, pixel_type
+    ));
     let req = with_credentials(client.put(&url).json(&SetPixelPayload { enabled, snippet }));
     api_request::<PagePixelConfig>(req).await
 }
@@ -318,19 +342,19 @@ pub async fn set_pixel(
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SourceBreakdown {
     pub source: String,
-    pub views:  i64,
-    pub leads:  i64,
-    pub pct:    i32,
+    pub views: i64,
+    pub leads: i64,
+    pub pct: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PageAnalytics {
-    pub page_id:       Uuid,
-    pub total_views:   i64,
-    pub total_leads:   i64,
-    pub cta_clicks:    i64,
+    pub page_id: Uuid,
+    pub total_views: i64,
+    pub total_leads: i64,
+    pub cta_clicks: i64,
     pub conv_rate_pct: f64,
-    pub sources:       Vec<SourceBreakdown>,
+    pub sources: Vec<SourceBreakdown>,
 }
 
 /// `GET /api/admin/landing-pages/{page_id}/analytics`

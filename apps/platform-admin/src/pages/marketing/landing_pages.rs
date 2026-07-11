@@ -13,29 +13,26 @@
 //! 5. **Funnel Analytics** — conversion funnel; source breakdown
 
 use leptos::prelude::*;
-use uuid::Uuid;
 
 use crate::api::landing_pages::{
-    list_landing_pages, toggle_publish, delete_landing_page,
-    update_landing_page, get_landing_page,
-    get_page_pixels, set_pixel,
-    get_page_analytics,
-    list_variants, promote_variant, list_utm_presets,
-    create_utm_preset, delete_utm_preset,
-    LandingPageSummary, PageVariant, UtmPreset,
-    CreateUtmPresetPayload, UpdateLandingPagePayload,
-    PagePixelConfig, PageAnalytics,
+    CreateLandingPagePayload, CreateUtmPresetPayload, CreateVariantPayload, LandingPageSummary,
+    PageAnalytics, PagePixelConfig, PageVariant, UpdateLandingPagePayload, UtmPreset,
+    create_landing_page, create_utm_preset, create_variant, delete_utm_preset, get_page_analytics,
+    get_page_pixels, list_landing_pages, list_utm_presets, list_variants, promote_variant,
+    set_pixel, toggle_publish, update_landing_page,
 };
+use crate::app::GlobalToast;
+use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
 
 // ── App selector ─────────────────────────────────────────────────────────────
 
 const APPS: &[(&str, &str, &str)] = &[
-    ("folio",        "🏢 Folio",              "#4F63EB"),
-    ("folio-broker", "🤝 Broker Page",        "#F59E0B"),
-    ("folio-pm",     "🏗️ Property Manager",   "#06D6A0"),
-    ("folio-vendor", "🔧 Vendor Page",         "#FF6B35"),
-    ("network",      "🔗 Network",            "#06967F"),
-    ("anchor",       "⚓ Anchor",             "#9C27B0"),
+    ("folio", "🏢 Folio", "#4F63EB"),
+    ("folio-broker", "🤝 Broker Page", "#F59E0B"),
+    ("folio-pm", "🏗️ Property Manager", "#06D6A0"),
+    ("folio-vendor", "🔧 Vendor Page", "#FF6B35"),
+    ("network", "🔗 Network", "#06967F"),
+    ("anchor", "⚓ Anchor", "#9C27B0"),
 ];
 
 // ── Main page component ──────────────────────────────────────────────────────
@@ -44,10 +41,13 @@ const APPS: &[(&str, &str, &str)] = &[
 pub fn LandingPagesPage() -> impl IntoView {
     let (active_app, set_active_app) = signal("folio".to_string());
     let (active_tab, set_active_tab) = signal(0usize); // 0=pages,1=editor,2=ab,3=utm,4=funnel
+    let pages_version = RwSignal::new(0u32);
+    let toast = use_context::<GlobalToast>();
 
     // Pages list resource
     let pages_res = LocalResource::new(move || {
         let app = active_app.get();
+        let _ = pages_version.get();
         async move { list_landing_pages(&app).await.unwrap_or_default() }
     });
 
@@ -78,7 +78,7 @@ pub fn LandingPagesPage() -> impl IntoView {
             <div class="lp-header">
                 <div class="lp-header-left">
                     <h1 class="lp-title">"Landing Pages"</h1>
-                    <p class="lp-subtitle">"Platform acquisition pages · app-neutral GTM builder"</p>
+                    <p class="lp-subtitle">"Build, test, and measure acquisition pages for each app."</p>
                 </div>
 
                 // App selector pills
@@ -103,6 +103,24 @@ pub fn LandingPagesPage() -> impl IntoView {
                         }
                     }).collect_view()}
                 </div>
+            </div>
+
+            <GtmProcessStrip
+                active=GtmStage::LandingPages
+                subtitle="Build, test, and measure acquisition pages for each app."
+            />
+
+            <div class="bg-surface-container-low border border-outline-variant/15 rounded-xl px-5 py-4 text-xs text-on-surface-variant/80 space-y-1">
+                <p class="font-semibold text-on-surface text-sm">
+                    "Products define the offering. Landing Pages change what visitors see."
+                </p>
+                <p>
+                    "Use products for catalog, pricing, launch mode, and market SEO. Use landing pages for acquisition copy, public path experiments, and A/B tests."
+                </p>
+                <p class="text-on-surface-variant/60 text-[11px]">
+                    <a href="/products" class="text-primary hover:underline font-semibold">"Products"</a>
+                    " stay stable while landing pages adapt by channel, audience, and campaign."
+                </p>
             </div>
 
             // ── Tab bar ──────────────────────────────────────────────────────
@@ -142,12 +160,14 @@ pub fn LandingPagesPage() -> impl IntoView {
                         set_selected_page=set_selected_page
                         set_active_tab=set_active_tab
                         active_app=active_app
+                        pages_version=pages_version
+                        toast=toast
                     />
                 </div>
 
                 // ── Tab 1: Editor ────────────────────────────────────────────
                 <div class=move || if active_tab.get() == 1 { "lp-panel active" } else { "lp-panel" }>
-                    <EditorTab selected_page=selected_page active_app=active_app />
+                    <EditorTab selected_page=selected_page active_app=active_app pages_version=pages_version />
                 </div>
 
                 // ── Tab 2: A/B Testing ───────────────────────────────────────
@@ -189,6 +209,8 @@ fn AllPagesTab(
     set_selected_page: WriteSignal<Option<LandingPageSummary>>,
     set_active_tab: WriteSignal<usize>,
     active_app: ReadSignal<String>,
+    pages_version: RwSignal<u32>,
+    toast: Option<GlobalToast>,
 ) -> impl IntoView {
     let (search, set_search) = signal(String::new());
     let (filter, set_filter) = signal("all"); // "all" | "published" | "draft"
@@ -226,9 +248,47 @@ fn AllPagesTab(
                 </div>
                 <div class="pt-spacer" />
                 <button class="btn-cobalt" on:click=move |_| {
-                    // Opening editor on a blank page (no selection) allows creating a new page
-                    set_selected_page.set(None);
-                    set_active_tab.set(1);
+                    let app = active_app.get();
+                    let slug = format!("{}-draft-{}", app, js_sys::Date::now() as i64);
+                    let title = format!("New {} landing page", app_label(&app));
+                    let toast = toast;
+                    leptos::task::spawn_local(async move {
+                        match create_landing_page(CreateLandingPagePayload {
+                            app_id: app,
+                            slug,
+                            title,
+                            description: Some("Draft acquisition page.".to_string()),
+                            page_type: Some("landing".to_string()),
+                            locale: Some("en".to_string()),
+                            hero_payload: None,
+                            blocks_payload: None,
+                            is_published: Some(false),
+                        }).await {
+                            Ok(page) => {
+                                set_selected_page.set(Some(LandingPageSummary {
+                                    id: page.id,
+                                    app_id: page.app_id,
+                                    slug: page.slug,
+                                    title: page.title,
+                                    page_type: page.page_type,
+                                    locale: page.locale,
+                                    is_published: page.is_published,
+                                    created_at: page.created_at,
+                                    updated_at: page.updated_at,
+                                }));
+                                pages_version.update(|n| *n += 1);
+                                set_active_tab.set(1);
+                                if let Some(toast) = toast {
+                                    toast.show_toast("Created", "Draft landing page opened in the editor.", "success");
+                                }
+                            }
+                            Err(e) => {
+                                if let Some(toast) = toast {
+                                    toast.show_toast("Create failed", &e, "error");
+                                }
+                            }
+                        }
+                    });
                 }>
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13">
                         <line x1="8" y1="2" x2="8" y2="14"/>
@@ -291,6 +351,13 @@ fn AllPagesTab(
                                             <td>
                                                 <div class="lp-page-name">{page.title.clone()}</div>
                                                 <div class="lp-page-slug">"/"{ page.slug.clone() }</div>
+                                                <div class="lp-page-slug">
+                                                    <a href="/products" on:click=move |e| e.stop_propagation()>
+                                                        {format!("Product: {}", app_label(&page.app_id))}
+                                                    </a>
+                                                    <span>" · public path: "</span>
+                                                    <span>{public_path_hint(&page.app_id)}</span>
+                                                </div>
                                             </td>
                                             <td>
                                                 <span class="locale-badge">
@@ -311,6 +378,9 @@ fn AllPagesTab(
                                                 }>
                                                     {if page.is_published { "● Published" } else { "○ Draft" }}
                                                 </span>
+                                                <div class="lp-page-slug">
+                                                    {if page.is_published { "CMS live" } else { "Hardcoded fallback" }}
+                                                </div>
                                             </td>
                                             <td class="lp-date">
                                                 {page.updated_at.format("%b %d").to_string()}
@@ -326,7 +396,9 @@ fn AllPagesTab(
                                                         e.stop_propagation();
                                                         let id = page_id;
                                                         leptos::task::spawn_local(async move {
-                                                            let _ = toggle_publish(id).await;
+                                                            if toggle_publish(id).await.is_ok() {
+                                                                pages_version.update(|n| *n += 1);
+                                                            }
                                                         });
                                                     }>{if page.is_published { "Unpublish" } else { "Publish" }}</button>
                                                 </div>
@@ -351,17 +423,19 @@ fn AllPagesTab(
 fn EditorTab(
     selected_page: ReadSignal<Option<LandingPageSummary>>,
     active_app: ReadSignal<String>,
+    pages_version: RwSignal<u32>,
 ) -> impl IntoView {
     let (viewport, set_viewport) = signal("desktop"); // "desktop" | "tablet" | "mobile"
+    let (editor_panel, set_editor_panel) = signal("blocks");
 
     // Editable property inspector fields
-    let edit_slug      = RwSignal::new(String::new());
-    let edit_title     = RwSignal::new(String::new());
+    let edit_slug = RwSignal::new(String::new());
+    let edit_title = RwSignal::new(String::new());
     let edit_meta_desc = RwSignal::new(String::new());
-    let edit_locale    = RwSignal::new("en".to_string()); // "en" | "pt" | "es" | "fr"
-    let saving         = RwSignal::new(false);
-    let save_msg       = RwSignal::new(None::<(bool, String)>); // (is_ok, msg)
-    let publishing     = RwSignal::new(false);
+    let edit_locale = RwSignal::new("en".to_string()); // "en" | "pt" | "es" | "fr"
+    let saving = RwSignal::new(false);
+    let save_msg = RwSignal::new(None::<(bool, String)>); // (is_ok, msg)
+    let publishing = RwSignal::new(false);
 
     // Sync edit fields whenever the user selects a different page
     Effect::new(move |_| {
@@ -378,24 +452,28 @@ fn EditorTab(
     });
 
     let handle_save = move |_| {
-        let Some(page) = selected_page.get() else { return; };
+        let Some(page) = selected_page.get() else {
+            return;
+        };
         saving.set(true);
         save_msg.set(None);
-        let slug   = edit_slug.get();
-        let title  = edit_title.get();
-        let desc   = edit_meta_desc.get();
+        let slug = edit_slug.get();
+        let title = edit_title.get();
+        let desc = edit_meta_desc.get();
         let locale = edit_locale.get();
-        let pid    = page.id;
+        let pid = page.id;
         leptos::task::spawn_local(async move {
             let payload = UpdateLandingPagePayload {
-                slug:        if slug.is_empty() { None } else { Some(slug) },
-                title:       if title.is_empty() { None } else { Some(title) },
+                slug: if slug.is_empty() { None } else { Some(slug) },
+                title: if title.is_empty() { None } else { Some(title) },
                 description: if desc.is_empty() { None } else { Some(desc) },
-                locale:      if locale == "en" { None } else { Some(locale) },
+                locale: if locale == "en" { None } else { Some(locale) },
+                hero_payload: Some(serde_json::json!({})),
+                blocks_payload: Some(serde_json::json!({ "blocks": [] })),
                 ..Default::default()
             };
             match update_landing_page(pid, payload).await {
-                Ok(_)  => save_msg.set(Some((true,  "Saved!".to_string()))),
+                Ok(_) => save_msg.set(Some((true, "Saved!".to_string()))),
                 Err(e) => save_msg.set(Some((false, format!("Save failed: {e}")))),
             }
             saving.set(false);
@@ -403,13 +481,25 @@ fn EditorTab(
     };
 
     let handle_publish = move |_| {
-        let Some(page) = selected_page.get() else { return; };
+        let Some(page) = selected_page.get() else {
+            return;
+        };
         publishing.set(true);
         let pid = page.id;
         let was_published = page.is_published;
         leptos::task::spawn_local(async move {
             match toggle_publish(pid).await {
-                Ok(_)  => save_msg.set(Some((true, if was_published { "Unpublished".to_string() } else { "Published! 🚀".to_string() }))),
+                Ok(_) => {
+                    pages_version.update(|n| *n += 1);
+                    save_msg.set(Some((
+                        true,
+                        if was_published {
+                            "Unpublished".to_string()
+                        } else {
+                            "Published!".to_string()
+                        },
+                    )));
+                }
                 Err(e) => save_msg.set(Some((false, format!("Publish failed: {e}")))),
             }
             publishing.set(false);
@@ -421,12 +511,28 @@ fn EditorTab(
             // Left — block palette
             <div class="editor-left">
                 <div class="ep-tab-bar">
-                    <button class="ep-tab active">"Blocks"</button>
-                    <button class="ep-tab">"Fields"</button>
+                    <button
+                        class=move || if editor_panel.get() == "blocks" { "ep-tab active" } else { "ep-tab" }
+                        on:click=move |_| set_editor_panel.set("blocks")
+                    >"Blocks"</button>
+                    <button
+                        class=move || if editor_panel.get() == "fields" { "ep-tab active" } else { "ep-tab" }
+                        on:click=move |_| set_editor_panel.set("fields")
+                    >"Fields"</button>
                 </div>
-                <div class="ep-panel active">
-                    <BlockPalette />
-                </div>
+                {move || if editor_panel.get() == "fields" {
+                    view! {
+                        <div class="ep-panel active">
+                            <FieldsPanel selected_page=selected_page />
+                        </div>
+                    }.into_any()
+                } else {
+                    view! {
+                        <div class="ep-panel active">
+                            <BlockPalette />
+                        </div>
+                    }.into_any()
+                }}
             </div>
 
             // Center — preview
@@ -557,18 +663,52 @@ fn EditorTab(
 }
 
 #[component]
+fn FieldsPanel(selected_page: ReadSignal<Option<LandingPageSummary>>) -> impl IntoView {
+    view! {
+        <div class="block-palette">
+            {move || selected_page.get().map(|page| view! {
+                <div class="prop-section">
+                    <label class="form-label">"Field Set"</label>
+                    <div class="domain-chip">{format!("{} / {}", page.locale, page.page_type)}</div>
+                </div>
+                <div class="prop-section">
+                    <label class="form-label">"Lead Capture Fields"</label>
+                    <div class="block-item placed">
+                        <span>"Name"</span>
+                        <span class="block-badge">"required"</span>
+                    </div>
+                    <div class="block-item placed">
+                        <span>"Email"</span>
+                        <span class="block-badge">"required"</span>
+                    </div>
+                    <div class="block-item">
+                        <span>"Phone"</span>
+                        <span class="block-badge">"optional"</span>
+                    </div>
+                </div>
+                <p style="font-size:11px;color:rgba(255,255,255,0.45);line-height:1.4">
+                    "Title, slug, locale, and metadata are edited in Page Properties. Field schema persistence can be wired when the form-builder API lands."
+                </p>
+            }.into_any()).unwrap_or_else(|| view! {
+                <div class="lp-empty">"Select or create a page to configure form fields."</div>
+            }.into_any())}
+        </div>
+    }
+}
+
+#[component]
 fn BlockPalette() -> impl IntoView {
     let blocks = [
-        ("⬛", "Hero Banner",     false),
-        ("📝", "Rich Text",        false),
-        ("🖼️","Image + Caption",  false),
-        ("📊", "Feature Grid",     false),
-        ("💬", "Testimonials",     false),
-        ("📋", "Lead Form",        false),
-        ("💰", "Pricing Table",    false),
-        ("🎬", "Video Embed",      false),
-        ("📣", "CTA Banner",       false),
-        ("📚", "FAQ Accordion",    false),
+        ("⬛", "Hero Banner", false),
+        ("📝", "Rich Text", false),
+        ("🖼️", "Image + Caption", false),
+        ("📊", "Feature Grid", false),
+        ("💬", "Testimonials", false),
+        ("📋", "Lead Form", false),
+        ("💰", "Pricing Table", false),
+        ("🎬", "Video Embed", false),
+        ("📣", "CTA Banner", false),
+        ("📚", "FAQ Accordion", false),
     ];
     view! {
         <div class="block-palette">
@@ -600,7 +740,7 @@ fn PropertyInspector(
         async move {
             match pid {
                 Some(id) => get_page_pixels(id).await.unwrap_or_default(),
-                None     => PagePixelConfig::default(),
+                None => PagePixelConfig::default(),
             }
         }
     });
@@ -767,7 +907,24 @@ fn AbTestingTab(
                             <div class="ab-page-name">{page.title.clone()}</div>
                             <div class="ab-page-slug">"/"{ page.slug }</div>
                         </div>
-                        <button class="btn-cobalt" style="font-size:11px;padding:4px 12px">
+                        <button
+                            class="btn-cobalt"
+                            style="font-size:11px;padding:4px 12px"
+                            on:click=move |_| {
+                                let res = variants_res;
+                                leptos::task::spawn_local(async move {
+                                    if create_variant(page_id, CreateVariantPayload {
+                                        name: "Variant B".to_string(),
+                                        traffic_pct: Some(50),
+                                        blocks_payload: Some(serde_json::json!({ "blocks": [] })),
+                                        hero_payload: Some(serde_json::json!({})),
+                                        is_control: Some(false),
+                                    }).await.is_ok() {
+                                        res.refetch();
+                                    }
+                                });
+                            }
+                        >
                             "+ Add Variant"
                         </button>
                     </div>
@@ -783,7 +940,25 @@ fn AbTestingTab(
                                             "Create variants to split-test different versions of this page. "
                                             "Traffic is split by percentage across all active variants."
                                         </p>
-                                        <button class="btn-cobalt">"Create First Variant"</button>
+                                        <button
+                                            class="btn-cobalt"
+                                            on:click=move |_| {
+                                                let res = variants_res;
+                                                leptos::task::spawn_local(async move {
+                                                    if create_variant(page_id, CreateVariantPayload {
+                                                        name: "Variant B".to_string(),
+                                                        traffic_pct: Some(50),
+                                                        blocks_payload: Some(serde_json::json!({ "blocks": [] })),
+                                                        hero_payload: Some(serde_json::json!({})),
+                                                        is_control: Some(false),
+                                                    }).await.is_ok() {
+                                                        res.refetch();
+                                                    }
+                                                });
+                                            }
+                                        >
+                                            "Create First Variant"
+                                        </button>
                                     </div>
                                 }.into_any();
                             }
@@ -895,25 +1070,46 @@ fn UtmBuilderTab(
     active_app: ReadSignal<String>,
     selected_page: ReadSignal<Option<LandingPageSummary>>,
 ) -> impl IntoView {
-    let (source, set_source)   = signal(String::new());
-    let (medium, set_medium)   = signal(String::new());
+    let (source, set_source) = signal(String::new());
+    let (medium, set_medium) = signal(String::new());
     let (campaign, set_campaign) = signal(String::new());
     let (content, set_content) = signal(String::new());
-    let (term, set_term)       = signal(String::new());
+    let (term, set_term) = signal(String::new());
     let (preset_name, set_preset_name) = signal(String::new());
+    let toast = use_context::<GlobalToast>();
 
     let generated_url = move || {
-        let slug = selected_page.get()
+        let slug = selected_page
+            .get()
             .map(|p| format!("/lp/{}", p.slug))
             .unwrap_or_else(|| "/lp/your-page".to_string());
         let base = format!("https://folio.app{}", slug);
         let mut params = vec![];
-        let s = source.get(); if !s.is_empty() { params.push(format!("utm_source={}", s)); }
-        let m = medium.get(); if !m.is_empty() { params.push(format!("utm_medium={}", m)); }
-        let c = campaign.get(); if !c.is_empty() { params.push(format!("utm_campaign={}", c)); }
-        let ct = content.get(); if !ct.is_empty() { params.push(format!("utm_content={}", ct)); }
-        let t = term.get(); if !t.is_empty() { params.push(format!("utm_term={}", t)); }
-        if params.is_empty() { base } else { format!("{}?{}", base, params.join("&")) }
+        let s = source.get();
+        if !s.is_empty() {
+            params.push(format!("utm_source={}", s));
+        }
+        let m = medium.get();
+        if !m.is_empty() {
+            params.push(format!("utm_medium={}", m));
+        }
+        let c = campaign.get();
+        if !c.is_empty() {
+            params.push(format!("utm_campaign={}", c));
+        }
+        let ct = content.get();
+        if !ct.is_empty() {
+            params.push(format!("utm_content={}", ct));
+        }
+        let t = term.get();
+        if !t.is_empty() {
+            params.push(format!("utm_term={}", t));
+        }
+        if params.is_empty() {
+            base
+        } else {
+            format!("{}?{}", base, params.join("&"))
+        }
     };
 
     view! {
@@ -961,7 +1157,28 @@ fn UtmBuilderTab(
 
                 <div class="url-output">
                     {generated_url}
-                    <button class="copy-btn">"Copy"</button>
+                    <button class="copy-btn" on:click=move |_| {
+                        let slug = selected_page.get()
+                            .map(|p| format!("/lp/{}", p.slug))
+                            .unwrap_or_else(|| "/lp/your-page".to_string());
+                        let base = format!("https://folio.app{}", slug);
+                        let mut params = vec![];
+                        let s = source.get(); if !s.is_empty() { params.push(format!("utm_source={}", s)); }
+                        let m = medium.get(); if !m.is_empty() { params.push(format!("utm_medium={}", m)); }
+                        let c = campaign.get(); if !c.is_empty() { params.push(format!("utm_campaign={}", c)); }
+                        let ct = content.get(); if !ct.is_empty() { params.push(format!("utm_content={}", ct)); }
+                        let t = term.get(); if !t.is_empty() { params.push(format!("utm_term={}", t)); }
+                        let url = if params.is_empty() { base } else { format!("{}?{}", base, params.join("&")) };
+                        #[cfg(not(target_arch = "wasm32"))]
+                        let _ = &url;
+                        #[cfg(target_arch = "wasm32")]
+                        if let Some(window) = web_sys::window() {
+                            let _ = window.navigator().clipboard().write_text(&url);
+                        }
+                        if let Some(toast) = toast {
+                            toast.show_toast("Copied", "UTM URL copied to clipboard.", "success");
+                        }
+                    }>"Copy"</button>
                 </div>
 
                 <div class="prop-section" style="margin-top:14px">
@@ -1077,7 +1294,7 @@ fn FunnelTab(
         async move {
             match pid {
                 Some(id) => get_page_analytics(id).await.ok(),
-                None     => None,
+                None => None,
             }
         }
     });
@@ -1187,7 +1404,12 @@ fn FunnelTab(
 }
 
 #[component]
-fn KpiCard(label: &'static str, value: String, delta: &'static str, positive: bool) -> impl IntoView {
+fn KpiCard(
+    label: &'static str,
+    value: String,
+    delta: &'static str,
+    positive: bool,
+) -> impl IntoView {
     view! {
         <div class="kpi-card">
             <div class="kpi-label">{label}</div>
@@ -1198,6 +1420,33 @@ fn KpiCard(label: &'static str, value: String, delta: &'static str, positive: bo
 }
 
 fn format_count(n: i32) -> String {
-    if n >= 1_000 { format!("{:.1}k", n as f64 / 1000.0) }
-    else { n.to_string() }
+    if n >= 1_000 {
+        format!("{:.1}k", n as f64 / 1000.0)
+    } else {
+        n.to_string()
+    }
+}
+
+fn app_label(app_id: &str) -> &'static str {
+    match app_id {
+        "folio" => "Folio",
+        "folio-broker" => "Folio Broker",
+        "folio-pm" => "Folio PM",
+        "folio-vendor" => "Folio Vendor",
+        "network" => "Network",
+        "anchor" => "Anchor",
+        _ => "Product",
+    }
+}
+
+fn public_path_hint(app_id: &str) -> &'static str {
+    match app_id {
+        "folio" => "/",
+        "folio-broker" => "/brokers",
+        "folio-pm" => "/property-managers",
+        "folio-vendor" => "/vendors",
+        "network" => "/network",
+        "anchor" => "/anchor",
+        _ => "/lp/{slug}",
+    }
 }

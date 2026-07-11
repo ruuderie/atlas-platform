@@ -19,14 +19,26 @@
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
 
-use crate::components::marketing_nav::{
-    MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
+use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::market_landing_page::fire_lp_view_event;
+use crate::pages::marketing::marketing_pricing::{
+    MarketingPlan, MarketingPricingGrid, PlanBillingInterval,
 };
 
 const BROKER_SECTION_LINKS: &[MarketingNavSectionLink] = &[
-    MarketingNavSectionLink { label: "Features", href: "#broker-features" },
-    MarketingNavSectionLink { label: "How it works", href: "#broker-app-preview" },
-    MarketingNavSectionLink { label: "Pricing", href: "#broker-pricing" },
+    MarketingNavSectionLink {
+        label: "Features",
+        href: "#broker-features",
+    },
+    MarketingNavSectionLink {
+        label: "How it works",
+        href: "#broker-app-preview",
+    },
+    MarketingNavSectionLink {
+        label: "Pricing",
+        href: "#broker-pricing",
+    },
 ];
 
 // ── Server function ───────────────────────────────────────────────────────────
@@ -34,9 +46,12 @@ const BROKER_SECTION_LINKS: &[MarketingNavSectionLink] = &[
 /// Loads the broker landing page record from the backend.
 /// Falls back gracefully — if the record is Draft or missing, `NotFound` renders.
 #[server(LoadBrokerPage, "/api")]
-pub async fn load_broker_page() -> Result<crate::pages::marketing::market_landing_page::LandingPageData, server_fn::error::ServerFnError> {
+pub async fn load_broker_page() -> Result<
+    crate::pages::marketing::market_landing_page::LandingPageData,
+    server_fn::error::ServerFnError,
+> {
     crate::atlas_client::fetch::<crate::pages::marketing::market_landing_page::LandingPageData>(
-        "/api/pub/products/folio-broker"
+        "/api/pub/products/folio-broker",
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Broker page load failed: {e}")))
@@ -46,14 +61,49 @@ pub async fn load_broker_page() -> Result<crate::pages::marketing::market_landin
 
 #[component]
 pub fn BrokerLandingPage() -> impl IntoView {
-    view! { <BrokerDefault/> }
+    let page = Resource::new(|| (), |_| load_broker_page());
+
+    view! {
+        <Suspense fallback=|| view! { <BrokerSkeleton/> }>
+            {move || page.get().map(|result| {
+                match result {
+                    Ok(data) if has_cms_blocks(&data.blocks_payload) => {
+                        let title = data.meta_title.clone().unwrap_or_else(|| data.product_name.clone());
+                        let description = data.meta_description.clone().unwrap_or_default();
+                        let plans = data.plans.clone();
+                        fire_lp_view_event(data.page_id, data.variant_id);
+                        view! {
+                            <Title text=title.clone()/>
+                            <Meta name="description" content=description.clone()/>
+                            <Meta property="og:title" content=title/>
+                            <Meta property="og:description" content=description/>
+                            <Link rel="canonical" href="/brokers"/>
+                            <div class="folio-mktg">
+                                <MarketingNav
+                                    active=MarketingNavRole::Brokers
+                                    section_links=BROKER_SECTION_LINKS
+                                    cta_label="Get early access"
+                                    cta_href="/#waitlist-wrap"
+                                />
+                                <BlockRenderer hero=data.hero_payload blocks=data.blocks_payload/>
+                                <BrokerPricing plans=plans/>
+                                <BrokerFooter/>
+                            </div>
+                        }.into_any()
+                    }
+                    Ok(data) => view! { <BrokerDefault plans=data.plans/> }.into_any(),
+                    Err(_) => view! { <BrokerDefault plans=Vec::new()/> }.into_any(),
+                }
+            })}
+        </Suspense>
+    }
 }
 
 // ── Default hardcoded content (used until DB record is published) ─────────────
 
 #[component]
-fn BrokerDefault() -> impl IntoView {
-    let title       = "Folio for Brokers & Real Estate Agents — Run Your Whole Brokerage";
+fn BrokerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
+    let title = "Folio for Brokers & Real Estate Agents — Run Your Whole Brokerage";
     let description = "Listing management, buyer & seller CRM, commission tracking, and agent accounts — built for licensed brokers and real estate teams.";
 
     view! {
@@ -77,7 +127,7 @@ fn BrokerDefault() -> impl IntoView {
             <BrokerPortals/>
             <BrokerAgents/>
             <BrokerAppPreview/>
-            <BrokerPricing/>
+            <BrokerPricing plans=plans/>
             <BrokerCta/>
             <BetaCalloutStrip/>
         <BrokerFooter/>
@@ -251,80 +301,104 @@ fn BrokerAgents() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn BrokerPricing() -> impl IntoView {
+fn BrokerPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
+    let plans = if plans.is_empty() {
+        broker_fallback_plans()
+    } else {
+        plans
+    };
+
     view! {
-        <section id="broker-pricing" class="mktg-section">
-            <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Pricing"</p>
-                <h2 class="mktg-section-h2">"Priced for your team, not per listing."</h2>
-                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Every seat includes the full platform. Pick the plan that fits your team size — upgrade as you grow."</p>
-                <div class="mktg-pricing-grid">
-
-                    // ── Solo — independent broker/agent ───────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Solo"</span>
-                        <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"1 agent seat"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Active listing management"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Buyer & seller CRM"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Commission tracking"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Transaction timelines"</li>
-                        </ul>
-                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-solo">"Join waitlist"</a>
-                    </div>
-
-                    // ── Team — boutique firm (FEATURED) ───────────────────
-                    <div class="mktg-pricing-card mktg-pricing-featured">
-                        <span class="mktg-pricing-tier">"Team"</span>
-                        <div class="mktg-pricing-price">"$249"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 5 agent seats"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Solo"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Agent account management"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Agent profiles & bios"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Commission tracking"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Team analytics dashboard"</li>
-                        </ul>
-                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-accent" id="broker-pricing-team">"Get early access"</a>
-                    </div>
-
-                    // ── Firm — mid-size brokerage ──────────────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Firm"</span>
-                        <div class="mktg-pricing-price">"$499"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 25 agent seats"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Team"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Branded listing portal"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Client management hub"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Brokerage analytics"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Priority support"</li>
-                        </ul>
-                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-firm">"Get early access"</a>
-                    </div>
-
-                    // ── Enterprise — large brokerage ───────────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Enterprise"</span>
-                        <div class="mktg-pricing-price">"Custom"</div>
-                        <div class="mktg-pricing-sub">"25+ seats · white-label · SLA"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Firm"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"White-label branding"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Dedicated onboarding"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"API access & SSO"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Uptime SLA"</li>
-                        </ul>
-                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-enterprise">"Contact us"</a>
-                    </div>
-
-                </div>
-            </div>
-        </section>
+        <MarketingPricingGrid
+            plans=plans
+            section_id="broker-pricing".to_string()
+            eyebrow="Pricing".to_string()
+            heading="Priced for your team, not per listing.".to_string()
+            subtitle="Every seat includes the full platform. Pick the plan that fits your team size — upgrade as you grow.".to_string()
+            default_cta_href="/#waitlist-wrap".to_string()
+        />
     }
 }
 
+fn broker_fallback_plans() -> Vec<MarketingPlan> {
+    vec![
+        MarketingPlan {
+            slug: "solo".into(),
+            name: "Solo".into(),
+            tagline: "1 agent seat".into(),
+            price_cents: 9900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Active listing management".into(),
+                "Buyer & seller CRM".into(),
+                "Commission tracking".into(),
+                "Transaction timelines".into(),
+            ],
+            cta_label: "Join waitlist".into(),
+            cta_href: Some("/#waitlist-wrap".into()),
+            is_featured: false,
+            sort_order: 0,
+        },
+        MarketingPlan {
+            slug: "team".into(),
+            name: "Team".into(),
+            tagline: "Up to 5 agent seats".into(),
+            price_cents: 24900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Everything in Solo".into(),
+                "Agent account management".into(),
+                "Agent profiles & bios".into(),
+                "Commission tracking".into(),
+                "Team analytics dashboard".into(),
+            ],
+            cta_label: "Get early access".into(),
+            cta_href: Some("/#waitlist-wrap".into()),
+            is_featured: true,
+            sort_order: 1,
+        },
+        MarketingPlan {
+            slug: "firm".into(),
+            name: "Firm".into(),
+            tagline: "Up to 25 agent seats".into(),
+            price_cents: 49900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Everything in Team".into(),
+                "Branded listing portal".into(),
+                "Client management hub".into(),
+                "Brokerage analytics".into(),
+                "Priority support".into(),
+            ],
+            cta_label: "Get early access".into(),
+            cta_href: Some("/#waitlist-wrap".into()),
+            is_featured: false,
+            sort_order: 2,
+        },
+        MarketingPlan {
+            slug: "enterprise".into(),
+            name: "Enterprise".into(),
+            tagline: "25+ seats · white-label · SLA".into(),
+            price_cents: 0,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Custom,
+            features: vec![
+                "Everything in Firm".into(),
+                "White-label branding".into(),
+                "Dedicated onboarding".into(),
+                "API access & SSO".into(),
+                "Uptime SLA".into(),
+            ],
+            cta_label: "Contact us".into(),
+            cta_href: Some("/#waitlist-wrap".into()),
+            is_featured: false,
+            sort_order: 3,
+        },
+    ]
+}
 
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
 
@@ -412,7 +486,6 @@ fn BrokerSkeleton() -> impl IntoView {
         </div>
     }
 }
-
 
 // ── App Preview — Broker dashboard (CSS-only radio tabs) ─────────────────────
 /// Five-tab walkthrough of the Folio Broker experience using pure CSS radio tabs.

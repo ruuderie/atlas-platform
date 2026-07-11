@@ -3,14 +3,21 @@
 //! See `docs/architecture/g36_atlas_programs_spec.md`.
 
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseConnection, DbErr, Set, Statement};
+use rust_decimal::Decimal;
+use sea_orm::{
+    ActiveModelTrait, ConnectionTrait, DatabaseConnection, DbErr, Set, Statement, TransactionTrait,
+    Value,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 use crate::entities::outbox_job;
 use crate::types::outbox::OutboxJobType;
-use crate::types::pm::{ProgramActionStatus, ProgramKind, ProgramOutcomeType};
+use crate::types::pm::{
+    ProgramActionStatus, ProgramKind, ProgramOutcomeType, ProgramRewardBeneficiary,
+    ProgramRewardType,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProgramRow {
@@ -19,10 +26,14 @@ pub struct ProgramRow {
     pub name: String,
     pub description: Option<String>,
     pub program_kind: String,
+    pub campaign_id: Option<Uuid>,
     pub actor_roles: JsonValue,
     pub target_roles: JsonValue,
+    pub config: JsonValue,
     pub default_outcome_type: String,
     pub is_active: bool,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +53,96 @@ pub struct ProgramActionRow {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgramCreateInput {
+    pub slug: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub program_kind: ProgramKind,
+    pub campaign_id: Option<Uuid>,
+    pub actor_roles: Option<JsonValue>,
+    pub target_roles: Option<JsonValue>,
+    pub config: Option<JsonValue>,
+    pub default_outcome_type: Option<ProgramOutcomeType>,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProgramUpdatePatch {
+    pub is_active: Option<bool>,
+    pub name: Option<String>,
+    pub description: Option<Option<String>>,
+    pub campaign_id: Option<Option<Uuid>>,
+    pub config: Option<JsonValue>,
+    pub actor_roles: Option<JsonValue>,
+    pub target_roles: Option<JsonValue>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RewardRuleInput {
+    pub beneficiary: ProgramRewardBeneficiary,
+    pub reward_type: ProgramRewardType,
+    pub amount: Decimal,
+    pub trigger_outcome_type: ProgramOutcomeType,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RewardRuleRow {
+    pub id: Uuid,
+    pub program_id: Uuid,
+    pub beneficiary: String,
+    pub reward_type: String,
+    pub amount: Decimal,
+    pub trigger_outcome_type: String,
+    pub is_active: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgramGrantRow {
+    pub id: Uuid,
+    pub program_action_id: Uuid,
+    pub rule_id: Uuid,
+    pub beneficiary_user_id: Uuid,
+    pub status: String,
+    pub reward_type: Option<String>,
+    pub amount: Option<Decimal>,
+    pub granted_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatusCount {
+    pub status: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgramAnalyticsSummary {
+    pub total_actions: i64,
+    pub total_grants: i64,
+    pub actions_by_status: Vec<StatusCount>,
+    pub outcomes_by_status: Vec<StatusCount>,
+    pub grants_by_status: Vec<StatusCount>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgramInstanceEnablementRow {
+    pub id: Uuid,
+    pub program_id: Uuid,
+    pub app_instance_id: Uuid,
+    pub is_enabled: bool,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstanceProgramRow {
+    #[serde(flatten)]
+    pub program: ProgramRow,
+    pub enabled: bool,
+}
+
 pub struct ProgramService;
 
 impl ProgramService {
@@ -53,8 +154,9 @@ impl ProgramService {
         let stmt = Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Postgres,
             r#"
-            SELECT id, slug, name, description, program_kind, actor_roles, target_roles,
-                   default_outcome_type, is_active
+            SELECT id, slug, name, description, program_kind, campaign_id,
+                   actor_roles, target_roles, config, default_outcome_type,
+                   is_active, created_at::text AS created_at, updated_at::text AS updated_at
             FROM atlas_programs
             WHERE is_active = true
               AND tenant_id IS NULL
@@ -70,16 +172,471 @@ impl ProgramService {
         let rows = db.query_all(stmt).await?;
         let mut out = Vec::with_capacity(rows.len());
         for row in rows {
-            out.push(ProgramRow {
-                id: row.try_get("", "id")?,
-                slug: row.try_get("", "slug")?,
-                name: row.try_get("", "name")?,
-                description: row.try_get("", "description").ok().flatten(),
-                program_kind: row.try_get("", "program_kind")?,
-                actor_roles: row.try_get("", "actor_roles").unwrap_or(JsonValue::Array(vec![])),
-                target_roles: row.try_get("", "target_roles").unwrap_or(JsonValue::Array(vec![])),
-                default_outcome_type: row.try_get("", "default_outcome_type")?,
-                is_active: row.try_get("", "is_active")?,
+            out.push(program_row_from_query(&row)?);
+        }
+        Ok(out)
+    }
+
+    pub async fn list_programs_admin(
+        db: &DatabaseConnection,
+        kind: Option<ProgramKind>,
+        include_inactive: bool,
+    ) -> Result<Vec<ProgramRow>, DbErr> {
+        let kind = kind.map(|k| k.to_string());
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            SELECT id, slug, name, description, program_kind, campaign_id,
+                   actor_roles, target_roles, config, default_outcome_type,
+                   is_active, created_at::text AS created_at, updated_at::text AS updated_at
+            FROM atlas_programs
+            WHERE tenant_id IS NULL
+              AND ($1::text IS NULL OR program_kind = $1)
+              AND ($2::boolean = true OR is_active = true)
+            ORDER BY name
+            "#,
+            [kind.into(), include_inactive.into()],
+        );
+        rows_to_programs(db.query_all(stmt).await?)
+    }
+
+    pub async fn get_program(
+        db: &DatabaseConnection,
+        id: Uuid,
+    ) -> Result<Option<ProgramRow>, DbErr> {
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            SELECT id, slug, name, description, program_kind, campaign_id,
+                   actor_roles, target_roles, config, default_outcome_type,
+                   is_active, created_at::text AS created_at, updated_at::text AS updated_at
+            FROM atlas_programs
+            WHERE id = $1
+            "#,
+            [id.into()],
+        );
+        db.query_one(stmt)
+            .await?
+            .map(|row| program_row_from_query(&row))
+            .transpose()
+    }
+
+    pub async fn create_program(
+        db: &DatabaseConnection,
+        input: ProgramCreateInput,
+    ) -> Result<ProgramRow, String> {
+        validate_json_array(input.actor_roles.as_ref(), "actor_roles")?;
+        validate_json_array(input.target_roles.as_ref(), "target_roles")?;
+
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            INSERT INTO atlas_programs (
+                id, tenant_id, slug, name, description, program_kind, campaign_id,
+                actor_roles, target_roles, config, default_outcome_type, is_active,
+                created_at, updated_at
+            )
+            VALUES (
+                gen_random_uuid(), NULL, $1, $2, $3, $4, $5,
+                COALESCE($6::jsonb, '[]'::jsonb),
+                COALESCE($7::jsonb, '[]'::jsonb),
+                COALESCE($8::jsonb, '{}'::jsonb),
+                $9,
+                COALESCE($10, true),
+                now(), now()
+            )
+            RETURNING id, slug, name, description, program_kind, campaign_id,
+                      actor_roles, target_roles, config, default_outcome_type,
+                      is_active, created_at::text AS created_at, updated_at::text AS updated_at
+            "#,
+            [
+                input.slug.trim().to_string().into(),
+                input.name.trim().to_string().into(),
+                input.description.into(),
+                input.program_kind.to_string().into(),
+                input.campaign_id.into(),
+                input.actor_roles.into(),
+                input.target_roles.into(),
+                input.config.into(),
+                input
+                    .default_outcome_type
+                    .unwrap_or(ProgramOutcomeType::Signup)
+                    .to_string()
+                    .into(),
+                input.is_active.into(),
+            ],
+        );
+        let row = db
+            .query_one(stmt)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Program create returned no row".to_string())?;
+        program_row_from_query(&row).map_err(|e| e.to_string())
+    }
+
+    pub async fn update_program(
+        db: &DatabaseConnection,
+        id: Uuid,
+        patch: ProgramUpdatePatch,
+    ) -> Result<Option<ProgramRow>, String> {
+        validate_json_array(patch.actor_roles.as_ref(), "actor_roles")?;
+        validate_json_array(patch.target_roles.as_ref(), "target_roles")?;
+
+        let mut sets: Vec<String> = Vec::new();
+        let mut values: Vec<Value> = Vec::new();
+
+        if let Some(v) = patch.is_active {
+            values.push(v.into());
+            sets.push(format!("is_active = ${}", values.len()));
+        }
+        if let Some(v) = patch.name {
+            values.push(v.trim().to_string().into());
+            sets.push(format!("name = ${}", values.len()));
+        }
+        if let Some(v) = patch.description {
+            values.push(v.into());
+            sets.push(format!("description = ${}", values.len()));
+        }
+        if let Some(v) = patch.campaign_id {
+            values.push(v.into());
+            sets.push(format!("campaign_id = ${}", values.len()));
+        }
+        if let Some(v) = patch.config {
+            values.push(v.into());
+            sets.push(format!("config = ${}", values.len()));
+        }
+        if let Some(v) = patch.actor_roles {
+            values.push(v.into());
+            sets.push(format!("actor_roles = ${}", values.len()));
+        }
+        if let Some(v) = patch.target_roles {
+            values.push(v.into());
+            sets.push(format!("target_roles = ${}", values.len()));
+        }
+
+        if sets.is_empty() {
+            return Self::get_program(db, id).await.map_err(|e| e.to_string());
+        }
+
+        values.push(id.into());
+        let id_param = values.len();
+        let sql = format!(
+            r#"
+            UPDATE atlas_programs
+            SET {}, updated_at = now()
+            WHERE id = ${}
+            "#,
+            sets.join(", "),
+            id_param
+        );
+        let result = db
+            .execute(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                sql,
+                values,
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+        if result.rows_affected() == 0 {
+            return Ok(None);
+        }
+        Self::get_program(db, id).await.map_err(|e| e.to_string())
+    }
+
+    pub async fn list_reward_rules(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+    ) -> Result<Vec<RewardRuleRow>, DbErr> {
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            SELECT id, program_id, beneficiary, reward_type, amount,
+                   trigger_outcome_type, is_active, created_at::text AS created_at
+            FROM atlas_program_reward_rules
+            WHERE program_id = $1
+            ORDER BY created_at ASC
+            "#,
+            [program_id.into()],
+        );
+        rows_to_reward_rules(db.query_all(stmt).await?)
+    }
+
+    pub async fn upsert_reward_rules(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+        rules: Vec<RewardRuleInput>,
+    ) -> Result<Vec<RewardRuleRow>, String> {
+        let txn = db.begin().await.map_err(|e| e.to_string())?;
+        txn.execute(Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            "UPDATE atlas_program_reward_rules SET is_active = false WHERE program_id = $1",
+            [program_id.into()],
+        ))
+        .await
+        .map_err(|e| e.to_string())?;
+
+        for rule in rules {
+            let beneficiary = rule.beneficiary.to_string();
+            let reward_type = rule.reward_type.to_string();
+            let trigger_outcome_type = rule.trigger_outcome_type.to_string();
+            let is_active = rule.is_active.unwrap_or(true);
+            let updated = txn
+                .execute(Statement::from_sql_and_values(
+                    sea_orm::DatabaseBackend::Postgres,
+                    r#"
+                    UPDATE atlas_program_reward_rules
+                    SET amount = $5, is_active = $6
+                    WHERE program_id = $1
+                      AND beneficiary = $2
+                      AND reward_type = $3
+                      AND trigger_outcome_type = $4
+                    "#,
+                    [
+                        program_id.into(),
+                        beneficiary.clone().into(),
+                        reward_type.clone().into(),
+                        trigger_outcome_type.clone().into(),
+                        rule.amount.into(),
+                        is_active.into(),
+                    ],
+                ))
+                .await
+                .map_err(|e| e.to_string())?;
+
+            if updated.rows_affected() > 0 {
+                continue;
+            }
+
+            txn.execute(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"
+                INSERT INTO atlas_program_reward_rules (
+                    id, program_id, beneficiary, reward_type, amount,
+                    trigger_outcome_type, is_active, created_at
+                )
+                VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, now())
+                "#,
+                [
+                    program_id.into(),
+                    beneficiary.into(),
+                    reward_type.into(),
+                    rule.amount.into(),
+                    trigger_outcome_type.into(),
+                    is_active.into(),
+                ],
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+
+        let rows = txn
+            .query_all(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"
+                SELECT id, program_id, beneficiary, reward_type, amount,
+                       trigger_outcome_type, is_active, created_at::text AS created_at
+                FROM atlas_program_reward_rules
+                WHERE program_id = $1
+                ORDER BY created_at ASC
+                "#,
+                [program_id.into()],
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+        txn.commit().await.map_err(|e| e.to_string())?;
+        rows_to_reward_rules(rows).map_err(|e| e.to_string())
+    }
+
+    pub async fn list_actions_for_program(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<ProgramActionRow>, DbErr> {
+        let limit = limit.clamp(1, 500);
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            SELECT a.id, a.program_id, p.slug AS program_slug, a.actor_user_id,
+                   a.target_email, a.target_role, a.delivery_entity_type, a.delivery_entity_id,
+                   a.status, c.code AS invite_code,
+                   o.outcome_type, o.status AS outcome_status,
+                   a.created_at::text AS created_at
+            FROM atlas_program_actions a
+            JOIN atlas_programs p ON p.id = a.program_id
+            LEFT JOIN atlas_invite_codes c
+              ON a.delivery_entity_type = 'invite_code' AND c.id = a.delivery_entity_id
+            LEFT JOIN LATERAL (
+                SELECT outcome_type, status FROM atlas_program_outcomes
+                WHERE program_action_id = a.id
+                ORDER BY created_at DESC LIMIT 1
+            ) o ON true
+            WHERE a.program_id = $1
+            ORDER BY a.created_at DESC
+            LIMIT $2
+            "#,
+            [program_id.into(), limit.into()],
+        );
+        rows_to_actions(db.query_all(stmt).await?)
+    }
+
+    pub async fn program_analytics(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+    ) -> Result<ProgramAnalyticsSummary, DbErr> {
+        let actions_by_status = count_rows(
+            db,
+            r#"
+            SELECT status, COUNT(*)::bigint AS count
+            FROM atlas_program_actions
+            WHERE program_id = $1
+            GROUP BY status
+            ORDER BY status
+            "#,
+            program_id,
+        )
+        .await?;
+        let outcomes_by_status = count_rows(
+            db,
+            r#"
+            SELECT o.status, COUNT(*)::bigint AS count
+            FROM atlas_program_outcomes o
+            JOIN atlas_program_actions a ON a.id = o.program_action_id
+            WHERE a.program_id = $1
+            GROUP BY o.status
+            ORDER BY o.status
+            "#,
+            program_id,
+        )
+        .await?;
+        let grants_by_status = count_rows(
+            db,
+            r#"
+            SELECT g.status, COUNT(*)::bigint AS count
+            FROM atlas_program_reward_grants g
+            JOIN atlas_program_actions a ON a.id = g.program_action_id
+            WHERE a.program_id = $1
+            GROUP BY g.status
+            ORDER BY g.status
+            "#,
+            program_id,
+        )
+        .await?;
+        Ok(ProgramAnalyticsSummary {
+            total_actions: actions_by_status.iter().map(|r| r.count).sum(),
+            total_grants: grants_by_status.iter().map(|r| r.count).sum(),
+            actions_by_status,
+            outcomes_by_status,
+            grants_by_status,
+        })
+    }
+
+    pub async fn list_grants_for_program(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+    ) -> Result<Vec<ProgramGrantRow>, DbErr> {
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            SELECT g.id, g.program_action_id, g.rule_id, g.beneficiary_user_id,
+                   g.status, r.reward_type, r.amount,
+                   g.granted_at::text AS granted_at, g.created_at::text AS created_at
+            FROM atlas_program_reward_grants g
+            JOIN atlas_program_actions a ON a.id = g.program_action_id
+            JOIN atlas_program_reward_rules r ON r.id = g.rule_id
+            WHERE a.program_id = $1
+            ORDER BY g.created_at DESC
+            LIMIT 500
+            "#,
+            [program_id.into()],
+        );
+        rows_to_grants(db.query_all(stmt).await?)
+    }
+
+    pub async fn list_instance_enablements(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+    ) -> Result<Vec<ProgramInstanceEnablementRow>, DbErr> {
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            SELECT id, program_id, app_instance_id, is_enabled, updated_at::text AS updated_at
+            FROM atlas_program_instance_enablements
+            WHERE program_id = $1
+            ORDER BY updated_at DESC
+            "#,
+            [program_id.into()],
+        );
+        rows_to_enablements(db.query_all(stmt).await?)
+    }
+
+    pub async fn set_instance_enablement(
+        db: &DatabaseConnection,
+        program_id: Uuid,
+        app_instance_id: Uuid,
+        is_enabled: bool,
+    ) -> Result<ProgramInstanceEnablementRow, DbErr> {
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            INSERT INTO atlas_program_instance_enablements (
+                id, program_id, app_instance_id, is_enabled, updated_at
+            )
+            VALUES (gen_random_uuid(), $1, $2, $3, now())
+            ON CONFLICT (program_id, app_instance_id)
+            DO UPDATE SET is_enabled = EXCLUDED.is_enabled, updated_at = now()
+            RETURNING id, program_id, app_instance_id, is_enabled, updated_at::text AS updated_at
+            "#,
+            [program_id.into(), app_instance_id.into(), is_enabled.into()],
+        );
+        let row = db.query_one(stmt).await?.ok_or(DbErr::RecordNotFound(
+            "instance enablement upsert returned no row".into(),
+        ))?;
+        enablement_from_query(&row)
+    }
+
+    pub async fn list_programs_for_instance(
+        db: &DatabaseConnection,
+        app_instance_id: Uuid,
+        kind: Option<ProgramKind>,
+        actor_role: Option<&str>,
+    ) -> Result<Vec<InstanceProgramRow>, DbErr> {
+        let kind = kind.map(|k| k.to_string());
+        let stmt = Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            r#"
+            WITH has_enablements AS (
+                SELECT EXISTS (
+                    SELECT 1 FROM atlas_program_instance_enablements
+                    WHERE app_instance_id = $1
+                ) AS has_rows
+            )
+            SELECT p.id, p.slug, p.name, p.description, p.program_kind, p.campaign_id,
+                   p.actor_roles, p.target_roles, p.config, p.default_outcome_type,
+                   p.is_active, p.created_at::text AS created_at, p.updated_at::text AS updated_at,
+                   CASE WHEN h.has_rows THEN COALESCE(e.is_enabled, false) ELSE true END AS enabled
+            FROM atlas_programs p
+            CROSS JOIN has_enablements h
+            LEFT JOIN atlas_program_instance_enablements e
+              ON e.program_id = p.id AND e.app_instance_id = $1
+            WHERE p.tenant_id IS NULL
+              AND p.is_active = true
+              AND ($2::text IS NULL OR p.program_kind = $2)
+              AND ($3::text IS NULL OR p.actor_roles @> jsonb_build_array($3::text))
+              AND (h.has_rows = false OR e.is_enabled = true)
+            ORDER BY p.name
+            "#,
+            [
+                app_instance_id.into(),
+                kind.into(),
+                actor_role.map(|s| s.to_string()).into(),
+            ],
+        );
+        let rows = db.query_all(stmt).await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            out.push(InstanceProgramRow {
+                program: program_row_from_query(&row)?,
+                enabled: row.try_get("", "enabled")?,
             });
         }
         Ok(out)
@@ -189,7 +746,8 @@ impl ProgramService {
         .map_err(|e| format!("outcome create failed: {e}"))?;
 
         // Vendors invited onto Folio also track first completed job.
-        if target_role == "vendor" && default_outcome != ProgramOutcomeType::FirstJobLogged.to_string()
+        if target_role == "vendor"
+            && default_outcome != ProgramOutcomeType::FirstJobLogged.to_string()
         {
             db.execute(Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
@@ -625,6 +1183,146 @@ impl ProgramService {
         }
         Ok(out)
     }
+}
+
+fn rows_to_programs(rows: Vec<sea_orm::QueryResult>) -> Result<Vec<ProgramRow>, DbErr> {
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(program_row_from_query(&row)?);
+    }
+    Ok(out)
+}
+
+fn program_row_from_query(row: &sea_orm::QueryResult) -> Result<ProgramRow, DbErr> {
+    Ok(ProgramRow {
+        id: row.try_get("", "id")?,
+        slug: row.try_get("", "slug")?,
+        name: row.try_get("", "name")?,
+        description: row.try_get("", "description").ok().flatten(),
+        program_kind: row.try_get("", "program_kind")?,
+        campaign_id: row.try_get("", "campaign_id").ok().flatten(),
+        actor_roles: row
+            .try_get("", "actor_roles")
+            .unwrap_or(JsonValue::Array(vec![])),
+        target_roles: row
+            .try_get("", "target_roles")
+            .unwrap_or(JsonValue::Array(vec![])),
+        config: row
+            .try_get("", "config")
+            .unwrap_or_else(|_| serde_json::json!({})),
+        default_outcome_type: row.try_get("", "default_outcome_type")?,
+        is_active: row.try_get("", "is_active")?,
+        created_at: row.try_get("", "created_at").ok().flatten(),
+        updated_at: row.try_get("", "updated_at").ok().flatten(),
+    })
+}
+
+fn rows_to_actions(rows: Vec<sea_orm::QueryResult>) -> Result<Vec<ProgramActionRow>, DbErr> {
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(ProgramActionRow {
+            id: row.try_get("", "id")?,
+            program_id: row.try_get("", "program_id")?,
+            program_slug: row.try_get("", "program_slug").ok().flatten(),
+            actor_user_id: row.try_get("", "actor_user_id")?,
+            target_email: row.try_get("", "target_email").ok().flatten(),
+            target_role: row.try_get("", "target_role").ok().flatten(),
+            delivery_entity_type: row.try_get("", "delivery_entity_type").ok().flatten(),
+            delivery_entity_id: row.try_get("", "delivery_entity_id").ok().flatten(),
+            status: row.try_get("", "status")?,
+            invite_code: row.try_get("", "invite_code").ok().flatten(),
+            outcome_type: row.try_get("", "outcome_type").ok().flatten(),
+            outcome_status: row.try_get("", "outcome_status").ok().flatten(),
+            created_at: row.try_get("", "created_at").unwrap_or_default(),
+        });
+    }
+    Ok(out)
+}
+
+fn rows_to_reward_rules(rows: Vec<sea_orm::QueryResult>) -> Result<Vec<RewardRuleRow>, DbErr> {
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(RewardRuleRow {
+            id: row.try_get("", "id")?,
+            program_id: row.try_get("", "program_id")?,
+            beneficiary: row.try_get("", "beneficiary")?,
+            reward_type: row.try_get("", "reward_type")?,
+            amount: row.try_get("", "amount")?,
+            trigger_outcome_type: row.try_get("", "trigger_outcome_type")?,
+            is_active: row.try_get("", "is_active")?,
+            created_at: row.try_get("", "created_at").unwrap_or_default(),
+        });
+    }
+    Ok(out)
+}
+
+fn rows_to_grants(rows: Vec<sea_orm::QueryResult>) -> Result<Vec<ProgramGrantRow>, DbErr> {
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(ProgramGrantRow {
+            id: row.try_get("", "id")?,
+            program_action_id: row.try_get("", "program_action_id")?,
+            rule_id: row.try_get("", "rule_id")?,
+            beneficiary_user_id: row.try_get("", "beneficiary_user_id")?,
+            status: row.try_get("", "status")?,
+            reward_type: row.try_get("", "reward_type").ok().flatten(),
+            amount: row.try_get("", "amount").ok().flatten(),
+            granted_at: row.try_get("", "granted_at").ok().flatten(),
+            created_at: row.try_get("", "created_at").unwrap_or_default(),
+        });
+    }
+    Ok(out)
+}
+
+fn rows_to_enablements(
+    rows: Vec<sea_orm::QueryResult>,
+) -> Result<Vec<ProgramInstanceEnablementRow>, DbErr> {
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(enablement_from_query(&row)?);
+    }
+    Ok(out)
+}
+
+fn enablement_from_query(
+    row: &sea_orm::QueryResult,
+) -> Result<ProgramInstanceEnablementRow, DbErr> {
+    Ok(ProgramInstanceEnablementRow {
+        id: row.try_get("", "id")?,
+        program_id: row.try_get("", "program_id")?,
+        app_instance_id: row.try_get("", "app_instance_id")?,
+        is_enabled: row.try_get("", "is_enabled")?,
+        updated_at: row.try_get("", "updated_at").unwrap_or_default(),
+    })
+}
+
+async fn count_rows(
+    db: &DatabaseConnection,
+    sql: &str,
+    program_id: Uuid,
+) -> Result<Vec<StatusCount>, DbErr> {
+    let rows = db
+        .query_all(Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            sql,
+            [program_id.into()],
+        ))
+        .await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(StatusCount {
+            status: row.try_get("", "status")?,
+            count: row.try_get("", "count")?,
+        });
+    }
+    Ok(out)
+}
+
+fn validate_json_array(value: Option<&JsonValue>, field: &str) -> Result<(), String> {
+    if value.is_some_and(|v| !v.is_array()) {
+        return Err(format!("{field} must be a JSON array"));
+    }
+    Ok(())
 }
 
 fn html_escape(s: &str) -> String {

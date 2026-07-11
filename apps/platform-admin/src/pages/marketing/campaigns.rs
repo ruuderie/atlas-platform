@@ -1,3 +1,9 @@
+use crate::api::admin::{
+    CampaignModel, CreateCampaignInput, campaign_export_url, create_campaign, get_campaign,
+    list_campaign_members, list_campaigns,
+};
+use crate::api::products::get_products;
+use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
 /// # Campaigns — Go-to-Market Command Center
 ///
 /// Route: /campaigns           → campaign list
@@ -9,66 +15,73 @@
 /// The `utm_campaign` field is the connective tissue between a campaign record
 /// and the landing page variant that receives its traffic.
 use leptos::prelude::*;
-use crate::api::admin::{
-    list_campaigns, get_campaign, create_campaign, CreateCampaignInput,
-    list_campaign_members, campaign_export_url, CampaignModel, CampaignEnrollmentModel,
-};
-use crate::api::products::get_products;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 fn campaign_type_label(t: &str) -> &'static str {
     match t {
-        "direct_mail"  => "Direct Mail",
-        "cold_email"   => "Cold Email",
-        "ppc"          => "Paid Search",
-        "social"       => "Social",
-        "event_based"  => "Event",
-        "sms"          => "SMS",
-        "content"      => "Content",
-        "referral"     => "Referral",
-        "retargeting"  => "Retargeting",
-        _              => "Campaign",
+        "direct_mail" => "Direct Mail",
+        "cold_email" => "Cold Email",
+        "ppc" => "Paid Search",
+        "social" => "Social",
+        "event_based" => "Event",
+        "sms" => "SMS",
+        "content" => "Content",
+        "referral" => "Referral",
+        "retargeting" => "Retargeting",
+        _ => "Campaign",
     }
 }
 
 fn type_color_class(t: &str) -> &'static str {
     match t {
-        "direct_mail"  => "bg-amber-500/15 border-amber-500/30 text-amber-300",
-        "cold_email"   => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
-        "ppc"          => "bg-purple-500/15 border-purple-500/30 text-purple-300",
-        "social"       => "bg-pink-500/15 border-pink-500/30 text-pink-300",
-        "event_based"  => "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
-        _              => "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant",
+        "direct_mail" => "bg-amber-500/15 border-amber-500/30 text-amber-300",
+        "cold_email" => {
+            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"
+        }
+        "ppc" => "bg-purple-500/15 border-purple-500/30 text-purple-300",
+        "social" => "bg-pink-500/15 border-pink-500/30 text-pink-300",
+        "event_based" => "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
+        _ => "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant",
     }
 }
 
 fn status_dot(s: &str) -> &'static str {
     match s {
-        "active"    => "text-emerald-400",
+        "active" => "text-emerald-400",
         "scheduled" => "text-amber-400",
-        "paused"    => "text-orange-400",
+        "paused" => "text-orange-400",
         "completed" => "text-on-surface-variant",
-        "draft"     => "text-on-surface-variant",
-        _           => "text-on-surface-variant",
+        "draft" => "text-on-surface-variant",
+        _ => "text-on-surface-variant",
     }
 }
 
 fn fmt_money(cents: i64) -> String {
-    if cents == 0 { return "$0".to_string(); }
+    if cents == 0 {
+        return "$0".to_string();
+    }
     let dollars = cents / 100;
-    if dollars >= 1_000_000 { return format!("${:.1}M", dollars as f64 / 1_000_000.0); }
-    if dollars >= 1_000     { return format!("${:.0}k", dollars as f64 / 1_000.0); }
+    if dollars >= 1_000_000 {
+        return format!("${:.1}M", dollars as f64 / 1_000_000.0);
+    }
+    if dollars >= 1_000 {
+        return format!("${:.0}k", dollars as f64 / 1_000.0);
+    }
     format!("${}", dollars)
 }
 
 fn conv_rate(conversions: i32, total: i32) -> String {
-    if total == 0 { return "0%".to_string(); }
+    if total == 0 {
+        return "0%".to_string();
+    }
     format!("{:.0}%", conversions as f64 / total as f64 * 100.0)
 }
 
 fn cac(spent_cents: i64, conversions: i32) -> String {
-    if conversions == 0 { return "—".to_string(); }
+    if conversions == 0 {
+        return "—".to_string();
+    }
     fmt_money(spent_cents / conversions as i64)
 }
 
@@ -76,22 +89,28 @@ fn cac(spent_cents: i64, conversions: i32) -> String {
 
 #[component]
 pub fn CampaignsPage() -> impl IntoView {
-    let campaigns = LocalResource::new(move || async move { list_campaigns().await });
+    let campaigns_version = RwSignal::new(0u32);
+    let campaigns = LocalResource::new(move || async move {
+        let _ = campaigns_version.get();
+        list_campaigns().await
+    });
 
     let show_new_modal = RwSignal::new(false);
 
     // new campaign form signals
-    let new_name     = RwSignal::new(String::new());
-    let new_type     = RwSignal::new("direct_mail".to_string());
-    let new_goal     = RwSignal::new("lead_capture".to_string());
-    let new_budget   = RwSignal::new(String::new());
-    let new_utm_src  = RwSignal::new(String::new());
-    let new_utm_med  = RwSignal::new(String::new());
-    let new_utm_cmp  = RwSignal::new(String::new());
+    let new_name = RwSignal::new(String::new());
+    let new_type = RwSignal::new("direct_mail".to_string());
+    let new_goal = RwSignal::new("lead_capture".to_string());
+    let new_budget = RwSignal::new(String::new());
+    let new_utm_src = RwSignal::new(String::new());
+    let new_utm_med = RwSignal::new(String::new());
+    let new_utm_cmp = RwSignal::new(String::new());
 
     let create_action = move || {
         let name = new_name.get();
-        if name.is_empty() { return; }
+        if name.is_empty() {
+            return;
+        }
         let budget = new_budget.get().parse::<i64>().ok().map(|d| d * 100);
         let input = CreateCampaignInput {
             name,
@@ -107,7 +126,9 @@ pub fn CampaignsPage() -> impl IntoView {
             ends_at: None,
         };
         leptos::task::spawn_local(async move {
-            let _ = create_campaign(input).await;
+            if create_campaign(input).await.is_ok() {
+                campaigns_version.update(|n| *n += 1);
+            }
         });
     };
 
@@ -129,6 +150,11 @@ pub fn CampaignsPage() -> impl IntoView {
                     </button>
                 </div>
             </div>
+
+            <GtmProcessStrip
+                active=GtmStage::Campaigns
+                subtitle="Coordinate outbound, paid, and content campaigns against acquisition pages."
+            />
 
             // ── Funnel Explainer Banner ──────────────────────────────────────
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-5 py-4 flex items-center gap-6 text-xs text-on-surface-variant overflow-x-auto">
@@ -336,14 +362,18 @@ pub fn CampaignsPage() -> impl IntoView {
 #[component]
 fn CampaignCard(campaign: CampaignModel) -> impl IntoView {
     let id = campaign.id;
-    let budget_str = campaign.budget_cents.map(|b| fmt_money(b)).unwrap_or("—".to_string());
+    let budget_str = campaign
+        .budget_cents
+        .map(|b| fmt_money(b))
+        .unwrap_or("—".to_string());
     let spent_str = fmt_money(campaign.spent_cents);
     let cac_str = cac(campaign.spent_cents, campaign.total_conversions);
     let conv_rate_str = conv_rate(campaign.total_conversions, campaign.total_contacts);
     let type_label = campaign_type_label(&campaign.campaign_type).to_string();
     let type_class = type_color_class(&campaign.campaign_type).to_string();
     let status_class = status_dot(&campaign.status).to_string();
-    let budget_pct = campaign.budget_cents
+    let budget_pct = campaign
+        .budget_cents
         .filter(|&b| b > 0)
         .map(|b| ((campaign.spent_cents as f64 / b as f64) * 100.0).min(100.0) as u32)
         .unwrap_or(0);
@@ -435,12 +465,14 @@ fn CampaignCard(campaign: CampaignModel) -> impl IntoView {
 #[component]
 pub fn CampaignDetail() -> impl IntoView {
     let params = leptos_router::hooks::use_params_map();
-    let campaign_id = move || {
-        params.with(|p| p.get("id").and_then(|s| s.parse::<uuid::Uuid>().ok()))
-    };
+    let campaign_id =
+        move || params.with(|p| p.get("id").and_then(|s| s.parse::<uuid::Uuid>().ok()));
 
     let campaign_res = LocalResource::new(move || async move {
-        match campaign_id() { Some(id) => get_campaign(id).await.ok(), None => None }
+        match campaign_id() {
+            Some(id) => get_campaign(id).await.ok(),
+            None => None,
+        }
     });
 
     let active_tab = RwSignal::<String>::new("overview".to_string());
@@ -535,7 +567,7 @@ pub fn CampaignDetail() -> impl IntoView {
 
                             // ── Tabs ─────────────────────────────────────────
                             <div class="tab-bar">
-                                {[("overview", "Overview"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
+                                {[("overview", "Overview"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
                                     let slug = slug.to_string();
                                     let label = label.to_string();
                                     let slug2 = slug.clone();
@@ -565,6 +597,11 @@ pub fn CampaignDetail() -> impl IntoView {
                             // ── Tab: Landing Pages ───────────────────────────
                             <Show when=move || active_tab.get() == "landing-pages">
                                 <LandingPagesTab utm_campaign=utm_cmp.clone() />
+                            </Show>
+
+                            // ── Tab: Sequence ────────────────────────────────
+                            <Show when=move || active_tab.get() == "programs">
+                                <ProgramsTab />
                             </Show>
 
                             // ── Tab: Sequence ────────────────────────────────
@@ -806,9 +843,8 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
 
 #[component]
 fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
-    let products_res = LocalResource::new(move || async move {
-        get_products().await.unwrap_or_default()
-    });
+    let products_res =
+        LocalResource::new(move || async move { get_products().await.unwrap_or_default() });
 
     let utm_cmp = utm_campaign.clone();
 
@@ -845,7 +881,7 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                             return view! {
                                 <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-8 text-center">
                                     <p class="text-sm text-on-surface-variant/60">"No landing pages found."</p>
-                                    <a href="/products" class="text-xs text-primary hover:underline mt-2 block">"Go to Landing Pages →"</a>
+                                    <a href="/landing-pages" class="text-xs text-primary hover:underline mt-2 block">"Go to Landing Pages →"</a>
                                 </div>
                             }.into_any();
                         }
@@ -856,6 +892,8 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                                     let slug = p.slug.clone();
                                     let lp_url = format!("/lp/{}?utm_source=direct_mail&utm_medium=postcard&utm_campaign={}", slug, cmp);
                                     let lp_url2 = lp_url.clone();
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    let _ = &lp_url2;
                                     let name = p.name.clone();
 
                                     view! {
@@ -883,7 +921,7 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                                                         }
                                                     }
                                                 >"Copy URL"</button>
-                                                <a href="/products"
+                                                <a href="/landing-pages"
                                                     class="btn btn-ghost btn-sm"
                                                     style="text-decoration:none"
                                                 >"Edit Page →"</a>
@@ -896,6 +934,26 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                     })
                 }}
             </Suspense>
+        </div>
+    }
+}
+
+// ── Programs Tab ───────────────────────────────────────────────────────────────
+
+#[component]
+fn ProgramsTab() -> impl IntoView {
+    view! {
+        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-8 text-center">
+            <svg class="w-10 h-10 text-on-surface-variant/20 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M4 6h16M4 12h16M4 18h10"/>
+            </svg>
+            <p class="text-sm font-semibold text-on-surface-variant">"Campaign Programs"</p>
+            <p class="text-xs text-on-surface-variant/50 mt-1 max-w-sm mx-auto">
+                "Link programs via campaign_id on /programs. Program API data is not exposed in platform-admin yet."
+            </p>
+            <a href="/programs" class="btn btn-ghost btn-sm mt-4" style="text-decoration:none">
+                "Open Programs →"
+            </a>
         </div>
     }
 }

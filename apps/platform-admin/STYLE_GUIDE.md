@@ -481,6 +481,9 @@ style="background:var(--cobalt-dim);color:var(--cobalt)"
 | `.seg-control` / `.seg-btn` | Horizontal segment toggle (Pilot/Catalog/Customer) |
 | `.filter-nav` / `.filter-nav-item` | Vertical sidebar filter list |
 | `.app-pill` | Landing-page app context chips |
+| `.gtm-process` / `.gtm-step` | Six-stage Go-to-Market process strip (`GtmProcessStrip`) |
+| `.lp-panel` / `.lp-panel.active` | Landing Pages tab panels (hidden unless `.active`) |
+| `.serve-chip` | CMS live / product template / hardcoded serve-source badge |
 | `.modal-overlay` | Fixed overlay backdrop (hidden by default) |
 | `.modal-overlay.open` | Visible modal |
 | `.modal` | Modal panel |

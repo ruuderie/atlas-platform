@@ -1,3 +1,4 @@
+use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
 use leptos::prelude::*;
 use uuid::Uuid;
 
@@ -21,7 +22,9 @@ fn compute_age_days(created_at_str: &str) -> u32 {
         let now = chrono::Utc::now();
         let duration = now.signed_duration_since(dt.with_timezone(&chrono::Utc));
         duration.num_days().max(0) as u32
-    } else if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(created_at_str, "%Y-%m-%d %H:%M:%S") {
+    } else if let Ok(dt) =
+        chrono::NaiveDateTime::parse_from_str(created_at_str, "%Y-%m-%d %H:%M:%S")
+    {
         let now = chrono::Utc::now().naive_utc();
         let duration = now.signed_duration_since(dt);
         duration.num_days().max(0) as u32
@@ -57,7 +60,7 @@ fn get_badge_style(req_type: &str) -> &'static str {
 #[component]
 pub fn Verification() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     // UI state signals
     let selected_id = RwSignal::new(None::<Uuid>);
     let active_filter = RwSignal::new("all".to_string());
@@ -70,18 +73,32 @@ pub fn Verification() -> impl IntoView {
         trigger_fetch.get();
         let filter_val = active_filter.get();
         async move {
-            let filter = if filter_val == "all" { None } else { Some(filter_val) };
+            let filter = if filter_val == "all" {
+                None
+            } else {
+                Some(filter_val)
+            };
             let res = crate::api::verification::get_verification_requests(None, filter).await;
             match res {
-                Ok(v) => { ver_error.set(None); v }
-                Err(e) => { ver_error.set(Some(e)); vec![] }
+                Ok(v) => {
+                    ver_error.set(None);
+                    v
+                }
+                Err(e) => {
+                    ver_error.set(Some(e));
+                    vec![]
+                }
             }
         }
     });
 
     let selected_request = Signal::derive(move || {
         let sid = selected_id.get();
-        db_requests.get().unwrap_or_default().into_iter().find(|r| Some(r.id) == sid)
+        db_requests
+            .get()
+            .unwrap_or_default()
+            .into_iter()
+            .find(|r| Some(r.id) == sid)
     });
 
     // Set first request as default selection when data loads
@@ -91,7 +108,7 @@ pub fn Verification() -> impl IntoView {
             selected_id.set(Some(list[0].id));
         }
     });
-    
+
     // Checklist items state, dynamically configured per selected request
     let checklist_items = RwSignal::new(vec![]);
     Effect::new(move |_| {
@@ -99,36 +116,85 @@ pub fn Verification() -> impl IntoView {
             let items = match req.req_type.to_lowercase().as_str() {
                 "business" => vec![
                     ("EIN / Tax ID confirmed", "Verified via IRS SS-4", true),
-                    ("Business name matches submitted entity name", "✓ Match", true),
-                    ("Operating agreement / LLC articles present", "Signed PDF attached", true),
-                    ("State registration document current (within 2 years)", "Pending review", false),
-                    ("Primary contact identity verified (ID check)", "Pending", false),
-                    ("No active regulatory flags (FMCSA / DOT cross-check)", "Auto-check available", false),
-                    ("Billing address matches registered business address", "✓ Match", true),
+                    (
+                        "Business name matches submitted entity name",
+                        "✓ Match",
+                        true,
+                    ),
+                    (
+                        "Operating agreement / LLC articles present",
+                        "Signed PDF attached",
+                        true,
+                    ),
+                    (
+                        "State registration document current (within 2 years)",
+                        "Pending review",
+                        false,
+                    ),
+                    (
+                        "Primary contact identity verified (ID check)",
+                        "Pending",
+                        false,
+                    ),
+                    (
+                        "No active regulatory flags (FMCSA / DOT cross-check)",
+                        "Auto-check available",
+                        false,
+                    ),
+                    (
+                        "Billing address matches registered business address",
+                        "✓ Match",
+                        true,
+                    ),
                 ],
                 "identity" => vec![
                     ("Government ID matches name", "Passport scanned", true),
-                    ("Facial recognition matches ID photo", "98% confidence", true),
+                    (
+                        "Facial recognition matches ID photo",
+                        "98% confidence",
+                        true,
+                    ),
                     ("PEP list cross-reference check", "✓ Clear", true),
                     ("Sanction registry check", "✓ Clear", true),
-                    ("Proof of residency document verified", "Awaiting review", false),
+                    (
+                        "Proof of residency document verified",
+                        "Awaiting review",
+                        false,
+                    ),
                 ],
                 _ => vec![
-                    ("Document signature validation", "Standard SHA-256 hash verified", true),
-                    ("Issuer authenticity confirmation", "Self-signed certificate match", true),
+                    (
+                        "Document signature validation",
+                        "Standard SHA-256 hash verified",
+                        true,
+                    ),
+                    (
+                        "Issuer authenticity confirmation",
+                        "Self-signed certificate match",
+                        true,
+                    ),
                     ("Expiration boundary validation", "Valid until 2029", true),
-                ]
+                ],
             };
-            checklist_items.set(items.into_iter().enumerate().map(|(id, (label, note, checked))| {
-                ChecklistItem { id, label, note, checked: RwSignal::new(checked) }
-            }).collect::<Vec<_>>());
+            checklist_items.set(
+                items
+                    .into_iter()
+                    .enumerate()
+                    .map(|(id, (label, note, checked))| ChecklistItem {
+                        id,
+                        label,
+                        note,
+                        checked: RwSignal::new(checked),
+                    })
+                    .collect::<Vec<_>>(),
+            );
         }
     });
 
     // Notes history state
     let reviewer_notes = RwSignal::new(String::new());
     let note_history = RwSignal::new(Vec::<NoteHistoryRecord>::new());
-    
+
     // Dialog modals
     let show_approve_modal = RwSignal::new(false);
     let show_reject_modal = RwSignal::new(false);
@@ -138,13 +204,18 @@ pub fn Verification() -> impl IntoView {
     // Handle adding note
     let add_reviewer_note = move |_| {
         let text = reviewer_notes.get();
-        if text.trim().is_empty() { return; }
+        if text.trim().is_empty() {
+            return;
+        }
         note_history.update(|h| {
-            h.insert(0, NoteHistoryRecord {
-                author: "JD",
-                text: text.clone(),
-                timestamp: "Just now · UTC"
-            });
+            h.insert(
+                0,
+                NoteHistoryRecord {
+                    author: "JD",
+                    text: text.clone(),
+                    timestamp: "Just now · UTC",
+                },
+            );
         });
         reviewer_notes.set(String::new());
         toast.show_toast("Success", "Review note added.", "success");
@@ -189,6 +260,10 @@ pub fn Verification() -> impl IntoView {
 
     view! {
         <div class="main-area">
+            <GtmProcessStrip
+                active=GtmStage::Verification
+                subtitle="Trust gate — triage entity verification before go-live.".to_string()
+            />
 
             // ── Page Header ──
             <div class="page-header">
@@ -207,7 +282,12 @@ pub fn Verification() -> impl IntoView {
                         </svg>
                         "Refresh"
                     </button>
-                    <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Verification logs compiled.", "info")>"↓ Export"</button>
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        disabled=true
+                        title="Export is not wired yet"
+                        on:click=move |_| toast.show_toast("Not wired", "Verification export is not available yet.", "info")
+                    >"↓ Export"</button>
                 </div>
             </div>
 
@@ -277,7 +357,7 @@ pub fn Verification() -> impl IntoView {
                             {
                                 let filter_pill = move |id: &'static str, label: &'static str| {
                                     view! {
-                                        <button 
+                                        <button
                                             class=move || if active_filter.get() == id { "pill active" } else { "pill" }
                                             on:click=move |_| {
                                                 active_filter.set(id.to_string());
@@ -298,7 +378,7 @@ pub fn Verification() -> impl IntoView {
                             }
                         </div>
                     </div>
-                    
+
                     <div class="queue-scroll">
                         {move || {
                             let list = db_requests.get().unwrap_or_default();
@@ -349,7 +429,7 @@ pub fn Verification() -> impl IntoView {
                                     };
 
                                     view! {
-                                        <div 
+                                        <div
                                             class=move || if is_selected { "queue-item selected" } else { "queue-item" }
                                             on:click=move |_| selected_id.set(Some(r_id))
                                         >
@@ -450,12 +530,12 @@ pub fn Verification() -> impl IntoView {
                                 <div class=move || format!("tab-pane {}", if active_rev_tab.get() == "rv-documents" { "active" } else { "" })>
                                     <div style="margin-bottom:14px">
                                         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">"Submitted Documents · G-02 Vault"</div>
-                                        
+
                                         {
                                             let count = request.document_count.max(1);
                                             let r_type = type_label.clone();
                                             let entity_name_cleaned = entity_title.clone().replace(" ", "_");
-                                            
+
                                             (0..count).map(move |i| {
                                                 let doc_name = match i {
                                                     0 if r_type.to_lowercase() == "identity" => format!("Government_ID_{}.pdf", entity_name_cleaned),
@@ -467,7 +547,7 @@ pub fn Verification() -> impl IntoView {
                                                 };
                                                 let format_type = if doc_name.ends_with(".png") { "PNG" } else { "PDF" };
                                                 let size_mb = (3.2 - (i as f32 * 0.9)).max(0.5);
-                                                
+
                                                 view! {
                                                     <div class="doc-card">
                                                         <div class="doc-icon">{format_type}</div>
@@ -501,7 +581,7 @@ pub fn Verification() -> impl IntoView {
                                             let label = item.label;
                                             view! {
                                                 <div class="check-item">
-                                                    <div 
+                                                    <div
                                                         class=move || if state.get() { "check-box checked" } else { "check-box" }
                                                         on:click=move |_| state.update(|v| *v = !*v)
                                                     ></div>
@@ -577,7 +657,7 @@ pub fn Verification() -> impl IntoView {
                                             <div class="composer-tabs">
                                                 <button class="c-tab active">"Internal Note"</button>
                                             </div>
-                                            <textarea 
+                                            <textarea
                                                 placeholder="Add internal reviewer logs..."
                                                 on:input=move |ev| reviewer_notes.set(event_target_value(&ev))
                                                 prop:value=reviewer_notes
@@ -615,7 +695,7 @@ pub fn Verification() -> impl IntoView {
         </Suspense>
 
         // ── ACTION MODAL DIALOGS ──
-        
+
         // 1. Approve Dialog
         <Show when=move || show_approve_modal.get()>
             <div class="modal-overlay open">
@@ -636,8 +716,8 @@ pub fn Verification() -> impl IntoView {
                 <div class="modal">
                     <h3 class="text-lg font-bold mb-2 text-error">"Reject Verification Request"</h3>
                     <p class="text-on-surface-variant text-xs mb-4">"Explain the refusal decision to send as an email notification feedback."</p>
-                    <textarea 
-                        class="w-full bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg p-3 text-xs text-on-surface outline-none focus:border-error min-h-[80px] mb-6 resize-none" 
+                    <textarea
+                        class="w-full bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg p-3 text-xs text-on-surface outline-none focus:border-error min-h-[80px] mb-6 resize-none"
                         placeholder="Reason for rejection (e.g. Expired registration documents)"
                         on:input=move |ev| temp_rejection_reason.set(event_target_value(&ev))
                         prop:value=temp_rejection_reason

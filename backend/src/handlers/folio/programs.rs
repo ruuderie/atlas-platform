@@ -18,6 +18,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::services::program_service::ProgramService;
+use crate::types::pm::ProgramKind;
 
 fn extract_bearer(headers: &HeaderMap) -> Option<String> {
     if let Some(auth) = headers.get("authorization") {
@@ -63,8 +64,9 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
 
 #[derive(Debug, Deserialize)]
 pub struct ListProgramsQuery {
-    pub kind: Option<String>,
+    pub kind: Option<ProgramKind>,
     pub actor_role: Option<String>,
+    pub app_instance_id: Option<Uuid>,
 }
 
 async fn list_programs(
@@ -73,13 +75,37 @@ async fn list_programs(
     Query(q): Query<ListProgramsQuery>,
 ) -> impl IntoResponse {
     if extract_bearer(&headers).is_none() {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "Authentication required"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Authentication required"})),
+        )
+            .into_response();
     }
-    match ProgramService::list_programs(&db, q.kind.as_deref(), q.actor_role.as_deref()).await {
-        Ok(rows) => (StatusCode::OK, Json(serde_json::json!({ "programs": rows }))).into_response(),
+    let result = if let Some(app_instance_id) = q.app_instance_id {
+        ProgramService::list_programs_for_instance(
+            &db,
+            app_instance_id,
+            q.kind,
+            q.actor_role.as_deref(),
+        )
+        .await
+        .map(|rows| serde_json::json!({ "programs": rows }))
+    } else {
+        let kind = q.kind.as_ref().map(|k| k.to_string());
+        ProgramService::list_programs(&db, kind.as_deref(), q.actor_role.as_deref())
+            .await
+            .map(|rows| serde_json::json!({ "programs": rows }))
+    };
+
+    match result {
+        Ok(body) => (StatusCode::OK, Json(body)).into_response(),
         Err(e) => {
             tracing::error!("list_programs: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": "Database error"}))).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Database error"})),
+            )
+                .into_response()
         }
     }
 }
@@ -100,15 +126,31 @@ async fn create_action(
 ) -> impl IntoResponse {
     let token = match extract_bearer(&headers) {
         Some(t) => t,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "Authentication required"}))).into_response(),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Authentication required"})),
+            )
+                .into_response();
+        }
     };
     let caller_id = match resolve_caller_id(&db, &token).await {
         Some(id) => id,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "Invalid session"}))).into_response(),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Invalid session"})),
+            )
+                .into_response();
+        }
     };
 
     if body.target_email.trim().is_empty() || !body.target_email.contains('@') {
-        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "Valid target_email required"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Valid target_email required"})),
+        )
+            .into_response();
     }
 
     match ProgramService::create_network_invite_action(
@@ -122,13 +164,21 @@ async fn create_action(
     )
     .await
     {
-        Ok(action) => (StatusCode::CREATED, Json(serde_json::json!({
-            "action": action,
-            "join_url": action.invite_code.as_ref().map(|c| format!("/join/{c}")),
-        }))).into_response(),
+        Ok(action) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "action": action,
+                "join_url": action.invite_code.as_ref().map(|c| format!("/join/{c}")),
+            })),
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!("create_action: {e}");
-            (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": e}))).into_response()
+            (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": e})),
+            )
+                .into_response()
         }
     }
 }
@@ -139,18 +189,34 @@ async fn list_my_actions(
 ) -> impl IntoResponse {
     let token = match extract_bearer(&headers) {
         Some(t) => t,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "Authentication required"}))).into_response(),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Authentication required"})),
+            )
+                .into_response();
+        }
     };
     let caller_id = match resolve_caller_id(&db, &token).await {
         Some(id) => id,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "Invalid session"}))).into_response(),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "Invalid session"})),
+            )
+                .into_response();
+        }
     };
 
     match ProgramService::list_actions_for_actor(&db, caller_id).await {
         Ok(rows) => (StatusCode::OK, Json(serde_json::json!({ "actions": rows }))).into_response(),
         Err(e) => {
             tracing::error!("list_my_actions: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": "Database error"}))).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Database error"})),
+            )
+                .into_response()
         }
     }
 }

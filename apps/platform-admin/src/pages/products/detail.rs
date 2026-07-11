@@ -2,9 +2,13 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
-use crate::api::products::{get_product_detail, get_variants, update_product_detail, publish_marketing};
-use crate::api::models::UpdateProductBody;
 use crate::api::crm::get_leads;
+use crate::api::models::UpdateProductBody;
+use crate::api::products::{
+    ProductPlanBillingInterval, ProductPlanInput, ProductPlanModel, create_product_plan,
+    delete_product_plan, get_product_detail, get_variants, list_product_plans, publish_marketing,
+    update_product_detail, update_product_plan,
+};
 use crate::app::GlobalToast;
 
 #[component]
@@ -13,12 +17,7 @@ pub fn ProductDetail() -> impl IntoView {
     let toast = use_context::<GlobalToast>().expect("toast context missing");
 
     // Parse UUID from route param — fall back gracefully on bad ID
-    let product_uuid = move || {
-        params.with(|p| {
-            p.get("id")
-                .and_then(|s| Uuid::parse_str(&s).ok())
-        })
-    };
+    let product_uuid = move || params.with(|p| p.get("id").and_then(|s| Uuid::parse_str(&s).ok()));
 
     // ── Load product from API ──────────────────────────────────────────────
     let product_res = LocalResource::new(move || async move {
@@ -53,9 +52,13 @@ pub fn ProductDetail() -> impl IntoView {
     // Waitlist leads — fetched on-demand when slug is known
     let waitlist_leads_res = LocalResource::new(move || async move {
         let slug = product_slug.get();
-        if slug.is_empty() { return vec![]; }
+        if slug.is_empty() {
+            return vec![];
+        }
         let prefix = format!("waitlist:{}", slug);
-        get_leads(None, 1, 200, None, Some(&prefix)).await.unwrap_or_default()
+        get_leads(None, 1, 200, None, Some(&prefix))
+            .await
+            .unwrap_or_default()
     });
 
     // Variants — fetched when product_uuid is known
@@ -66,67 +69,126 @@ pub fn ProductDetail() -> impl IntoView {
         }
     });
 
-    // ── Billing plans (for the Pricing tab) ───────────────────────────────────
+    // ── Product-scoped marketing plans (for the Pricing tab) ─────────────────
     let plans_trigger = RwSignal::new(0u32);
-    let billing_plans_res = LocalResource::new(move || async move {
+    let product_plans_res = LocalResource::new(move || async move {
         let _ = plans_trigger.get();
-        crate::api::billing::list_billing_plans().await.unwrap_or_default()
+        match product_uuid() {
+            Some(id) => list_product_plans(id).await.unwrap_or_default(),
+            None => vec![],
+        }
     });
 
     // Plan edit modal state
-    let edit_plan_id   = RwSignal::new(Option::<String>::None); // Some(id) = editing, None = creating
+    let edit_plan_id = RwSignal::new(Option::<Uuid>::None); // Some(id) = editing, None = creating
+    let edit_plan_slug = RwSignal::new(String::new());
     let edit_plan_name = RwSignal::new(String::new());
+    let edit_plan_tagline = RwSignal::new(String::new());
     let edit_plan_price = RwSignal::new(String::new()); // cents as string for input
-    let edit_plan_interval = RwSignal::new("month".to_string());
+    let edit_plan_interval = RwSignal::new(ProductPlanBillingInterval::Month);
+    let edit_plan_features = RwSignal::new(String::new());
+    let edit_plan_cta_label = RwSignal::new(String::new());
+    let edit_plan_cta_href = RwSignal::new(String::new());
+    let edit_plan_featured = RwSignal::new(false);
+    let edit_plan_active = RwSignal::new(true);
+    let edit_plan_sort_order = RwSignal::new(String::new());
     let show_plan_modal = RwSignal::new(false);
 
-    let open_edit_plan = move |plan: &crate::api::billing::BillingPlanModel| {
-        edit_plan_id.set(Some(plan.id.to_string()));
+    let open_edit_plan = move |plan: &ProductPlanModel| {
+        edit_plan_id.set(Some(plan.id));
+        edit_plan_slug.set(plan.slug.clone());
         edit_plan_name.set(plan.name.clone());
-        edit_plan_price.set(plan.price.to_string());
-        edit_plan_interval.set(plan.interval.clone());
+        edit_plan_tagline.set(plan.tagline.clone());
+        edit_plan_price.set(plan.price_cents.to_string());
+        edit_plan_interval.set(plan.billing_interval.clone());
+        edit_plan_features.set(plan.features.join("\n"));
+        edit_plan_cta_label.set(plan.cta_label.clone());
+        edit_plan_cta_href.set(plan.cta_href.clone().unwrap_or_default());
+        edit_plan_featured.set(plan.is_featured);
+        edit_plan_active.set(plan.is_active);
+        edit_plan_sort_order.set(plan.sort_order.to_string());
         show_plan_modal.set(true);
     };
 
     let open_create_plan = move |_| {
         edit_plan_id.set(None);
+        edit_plan_slug.set(String::new());
         edit_plan_name.set(String::new());
+        edit_plan_tagline.set(String::new());
         edit_plan_price.set(String::new());
-        edit_plan_interval.set("month".to_string());
+        edit_plan_interval.set(ProductPlanBillingInterval::Month);
+        edit_plan_features.set(String::new());
+        edit_plan_cta_label.set("Get started".to_string());
+        edit_plan_cta_href.set(String::new());
+        edit_plan_featured.set(false);
+        edit_plan_active.set(true);
+        edit_plan_sort_order.set(String::new());
         show_plan_modal.set(true);
     };
 
     let toast_plan = toast.clone();
     let handle_save_plan = move |_| {
+        let Some(product_id) = product_uuid() else {
+            toast_plan.show_toast("Error", "Invalid product ID.", "error");
+            return;
+        };
+        let slug = edit_plan_slug.get_untracked();
         let name = edit_plan_name.get_untracked();
+        let tagline = edit_plan_tagline.get_untracked();
         let price_str = edit_plan_price.get_untracked();
         let interval = edit_plan_interval.get_untracked();
+        let features_text = edit_plan_features.get_untracked();
+        let cta_label = edit_plan_cta_label.get_untracked();
+        let cta_href = edit_plan_cta_href.get_untracked();
+        let sort_order_str = edit_plan_sort_order.get_untracked();
         let id_opt = edit_plan_id.get_untracked();
+        let is_featured = edit_plan_featured.get_untracked();
+        let is_active = edit_plan_active.get_untracked();
         let toast_c = toast_plan.clone();
 
+        if slug.trim().is_empty() {
+            toast_c.show_toast("Error", "Plan slug is required.", "error");
+            return;
+        }
         if name.trim().is_empty() {
             toast_c.show_toast("Error", "Plan name is required.", "error");
             return;
         }
-        let price: i64 = price_str.trim().parse().unwrap_or(0);
-        let input = crate::api::billing::BillingPlanInput {
+        let price_cents: i32 = price_str.trim().parse().unwrap_or(0);
+        let sort_order: i32 = sort_order_str.trim().parse().unwrap_or(0);
+        let features = features_text
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let input = ProductPlanInput {
+            slug,
             name,
-            price,
-            currency: Some("usd".to_string()),
-            interval,
+            tagline: Some(tagline),
+            price_cents: Some(price_cents),
+            currency: Some("USD".to_string()),
+            billing_interval: Some(interval),
+            features,
+            cta_label: Some(cta_label).filter(|s| !s.trim().is_empty()),
+            cta_href: Some(cta_href).filter(|s| !s.trim().is_empty()),
+            is_featured: Some(is_featured),
+            sort_order: Some(sort_order),
+            is_active: Some(is_active),
+            billing_plan_id: None,
         };
 
         leptos::task::spawn_local(async move {
             let result = if let Some(plan_id) = id_opt {
-                crate::api::billing::update_billing_plan(&plan_id, input).await
+                update_product_plan(product_id, plan_id, input).await
             } else {
-                crate::api::billing::create_billing_plan(input).await
+                create_product_plan(product_id, input).await
             };
             match result {
                 Ok(_) => {
                     show_plan_modal.set(false);
                     plans_trigger.update(|n| *n += 1);
-                    toast_c.show_toast("Saved", "Billing plan updated.", "success");
+                    toast_c.show_toast("Saved", "Product plan updated.", "success");
                 }
                 Err(e) => toast_c.show_toast("Error", &e, "error"),
             }
@@ -134,11 +196,16 @@ pub fn ProductDetail() -> impl IntoView {
     };
 
     let toast_del = toast.clone();
-    let handle_delete_plan = move |plan_id: String| {
+    let handle_delete_plan = move |plan_id: Uuid| {
+        let Some(product_id) = product_uuid() else {
+            toast_del.show_toast("Error", "Invalid product ID.", "error");
+            return;
+        };
         let toast_c = toast_del.clone();
         leptos::task::spawn_local(async move {
-            match crate::api::billing::delete_billing_plan(&plan_id).await {
+            match delete_product_plan(product_id, plan_id).await {
                 Ok(_) => {
+                    show_plan_modal.set(false);
                     plans_trigger.update(|n| *n += 1);
                     toast_c.show_toast("Deleted", "Plan removed.", "success");
                 }
@@ -150,20 +217,24 @@ pub fn ProductDetail() -> impl IntoView {
     // ── Pixel / domain alias inline form state ────────────────────────────────
     let show_pixel_form = RwSignal::new(false);
     let pixel_name_input = RwSignal::new(String::new());
-    let pixel_url_input  = RwSignal::new(String::new());
+    let pixel_url_input = RwSignal::new(String::new());
     let show_domain_form = RwSignal::new(false);
     let domain_alias_input = RwSignal::new(String::new());
     let toast_px = toast.clone();
     let handle_add_pixel = move |_: web_sys::MouseEvent| {
         let name = pixel_name_input.get_untracked();
-        let url  = pixel_url_input.get_untracked();
+        let url = pixel_url_input.get_untracked();
         if name.trim().is_empty() || url.trim().is_empty() {
             toast_px.show_toast("Error", "Pixel name and script URL are required.", "error");
             return;
         }
         // API: POST /api/admin/platform/products/{id}/pixels (future endpoint)
         // For now we save the intent via toast + reset form
-        toast_px.show_toast("Queued", &format!("Pixel '{}' queued for API wiring.", name), "info");
+        toast_px.show_toast(
+            "Queued",
+            &format!("Pixel '{}' queued for API wiring.", name),
+            "info",
+        );
         pixel_name_input.set(String::new());
         pixel_url_input.set(String::new());
         show_pixel_form.set(false);
@@ -175,7 +246,11 @@ pub fn ProductDetail() -> impl IntoView {
             toast_da.show_toast("Error", "Domain alias is required.", "error");
             return;
         }
-        toast_da.show_toast("Queued", &format!("Domain '{}' queued for API wiring.", alias), "info");
+        toast_da.show_toast(
+            "Queued",
+            &format!("Domain '{}' queued for API wiring.", alias),
+            "info",
+        );
         domain_alias_input.set(String::new());
         show_domain_form.set(false);
     };
@@ -183,9 +258,15 @@ pub fn ProductDetail() -> impl IntoView {
     // ── SEO score derived from completeness of real fields ─────────────────
     let seo_score = Signal::derive(move || {
         let mut score = 40i32; // base
-        if !product_name.get().is_empty() { score += 20; }
-        if !product_tagline.get().is_empty() { score += 20; }
-        if !product_domain.get().is_empty() { score += 20; }
+        if !product_name.get().is_empty() {
+            score += 20;
+        }
+        if !product_tagline.get().is_empty() {
+            score += 20;
+        }
+        if !product_domain.get().is_empty() {
+            score += 20;
+        }
         score.min(100)
     });
 
@@ -351,7 +432,7 @@ pub fn ProductDetail() -> impl IntoView {
                         view! {
                             {tab_btn("general", "General Info")}
                             {tab_btn("pricing", "Pricing & Plans")}
-                            {tab_btn("variants", "Variants")}
+                            {tab_btn("variants", "Market & SEO")}
                             {tab_btn("pixels", "Pixels")}
                             {tab_btn("domains", "Domains")}
                             {tab_btn("waitlist", "Waitlist Leads")}
@@ -405,6 +486,20 @@ pub fn ProductDetail() -> impl IntoView {
                                     <p class="text-[10px] text-on-surface-variant/50">"Public-facing tagline shown on cards, directories, and default SEO descriptions"</p>
                                 </div>
                             </div>
+
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Acquisition Pages"</h3>
+                                        <p class="text-xs text-on-surface-variant/70 mt-1">
+                                            "Landing pages control the visitor-facing copy, campaign paths, and A/B tests for this product."
+                                        </p>
+                                    </div>
+                                    <a href="/landing-pages" class="btn btn-primary btn-sm" style="text-decoration:none">
+                                        "Open Landing Pages →"
+                                    </a>
+                                </div>
+                            </div>
                         </div>
 
                         // Sidebar: live stats from product model
@@ -444,24 +539,46 @@ pub fn ProductDetail() -> impl IntoView {
                             <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
                                 <div class="flex items-center justify-between">
                                     <h3 class="text-sm font-bold">
-                                        {move || if edit_plan_id.get().is_some() { "Edit Billing Plan" } else { "Create Billing Plan" }}
+                                        {move || if edit_plan_id.get().is_some() { "Edit Product Plan" } else { "Create Product Plan" }}
                                     </h3>
                                     <button class="btn btn-ghost btn-icon" on:click=move |_| show_plan_modal.set(false)>
                                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
                                     </button>
                                 </div>
-                                <div class="space-y-3">
+                                <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"Plan Slug"</label>
+                                            <input
+                                                type="text"
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                prop:value=move || edit_plan_slug.get()
+                                                on:input=move |ev| edit_plan_slug.set(event_target_value(&ev))
+                                                placeholder="e.g. pro"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"Plan Name"</label>
+                                            <input
+                                                type="text"
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                prop:value=move || edit_plan_name.get()
+                                                on:input=move |ev| edit_plan_name.set(event_target_value(&ev))
+                                                placeholder="e.g. Pro"
+                                            />
+                                        </div>
+                                    </div>
                                     <div>
-                                        <label class="text-xs font-semibold text-on-surface-variant">"Plan Name"</label>
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Tagline"</label>
                                         <input
                                             type="text"
                                             class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
-                                            prop:value=move || edit_plan_name.get()
-                                            on:input=move |ev| edit_plan_name.set(event_target_value(&ev))
-                                            placeholder="e.g. Professional"
+                                            prop:value=move || edit_plan_tagline.get()
+                                            on:input=move |ev| edit_plan_tagline.set(event_target_value(&ev))
+                                            placeholder="e.g. Up to 30 units"
                                         />
                                     </div>
-                                    <div class="grid grid-cols-2 gap-3">
+                                    <div class="grid grid-cols-3 gap-3">
                                         <div>
                                             <label class="text-xs font-semibold text-on-surface-variant">"Price (cents)"</label>
                                             <input
@@ -469,26 +586,95 @@ pub fn ProductDetail() -> impl IntoView {
                                                 class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
                                                 prop:value=move || edit_plan_price.get()
                                                 on:input=move |ev| edit_plan_price.set(event_target_value(&ev))
-                                                placeholder="e.g. 90000"
+                                                placeholder="e.g. 7900"
                                             />
-                                            <p class="text-[10px] text-on-surface-variant/50 mt-0.5">"e.g. 90000 = $900.00"</p>
+                                            <p class="text-[10px] text-on-surface-variant/50 mt-0.5">"7900 = $79.00"</p>
                                         </div>
                                         <div>
-                                            <label class="text-xs font-semibold text-on-surface-variant">"Billing Interval"</label>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"Interval"</label>
                                             <select
                                                 class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
-                                                on:change=move |ev| edit_plan_interval.set(event_target_value(&ev))
+                                                on:change=move |ev| {
+                                                    let interval = match event_target_value(&ev).as_str() {
+                                                        "year" => ProductPlanBillingInterval::Year,
+                                                        "forever" => ProductPlanBillingInterval::Forever,
+                                                        "custom" => ProductPlanBillingInterval::Custom,
+                                                        _ => ProductPlanBillingInterval::Month,
+                                                    };
+                                                    edit_plan_interval.set(interval);
+                                                }
                                             >
-                                                <option value="month" prop:selected=move || edit_plan_interval.get() == "month">"Monthly"</option>
-                                                <option value="year" prop:selected=move || edit_plan_interval.get() == "year">"Annually"</option>
+                                                <option value="month" prop:selected=move || edit_plan_interval.get() == ProductPlanBillingInterval::Month>"Monthly"</option>
+                                                <option value="year" prop:selected=move || edit_plan_interval.get() == ProductPlanBillingInterval::Year>"Annually"</option>
+                                                <option value="forever" prop:selected=move || edit_plan_interval.get() == ProductPlanBillingInterval::Forever>"Forever"</option>
+                                                <option value="custom" prop:selected=move || edit_plan_interval.get() == ProductPlanBillingInterval::Custom>"Custom"</option>
                                             </select>
                                         </div>
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"Sort Order"</label>
+                                            <input
+                                                type="number"
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                prop:value=move || edit_plan_sort_order.get()
+                                                on:input=move |ev| edit_plan_sort_order.set(event_target_value(&ev))
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Features"</label>
+                                        <textarea
+                                            class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2 h-28 resize-none"
+                                            prop:value=move || edit_plan_features.get()
+                                            on:input=move |ev| edit_plan_features.set(event_target_value(&ev))
+                                            placeholder={"One feature per line"}
+                                        ></textarea>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"CTA Label"</label>
+                                            <input
+                                                type="text"
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                prop:value=move || edit_plan_cta_label.get()
+                                                on:input=move |ev| edit_plan_cta_label.set(event_target_value(&ev))
+                                                placeholder="Get started"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"CTA Href"</label>
+                                            <input
+                                                type="text"
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                prop:value=move || edit_plan_cta_href.get()
+                                                on:input=move |ev| edit_plan_cta_href.set(event_target_value(&ev))
+                                                placeholder="#waitlist-wrap"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
+                                            <input
+                                                type="checkbox"
+                                                prop:checked=move || edit_plan_featured.get()
+                                                on:change=move |ev| edit_plan_featured.set(event_target_checked(&ev))
+                                            />
+                                            "Featured"
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
+                                            <input
+                                                type="checkbox"
+                                                prop:checked=move || edit_plan_active.get()
+                                                on:change=move |ev| edit_plan_active.set(event_target_checked(&ev))
+                                            />
+                                            "Active on public API"
+                                        </label>
                                     </div>
                                 </div>
                                 <div class="flex justify-end gap-3 pt-2">
                                     <Show when=move || edit_plan_id.get().is_some()>
                                         {{
-                                            let pid = edit_plan_id.get_untracked().unwrap_or_default();
+                                            let pid = edit_plan_id.get_untracked().unwrap();
                                             view! {
                                                 <button
                                                     class="btn btn-ghost"
@@ -506,6 +692,9 @@ pub fn ProductDetail() -> impl IntoView {
                     </Show>
 
                     <div class="space-y-4">
+                        <div class="bg-primary/10 border border-primary/20 rounded-xl p-4 text-xs text-primary">
+                            "These plans appear on Folio marketing pages for this product. Publishing is live via public API — no separate publish step."
+                        </div>
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Pricing Plans & Feature Matrix"</h3>
@@ -516,11 +705,11 @@ pub fn ProductDetail() -> impl IntoView {
                             </div>
 
                             {move || {
-                                let plans = billing_plans_res.get().unwrap_or_default();
+                                let plans = product_plans_res.get().unwrap_or_default();
                                 if plans.is_empty() {
                                     view! {
                                         <div class="text-center py-10 text-xs text-on-surface-variant/60">
-                                            <p>"No billing plans defined. Click '+ Add Tier' to create the first plan."</p>
+                                            <p>"No product plans defined. Click '+ Add Tier' to create the first plan."</p>
                                         </div>
                                     }.into_any()
                                 } else {
@@ -528,15 +717,54 @@ pub fn ProductDetail() -> impl IntoView {
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             {plans.into_iter().map(|plan| {
                                                 let plan_clone = plan.clone();
-                                                let price_display = format!("${:.2}/{}", plan.price as f64 / 100.0, if plan.interval == "year" { "yr" } else { "mo" });
+                                                let is_featured = plan.is_featured;
+                                                let is_active = plan.is_active;
+                                                let plan_name = plan.name.clone();
+                                                let plan_slug = plan.slug.clone();
+                                                let plan_tagline = plan.tagline.clone();
+                                                let features = plan.features.clone();
+                                                let price_display = if plan.billing_interval == ProductPlanBillingInterval::Custom {
+                                                    "Custom".to_string()
+                                                } else if plan.price_cents == 0 {
+                                                    "$0".to_string()
+                                                } else {
+                                                    format!("${:.2}/{}", plan.price_cents as f64 / 100.0, plan.billing_interval.short_label())
+                                                };
                                                 view! {
-                                                    <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 flex flex-col justify-between">
+                                                    <div class=move || if is_featured {
+                                                        "bg-surface-container p-5 rounded-xl border border-primary/50 flex flex-col justify-between shadow-sm"
+                                                    } else {
+                                                        "bg-surface-container p-5 rounded-xl border border-outline-variant/20 flex flex-col justify-between"
+                                                    }>
                                                         <div>
                                                             <div class="flex items-center justify-between mb-2">
-                                                                <h4 class="font-bold text-on-surface">{plan.name.clone()}</h4>
+                                                                <div>
+                                                                    <h4 class="font-bold text-on-surface">{plan_name}</h4>
+                                                                    <code class="text-[10px] text-on-surface-variant/60">{plan_slug}</code>
+                                                                </div>
                                                                 <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-primary/10 text-primary border border-primary/20">{price_display}</span>
                                                             </div>
-                                                            <p class="text-xs text-on-surface-variant/70 mb-4">{plan.currency.to_uppercase()} " · " {plan.interval.clone()}</p>
+                                                            <p class="text-xs text-on-surface-variant/70 mb-4">{plan_tagline}</p>
+                                                            <ul class="space-y-1">
+                                                                {features.iter().take(4).cloned().map(|feature| view! {
+                                                                    <li class="text-[11px] text-on-surface-variant/80 flex gap-1">
+                                                                        <span>"•"</span>
+                                                                        <span>{feature}</span>
+                                                                    </li>
+                                                                }).collect_view()}
+                                                            </ul>
+                                                            <div class="flex gap-2 mt-4">
+                                                                <Show when=move || is_featured>
+                                                                    <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-primary/10 text-primary border border-primary/20">"Featured"</span>
+                                                                </Show>
+                                                                <span class=if is_active {
+                                                                    "px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                                                } else {
+                                                                    "px-2 py-0.5 rounded text-[9px] font-bold bg-outline-variant/10 text-on-surface-variant border border-outline-variant/20"
+                                                                }>
+                                                                    {if is_active { "Active" } else { "Inactive" }}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                         <button
                                                             class="btn btn-ghost btn-sm w-full mt-4 justify-center"
@@ -705,25 +933,26 @@ pub fn ProductDetail() -> impl IntoView {
                     </div>
                 </Show>
 
-                // ── TAB CONTENT: Variants (GTM Launcher) ──
+                // ── TAB CONTENT: Market & SEO (GTM Launcher) ──
                 <Show when=move || active_tab.get() == "variants">
                     <div class="space-y-4">
                         // Header
                         <div class="flex items-center justify-between">
                             <div>
-                                <h3 class="text-sm font-bold text-on-surface">"Market Variants"</h3>
+                                <h3 class="text-sm font-bold text-on-surface">"Market & SEO Variants"</h3>
                                 <p class="text-xs text-on-surface-variant/70 mt-0.5">
-                                    "Each variant is a landing page targeting a specific market, city, or niche."
+                                    "Each market record targets a specific city, region, locale, or niche for SEO and launch-mode planning."
                                 </p>
                             </div>
-                            <a
-                                href=move || format!("/products/{}/variants/new", product_slug.get())
-                                class="btn btn-primary btn-sm"
-                                id="btn-new-variant"
+                            <button
+                                class="btn btn-ghost btn-sm opacity-60 cursor-not-allowed"
+                                id="btn-new-variant-disabled"
+                                disabled=true
+                                title="Market creation is not wired yet"
                             >
                                 <span class="material-symbols-outlined text-[14px]">"add"</span>
-                                "New Variant"
-                            </a>
+                                "New Market"
+                            </button>
                         </div>
 
                         // Variants table
@@ -736,10 +965,13 @@ pub fn ProductDetail() -> impl IntoView {
                                 view! {
                                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-12 flex flex-col items-center gap-3 text-center">
                                         <span class="material-symbols-outlined text-[36px] text-on-surface-variant/30">"travel_explore"</span>
-                                        <p class="text-sm font-semibold text-on-surface-variant">"No variants yet"</p>
+                                        <p class="text-sm font-semibold text-on-surface-variant">"No market records yet"</p>
                                         <p class="text-xs text-on-surface-variant/60 max-w-xs">
-                                            "Create a variant to build a market-specific landing page for a city, niche, or audience."
+                                            "Market creation is not wired in this screen yet. Use seed migrations or the bulk generation API, then manage acquisition copy in Landing Pages."
                                         </p>
+                                        <a href="/landing-pages" class="btn btn-ghost btn-sm" style="text-decoration:none">
+                                            "Open Acquisition Pages →"
+                                        </a>
                                     </div>
                                 }.into_any()
                             } else {

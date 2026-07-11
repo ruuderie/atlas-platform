@@ -46,26 +46,24 @@
 //!   then deletes all variant rows for that page.
 
 use axum::{
+    Json, Router,
     extract::{Path, Query, State},
     http::StatusCode,
     routing::{delete, get, post, put},
-    Json, Router,
 };
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
+    QuerySelect, Set,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
 use crate::entities::{
-    app_page, app_page_variant, app_utm_preset, atlas_lp_event,
-    app_page::Entity as AppPage,
-    app_page_variant::Entity as AppPageVariant,
-    app_utm_preset::Entity as AppUtmPreset,
-    atlas_lp_event::Entity as AtlasLpEvent,
+    app_page, app_page::Entity as AppPage, app_page_variant,
+    app_page_variant::Entity as AppPageVariant, app_utm_preset,
+    app_utm_preset::Entity as AppUtmPreset, atlas_lp_event, atlas_lp_event::Entity as AtlasLpEvent,
 };
 
 // ── Sentinel UUID used as tenant_id for platform-level pages ──────────────────
@@ -87,6 +85,7 @@ pub struct LandingPageSummary {
     pub slug: String,
     pub title: String,
     pub page_type: String,
+    pub locale: String,
     pub is_published: bool,
     pub created_at: chrono::DateTime<Utc>,
     pub updated_at: chrono::DateTime<Utc>,
@@ -100,6 +99,7 @@ impl From<app_page::Model> for LandingPageSummary {
             slug: m.slug,
             title: m.title,
             page_type: m.page_type,
+            locale: m.locale,
             is_published: m.is_published,
             created_at: m.created_at,
             updated_at: m.updated_at,
@@ -114,6 +114,7 @@ pub struct CreateLandingPagePayload {
     pub title: String,
     pub description: Option<String>,
     pub page_type: Option<String>,
+    pub locale: Option<String>,
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub is_published: Option<bool>,
@@ -127,6 +128,7 @@ pub struct UpdateLandingPagePayload {
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub slug: Option<String>,
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -165,7 +167,10 @@ pub struct CreateUtmPresetPayload {
 pub fn landing_page_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Pages
-        .route("/api/admin/landing-pages", get(list_pages).post(create_page))
+        .route(
+            "/api/admin/landing-pages",
+            get(list_pages).post(create_page),
+        )
         .route(
             "/api/admin/landing-pages/{page_id}",
             get(get_page).put(update_page).delete(delete_page),
@@ -175,10 +180,7 @@ pub fn landing_page_routes_raw() -> Router<DatabaseConnection> {
             post(toggle_publish),
         )
         // Tracking pixels
-        .route(
-            "/api/admin/landing-pages/{page_id}/pixels",
-            get(get_pixels),
-        )
+        .route("/api/admin/landing-pages/{page_id}/pixels", get(get_pixels))
         .route(
             "/api/admin/landing-pages/{page_id}/pixels/{pixel_type}",
             put(set_pixel),
@@ -210,11 +212,6 @@ pub fn landing_page_routes_raw() -> Router<DatabaseConnection> {
             "/api/admin/landing-pages/{page_id}/analytics",
             get(get_analytics),
         )
-        // Public ingest — called fire-and-forget from the Folio frontend
-        .route(
-            "/api/pub/lp-events",
-            post(post_lp_event),
-        )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -236,7 +233,9 @@ pub async fn list_pages(
             tracing::error!("landing_pages::list_pages error: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    Ok(Json(pages.into_iter().map(LandingPageSummary::from).collect()))
+    Ok(Json(
+        pages.into_iter().map(LandingPageSummary::from).collect(),
+    ))
 }
 
 /// `GET /api/admin/landing-pages/{page_id}`
@@ -267,6 +266,7 @@ pub async fn create_page(
         tenant_id: Set(sentinel),
         app_id: Set(payload.app_id),
         slug: Set(payload.slug),
+        locale: Set(payload.locale.unwrap_or_else(|| "en".to_string())),
         title: Set(payload.title),
         description: Set(payload.description.unwrap_or_default()),
         page_type: Set(payload.page_type.unwrap_or_else(|| "landing".to_string())),
@@ -278,7 +278,10 @@ pub async fn create_page(
     };
     let inserted = new_page.insert(&db).await.map_err(|e| {
         tracing::error!("landing_pages::create_page error: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create page".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create page".to_string(),
+        )
     })?;
     Ok((StatusCode::CREATED, Json(inserted)))
 }
@@ -296,17 +299,33 @@ pub async fn update_page(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Page not found".to_string()))?;
 
     let mut active: app_page::ActiveModel = existing.into();
-    if let Some(t) = payload.title         { active.title = Set(t); }
-    if let Some(d) = payload.description   { active.description = Set(d); }
-    if let Some(pt) = payload.page_type    { active.page_type = Set(pt); }
-    if let Some(h) = payload.hero_payload  { active.hero_payload = Set(Some(h)); }
-    if let Some(b) = payload.blocks_payload { active.blocks_payload = Set(Some(b)); }
-    if let Some(s) = payload.slug          { active.slug = Set(s); }
+    if let Some(t) = payload.title {
+        active.title = Set(t);
+    }
+    if let Some(d) = payload.description {
+        active.description = Set(d);
+    }
+    if let Some(pt) = payload.page_type {
+        active.page_type = Set(pt);
+    }
+    if let Some(h) = payload.hero_payload {
+        active.hero_payload = Set(Some(h));
+    }
+    if let Some(b) = payload.blocks_payload {
+        active.blocks_payload = Set(Some(b));
+    }
+    if let Some(s) = payload.slug {
+        active.slug = Set(s);
+    }
+    if let Some(l) = payload.locale {
+        active.locale = Set(l);
+    }
     active.updated_at = Set(Utc::now());
 
-    let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(updated))
 }
 
@@ -326,9 +345,10 @@ pub async fn toggle_publish(
     active.is_published = Set(new_state);
     active.updated_at = Set(Utc::now());
 
-    let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(updated))
 }
 
@@ -344,9 +364,10 @@ pub async fn delete_page(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Page not found".to_string()))?;
 
     let active: app_page::ActiveModel = existing.into();
-    active.delete(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    active
+        .delete(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -400,7 +421,10 @@ pub async fn create_variant(
     };
     let inserted = new_variant.insert(&db).await.map_err(|e| {
         tracing::error!("landing_pages::create_variant error: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create variant".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create variant".to_string(),
+        )
     })?;
     Ok((StatusCode::CREATED, Json(inserted)))
 }
@@ -419,16 +443,27 @@ pub async fn update_variant(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Variant not found".to_string()))?;
 
     let mut active: app_page_variant::ActiveModel = existing.into();
-    if let Some(n) = payload.name           { active.name = Set(n); }
-    if let Some(t) = payload.traffic_pct    { active.traffic_pct = Set(t); }
-    if let Some(b) = payload.blocks_payload { active.blocks_payload = Set(b); }
-    if let Some(h) = payload.hero_payload   { active.hero_payload = Set(Some(h)); }
-    if let Some(a) = payload.is_active      { active.is_active = Set(a); }
+    if let Some(n) = payload.name {
+        active.name = Set(n);
+    }
+    if let Some(t) = payload.traffic_pct {
+        active.traffic_pct = Set(t);
+    }
+    if let Some(b) = payload.blocks_payload {
+        active.blocks_payload = Set(b);
+    }
+    if let Some(h) = payload.hero_payload {
+        active.hero_payload = Set(Some(h));
+    }
+    if let Some(a) = payload.is_active {
+        active.is_active = Set(a);
+    }
     active.updated_at = Set(Utc::now());
 
-    let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(updated))
 }
 
@@ -445,7 +480,10 @@ pub async fn delete_variant(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Variant not found".to_string()))?;
 
     let active: app_page_variant::ActiveModel = existing.into();
-    active.delete(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    active
+        .delete(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -481,9 +519,10 @@ pub async fn promote_variant(
         active_page.hero_payload = Set(Some(h));
     }
     active_page.updated_at = Set(Utc::now());
-    let updated_page = active_page.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let updated_page = active_page
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Delete all variants for this page (test concluded)
     AppPageVariant::delete_many()
@@ -537,7 +576,10 @@ pub async fn create_utm_preset(
     };
     let inserted = new_preset.insert(&db).await.map_err(|e| {
         tracing::error!("landing_pages::create_utm_preset error: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create UTM preset".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create UTM preset".to_string(),
+        )
     })?;
     Ok((StatusCode::CREATED, Json(inserted)))
 }
@@ -554,7 +596,10 @@ pub async fn delete_utm_preset(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "UTM preset not found".to_string()))?;
 
     let active: app_utm_preset::ActiveModel = existing.into();
-    active.delete(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    active
+        .delete(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -572,10 +617,10 @@ pub struct PixelConfig {
 /// Full pixel config map returned by GET /pixels.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct PagePixelConfig {
-    pub ga4:      PixelConfig,
-    pub meta:     PixelConfig,
+    pub ga4: PixelConfig,
+    pub meta: PixelConfig,
     pub linkedin: PixelConfig,
-    pub gtm:      PixelConfig,
+    pub gtm: PixelConfig,
 }
 
 impl PagePixelConfig {
@@ -587,10 +632,10 @@ impl PagePixelConfig {
                 .unwrap_or_default()
         };
         Self {
-            ga4:      parse_one("ga4"),
-            meta:     parse_one("meta"),
+            ga4: parse_one("ga4"),
+            meta: parse_one("meta"),
             linkedin: parse_one("linkedin"),
-            gtm:      parse_one("gtm"),
+            gtm: parse_one("gtm"),
         }
     }
 }
@@ -640,7 +685,13 @@ pub async fn set_pixel(
     // Validate pixel type
     let valid_types = ["ga4", "meta", "linkedin", "gtm"];
     if !valid_types.contains(&pixel_type.as_str()) {
-        return Err((StatusCode::BAD_REQUEST, format!("Unknown pixel type '{}'. Valid: ga4, meta, linkedin, gtm", pixel_type)));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Unknown pixel type '{}'. Valid: ga4, meta, linkedin, gtm",
+                pixel_type
+            ),
+        ));
     }
 
     let page = AppPage::find_by_id(page_id)
@@ -650,7 +701,10 @@ pub async fn set_pixel(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Page not found".to_string()))?;
 
     // Merge into existing hero_payload, preserving all other keys
-    let mut hero = page.hero_payload.clone().unwrap_or_else(|| serde_json::json!({}));
+    let mut hero = page
+        .hero_payload
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({}));
 
     let pixel_cfg_val = hero
         .get_mut("pixel_config")
@@ -663,20 +717,31 @@ pub async fn set_pixel(
         _ => serde_json::Map::new(),
     };
 
-    pixel_map.insert(pixel_type.clone(), serde_json::json!({
-        "enabled": body.enabled,
-        "snippet": body.snippet,
-    }));
+    pixel_map.insert(
+        pixel_type.clone(),
+        serde_json::json!({
+            "enabled": body.enabled,
+            "snippet": body.snippet,
+        }),
+    );
 
     hero.as_object_mut()
-        .ok_or_else(|| (StatusCode::INTERNAL_SERVER_ERROR, "hero_payload is not an object".to_string()))?
+        .ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "hero_payload is not an object".to_string(),
+            )
+        })?
         .insert("pixel_config".to_string(), Value::Object(pixel_map));
 
     // Persist
     let mut active: app_page::ActiveModel = page.into();
     active.hero_payload = Set(Some(hero.clone()));
     active.updated_at = Set(Utc::now());
-    active.update(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Return the full updated pixel config
     let updated_cfg = hero
@@ -701,12 +766,12 @@ pub struct SourceBreakdown {
 
 #[derive(Debug, Serialize)]
 pub struct PageAnalytics {
-    pub page_id:      Uuid,
-    pub total_views:  i64,
-    pub total_leads:  i64,
-    pub cta_clicks:   i64,
-    pub conv_rate_pct: f64,  // leads / views * 100
-    pub sources:      Vec<SourceBreakdown>,
+    pub page_id: Uuid,
+    pub total_views: i64,
+    pub total_leads: i64,
+    pub cta_clicks: i64,
+    pub conv_rate_pct: f64, // leads / views * 100
+    pub sources: Vec<SourceBreakdown>,
 }
 
 /// `GET /api/admin/landing-pages/{page_id}/analytics`
@@ -727,9 +792,15 @@ pub async fn get_analytics(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let total_views  = events.iter().filter(|e| e.event_type == "view").count() as i64;
-    let total_leads  = events.iter().filter(|e| e.event_type == "lead_submitted").count() as i64;
-    let cta_clicks   = events.iter().filter(|e| e.event_type == "cta_click").count() as i64;
+    let total_views = events.iter().filter(|e| e.event_type == "view").count() as i64;
+    let total_leads = events
+        .iter()
+        .filter(|e| e.event_type == "lead_submitted")
+        .count() as i64;
+    let cta_clicks = events
+        .iter()
+        .filter(|e| e.event_type == "cta_click")
+        .count() as i64;
     let conv_rate_pct = if total_views > 0 {
         (total_leads as f64 / total_views as f64) * 100.0
     } else {
@@ -739,17 +810,33 @@ pub async fn get_analytics(
     // UTM source breakdown
     let mut source_map: std::collections::HashMap<String, (i64, i64)> = Default::default();
     for ev in &events {
-        let src = ev.utm_source.clone().unwrap_or_else(|| "Direct / Other".to_string());
+        let src = ev
+            .utm_source
+            .clone()
+            .unwrap_or_else(|| "Direct / Other".to_string());
         let entry = source_map.entry(src).or_insert((0, 0));
-        if ev.event_type == "view"           { entry.0 += 1; }
-        if ev.event_type == "lead_submitted" { entry.1 += 1; }
+        if ev.event_type == "view" {
+            entry.0 += 1;
+        }
+        if ev.event_type == "lead_submitted" {
+            entry.1 += 1;
+        }
     }
 
     let mut sources: Vec<SourceBreakdown> = source_map
         .into_iter()
         .map(|(source, (views, leads))| {
-            let pct = if total_views > 0 { (views * 100 / total_views) as i32 } else { 0 };
-            SourceBreakdown { source, views, leads, pct }
+            let pct = if total_views > 0 {
+                (views * 100 / total_views) as i32
+            } else {
+                0
+            };
+            SourceBreakdown {
+                source,
+                views,
+                leads,
+                pct,
+            }
         })
         .collect();
     sources.sort_by(|a, b| b.views.cmp(&a.views));
@@ -767,16 +854,16 @@ pub async fn get_analytics(
 /// Public event ingest body.
 #[derive(Debug, Deserialize)]
 pub struct LpEventBody {
-    pub app_page_id:  Uuid,
-    pub event_type:   String,
-    pub session_id:   String,
-    pub utm_source:   Option<String>,
-    pub utm_medium:   Option<String>,
+    pub app_page_id: Uuid,
+    pub event_type: String,
+    pub session_id: String,
+    pub utm_source: Option<String>,
+    pub utm_medium: Option<String>,
     pub utm_campaign: Option<String>,
-    pub utm_content:  Option<String>,
-    pub utm_term:     Option<String>,
-    pub viewport:     Option<String>,
-    pub referrer:     Option<String>,
+    pub utm_content: Option<String>,
+    pub utm_term: Option<String>,
+    pub viewport: Option<String>,
+    pub referrer: Option<String>,
 }
 
 /// `POST /api/pub/lp-events`
@@ -792,19 +879,19 @@ pub async fn post_lp_event(
     }
 
     let ev = atlas_lp_event::ActiveModel {
-        id:          Set(Uuid::new_v4()),
+        id: Set(Uuid::new_v4()),
         app_page_id: Set(body.app_page_id),
-        event_type:  Set(body.event_type),
-        session_id:  Set(body.session_id),
-        utm_source:  Set(body.utm_source),
-        utm_medium:  Set(body.utm_medium),
+        event_type: Set(body.event_type),
+        session_id: Set(body.session_id),
+        utm_source: Set(body.utm_source),
+        utm_medium: Set(body.utm_medium),
         utm_campaign: Set(body.utm_campaign),
         utm_content: Set(body.utm_content),
-        utm_term:    Set(body.utm_term),
-        viewport:    Set(body.viewport),
-        referrer:    Set(body.referrer),
+        utm_term: Set(body.utm_term),
+        viewport: Set(body.viewport),
+        referrer: Set(body.referrer),
         country_code: Set(None),
-        created_at:  Set(Utc::now()),
+        created_at: Set(Utc::now()),
     };
 
     // Fire-and-forget — log errors but don't fail the response
@@ -852,7 +939,10 @@ mod tests {
 
         assert!(cfg.ga4.enabled, "ga4 should be enabled");
         assert!(!cfg.meta.enabled, "meta missing from JSON → disabled");
-        assert!(!cfg.linkedin.enabled, "linkedin missing from JSON → disabled");
+        assert!(
+            !cfg.linkedin.enabled,
+            "linkedin missing from JSON → disabled"
+        );
         assert!(!cfg.gtm.enabled, "gtm missing from JSON → disabled");
         assert!(cfg.meta.snippet.is_none());
     }
@@ -981,11 +1071,15 @@ mod tests {
             serde_json::Value::Object(m) => m,
             _ => serde_json::Map::new(),
         };
-        pixel_map.insert("meta".to_string(), json!({ "enabled": true, "snippet": null }));
+        pixel_map.insert(
+            "meta".to_string(),
+            json!({ "enabled": true, "snippet": null }),
+        );
 
-        hero.as_object_mut()
-            .unwrap()
-            .insert("pixel_config".to_string(), serde_json::Value::Object(pixel_map));
+        hero.as_object_mut().unwrap().insert(
+            "pixel_config".to_string(),
+            serde_json::Value::Object(pixel_map),
+        );
 
         // ga4 entry should be untouched
         assert_eq!(hero["pixel_config"]["ga4"]["enabled"], true);
@@ -1012,11 +1106,15 @@ mod tests {
             serde_json::Value::Object(m) => m,
             _ => serde_json::Map::new(),
         };
-        pixel_map.insert("gtm".to_string(), json!({ "enabled": true, "snippet": "GTM-XYZ" }));
+        pixel_map.insert(
+            "gtm".to_string(),
+            json!({ "enabled": true, "snippet": "GTM-XYZ" }),
+        );
 
-        hero.as_object_mut()
-            .unwrap()
-            .insert("pixel_config".to_string(), serde_json::Value::Object(pixel_map));
+        hero.as_object_mut().unwrap().insert(
+            "pixel_config".to_string(),
+            serde_json::Value::Object(pixel_map),
+        );
 
         assert_eq!(hero["pixel_config"]["gtm"]["enabled"], true);
         assert_eq!(hero["pixel_config"]["gtm"]["snippet"], "GTM-XYZ");

@@ -10,16 +10,18 @@ use leptos::prelude::*;
 use serde_json::json;
 
 use crate::api::syndication::{
-    list_syndication_offers, create_syndication_offer, retire_syndication_offer,
-    auto_provision_mandatory_links, CreateOfferInput,
+    CreateOfferInput, auto_provision_mandatory_links, create_syndication_offer,
+    list_syndication_offers, retire_syndication_offer,
 };
+use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
 
 #[component]
 pub fn SyndicationOffers() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // ── List offers ──────────────────────────────────────────────────────────
-    let offers_res = LocalResource::new(|| async { list_syndication_offers().await.unwrap_or_default() });
+    let offers_res =
+        LocalResource::new(|| async { list_syndication_offers().await.unwrap_or_default() });
 
     // ── Create modal state ───────────────────────────────────────────────────
     let show_create = RwSignal::new(false);
@@ -47,19 +49,35 @@ pub fn SyndicationOffers() -> impl IntoView {
     let t1 = toast.clone();
     let handle_create = move |_| {
         if form_display_name.get().trim().is_empty() || form_ni_config_id.get().trim().is_empty() {
-            t1.show_toast("Validation", "Display name and NI Config ID are required.", "error");
+            t1.show_toast(
+                "Validation",
+                "Display name and NI Config ID are required.",
+                "error",
+            );
             return;
         }
         is_saving.set(true);
         let mut types = vec![];
-        if form_ltr.get() { types.push("ltr"); }
-        if form_str.get() { types.push("str"); }
-        if form_for_sale.get() { types.push("for_sale"); }
-        if form_vendor_profile.get() { types.push("vendor_profile"); }
+        if form_ltr.get() {
+            types.push("ltr");
+        }
+        if form_str.get() {
+            types.push("str");
+        }
+        if form_for_sale.get() {
+            types.push("for_sale");
+        }
+        if form_vendor_profile.get() {
+            types.push("vendor_profile");
+        }
 
         let mut tiers: Vec<&str> = vec![];
-        if form_mandatory_free.get() { tiers.push("free"); }
-        if form_mandatory_starter.get() { tiers.push("starter"); }
+        if form_mandatory_free.get() {
+            tiers.push("free");
+        }
+        if form_mandatory_starter.get() {
+            tiers.push("starter");
+        }
 
         let mode = form_folio_mode.get();
 
@@ -99,7 +117,11 @@ pub fn SyndicationOffers() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match retire_syndication_offer(&id).await {
                 Ok(_) => {
-                    t.show_toast("Retired", &format!("\"{}\" retired. Existing links remain active.", name), "success");
+                    t.show_toast(
+                        "Retired",
+                        &format!("\"{}\" retired. Existing links remain active.", name),
+                        "success",
+                    );
                     offers_res.refetch();
                 }
                 Err(e) => t.show_toast("Error", &e, "error"),
@@ -109,7 +131,9 @@ pub fn SyndicationOffers() -> impl IntoView {
 
     let t3 = toast.clone();
     let handle_provision = move |_| {
-        let Some(oid) = provision_offer_id.get() else { return; };
+        let Some(oid) = provision_offer_id.get() else {
+            return;
+        };
         is_provisioning.set(true);
         provision_result.set(None);
         let t = t3.clone();
@@ -119,8 +143,11 @@ pub fn SyndicationOffers() -> impl IntoView {
                     provision_result.set(Some((r.provisioned, r.skipped)));
                     t.show_toast(
                         "Auto-Provisioned",
-                        &format!("{} new links created, {} skipped.", r.provisioned, r.skipped),
-                        "success"
+                        &format!(
+                            "{} new links created, {} skipped.",
+                            r.provisioned, r.skipped
+                        ),
+                        "success",
                     );
                 }
                 Err(e) => t.show_toast("Error", &e, "error"),
@@ -131,23 +158,33 @@ pub fn SyndicationOffers() -> impl IntoView {
 
     view! {
         <div class="main-canvas">
+            <GtmProcessStrip
+                active=GtmStage::Syndication
+                subtitle="How inventory is offered and linked across Network Instances.".to_string()
+            />
             // ── Page Header ──────────────────────────────────────────────────
             <div class="page-header">
                 <div>
                     <div class="page-title">
-                        "Offer Catalog"
+                        "Syndication"
                     </div>
                     <div class="page-subtitle">
-                        "Platform-wide catalog of available syndication connections. "
-                        "Operators activate these from their Folio instance settings."
+                        "Offer catalog, active links, and tenant grants. "
+                        "Operators activate offers from Folio instance settings."
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
                     <a
                         href="/syndication/links"
-                        class="text-xs text-primary hover:underline font-semibold"
+                        class="btn btn-ghost btn-sm"
                     >
-                        "View Active Links →"
+                        "Active Links →"
+                    </a>
+                    <a
+                        href="/network/syndication"
+                        class="btn btn-ghost btn-sm"
+                    >
+                        "Tenant Grants →"
                     </a>
                     <button
                         class="btn btn-primary"
@@ -156,6 +193,12 @@ pub fn SyndicationOffers() -> impl IntoView {
                         "+ New Offer"
                     </button>
                 </div>
+            </div>
+
+            <div class="tab-bar" style="margin-bottom:12px;">
+                <a class="tab active" href="/syndication/offers">"Offers"</a>
+                <a class="tab" href="/syndication/links">"Links"</a>
+                <a class="tab" href="/network/syndication">"Grants"</a>
             </div>
 
             // ── Explainer Cards ──────────────────────────────────────────────

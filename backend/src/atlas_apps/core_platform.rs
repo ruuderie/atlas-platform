@@ -149,6 +149,8 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20261018_g36_atlas_programs::Migration),
             Box::new(crate::migration::m20261019_g36_network_invite_reward_rules::Migration),
             Box::new(crate::migration::m20261020_g36_subscription_credit_ledger::Migration),
+            Box::new(crate::migration::m20261021_g36_program_instance_enablements::Migration),
+            Box::new(crate::migration::m20261022_platform_product_plans::Migration),
         ]
     }
 

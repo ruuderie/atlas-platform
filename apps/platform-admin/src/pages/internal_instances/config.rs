@@ -1,3 +1,5 @@
+use crate::api::admin::get_all_platform_apps;
+use crate::api::client::api_get;
 /// # Internal Instance Config
 ///
 /// Route: /internal-instances/:id/config
@@ -11,20 +13,18 @@
 /// domain, mode, purpose — all correct, none hardcoded.
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use crate::api::admin::get_all_platform_apps;
-use crate::api::client::api_get;
 use serde::{Deserialize, Serialize};
 
 // ── User model ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdminUserSummary {
-    pub id:         String,
-    pub email:      String,
+    pub id: String,
+    pub email: String,
     pub first_name: Option<String>,
-    pub last_name:  Option<String>,
-    pub role:       Option<String>,
-    pub is_active:  bool,
+    pub last_name: Option<String>,
+    pub role: Option<String>,
+    pub is_active: bool,
 }
 
 async fn get_tenant_users(tenant_id: &str) -> Result<Vec<AdminUserSummary>, String> {
@@ -35,40 +35,40 @@ async fn get_tenant_users(tenant_id: &str) -> Result<Vec<AdminUserSummary>, Stri
 
 fn purpose_badge_cls(p: &str) -> &'static str {
     match p {
-        "demo"            => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
-        "test"            => "bg-amber-500/10 border-amber-500/20 text-amber-400",
-        "staging"         => "bg-purple-500/10 border-purple-500/20 text-purple-400",
+        "demo" => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
+        "test" => "bg-amber-500/10 border-amber-500/20 text-amber-400",
+        "staging" => "bg-purple-500/10 border-purple-500/20 text-purple-400",
         "managed_service" => "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-        _                 => "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant/70",
+        _ => "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant/70",
     }
 }
 
 fn purpose_label(p: &str) -> &'static str {
     match p {
-        "demo"            => "Demo",
-        "test"            => "Test",
-        "staging"         => "Staging",
+        "demo" => "Demo",
+        "test" => "Test",
+        "staging" => "Staging",
         "managed_service" => "Managed Service",
-        _                 => "Internal",
+        _ => "Internal",
     }
 }
 
 fn app_type_label(t: &str) -> &'static str {
     match t {
         "property_management" | "folio" => "Folio",
-        "anchor"   => "Anchor",
+        "anchor" => "Anchor",
         "meridian" => "Meridian",
-        _          => "App",
+        _ => "App",
     }
 }
 
 fn status_cls(s: &str) -> &'static str {
     match s {
-        "active"       => "color:var(--green)",
+        "active" => "color:var(--green)",
         "provisioning" => "color:var(--cobalt)",
-        "beta"         => "color:var(--amber)",
-        "suspended"    => "color:var(--error)",
-        _              => "text-on-surface-variant/50",
+        "beta" => "color:var(--amber)",
+        "suspended" => "color:var(--error)",
+        _ => "text-on-surface-variant/50",
     }
 }
 
@@ -84,7 +84,9 @@ pub fn InternalInstanceConfig() -> impl IntoView {
     let app_res = LocalResource::new(move || {
         let id = instance_id();
         async move {
-            get_all_platform_apps().await.ok()
+            get_all_platform_apps()
+                .await
+                .ok()
                 .and_then(|apps| apps.into_iter().find(|a| a.instance_id == id))
         }
     });
@@ -145,11 +147,12 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                 </div>
 
                                 <div class="tab-bar">
-                                    {["overview", "domain", "users", "deployment", "danger"].map(|tab| {
+                                    {["overview", "domain", "users", "programs", "deployment", "danger"].map(|tab| {
                                         let label = match tab {
                                             "overview"   => "Overview",
                                             "domain"     => "Domain & SSL",
                                             "users"      => "Users & Roles",
+                                            "programs"   => "Growth programs",
                                             "deployment" => "Deployment",
                                             "danger"     => "⚠ Danger Zone",
                                             _            => tab,
@@ -168,6 +171,13 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                     "overview"   => view! { <OverviewTab   app=app.get_value() /> }.into_any(),
                                     "domain"     => view! { <DomainTab    app=app.get_value() /> }.into_any(),
                                     "users"      => view! { <UsersTab     tenant_id=app.get_value().tenant_id.clone() /> }.into_any(),
+                                    "programs"   => {
+                                        let iid = uuid::Uuid::parse_str(&app.get_value().instance_id).ok();
+                                        match iid {
+                                            Some(id) => view! { <crate::components::instance_programs_panel::InstanceProgramsPanel app_instance_id=id /> }.into_any(),
+                                            None => view! { <div class="callout">"Invalid instance id — cannot load growth programs."</div> }.into_any(),
+                                        }
+                                    },
                                     "deployment" => view! { <DeploymentTab app=app.get_value() /> }.into_any(),
                                     "danger"     => view! { <DangerZoneTab instance_id=app.get_value().instance_id.clone() instance_name=app.get_value().name.clone() /> }.into_any(),
                                     _            => view! { <></> }.into_any(),
@@ -250,9 +260,9 @@ fn OverviewTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
 
 #[component]
 fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
-    let toast       = use_context::<crate::app::GlobalToast>().expect("toast context");
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     let instance_id = app.instance_id.clone();
-    let iid         = store_value(instance_id.clone());
+    let iid = store_value(instance_id.clone());
 
     // Load live public config (has custom_domain + dns_instructions)
     let config_res = LocalResource::new(move || {
@@ -263,19 +273,21 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
         }
     });
 
-    let saving        = RwSignal::new(false);
-    let domain_input  = RwSignal::new(String::new());
-    let saved_config  = RwSignal::<Option<crate::api::admin::PublicConfigResponse>>::new(None);
+    let saving = RwSignal::new(false);
+    let domain_input = RwSignal::new(String::new());
+    let saved_config = RwSignal::<Option<crate::api::admin::PublicConfigResponse>>::new(None);
 
     // Sync input from loaded config once
     let synced = RwSignal::new(false);
 
     let on_save = {
-        let iid2  = store_value(instance_id.clone());
+        let iid2 = store_value(instance_id.clone());
         let toast = toast.clone();
         move |_| {
             let id = uuid::Uuid::parse_str(&iid2.get_value()).ok();
-            let Some(id) = id else { return; };
+            let Some(id) = id else {
+                return;
+            };
             let domain = domain_input.get().trim().to_lowercase().to_string();
             if domain.is_empty() {
                 toast.show_toast("Validation", "Domain cannot be empty.", "error");
@@ -287,7 +299,11 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                 match crate::api::admin::update_public_config(id, None, Some(domain)).await {
                     Ok(cfg) => {
                         saved_config.set(Some(cfg));
-                        toast.show_toast("Domain saved", "Ingress provisioning started. DNS instructions shown below.", "success");
+                        toast.show_toast(
+                            "Domain saved",
+                            "Ingress provisioning started. DNS instructions shown below.",
+                            "success",
+                        );
                     }
                     Err(e) => toast.show_toast("Error", &e, "error"),
                 }
@@ -525,15 +541,13 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
     }
 }
 
-
 // ── Users & Roles ─────────────────────────────────────────────────────────────
 
 #[component]
 fn UsersTab(tenant_id: String) -> impl IntoView {
     let tid = store_value(tenant_id);
-    let users_res = LocalResource::new(move || async move {
-        get_tenant_users(&tid.get_value()).await
-    });
+    let users_res =
+        LocalResource::new(move || async move { get_tenant_users(&tid.get_value()).await });
 
     view! {
         <div class="section" style="max-width:760px;">
@@ -639,8 +653,16 @@ fn DeploymentTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
     let site_st = app.site_status.clone();
     let mode_val = app.mode.clone();
     let is_active = site_st == "active";
-    let ingress_cls = if is_active { "color:var(--green)" } else { "color:var(--text-muted)" };
-    let ssl_cls     = if is_active { "color:var(--green)" } else { "color:var(--text-muted)" };
+    let ingress_cls = if is_active {
+        "color:var(--green)"
+    } else {
+        "color:var(--text-muted)"
+    };
+    let ssl_cls = if is_active {
+        "color:var(--green)"
+    } else {
+        "color:var(--text-muted)"
+    };
 
     view! {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;">
@@ -783,9 +805,9 @@ fn DangerZoneTab(instance_id: String, instance_name: String) -> impl IntoView {
     let iname = store_value(instance_name);
 
     let confirm_archive = RwSignal::new(String::new());
-    let confirm_reset   = RwSignal::new(String::new());
-    let is_archiving    = RwSignal::new(false);
-    let is_resetting    = RwSignal::new(false);
+    let confirm_reset = RwSignal::new(String::new());
+    let is_archiving = RwSignal::new(false);
+    let is_resetting = RwSignal::new(false);
 
     let expected = Signal::derive(move || iname.get_value());
 

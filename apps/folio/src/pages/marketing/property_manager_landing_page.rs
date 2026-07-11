@@ -13,22 +13,90 @@
 //! In the "Landing Pages" section, select "🏢 Property Manager Page" to manage
 //! this page independently.
 
+use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
+use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::market_landing_page::fire_lp_view_event;
+use crate::pages::marketing::marketing_pricing::{
+    MarketingPlan, MarketingPricingGrid, PlanBillingInterval,
+};
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use crate::components::marketing_nav::{
-    MarketingNav, MarketingNavRole, MarketingNavSectionLink,
-};
 
 const PM_SECTION_LINKS: &[MarketingNavSectionLink] = &[
-    MarketingNavSectionLink { label: "Features", href: "#pm-features" },
-    MarketingNavSectionLink { label: "How it works", href: "#pm-app-preview" },
-    MarketingNavSectionLink { label: "Pricing", href: "#pm-pricing" },
+    MarketingNavSectionLink {
+        label: "Features",
+        href: "#pm-features",
+    },
+    MarketingNavSectionLink {
+        label: "How it works",
+        href: "#pm-app-preview",
+    },
+    MarketingNavSectionLink {
+        label: "Pricing",
+        href: "#pm-pricing",
+    },
 ];
+
+// ── Server function ───────────────────────────────────────────────────────────
+
+#[server(LoadPropertyManagerPage, "/api")]
+pub async fn load_property_manager_page() -> Result<
+    crate::pages::marketing::market_landing_page::LandingPageData,
+    server_fn::error::ServerFnError,
+> {
+    crate::atlas_client::fetch::<crate::pages::marketing::market_landing_page::LandingPageData>(
+        "/api/pub/products/folio-pm",
+    )
+    .await
+    .map_err(|e| {
+        server_fn::error::ServerFnError::new(format!("Property manager page load failed: {e}"))
+    })
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn PropertyManagerLandingPage() -> impl IntoView {
+    let page = Resource::new(|| (), |_| load_property_manager_page());
+
+    view! {
+        <Suspense fallback=|| view! { <PropertyManagerDefault plans=Vec::new()/> }>
+            {move || page.get().map(|result| {
+                match result {
+                    Ok(data) if has_cms_blocks(&data.blocks_payload) => {
+                        let title = data.meta_title.clone().unwrap_or_else(|| data.product_name.clone());
+                        let description = data.meta_description.clone().unwrap_or_default();
+                        let plans = data.plans.clone();
+                        fire_lp_view_event(data.page_id, data.variant_id);
+                        view! {
+                            <Title text=title.clone()/>
+                            <Meta name="description" content=description.clone()/>
+                            <Meta property="og:title" content=title/>
+                            <Meta property="og:description" content=description/>
+                            <Link rel="canonical" href="/property-managers"/>
+                            <div class="folio-mktg">
+                                <MarketingNav
+                                    active=MarketingNavRole::PropertyManagers
+                                    section_links=PM_SECTION_LINKS
+                                    cta_label="Get early access"
+                                    cta_href="#pm-waitlist"
+                                />
+                                <BlockRenderer hero=data.hero_payload blocks=data.blocks_payload/>
+                                <PmPricing plans=plans/>
+                                <PmFooter/>
+                            </div>
+                        }.into_any()
+                    }
+                    Ok(data) => view! { <PropertyManagerDefault plans=data.plans/> }.into_any(),
+                    Err(_) => view! { <PropertyManagerDefault plans=Vec::new()/> }.into_any(),
+                }
+            })}
+        </Suspense>
+    }
+}
+
+#[component]
+fn PropertyManagerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
     view! {
         <Title text="Folio for Property Managers – Run Every Portfolio, Bill Every Owner"/>
         <Meta name="description" content="Folio gives property managers owner portals, trust accounting, maintenance dispatch, and multi-portfolio billing in one platform. Start free, scale to hundreds of units."/>
@@ -45,7 +113,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
         <PmFeatures/>
         <PmOwnerPortal/>
         <PmAppPreview/>
-        <PmPricing/>
+        <PmPricing plans=plans/>
         <PmCta/>
         <BetaCalloutStrip/>
         <PmFooter/>
@@ -56,7 +124,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
 
 #[component]
 fn PmHero() -> impl IntoView {
-    let email    = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
     let submitted = RwSignal::new(false);
 
     view! {
@@ -281,14 +349,16 @@ fn PmOwnerPortal() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn PmPricing() -> impl IntoView {
-    view! {
-        <section id="pm-pricing" class="mktg-section">
-            <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Pricing"</p>
-                <h2 class="mktg-section-h2">"Pay per portfolio, not per feature."</h2>
-                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Every plan includes trust accounting, owner portals, and maintenance dispatch. No surprise add-ons."</p>
+fn PmPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
+    let plans = if plans.is_empty() {
+        pm_fallback_plans()
+    } else {
+        plans
+    };
 
+    view! {
+        <section class="mktg-section" style="padding-bottom:0;">
+            <div class="mktg-section-inner">
                 // ── Audience qualifier ────────────────────────────────────────
                 // If you only manage your own properties, you are a landlord,
                 // not a PM. This strip routes mis-matched visitors before
@@ -303,81 +373,18 @@ fn PmPricing() -> impl IntoView {
                         <a href="/" rel="external">"see Landlord plans →"</a>
                     </div>
                 </div>
-
-                <div class="mktg-pricing-grid">
-
-                    // ── Starter PM ($99 — clear separation from Landlord Pro $79) ──────
-                    //
-                    // $99 positions this tier as genuinely commercial: the first
-                    // plan that includes owner-client billing infrastructure.
-                    // The price gap vs Landlord Pro ($79, personal use) signals
-                    // that PM is a step up, not a cheaper path to the same features.
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Starter PM"</span>
-                        <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"1 client portfolio · up to 20 units"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Full landlord platform"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"1 branded owner portal"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Trust accounting ledger"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Maintenance dispatch"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Requires 2+ owner-clients"</li>
-                        </ul>
-                        <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pm-pricing-starter">"Join waitlist"</a>
-                    </div>
-
-                    // ── Growth PM (FEATURED) ───────────────────────────────────────────────
-                    <div class="mktg-pricing-card mktg-pricing-featured">
-                        <span class="mktg-pricing-tier">"Growth PM"</span>
-                        <div class="mktg-pricing-price">"$199"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 5 client portfolios · 100 units"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Starter PM"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"5 branded owner portals"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Auto-disbursement & fee split"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Portfolio analytics"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacancy marketing"</li>
-                        </ul>
-                        <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-accent" id="pm-pricing-growth">"Get early access"</a>
-                    </div>
-
-                    // ── Scale PM ────────────────────────────────────────────────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Scale PM"</span>
-                        <div class="mktg-pricing-price">"$399"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 15 client portfolios · 300 units"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Growth PM"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Full trust accounting suite"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Multi-user team access"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Priority support"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Advanced reporting"</li>
-                        </ul>
-                        <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pm-pricing-scale">"Get early access"</a>
-                    </div>
-
-                    // ── Enterprise PM ───────────────────────────────────────────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Enterprise"</span>
-                        <div class="mktg-pricing-price">"Custom"</div>
-                        <div class="mktg-pricing-sub">"Unlimited portfolios · white-label · API"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Scale PM"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"White-label branding"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"API access & SSO"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Dedicated onboarding"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Uptime SLA"</li>
-                        </ul>
-                        <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pm-pricing-enterprise">"Contact us"</a>
-                    </div>
-                </div>
-
-                // ── Competitive callout (per-portfolio framing, not per-unit) ────────────
-                //
-                // Per-unit math was removed: "less than $2/unit" invited solo
-                // landlords to compare against the individual tier and undermined
-                // the audience separation. Per-portfolio is the natural PM unit
-                // and cannot be gamed by a solo landlord doing arithmetic.
+            </div>
+        </section>
+        <MarketingPricingGrid
+            plans=plans
+            section_id="pm-pricing".to_string()
+            eyebrow="Pricing".to_string()
+            heading="Pay per portfolio, not per feature.".to_string()
+            subtitle="Every plan includes trust accounting, owner portals, and maintenance dispatch. No surprise add-ons.".to_string()
+            default_cta_href="#pm-waitlist".to_string()
+        />
+        <div class="mktg-section" style="padding-top:0;">
+            <div class="mktg-section-inner">
                 <div class="mktg-pricing-pm-callout">
                     <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">"trending_down"</span>
                     <div>
@@ -388,8 +395,89 @@ fn PmPricing() -> impl IntoView {
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
     }
+}
+
+fn pm_fallback_plans() -> Vec<MarketingPlan> {
+    vec![
+        MarketingPlan {
+            slug: "starter".into(),
+            name: "Starter PM".into(),
+            tagline: "1 client portfolio · up to 20 units".into(),
+            price_cents: 9900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Full landlord platform".into(),
+                "1 branded owner portal".into(),
+                "Trust accounting ledger".into(),
+                "Maintenance dispatch".into(),
+                "Requires 2+ owner-clients".into(),
+            ],
+            cta_label: "Join waitlist".into(),
+            cta_href: Some("#pm-waitlist".into()),
+            is_featured: false,
+            sort_order: 0,
+        },
+        MarketingPlan {
+            slug: "growth".into(),
+            name: "Growth PM".into(),
+            tagline: "Up to 5 client portfolios · 100 units".into(),
+            price_cents: 19900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Everything in Starter PM".into(),
+                "5 branded owner portals".into(),
+                "Auto-disbursement & fee split".into(),
+                "Portfolio analytics".into(),
+                "Vacancy marketing".into(),
+            ],
+            cta_label: "Get early access".into(),
+            cta_href: Some("#pm-waitlist".into()),
+            is_featured: true,
+            sort_order: 1,
+        },
+        MarketingPlan {
+            slug: "scale".into(),
+            name: "Scale PM".into(),
+            tagline: "Up to 15 client portfolios · 300 units".into(),
+            price_cents: 39900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Everything in Growth PM".into(),
+                "Full trust accounting suite".into(),
+                "Multi-user team access".into(),
+                "Priority support".into(),
+                "Advanced reporting".into(),
+            ],
+            cta_label: "Get early access".into(),
+            cta_href: Some("#pm-waitlist".into()),
+            is_featured: false,
+            sort_order: 2,
+        },
+        MarketingPlan {
+            slug: "enterprise".into(),
+            name: "Enterprise".into(),
+            tagline: "Unlimited portfolios · white-label · API".into(),
+            price_cents: 0,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Custom,
+            features: vec![
+                "Everything in Scale PM".into(),
+                "White-label branding".into(),
+                "API access & SSO".into(),
+                "Dedicated onboarding".into(),
+                "Uptime SLA".into(),
+            ],
+            cta_label: "Contact us".into(),
+            cta_href: Some("#pm-waitlist".into()),
+            is_featured: false,
+            sort_order: 3,
+        },
+    ]
 }
 
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
@@ -463,7 +551,6 @@ fn PmFooter() -> impl IntoView {
         </footer>
     }
 }
-
 
 // ── App Preview — PM dashboard (CSS-only radio tabs) ─────────────────────────
 /// Five-tab walkthrough of the Folio PM experience using pure CSS radio tabs.

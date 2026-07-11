@@ -14,59 +14,59 @@
 //!   Domains & Routing — Public slug + custom domain
 //!   Syndication      — InstanceSyndicationPanel
 
-use leptos::prelude::*;
 use crate::api::admin::{PublicConfigResponse, get_instance_stats};
-use crate::components::instance_syndication_panel::{InstanceSyndicationPanel, AvailableOffersPanel};
 use crate::components::instance_operational_config_panel::InstanceOperationalConfigPanel;
+use crate::components::instance_programs_panel::InstanceProgramsPanel;
+use crate::components::instance_syndication_panel::{
+    AvailableOffersPanel, InstanceSyndicationPanel,
+};
 use crate::components::tenant_users_panel::TenantUsersPanel;
+use leptos::prelude::*;
 
 #[component]
-pub fn FolioInstance(
-    cfg: PublicConfigResponse,
-) -> impl IntoView {
+pub fn FolioInstance(cfg: PublicConfigResponse) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let instance_id = cfg.instance_id;
-    let tenant_id   = cfg.tenant_id;
+    let tenant_id = cfg.tenant_id;
     let tenant_name = StoredValue::new(cfg.tenant_name.clone());
 
     // ── Tab state ──
     let active_tab = RwSignal::new("t-overview".to_string());
 
     // ── Domain / config signals (seeded from cfg) ──
-    let public_slug   = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
+    let public_slug = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
     let custom_domain = RwSignal::new(cfg.custom_domain.clone().unwrap_or_default());
-    let is_suspended  = RwSignal::new(cfg.instance_status == "suspended");
+    let is_suspended = RwSignal::new(cfg.instance_status == "suspended");
     let _suspend_reason = RwSignal::new(String::new());
 
     // ── Modal visibility signals ──
-    let show_suspend_modal    = RwSignal::new(false);
-    let _show_add_rail_modal   = RwSignal::new(false);
+    let show_suspend_modal = RwSignal::new(false);
+    let _show_add_rail_modal = RwSignal::new(false);
     let show_edit_config_modal = RwSignal::new(false);
 
     // ── Folio config form signals (seeded with sensible defaults) ──
     let jurisdiction_code = RwSignal::new("US-FL".to_string());
-    let market_config     = RwSignal::new("MiamiDadeMarket".to_string());
-    let str_ordinance     = RwSignal::new("Miami-Dade Ord. 2023-89".to_string());
-    let tdt_rate          = RwSignal::new("7% (Miami-Dade)".to_string());
-    let deployment_mode   = RwSignal::new(cfg.folio_mode.clone());
-    let _pix_status        = RwSignal::new("Disabled".to_string());
-    let _lookback_hours    = RwSignal::new("25".to_string());
+    let market_config = RwSignal::new("MiamiDadeMarket".to_string());
+    let str_ordinance = RwSignal::new("Miami-Dade Ord. 2023-89".to_string());
+    let tdt_rate = RwSignal::new("7% (Miami-Dade)".to_string());
+    let deployment_mode = RwSignal::new(cfg.folio_mode.clone());
+    let _pix_status = RwSignal::new("Disabled".to_string());
+    let _lookback_hours = RwSignal::new("25".to_string());
 
     // ── Live stats from /stats endpoint ──
-    let stats = LocalResource::new(move || async move {
-        get_instance_stats(instance_id).await.ok()
-    });
+    let stats =
+        LocalResource::new(move || async move { get_instance_stats(instance_id).await.ok() });
 
     // ── Module toggles (G-33 controlled) ──
-    let module_portfolio   = RwSignal::new(true);
-    let module_leases      = RwSignal::new(true);
+    let module_portfolio = RwSignal::new(true);
+    let module_leases = RwSignal::new(true);
     let module_maintenance = RwSignal::new(true);
-    let module_vendors     = RwSignal::new(true);
+    let module_vendors = RwSignal::new(true);
     let module_reservations = RwSignal::new(true);
-    let module_scorecards  = RwSignal::new(true);
-    let module_leads       = RwSignal::new(true);
-    let module_billing     = RwSignal::new(true);
+    let module_scorecards = RwSignal::new(true);
+    let module_leads = RwSignal::new(true);
+    let module_billing = RwSignal::new(true);
 
     // ── Derived: display values (wrapped in StoredValue so closures stay Fn) ──
     let app_slug_display = StoredValue::new(cfg.app_slug.clone());
@@ -168,6 +168,7 @@ pub fn FolioInstance(
                     ("t-operational-config", "Operational Config"),
                     ("t-users", "Users"),
                     ("t-scorecards", "Scorecards"),
+                    ("t-programs", "Growth programs"),
                     ("t-jobs", "Background Jobs"),
                     ("t-domain", "Domains & Routing"),
                     ("t-syndication", "Syndication"),
@@ -522,6 +523,13 @@ pub fn FolioInstance(
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </Show>
+
+            // ── TAB: Growth programs ──
+            <Show when=move || active_tab.get() == "t-programs">
+                <div class="space-y-6">
+                    <InstanceProgramsPanel app_instance_id=instance_id />
                 </div>
             </Show>
 

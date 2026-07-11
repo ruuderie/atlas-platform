@@ -13,22 +13,88 @@
 //! Freemium: free marketplace listing + job acceptance;
 //! paid tiers unlock priority placement, auto-invoicing, and 0% platform fee.
 
+use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
+use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::market_landing_page::fire_lp_view_event;
+use crate::pages::marketing::marketing_pricing::{
+    MarketingPlan, MarketingPricingGrid, PlanBillingInterval,
+};
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use crate::components::marketing_nav::{
-    MarketingNav, MarketingNavRole, MarketingNavSectionLink,
-};
 
 const VENDOR_SECTION_LINKS: &[MarketingNavSectionLink] = &[
-    MarketingNavSectionLink { label: "Features", href: "#vendor-features" },
-    MarketingNavSectionLink { label: "How it works", href: "#vendor-how" },
-    MarketingNavSectionLink { label: "Pricing", href: "#vendor-pricing" },
+    MarketingNavSectionLink {
+        label: "Features",
+        href: "#vendor-features",
+    },
+    MarketingNavSectionLink {
+        label: "How it works",
+        href: "#vendor-how",
+    },
+    MarketingNavSectionLink {
+        label: "Pricing",
+        href: "#vendor-pricing",
+    },
 ];
+
+// ── Server function ───────────────────────────────────────────────────────────
+
+#[server(LoadVendorPage, "/api")]
+pub async fn load_vendor_page() -> Result<
+    crate::pages::marketing::market_landing_page::LandingPageData,
+    server_fn::error::ServerFnError,
+> {
+    crate::atlas_client::fetch::<crate::pages::marketing::market_landing_page::LandingPageData>(
+        "/api/pub/products/folio-vendor",
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Vendor page load failed: {e}")))
+}
 
 // ── Page shell ───────────────────────────────────────────────────────────────
 
 #[component]
 pub fn VendorLandingPage() -> impl IntoView {
+    let page = Resource::new(|| (), |_| load_vendor_page());
+
+    view! {
+        <Suspense fallback=|| view! { <VendorDefault plans=Vec::new()/> }>
+            {move || page.get().map(|result| {
+                match result {
+                    Ok(data) if has_cms_blocks(&data.blocks_payload) => {
+                        let title = data.meta_title.clone().unwrap_or_else(|| data.product_name.clone());
+                        let description = data.meta_description.clone().unwrap_or_default();
+                        let plans = data.plans.clone();
+                        fire_lp_view_event(data.page_id, data.variant_id);
+                        view! {
+                            <Title text=title.clone()/>
+                            <Meta name="description" content=description.clone()/>
+                            <Meta property="og:title" content=title/>
+                            <Meta property="og:description" content=description/>
+                            <Link rel="canonical" href="/vendors"/>
+                            <div class="folio-mktg">
+                                <MarketingNav
+                                    active=MarketingNavRole::Vendors
+                                    section_links=VENDOR_SECTION_LINKS
+                                    cta_label="Join marketplace"
+                                    cta_href="#vendor-signup"
+                                />
+                                <BlockRenderer hero=data.hero_payload blocks=data.blocks_payload/>
+                                <VendorPricing plans=plans/>
+                                <VendorFooter/>
+                            </div>
+                        }.into_any()
+                    }
+                    Ok(data) => view! { <VendorDefault plans=data.plans/> }.into_any(),
+                    Err(_) => view! { <VendorDefault plans=Vec::new()/> }.into_any(),
+                }
+            })}
+        </Suspense>
+    }
+}
+
+#[component]
+fn VendorDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
     view! {
         <Title text="Folio for Vendors – Get Jobs, Get Paid, No Chasing"/>
         <Meta name="description" content="Folio connects vendors and contractors to property managers and landlords. Get dispatched jobs, send invoices, collect payment, and grow your service business."/>
@@ -46,7 +112,7 @@ pub fn VendorLandingPage() -> impl IntoView {
         <VendorTrades/>
         <VendorFeatures/>
         <VendorProfilePreviews/>
-        <VendorPricing/>
+        <VendorPricing plans=plans/>
         <VendorCta/>
         <VendorFooter/>
     }
@@ -56,42 +122,47 @@ pub fn VendorLandingPage() -> impl IntoView {
 
 #[component]
 fn VendorHero() -> impl IntoView {
-    let step         = RwSignal::new(0u8);  // 0=trade, 1=details, 2=success
-    let trade        = RwSignal::new(String::new());
-    let trade_label  = RwSignal::new(String::new());
-    let email        = RwSignal::new(String::new());
-    let biz_name     = RwSignal::new(String::new());
+    let step = RwSignal::new(0u8); // 0=trade, 1=details, 2=success
+    let trade = RwSignal::new(String::new());
+    let trade_label = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let biz_name = RwSignal::new(String::new());
     let service_area = RwSignal::new(String::new());
-    let loading      = RwSignal::new(false);
+    let loading = RwSignal::new(false);
 
     let trades: &[(&str, &str)] = &[
-        ("cleaning",      "🧹 Cleaning"),
-        ("handyman",      "🔧 Handyman"),
-        ("plumbing",      "🚿 Plumbing"),
-        ("electrical",    "⚡ Electrical"),
-        ("hvac",          "❄️ HVAC"),
-        ("painting",      "🖌️ Painting"),
-        ("landscaping",   "🌿 Landscaping"),
-        ("roofing",       "🏠 Roofing"),
-        ("flooring",      "🪵 Flooring"),
-        ("pest-control",  "🐛 Pest Control"),
-        ("appliance",     "🛠️ Appliances"),
-        ("locksmith",     "🔐 Locksmith"),
-        ("inspection",    "🔍 Inspection"),
-        ("movers",        "📦 Movers"),
-        ("junk-removal",  "🗑️ Junk Removal"),
-        ("pool-spa",      "🏊 Pool & Spa"),
-        ("security",      "📷 Security"),
-        ("solar",         "☀️ Solar"),
-        ("general",       "🏗️ General Contractor"),
+        ("cleaning", "🧹 Cleaning"),
+        ("handyman", "🔧 Handyman"),
+        ("plumbing", "🚿 Plumbing"),
+        ("electrical", "⚡ Electrical"),
+        ("hvac", "❄️ HVAC"),
+        ("painting", "🖌️ Painting"),
+        ("landscaping", "🌿 Landscaping"),
+        ("roofing", "🏠 Roofing"),
+        ("flooring", "🪵 Flooring"),
+        ("pest-control", "🐛 Pest Control"),
+        ("appliance", "🛠️ Appliances"),
+        ("locksmith", "🔐 Locksmith"),
+        ("inspection", "🔍 Inspection"),
+        ("movers", "📦 Movers"),
+        ("junk-removal", "🗑️ Junk Removal"),
+        ("pool-spa", "🏊 Pool & Spa"),
+        ("security", "📷 Security"),
+        ("solar", "☀️ Solar"),
+        ("general", "🏗️ General Contractor"),
     ];
 
     let submit = move |_| {
-        if email.get().is_empty() || service_area.get().is_empty() { return; }
+        if email.get().is_empty() || service_area.get().is_empty() {
+            return;
+        }
         loading.set(true);
         let payload = format!(
             r#"{{"email":"{}","trade":"{}","biz_name":"{}","service_area":"{}","source":"vendor-page"}}"#,
-            email.get(), trade.get(), biz_name.get(), service_area.get()
+            email.get(),
+            trade.get(),
+            biz_name.get(),
+            service_area.get()
         );
         leptos::task::spawn_local(async move {
             let resp = gloo_net::http::Request::post("/api/waitlist-signup")
@@ -359,25 +430,101 @@ fn VendorHow() -> impl IntoView {
 #[component]
 fn VendorTrades() -> impl IntoView {
     let categories: Vec<(&str, &str, &str)> = vec![
-        ("🧹", "Cleaning & Turnover",  "Move-out cleans, vacation rental turnovers, recurring housekeeping"),
-        ("🔧", "Handyman",             "Minor repairs, furniture assembly, caulking, drywall patches"),
-        ("🚿", "Plumbing",             "Leaks, fixture replacements, drain clearing, water heater service"),
-        ("⚡", "Electrical",           "Outlet repairs, panel work, lighting installs, code compliance"),
-        ("❄️", "HVAC",                 "AC service, furnace repair, filter programs, duct cleaning"),
-        ("🖌️", "Painting",             "Interior & exterior, unit turns, touch-ups, power washing"),
-        ("🌿", "Landscaping",          "Lawn care, tree trimming, irrigation, seasonal cleanups"),
-        ("🏠", "Roofing",              "Inspections, leak repairs, gutter cleaning, full replacements"),
-        ("🪵", "Flooring",             "Hardwood, tile, LVP install and repair, carpet replacement"),
-        ("🐛", "Pest Control",         "Extermination, prevention programs, termite inspections"),
-        ("🛠️", "Appliance Repair",     "Washers, dryers, refrigerators, dishwashers, stoves"),
-        ("🔐", "Locksmith",            "Rekeying, lock installs, smart lock setup, access control"),
-        ("🔍", "Inspection",           "Move-in/out inspections, general home inspections, code checks"),
-        ("📦", "Movers",               "Residential & commercial moves, furniture, appliance relocation"),
-        ("🗑️", "Junk Removal",         "Tenant cleanouts, bulk hauling, estate clearances, debris removal"),
-        ("🏊", "Pool & Spa",           "Cleaning, chemical balance, equipment repair, opening/closing"),
-        ("📷", "Security",             "Camera installs, alarm systems, smart home setup"),
-        ("☀️", "Solar",                "Panel installs, maintenance, battery storage, inspections"),
-        ("🏗️", "General Contractor",  "Renovations, additions, unit upgrades, larger project management"),
+        (
+            "🧹",
+            "Cleaning & Turnover",
+            "Move-out cleans, vacation rental turnovers, recurring housekeeping",
+        ),
+        (
+            "🔧",
+            "Handyman",
+            "Minor repairs, furniture assembly, caulking, drywall patches",
+        ),
+        (
+            "🚿",
+            "Plumbing",
+            "Leaks, fixture replacements, drain clearing, water heater service",
+        ),
+        (
+            "⚡",
+            "Electrical",
+            "Outlet repairs, panel work, lighting installs, code compliance",
+        ),
+        (
+            "❄️",
+            "HVAC",
+            "AC service, furnace repair, filter programs, duct cleaning",
+        ),
+        (
+            "🖌️",
+            "Painting",
+            "Interior & exterior, unit turns, touch-ups, power washing",
+        ),
+        (
+            "🌿",
+            "Landscaping",
+            "Lawn care, tree trimming, irrigation, seasonal cleanups",
+        ),
+        (
+            "🏠",
+            "Roofing",
+            "Inspections, leak repairs, gutter cleaning, full replacements",
+        ),
+        (
+            "🪵",
+            "Flooring",
+            "Hardwood, tile, LVP install and repair, carpet replacement",
+        ),
+        (
+            "🐛",
+            "Pest Control",
+            "Extermination, prevention programs, termite inspections",
+        ),
+        (
+            "🛠️",
+            "Appliance Repair",
+            "Washers, dryers, refrigerators, dishwashers, stoves",
+        ),
+        (
+            "🔐",
+            "Locksmith",
+            "Rekeying, lock installs, smart lock setup, access control",
+        ),
+        (
+            "🔍",
+            "Inspection",
+            "Move-in/out inspections, general home inspections, code checks",
+        ),
+        (
+            "📦",
+            "Movers",
+            "Residential & commercial moves, furniture, appliance relocation",
+        ),
+        (
+            "🗑️",
+            "Junk Removal",
+            "Tenant cleanouts, bulk hauling, estate clearances, debris removal",
+        ),
+        (
+            "🏊",
+            "Pool & Spa",
+            "Cleaning, chemical balance, equipment repair, opening/closing",
+        ),
+        (
+            "📷",
+            "Security",
+            "Camera installs, alarm systems, smart home setup",
+        ),
+        (
+            "☀️",
+            "Solar",
+            "Panel installs, maintenance, battery storage, inspections",
+        ),
+        (
+            "🏗️",
+            "General Contractor",
+            "Renovations, additions, unit upgrades, larger project management",
+        ),
     ];
 
     view! {
@@ -680,64 +827,84 @@ fn VendorProfilePreviews() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn VendorPricing() -> impl IntoView {
+fn VendorPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
+    let plans = if plans.is_empty() {
+        vendor_fallback_plans()
+    } else {
+        plans
+    };
+
     view! {
-        <section id="vendor-pricing" class="mktg-section">
-            <div class="mktg-section-inner" style="text-align:center;">
-                <p class="mktg-section-eyebrow">"Pricing"</p>
-                <h2 class="mktg-section-h2">"Start free. Upgrade when you're ready."</h2>
-                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">
-                    "Every vendor gets a marketplace profile and can accept jobs at no cost. \
-                     Paid plans unlock the tools that help you win more work."
-                </p>
-                <div class="mktg-pricing-grid">
-                    // ── Basic (Free) ──────────────────────────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Basic"</span>
-                        <div class="mktg-pricing-price">"Free"</div>
-                        <div class="mktg-pricing-sub">"Free forever"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Marketplace profile"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Accept & complete jobs"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"In-platform invoicing"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"ACH payment in 24h"</li>
-                        </ul>
-                        <a href="#vendor-signup" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="vendor-pricing-basic">"Join free"</a>
-                    </div>
-
-                    // ── Pro Vendor (FEATURED) ─────────────────────────────
-                    <div class="mktg-pricing-card mktg-pricing-featured">
-                        <span class="mktg-pricing-tier">"Pro Vendor"</span>
-                        <div class="mktg-pricing-price">"$29"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Priority placement"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Basic"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Priority search placement"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Auto-invoicing templates"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Job analytics dashboard"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Verified badge"</li>
-                        </ul>
-                        <a href="#vendor-signup" class="mktg-pricing-btn mktg-pricing-btn-accent" id="vendor-pricing-pro">"Get early access"</a>
-                    </div>
-
-                    // ── Business ──────────────────────────────────────────
-                    <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Business"</span>
-                        <div class="mktg-pricing-price">"$79"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"0% platform fee"</div>
-                        <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Pro Vendor"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"0% platform fee on jobs"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Multi-tech accounts"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Branded company profile"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Dedicated account manager"</li>
-                        </ul>
-                        <a href="#vendor-signup" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="vendor-pricing-business">"Get early access"</a>
-                    </div>
-                </div>
-            </div>
-        </section>
+        <MarketingPricingGrid
+            plans=plans
+            section_id="vendor-pricing".to_string()
+            eyebrow="Pricing".to_string()
+            heading="Start free. Upgrade when you're ready.".to_string()
+            subtitle="Every vendor gets a marketplace profile and can accept jobs at no cost. Paid plans unlock the tools that help you win more work.".to_string()
+            default_cta_href="#vendor-signup".to_string()
+        />
     }
+}
+
+fn vendor_fallback_plans() -> Vec<MarketingPlan> {
+    vec![
+        MarketingPlan {
+            slug: "basic".into(),
+            name: "Basic".into(),
+            tagline: "Free forever".into(),
+            price_cents: 0,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Forever,
+            features: vec![
+                "Marketplace profile".into(),
+                "Accept & complete jobs".into(),
+                "In-platform invoicing".into(),
+                "ACH payment in 24h".into(),
+            ],
+            cta_label: "Join free".into(),
+            cta_href: Some("#vendor-signup".into()),
+            is_featured: false,
+            sort_order: 0,
+        },
+        MarketingPlan {
+            slug: "pro".into(),
+            name: "Pro Vendor".into(),
+            tagline: "Priority placement".into(),
+            price_cents: 2900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Everything in Basic".into(),
+                "Priority search placement".into(),
+                "Auto-invoicing templates".into(),
+                "Job analytics dashboard".into(),
+                "Verified badge".into(),
+            ],
+            cta_label: "Get early access".into(),
+            cta_href: Some("#vendor-signup".into()),
+            is_featured: true,
+            sort_order: 1,
+        },
+        MarketingPlan {
+            slug: "business".into(),
+            name: "Business".into(),
+            tagline: "0% platform fee".into(),
+            price_cents: 7900,
+            currency: "USD".into(),
+            billing_interval: PlanBillingInterval::Month,
+            features: vec![
+                "Everything in Pro Vendor".into(),
+                "0% platform fee on jobs".into(),
+                "Multi-tech accounts".into(),
+                "Branded company profile".into(),
+                "Dedicated account manager".into(),
+            ],
+            cta_label: "Get early access".into(),
+            cta_href: Some("#vendor-signup".into()),
+            is_featured: false,
+            sort_order: 2,
+        },
+    ]
 }
 
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
