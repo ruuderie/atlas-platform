@@ -388,13 +388,14 @@ async fn test_verify_entry_confirm() {
         &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
     ).await.unwrap();
 
+    let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
+        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
         "call", None, None, None, None,
     ).await.unwrap();
 
     let entry_id = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, Uuid::new_v4(),
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
         Some(7.0), None, "transcript_inferred", None, None,
     ).await.expect("submit_entry failed");
 
@@ -425,13 +426,14 @@ async fn test_verify_entry_reject() {
         &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
     ).await.unwrap();
 
+    let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
+        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
         "call", None, None, None, None,
     ).await.unwrap();
 
     let entry_id = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, Uuid::new_v4(),
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
         Some(6.0), None, "transcript_inferred", None, None,
     ).await.expect("submit_entry failed");
 
@@ -462,13 +464,14 @@ async fn test_submit_entry_transcript_inferred_source_type() {
         &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
     ).await.unwrap();
 
+    let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
+        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
         "call", None, None, None, None,
     ).await.unwrap();
 
     let entry_id = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, Uuid::new_v4(),
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
         Some(8.0), None,
         "transcript_inferred",   // ← Gap 5: must be a valid SourceType variant
         Some(json!({"call_id": "call_abc", "confidence": 0.91})),
@@ -500,14 +503,15 @@ async fn test_recompute_aggregates_inverted_dimension() {
         &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
     ).await.unwrap();
 
+    let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
+        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
         "review", None, None, None, None,
     ).await.unwrap();
 
     // Score of 20 (low = good for inverted: churn_rate)
     ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, Uuid::new_v4(),
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
         Some(20.0), None, "manual", None, None,
     ).await.unwrap();
 
@@ -1023,4 +1027,99 @@ async fn test_case_resolved_trigger_opens_contractor_session() {
         .expect("scorecard");
     assert_eq!(sc.subject_entity_type, "atlas_service_provider");
     assert_eq!(sc.subject_entity_id, provider_id);
+}
+
+#[tokio::test]
+async fn test_open_session_allows_null_app_instance_id() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let (template_id, _) = create_test_template_and_dimension(&db, tenant.id).await;
+    let rater_id = Uuid::new_v4();
+
+    let scorecard_id = ScorecardService::get_or_create(
+        &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
+    )
+    .await
+    .unwrap();
+
+    let session_id = ScorecardService::open_session(
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "call",
+        None,
+        None,
+        None,
+        None, // nullable for admin / legacy paths
+    )
+    .await
+    .expect("open_session with null app_instance_id");
+
+    use sea_orm::EntityTrait;
+    use crate::entities::atlas_rating_session as sessions;
+    let session = sessions::Entity::find_by_id(session_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("session");
+    assert!(session.app_instance_id.is_none());
+}
+
+#[tokio::test]
+async fn test_trigger_enqueues_evaluate_scorecard_nudge_job() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let instance_id = create_test_app_instance(&db, tenant.id, "property_management").await;
+
+    crate::services::pm::scorecard_provisioner::seed_and_deploy_for_folio(&db, tenant.id)
+        .await
+        .expect("seed_and_deploy");
+
+    let opened = crate::services::scorecard_triggers::on_str_checkout(
+        &db,
+        tenant.id,
+        instance_id,
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+    )
+    .await
+    .expect("on_str_checkout");
+    assert!(!opened.is_empty());
+
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use crate::entities::outbox_job;
+    use crate::types::outbox::OutboxJobType;
+
+    let jobs = outbox_job::Entity::find()
+        .filter(outbox_job::Column::TenantId.eq(tenant.id))
+        .filter(
+            outbox_job::Column::JobType
+                .eq(OutboxJobType::EvaluateScorecardNudge.to_string()),
+        )
+        .all(&db)
+        .await
+        .expect("outbox query");
+
+    assert!(
+        !jobs.is_empty(),
+        "trigger must enqueue evaluate_scorecard_nudge"
+    );
+    let payload = &jobs[0].payload;
+    let expected_session = opened[0].session_id.to_string();
+    let expected_scorecard = opened[0].scorecard_id.to_string();
+    assert_eq!(
+        payload.get("session_id").and_then(|v| v.as_str()),
+        Some(expected_session.as_str())
+    );
+    assert_eq!(
+        payload.get("scorecard_id").and_then(|v| v.as_str()),
+        Some(expected_scorecard.as_str())
+    );
+    assert_eq!(
+        payload.get("activity_type").and_then(|v| v.as_str()),
+        Some("post_checkout")
+    );
 }
