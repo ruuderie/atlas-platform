@@ -15,8 +15,15 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use crate::components::lang::{LanguageSwitcher, get_current_lang};
-use leptos_router::components::A;
+use crate::components::marketing_nav::{
+    MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+};
+
+const PM_SECTION_LINKS: &[MarketingNavSectionLink] = &[
+    MarketingNavSectionLink { label: "Features", href: "#pm-features" },
+    MarketingNavSectionLink { label: "How it works", href: "#pm-app-preview" },
+    MarketingNavSectionLink { label: "Pricing", href: "#pm-pricing" },
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -27,7 +34,12 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
         <Meta name="description" content="Folio gives property managers owner portals, trust accounting, maintenance dispatch, and multi-portfolio billing in one platform. Start free, scale to hundreds of units."/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/property-managers"/>
 
-        <PmNav/>
+        <MarketingNav
+            active=MarketingNavRole::PropertyManagers
+            section_links=PM_SECTION_LINKS
+            cta_label="Get early access"
+            cta_href="#pm-waitlist"
+        />
         <PmHero/>
         <PmProblem/>
         <PmFeatures/>
@@ -37,105 +49,6 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
         <PmCta/>
         <BetaCalloutStrip/>
         <PmFooter/>
-    }
-}
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-#[component]
-fn PmNav() -> impl IntoView {
-    let menu_open = RwSignal::new(false);
-    let lang_res  = Resource::new(|| (), |_| get_current_lang());
-    view! {
-        <nav id="mktg-nav" class="mktg-nav">
-            <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo" rel="external">
-                    <span class="mktg-logo-mark">"F"</span>
-                    "Folio"
-                </a>
-                // ── Desktop links ──────────────────────────────────────────
-                <div class="mktg-nav-links">
-                    <a href="#pm-features">"Features"</a>
-                    <a href="#pm-owner-portal">"Owner Portal"</a>
-                    <a href="#pm-pricing">"Pricing"</a>
-                    <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "For your role"
-                            <span class="mktg-nav-role-arrow">
-                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
-                            </span>
-                        </summary>
-                        <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Landlords"
-                                    <span class="mktg-nav-role-sub">"Own your properties"</span>
-                                </span>
-                            </a>
-                            <a href="/property-managers" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Property Managers"
-                                    <span class="mktg-nav-role-sub">"Manage for clients"</span>
-                                </span>
-                            </a>
-                            <a href="/brokers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Brokers"
-                                    <span class="mktg-nav-role-sub">"Represent buyers & sellers"</span>
-                                </span>
-                            </a>
-                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Vendors"
-                                    <span class="mktg-nav-role-sub">"Offer services"</span>
-                                </span>
-                            </a>
-                        </div>
-                    </details>
-                    <a href="/founding" class="mktg-nav-broker-link" rel="external">"Founders ✦"</a>
-                </div>
-                <div class="mktg-nav-actions">
-                    <Suspense fallback=|| ()>
-                        {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
-                            <LanguageSwitcher current_lang=code/>
-                        })}
-                    </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="pm-nav-signin-btn" rel="external">
-                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
-                        " Sign in"
-                    </a>
-                    <a href="#pm-waitlist" class="mktg-btn-accent">"Get early access"</a>
-                    <button
-                        class="mktg-nav-hamburger"
-                        aria-label="Toggle navigation menu"
-                        on:click=move |_| menu_open.update(|o| *o = !*o)
-                    >
-                        <span class="material-symbols-outlined">
-                            {move || if menu_open.get() { "close" } else { "menu" }}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
-        <div class=move || if menu_open.get() {
-            "mktg-mobile-nav mktg-mobile-nav--open"
-        } else {
-            "mktg-mobile-nav"
-        }>
-            <a href="#pm-features"    on:click=move |_| menu_open.set(false)>"Features"</a>
-            <a href="#pm-owner-portal" on:click=move |_| menu_open.set(false)>"Owner Portal"</a>
-            <a href="#pm-pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"              on:click=move |_| menu_open.set(false) rel="external">"For Landlords"</a>
-            <a href="/brokers"       on:click=move |_| menu_open.set(false) rel="external">"For Brokers"</a>
-            <a href="/vendors"       on:click=move |_| menu_open.set(false) rel="external">"For Vendors"</a>
-            <a href="#pm-waitlist"   on:click=move |_| menu_open.set(false)>"Get early access"</a>
-            <a href="/founding"      on:click=move |_| menu_open.set(false) rel="external">"Founding ✦"</a>
-            <a href="/beta"          on:click=move |_| menu_open.set(false) rel="external">"Apply for Beta"</a>
-        </div>
     }
 }
 

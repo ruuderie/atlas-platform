@@ -16,7 +16,15 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use leptos_router::components::A;
+use crate::components::marketing_nav::{
+    MarketingNav, MarketingNavSectionLink,
+};
+
+const BETA_SECTION_LINKS: &[MarketingNavSectionLink] = &[
+    MarketingNavSectionLink { label: "What you get", href: "#beta-what-you-get" },
+    MarketingNavSectionLink { label: "Who we accept", href: "#beta-what-we-look-for" },
+    MarketingNavSectionLink { label: "Apply", href: "#beta-apply" },
+];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -27,86 +35,16 @@ pub fn BetaProgramPage() -> impl IntoView {
         <Meta name="description" content="Apply to join the Folio beta program. Get discounted access during beta in exchange for real usage and feedback. Limited spots. We review every application."/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/beta"/>
 
-        <BetaNav/>
+        <MarketingNav
+            section_links=BETA_SECTION_LINKS
+            cta_label="Apply now"
+            cta_href="#beta-apply"
+        />
         <BetaHero/>
         <BetaWhatYouGet/>
         <BetaWhatWeLookFor/>
         <BetaApplication/>
         <BetaFooter/>
-    }
-}
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-#[component]
-fn BetaNav() -> impl IntoView {
-    let menu_open = RwSignal::new(false);
-    view! {
-        <nav id="mktg-nav" class="mktg-nav">
-            <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo" rel="external">
-                    <span class="mktg-logo-mark">"F"</span>
-                    "Folio"
-                </a>
-                <div class="mktg-nav-links">
-                    <a href="#beta-what-you-get">"What you get"</a>
-                    <a href="#beta-what-we-look-for">"Who we accept"</a>
-                    <a href="#beta-apply">"Apply"</a>
-                    <a href="/founding" rel="external">"Lifetime plans"</a>
-                    <a href="/#pricing">"Pricing"</a>
-                    <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "Role pages"
-                            <span class="mktg-nav-role-arrow">
-                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
-                            </span>
-                        </summary>
-                        <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </a>
-                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </a>
-                            <a href="/brokers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </a>
-                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </a>
-                        </div>
-                    </details>
-                </div>
-                <div class="mktg-nav-actions">
-                    <a href="/login" class="mktg-btn-signin" id="beta-nav-signin" rel="external">
-                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
-                        " Sign in"
-                    </a>
-                    <a href="#beta-apply" class="mktg-btn-accent" id="beta-nav-cta">"Apply now"</a>
-                    <button
-                        class="mktg-nav-hamburger"
-                        aria-label="Toggle navigation menu"
-                        on:click=move |_| menu_open.update(|o| *o = !*o)
-                    >
-                        <span class="material-symbols-outlined">
-                            {move || if menu_open.get() { "close" } else { "menu" }}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
-        <div class=move || if menu_open.get() {
-            "mktg-mobile-nav mktg-mobile-nav--open"
-        } else {
-            "mktg-mobile-nav"
-        }>
-            <a href="#beta-what-you-get"    on:click=move |_| menu_open.set(false)>"What you get"</a>
-            <a href="#beta-what-we-look-for" on:click=move |_| menu_open.set(false)>"Who we accept"</a>
-            <a href="#beta-apply"           on:click=move |_| menu_open.set(false)>"Apply"</a>
-            <a href="/founding"             on:click=move |_| menu_open.set(false) rel="external">"Lifetime plans"</a>
-            <a href="/#pricing"             on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="#beta-apply" on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Apply now"</a>
-        </div>
     }
 }
 

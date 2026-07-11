@@ -19,9 +19,15 @@
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
 
-use crate::pages::not_found::NotFound;
-use crate::components::lang::{LanguageSwitcher, get_current_lang};
-use leptos_router::components::A;
+use crate::components::marketing_nav::{
+    MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+};
+
+const BROKER_SECTION_LINKS: &[MarketingNavSectionLink] = &[
+    MarketingNavSectionLink { label: "Features", href: "#broker-features" },
+    MarketingNavSectionLink { label: "How it works", href: "#broker-app-preview" },
+    MarketingNavSectionLink { label: "Pricing", href: "#broker-pricing" },
+];
 
 // ── Server function ───────────────────────────────────────────────────────────
 
@@ -60,7 +66,12 @@ fn BrokerDefault() -> impl IntoView {
         <Link rel="canonical" href="/brokers"/>
 
         <div class="folio-mktg">
-            <BrokerNav/>
+            <MarketingNav
+                active=MarketingNavRole::Brokers
+                section_links=BROKER_SECTION_LINKS
+                cta_label="Get early access"
+                cta_href="/#waitlist-wrap"
+            />
             <BrokerHero/>
             <BrokerFeatures/>
             <BrokerPortals/>
@@ -70,94 +81,6 @@ fn BrokerDefault() -> impl IntoView {
             <BrokerCta/>
             <BetaCalloutStrip/>
         <BrokerFooter/>
-        </div>
-    }
-}
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-#[component]
-fn BrokerNav() -> impl IntoView {
-    let menu_open = RwSignal::new(false);
-    let lang_res  = Resource::new(|| (), |_| get_current_lang());
-    view! {
-        <nav id="mktg-nav" class="mktg-nav">
-            <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo" rel="external">
-                    <span class="mktg-logo-mark">"F"</span>
-                    "Folio"
-                </a>
-                // ── Desktop links ──────────────────────────────────────────
-                <div class="mktg-nav-links">
-                    <a href="#broker-features">"Features"</a>
-                    <a href="#broker-portals">"Portals"</a>
-                    <a href="#broker-agents">"Agent Accounts"</a>
-                    <a href="#broker-pricing">"Pricing"</a>
-                    // ── Role dropdown ────────────────────────────────────
-                    <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "For your role"
-                            <span class="mktg-nav-role-arrow">
-                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
-                            </span>
-                        </summary>
-                        <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </a>
-                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </a>
-                            <a href="/brokers" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </a>
-                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </a>
-                        </div>
-                    </details>
-                    <a href="/founding" class="mktg-nav-broker-link" rel="external">"Founders ✦"</a>
-                </div>
-                <div class="mktg-nav-actions">
-                    <Suspense fallback=|| ()>
-                        {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
-                            <LanguageSwitcher current_lang=code/>
-                        })}
-                    </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="broker-nav-signin-btn" rel="external">
-                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
-                        " Sign in"
-                    </a>
-                    <a href="/#waitlist-wrap" class="mktg-btn-accent">"Get early access"</a>
-                    // ── Hamburger (mobile only) ────────────────────────────
-                    <button
-                        class="mktg-nav-hamburger"
-                        aria-label="Toggle navigation menu"
-                        on:click=move |_| menu_open.update(|o| *o = !*o)
-                    >
-                        <span class="material-symbols-outlined">
-                            {move || if menu_open.get() { "close" } else { "menu" }}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
-        // ── Mobile nav drawer ─────────────────────────────────────────────
-        <div class=move || if menu_open.get() {
-            "mktg-mobile-nav mktg-mobile-nav--open"
-        } else {
-            "mktg-mobile-nav"
-        }>
-            <a href="#broker-features" on:click=move |_| menu_open.set(false)>"Features"</a>
-            <a href="#broker-portals"  on:click=move |_| menu_open.set(false)>"Portals"</a>
-            <a href="#broker-agents"   on:click=move |_| menu_open.set(false)>"Agent Accounts"</a>
-            <a href="#broker-pricing"  on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                on:click=move |_| menu_open.set(false) rel="external">"For Landlords"</a>
-            <a href="/property-managers" on:click=move |_| menu_open.set(false) rel="external">"For Property Managers"</a>
-            <a href="/vendors"         on:click=move |_| menu_open.set(false) rel="external">"For Vendors"</a>
-            <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false)>"Get early access"</a>
-            <a href="/founding"        on:click=move |_| menu_open.set(false) rel="external">"Founding ✦"</a>
-            <a href="/beta"            on:click=move |_| menu_open.set(false) rel="external">"Apply for Beta"</a>
         </div>
     }
 }

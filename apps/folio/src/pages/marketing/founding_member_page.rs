@@ -15,7 +15,17 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use leptos_router::components::A;
+use crate::components::marketing_nav::{
+    MarketingNav, MarketingNavSectionLink,
+};
+
+const FOUNDING_SECTION_LINKS: &[MarketingNavSectionLink] = &[
+    MarketingNavSectionLink { label: "Landlords", href: "#founding-landlord" },
+    MarketingNavSectionLink { label: "Brokers", href: "#founding-broker" },
+    MarketingNavSectionLink { label: "PMs", href: "#founding-pm" },
+    MarketingNavSectionLink { label: "Vendors", href: "#founding-vendor" },
+    MarketingNavSectionLink { label: "FAQ", href: "#founding-faq" },
+];
 
 // ── Spot availability (server-rendered; update + redeploy to reflect sales) ──
 
@@ -51,7 +61,11 @@ pub fn FoundingMemberPage() -> impl IntoView {
         <Meta name="description" content="Lock in lifetime access to Folio for a one-time payment. Choose the license for your role — landlord, broker, property manager, or vendor. Limited spots. No monthly fees, ever."/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/founding"/>
 
-        <FoundingNav/>
+        <MarketingNav
+            section_links=FOUNDING_SECTION_LINKS
+            cta_label="See founding tiers"
+            cta_href="#founding-landlord"
+        />
         <FoundingHero/>
         <FoundingWhy/>
         <FoundingLandlord/>
@@ -63,80 +77,6 @@ pub fn FoundingMemberPage() -> impl IntoView {
         <FoundingCta/>
         <BetaCalloutStrip/>
         <FoundingFooter/>
-    }
-}
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-#[component]
-fn FoundingNav() -> impl IntoView {
-    let menu_open = RwSignal::new(false);
-    view! {
-        <nav id="mktg-nav" class="mktg-nav">
-            <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo" rel="external">
-                    <span class="mktg-logo-mark">"F"</span>
-                    "Folio"
-                </a>
-                <div class="mktg-nav-links">
-                    <a href="#founding-landlord">"For Landlords"</a>
-                    <a href="#founding-broker">"For Brokers"</a>
-                    <a href="#founding-pm">"For PMs"</a>
-                    <a href="#founding-vendor">"For Vendors"</a>
-                    <a href="#founding-faq">"FAQ"</a>
-                    <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "Role pages"
-                            <span class="mktg-nav-role-arrow">
-                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
-                            </span>
-                        </summary>
-                        <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </a>
-                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </a>
-                            <a href="/brokers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </a>
-                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </a>
-                        </div>
-                    </details>
-                </div>
-                <div class="mktg-nav-actions">
-                    <a href="/login" class="mktg-btn-signin" id="founding-nav-signin" rel="external">
-                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
-                        " Sign in"
-                    </a>
-                    <a href="#founding-landlord" class="mktg-btn-accent" id="founding-nav-cta">"See founding tiers"</a>
-                    <button
-                        class="mktg-nav-hamburger"
-                        aria-label="Toggle navigation menu"
-                        on:click=move |_| menu_open.update(|o| *o = !*o)
-                    >
-                        <span class="material-symbols-outlined">
-                            {move || if menu_open.get() { "close" } else { "menu" }}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
-        <div class=move || if menu_open.get() {
-            "mktg-mobile-nav mktg-mobile-nav--open"
-        } else {
-            "mktg-mobile-nav"
-        }>
-            <a href="#founding-landlord" on:click=move |_| menu_open.set(false)>"Landlord lifetime"</a>
-            <a href="#founding-broker"   on:click=move |_| menu_open.set(false)>"Broker lifetime"</a>
-            <a href="#founding-pm"       on:click=move |_| menu_open.set(false)>"PM lifetime"</a>
-            <a href="#founding-vendor"   on:click=move |_| menu_open.set(false)>"Vendor lifetime"</a>
-            <a href="#founding-faq"      on:click=move |_| menu_open.set(false)>"FAQ"</a>
-            <a href="#founding-landlord" on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"See founding tiers"</a>
-        </div>
     }
 }
 

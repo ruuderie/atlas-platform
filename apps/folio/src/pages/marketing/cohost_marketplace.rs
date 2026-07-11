@@ -11,7 +11,7 @@
 // page from the Folio marketing homepage "Cohost Network → Coming Soon" teaser
 // card, and linked from the platform-admin products landing pages panel.
 //
-// Back-link pattern: nav logo → /lp  (Folio SSR marketing homepage).
+// Back-link pattern: shared MarketingNav logo → /  (Folio marketing homepage).
 //
 // Data model:
 //   The first cut uses seeded mock data (same pattern as ltr_listings.rs before
@@ -23,6 +23,8 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
+
+use crate::components::marketing_nav::{MarketingNav, MarketingNavRole};
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 
@@ -166,29 +168,11 @@ pub fn CohostMarketplace() -> impl IntoView {
               content="Find a verified co-host for your Airbnb, or list your property for co-host management. Folio's Cohost Network connects property owners with trusted local experts."/>
 
         <div class="folio-mktg">
-            // ── Nav ─────────────────────────────────────────────────────────
-            <nav id="mktg-nav" class="mktg-nav">
-                <div class="mktg-nav-inner">
-                    <a href="/lp" class="mktg-nav-logo">
-                        <span class="mktg-logo-mark">"F"</span>
-                        "Folio"
-                    </a>
-                    <div class="mktg-nav-links">
-                        <a href="/lp">"← Back to Folio"</a>
-                        <a href="/lp#str">"Vacation Rentals"</a>
-                        <a href="/lp#pricing">"Pricing"</a>
-                    </div>
-                    <div class="mktg-nav-actions">
-                        <a href="/login" class="mktg-btn-signin" id="cohost-nav-signin">
-                            <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">
-                                "login"
-                            </span>
-                            " Sign in"
-                        </a>
-                        <a href="/lp#waitlist-wrap" class="mktg-btn-accent">"Join Folio"</a>
-                    </div>
-                </div>
-            </nav>
+            <MarketingNav
+                active=MarketingNavRole::Cohosts
+                cta_label="Join Folio"
+                cta_href="/#waitlist-wrap"
+            />
 
             // ── Hero ─────────────────────────────────────────────────────────
             <section class="mktg-hero" style="min-height:52vh;padding-bottom:3rem;">

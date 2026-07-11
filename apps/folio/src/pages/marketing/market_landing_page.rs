@@ -32,12 +32,13 @@
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
 use leptos_router::hooks::use_params_map;
-use leptos_router::components::A;
 use serde::{Deserialize, Serialize};
 
 use crate::geo::{VisitorGeo, get_visitor_geo};
 use crate::pages::not_found::NotFound;
-use crate::components::lang::{LanguageSwitcher, get_current_lang};
+use crate::components::marketing_nav::{
+    HOME_MARKETING_SECTION_LINKS, MarketingNav, MarketingNavRole,
+};
 
 // ── Page data types ───────────────────────────────────────────────────────────
 
@@ -196,7 +197,11 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
 
         // ── Page body ───────────────────────────────────────────────────────
         <div class="folio-mktg">
-            <MktgNav/>
+            <MarketingNav
+                active=MarketingNavRole::Landlords
+                section_links=HOME_MARKETING_SECTION_LINKS
+                cta_href="#waitlist-wrap"
+            />
             <MktgHero launch_mode=launch_mode product_slug=product_slug variant_slug=variant_slug country_code=country_code/>
             <MktgStats/>
             <MktgPersonas/>
@@ -214,120 +219,6 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
         </div>
     }
 }
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-#[component]
-fn MktgNav() -> impl IntoView {
-    let menu_open = RwSignal::new(false);
-    let lang_res  = Resource::new(|| (), |_| get_current_lang());
-    view! {
-        <nav id="mktg-nav" class="mktg-nav">
-            <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo" rel="external">
-                    <span class="mktg-logo-mark">"F"</span>
-                    "Folio"
-                </a>
-                // ── Desktop links (2 anchors + role dropdown) ──────────────
-                <div class="mktg-nav-links">
-                    <a href="#app-preview">"How it works"</a>
-                    <a href="#pricing">"Pricing"</a>
-                    // Role dropdown — native <details> toggle, zero JS needed
-                    <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "For your role"
-                            <span class="mktg-nav-role-arrow">
-                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
-                            </span>
-                        </summary>
-                        <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Landlords"
-                                    <span class="mktg-nav-role-sub">"Own your properties"</span>
-                                </span>
-                            </a>
-                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Property Managers"
-                                    <span class="mktg-nav-role-sub">"Manage for clients"</span>
-                                </span>
-                            </a>
-                            <a href="/brokers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Brokers"
-                                    <span class="mktg-nav-role-sub">"Represent buyers & sellers"</span>
-                                </span>
-                            </a>
-                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>
-                                <span class="mktg-nav-role-label">
-                                    "For Vendors"
-                                    <span class="mktg-nav-role-sub">"Offer services"</span>
-                                </span>
-                            </a>
-                            <a href="/cohost-market" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🌐"</span>
-                                <span class="mktg-nav-role-label">
-                                    "Cohost Network"
-                                    <span class="mktg-nav-role-sub">"Co-manage STRs"</span>
-                                </span>
-                            </a>
-                        </div>
-                    </details>
-                </div>
-                <div class="mktg-nav-actions">
-                    // ── Language switcher ──────────────────────────────────
-                    <Suspense fallback=|| ()>
-                        {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
-                            <LanguageSwitcher current_lang=code/>
-                        })}
-                    </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="nav-signin-btn" rel="external">
-                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
-                        " Sign in"
-                    </a>
-                    // Founders — premium CTA in actions area for prominence
-                    <a href="/founding" class="mktg-btn-founders" id="nav-founders-btn" rel="external">"Founders ✦"</a>
-                    <a href="#waitlist-wrap" class="mktg-btn-accent" id="nav-waitlist-btn">"Join waitlist"</a>
-                    // ── Hamburger (mobile only) ────────────────────────────
-                    <button
-                        class="mktg-nav-hamburger"
-                        aria-label="Toggle navigation menu"
-                        on:click=move |_| menu_open.update(|o| *o = !*o)
-                    >
-                        <span class="material-symbols-outlined">
-                            {move || if menu_open.get() { "close" } else { "menu" }}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
-        // ── Mobile nav drawer (full link list — space not a constraint) ────
-        <div class=move || if menu_open.get() {
-            "mktg-mobile-nav mktg-mobile-nav--open"
-        } else {
-            "mktg-mobile-nav"
-        }>
-            <a href="#features"         on:click=move |_| menu_open.set(false)>"Features"</a>
-            <a href="#tenant-portal"    on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
-            <a href="#str"             on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
-            <a href="/cohost-market"   on:click=move |_| menu_open.set(false) rel="external">"Cohost Network"</a>
-            <a href="#pricing"         on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                on:click=move |_| menu_open.set(false) rel="external">"For Landlords"</a>
-            <a href="/property-managers" on:click=move |_| menu_open.set(false) rel="external">"For Property Managers"</a>
-            <a href="/brokers"         on:click=move |_| menu_open.set(false) rel="external">"For Brokers"</a>
-            <a href="/vendors"         on:click=move |_| menu_open.set(false) rel="external">"For Vendors"</a>
-            <a href="#waitlist-wrap"   on:click=move |_| menu_open.set(false)>"Join waitlist"</a>
-            <a href="/founding"        on:click=move |_| menu_open.set(false) rel="external">"Founders ✦"</a>
-            <a href="/beta"            on:click=move |_| menu_open.set(false) rel="external">"Apply for Beta"</a>
-        </div>
-    }
-}
-
 
 // ── Hero + waitlist form ──────────────────────────────────────────────────────
 

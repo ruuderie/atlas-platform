@@ -257,8 +257,12 @@ pub fn WizardShell(
                 {persona_pill}" Setup \u{b7} "
                 <strong>
                     {move || {
-                        let idx = current_idx.get();
-                        format!("Step {} of {}", idx + 1, total)
+                        if !pre_auth_done.get() {
+                            "Verify email".to_string()
+                        } else {
+                            let idx = current_idx.get();
+                            format!("Step {} of {}", idx + 1, total)
+                        }
                     }}
                 </strong>
             </div>
@@ -357,8 +361,8 @@ pub fn WizardShell(
                         {steps_store.with_value(|steps| {
                             steps.iter().enumerate().map(|(i, step)| {
                                 let label = step.label;
-                                let is_done    = move || current_idx.get() > i;
-                                let is_active  = move || current_idx.get() == i;
+                                let is_done    = move || pre_auth_done.get() && current_idx.get() > i;
+                                let is_active  = move || pre_auth_done.get() && current_idx.get() == i;
                                 view! {
                                     <div class=move || {
                                         if is_done() { "wiz-ctx-si done" }
@@ -739,6 +743,49 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 }
 .wiz-inp::placeholder { color: #94a3b8; }
 .wiz-inp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.wiz-toggle {
+    position: relative; width: 42px; height: 23px; flex-shrink: 0;
+    background: #cbd5e1; border-radius: 12px; border: none; cursor: pointer;
+    transition: .2s; padding: 0;
+}
+.wiz-toggle.on { background: #0284c7; }
+.wiz-toggle::after {
+    content: ''; position: absolute; width: 17px; height: 17px; background: #fff;
+    border-radius: 50%; top: 3px; left: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: .2s;
+}
+.wiz-toggle.on::after { transform: translateX(19px); }
+.wiz-og { display: grid; gap: 10px; }
+.wiz-og2 { grid-template-columns: 1fr 1fr; }
+.wiz-og3 { grid-template-columns: 1fr 1fr 1fr; }
+.wiz-oc {
+    border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 13px 15px;
+    cursor: pointer; transition: .15s; display: flex; flex-direction: column; gap: 7px;
+    background: #fff; text-align: left; font-family: inherit; color: inherit;
+}
+.wiz-oc:hover { border-color: #0284c7; background: rgba(2,132,199,.03); }
+.wiz-oc.sel { border-color: #0284c7; background: rgba(2,132,199,.06); }
+.wiz-oc .ms { font-size: 22px; color: #64748b; }
+.wiz-oc.sel .ms { color: #0284c7; }
+.wiz-oc-label { font-size: 13px; font-weight: 600; }
+.wiz-oc-desc { font-size: 12px; color: #64748b; line-height: 1.4; }
+.wiz-tr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 0; border-bottom: 1px solid #e2e8f0;
+}
+.wiz-tr:last-child { border-bottom: none; padding-bottom: 0; }
+.wiz-tr:first-child { padding-top: 0; }
+.wiz-tr-label { font-size: 14px; font-weight: 500; color: #0f172a; }
+.wiz-tr-desc { font-size: 12px; color: #64748b; margin-top: 1px; }
+.wiz-na-row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    border: 1.5px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px;
+}
+.wiz-na-row:last-child { margin-bottom: 0; }
+.wiz-pay-option {
+    display: flex; align-items: center; gap: 12px; padding: 14px;
+    border: 1.5px solid #e2e8f0; border-radius: 8px;
+}
 .wiz-s-badge {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 11px; font-weight: 700; text-transform: uppercase;

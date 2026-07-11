@@ -15,8 +15,15 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use crate::components::lang::{LanguageSwitcher, get_current_lang};
-use leptos_router::components::A;
+use crate::components::marketing_nav::{
+    MarketingNav, MarketingNavRole, MarketingNavSectionLink,
+};
+
+const VENDOR_SECTION_LINKS: &[MarketingNavSectionLink] = &[
+    MarketingNavSectionLink { label: "Features", href: "#vendor-features" },
+    MarketingNavSectionLink { label: "How it works", href: "#vendor-how" },
+    MarketingNavSectionLink { label: "Pricing", href: "#vendor-pricing" },
+];
 
 // ── Page shell ───────────────────────────────────────────────────────────────
 
@@ -27,7 +34,12 @@ pub fn VendorLandingPage() -> impl IntoView {
         <Meta name="description" content="Folio connects vendors and contractors to property managers and landlords. Get dispatched jobs, send invoices, collect payment, and grow your service business."/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/vendors"/>
 
-        <VendorNav/>
+        <MarketingNav
+            active=MarketingNavRole::Vendors
+            section_links=VENDOR_SECTION_LINKS
+            cta_label="Join marketplace"
+            cta_href="#vendor-signup"
+        />
         <VendorHero/>
         <VendorProblem/>
         <VendorHow/>
@@ -37,91 +49,6 @@ pub fn VendorLandingPage() -> impl IntoView {
         <VendorPricing/>
         <VendorCta/>
         <VendorFooter/>
-    }
-}
-
-// ── Nav ── consistent with landlord / PM / broker pages ──────────────────────
-
-#[component]
-fn VendorNav() -> impl IntoView {
-    let menu_open = RwSignal::new(false);
-    let lang_res  = Resource::new(|| (), |_| get_current_lang());
-    view! {
-        <nav id="mktg-nav" class="mktg-nav">
-            <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo" rel="external">
-                    <span class="mktg-logo-mark">"F"</span>
-                    "Folio"
-                </a>
-                // ── Desktop links (same pattern as all other mktg pages) ───
-                <div class="mktg-nav-links">
-                    <a href="#vendor-how">"How it works"</a>
-                    <a href="#vendor-trades">"Trades"</a>
-                    <a href="#vendor-features">"Features"</a>
-                    <a href="#vendor-pricing">"Pricing"</a>
-                    // Cross-page links — role dropdown
-                    <details class="mktg-nav-role-dropdown">
-                        <summary aria-label="Select your role">
-                            "For your role"
-                            <span class="mktg-nav-role-arrow">
-                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
-                            </span>
-                        </summary>
-                        <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </a>
-                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </a>
-                            <a href="/brokers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </a>
-                            <a href="/vendors" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </a>
-                        </div>
-                    </details>
-                    <a href="/founding" class="mktg-nav-broker-link" rel="external">"Founders ✦"</a>
-                </div>
-                <div class="mktg-nav-actions">
-                    <Suspense fallback=|| ()>
-                        {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
-                            <LanguageSwitcher current_lang=code/>
-                        })}
-                    </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="vendor-nav-signin-btn" rel="external">
-                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
-                        " Sign in"
-                    </a>
-                    <a href="#vendor-signup" class="mktg-btn-accent" id="vendor-nav-cta">"Join marketplace"</a>
-                    <button
-                        class="mktg-nav-hamburger"
-                        aria-label="Toggle navigation menu"
-                        on:click=move |_| menu_open.update(|o| *o = !*o)
-                    >
-                        <span class="material-symbols-outlined">
-                            {move || if menu_open.get() { "close" } else { "menu" }}
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </nav>
-        <div class=move || if menu_open.get() {
-            "mktg-mobile-nav mktg-mobile-nav--open"
-        } else {
-            "mktg-mobile-nav"
-        }>
-            <a href="#vendor-how"         on:click=move |_| menu_open.set(false)>"How it works"</a>
-            <a href="#vendor-trades"      on:click=move |_| menu_open.set(false)>"Trades"</a>
-            <a href="#vendor-features"    on:click=move |_| menu_open.set(false)>"Features"</a>
-            <a href="#vendor-pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                   on:click=move |_| menu_open.set(false) rel="external">"For Landlords"</a>
-            <a href="/property-managers"  on:click=move |_| menu_open.set(false) rel="external">"For PMs"</a>
-            <a href="/brokers"            on:click=move |_| menu_open.set(false) rel="external">"For Brokers"</a>
-            <a href="#vendor-signup"      on:click=move |_| menu_open.set(false)>"Join marketplace"</a>
-            <a href="/founding"           on:click=move |_| menu_open.set(false) rel="external">"Founding ✦"</a>
-        </div>
     }
 }
 

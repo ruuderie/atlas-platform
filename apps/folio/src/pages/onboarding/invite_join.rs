@@ -171,6 +171,7 @@ fn role_to_path(role: &str) -> &'static str {
         "vendor"            => "vendor",      // → /onboard/vendor (VendorWizard)
         "cohost"            => "cohost",
         "owner"             => "owner",
+        "property_owner" | "property_owner_lite" => "property-owner",
         "agent"             => "agent",
         "broker"            => "broker",
         "property_manager"  => "pmc",         // → /onboard/pmc (PmcWizard)
@@ -181,11 +182,12 @@ fn role_to_path(role: &str) -> &'static str {
 fn role_label(role: &str) -> &'static str {
     match role {
         "landlord"          => "Landlord",
-        "tenant"            => "Tenant Applicant",
+        "tenant"            => "Tenant",
         "str_guest"         => "STR Guest",
         "vendor"            => "Vendor",
         "cohost"            => "Co-host",
-        "owner"             => "Property Owner",
+        "owner"             => "Owner",
+        "property_owner" | "property_owner_lite" => "Property Owner",
         "agent"             => "Agent",
         "broker"            => "Broker",
         "property_manager"  => "Property Manager",
@@ -201,6 +203,7 @@ fn role_icon(role: &str) -> &'static str {
         "vendor"            => "handyman",
         "cohost"            => "supervisor_account",
         "owner"             => "account_balance",
+        "property_owner" | "property_owner_lite" => "home",
         "agent"             => "real_estate_agent",
         "broker"            => "gavel",
         "property_manager"  => "corporate_fare",
@@ -210,11 +213,12 @@ fn role_icon(role: &str) -> &'static str {
 
 fn role_description(role: &str) -> &'static str {
     match role {
-        "tenant"            => "Complete your rental application in about 8 minutes.",
+        "tenant"            => "Complete your profile, sign your lease, and set up your portal.",
         "str_guest"         => "Book your stay directly and skip platform fees.",
         "vendor"            => "Accept your work order and connect your vendor profile.",
         "cohost"            => "Accept your co-host invitation and set up your STR workspace.",
         "owner"             => "Activate your owner portal and view your portfolio.",
+        "property_owner" | "property_owner_lite" => "Set up your free property tracking account.",
         "agent"             => "Join your broker\u{2019}s workspace to manage listings and clients.",
         "broker"            => "Set up your brokerage and invite your agent team.",
         "property_manager"  => "Connect your PMC workspace to manage client portfolios.",

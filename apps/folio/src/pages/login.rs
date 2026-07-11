@@ -96,6 +96,10 @@ fn AuthPanel() -> impl IntoView {
     let pending = RwSignal::new(false);
     let sent    = RwSignal::new(false);
     let err     = RwSignal::new(Option::<String>::None);
+    let passkey_pending = RwSignal::new(false);
+    let passkey_prompt  = RwSignal::new(false);
+    let navigate = leptos_router::hooks::use_navigate();
+    let navigate = StoredValue::new(navigate);
 
     let submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
@@ -116,18 +120,100 @@ fn AuthPanel() -> impl IntoView {
         });
     };
 
+    let on_passkey = move |_| {
+        if passkey_pending.get() { return; }
+        passkey_pending.set(true);
+        passkey_prompt.set(true);
+        err.set(None);
+        leptos::task::spawn_local(async move {
+            match crate::utils::passkey_js::authenticate_passkey().await {
+                Ok(_) => {
+                    match crate::auth::get_session().await {
+                        Ok(info) => {
+                            let dest = if !info.has_passkey {
+                                "/auth/passkey-setup"
+                            } else if !info.onboarding_complete {
+                                "/onboarding"
+                            } else {
+                                "/dashboard"
+                            };
+                            navigate.with_value(|n| n(dest, Default::default()));
+                        }
+                        Err(e) => {
+                            err.set(Some(e.to_string()));
+                            passkey_prompt.set(false);
+                        }
+                    }
+                }
+                Err(e) => {
+                    err.set(Some(e));
+                    passkey_prompt.set(false);
+                }
+            }
+            passkey_pending.set(false);
+        });
+    };
+
     view! {
         <main class="login-auth-panel">
             <div class="login-auth-inner">
-                // Mobile logo (hidden on desktop where brand panel shows)
                 <div class="login-mobile-logo">
                     <span class="login-logo-mark">"F"</span>
                     <span class="login-logo-text">"Folio"</span>
                 </div>
 
-                <div class="login-auth-form-wrap" style=move || if sent.get() { "display: none" } else { "" }>
+                // Passkey prompt screen (browser WebAuthn dialog in progress)
+                <div class="login-passkey-prompt" style=move || {
+                    if passkey_prompt.get() && !sent.get() { "" } else { "display: none" }
+                }>
+                    <div class="login-passkey-ring-wrap">
+                        <div class="login-passkey-ring">
+                            <span class="material-symbols-outlined" style="font-size:40px;color:#069669;font-variation-settings:'FILL' 1">"fingerprint"</span>
+                        </div>
+                    </div>
+                    <h1 class="login-auth-h1">"Authenticate with your passkey"</h1>
+                    <p class="login-auth-sub">"Your device will prompt you for Face ID, Touch ID, or PIN."</p>
+                    <p class="login-field-error" style=move || if err.get().is_some() { "" } else { "display: none" }>
+                        {move || err.get().unwrap_or_default()}
+                    </p>
+                    <button
+                        type="button"
+                        class="login-resend-btn"
+                        on:click=move |_| {
+                            passkey_prompt.set(false);
+                            passkey_pending.set(false);
+                            err.set(None);
+                        }
+                    >"Cancel"</button>
+                </div>
+
+                <div class="login-auth-form-wrap" style=move || {
+                    if sent.get() || passkey_prompt.get() { "display: none" } else { "" }
+                }>
                     <h1 class="login-auth-h1">"Welcome back"</h1>
-                    <p class="login-auth-sub">"Enter your email to receive a secure login link. No password required."</p>
+                    <p class="login-auth-sub">"Sign in with a passkey or get a secure email link. No password required."</p>
+
+                    <button
+                        type="button"
+                        class="login-passkey-btn"
+                        id="login-passkey-btn"
+                        disabled=move || passkey_pending.get()
+                        on:click=on_passkey
+                    >
+                        <div class="login-passkey-icon-box">
+                            <span class="material-symbols-outlined" style="font-size:22px;color:#069669;font-variation-settings:'FILL' 1">"fingerprint"</span>
+                        </div>
+                        <div class="login-passkey-btn-text">
+                            <span class="login-passkey-btn-label">
+                                {move || if passkey_pending.get() { "Waiting for device…" } else { "Sign in with a passkey" }}
+                            </span>
+                            <span class="login-passkey-btn-sub">"Face ID, Touch ID, or device PIN"</span>
+                        </div>
+                    </button>
+
+                    <div class="login-divider">
+                        <span>"or"</span>
+                    </div>
 
                     <form on:submit=submit class="login-auth-form">
                         <div class="login-field">
@@ -163,9 +249,6 @@ fn AuthPanel() -> impl IntoView {
                         </button>
                     </form>
 
-                    <div class="login-divider">
-                        <span>"or"</span>
-                    </div>
                     <div class="login-alt-actions">
                         <p class="login-alt-text">
                             "New to Folio? "
