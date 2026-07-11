@@ -9,7 +9,10 @@ pub struct PillOption {
 
 impl PillOption {
     pub fn new(value: &str, label: &str) -> Self {
-        Self { value: value.to_string(), label: label.to_string() }
+        Self {
+            value: value.to_string(),
+            label: label.to_string(),
+        }
     }
 }
 

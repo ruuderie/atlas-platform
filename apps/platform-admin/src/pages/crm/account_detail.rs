@@ -1,7 +1,7 @@
-/// Account Detail Page — full stitch-aligned implementation for atlas_accounts
-use leptos::prelude::*;
 use crate::api::crm::get_contacts;
 use crate::api::models::{AccountModel, ContactModel};
+/// Account Detail Page — full stitch-aligned implementation for atlas_accounts
+use leptos::prelude::*;
 
 fn fmt_opt(v: &Option<String>) -> String {
     v.as_deref().unwrap_or("—").to_string()
@@ -12,7 +12,8 @@ fn fmt_i32(v: &Option<i32>) -> String {
 }
 
 fn fmt_f64(v: &Option<f64>) -> String {
-    v.map(|n| format!("${:.0}", n)).unwrap_or_else(|| "—".into())
+    v.map(|n| format!("${:.0}", n))
+        .unwrap_or_else(|| "—".into())
 }
 
 fn fmt_i16(v: &Option<i16>) -> String {
@@ -51,54 +52,62 @@ pub fn AccountDetail(account: AccountModel) -> impl IntoView {
     };
 
     // ── Pre-extracted display values ──────────────────────────────────────────
-    let name          = a.name.clone();
-    let initials      = org_initials(&name);
-    let type_label    = a.account_type.label();
-    let type_class    = a.account_type.badge_class();
-    let status_label  = a.status.label();
-    let status_color  = a.status.color();
-    let account_id    = StoredValue::new(a.id.clone());
-    let domain_val    = fmt_opt(&a.domain);
-    let website_val   = fmt_opt(&a.website);
-    let phone_val     = fmt_opt(&a.company_phone);
-    let email_val     = fmt_opt(&a.company_email);
-    let industry_val  = fmt_opt(&a.industry);
+    let name = a.name.clone();
+    let initials = org_initials(&name);
+    let type_label = a.account_type.label();
+    let type_class = a.account_type.badge_class();
+    let status_label = a.status.label();
+    let status_color = a.status.color();
+    let account_id = StoredValue::new(a.id.clone());
+    let domain_val = fmt_opt(&a.domain);
+    let website_val = fmt_opt(&a.website);
+    let phone_val = fmt_opt(&a.company_phone);
+    let email_val = fmt_opt(&a.company_email);
+    let industry_val = fmt_opt(&a.industry);
     let employees_val = fmt_i32(&a.num_employees);
-    let revenue_val   = fmt_f64(&a.annual_revenue);
-    let city_val      = fmt_opt(&a.city);
-    let country_val   = fmt_opt(&a.country);
+    let revenue_val = fmt_f64(&a.annual_revenue);
+    let city_val = fmt_opt(&a.city);
+    let country_val = fmt_opt(&a.country);
 
-    let location_str  = {
+    let location_str = {
         let mut parts = Vec::new();
-        if city_val != "—"    { parts.push(city_val.clone()); }
-        if country_val != "—" { parts.push(country_val.clone()); }
-        if parts.is_empty() { "—".into() } else { parts.join(", ") }
+        if city_val != "—" {
+            parts.push(city_val.clone());
+        }
+        if country_val != "—" {
+            parts.push(country_val.clone());
+        }
+        if parts.is_empty() {
+            "—".into()
+        } else {
+            parts.join(", ")
+        }
     };
 
     // ── Detail rows (stored to avoid FnOnce) ─────────────────────────────────
     let detail_rows = StoredValue::new(vec![
-        ("Account ID",      a.id.clone(),                     true),
-        ("Name",            a.name.clone(),                   false),
-        ("DBA Name",        fmt_opt(&a.dba_name),             false),
-        ("Type",            type_label.to_string(),           false),
-        ("Status",          status_label.to_string(),         false),
-        ("Domain",          fmt_opt(&a.domain),               false),
-        ("Website",         fmt_opt(&a.website),              false),
-        ("Company Phone",   fmt_opt(&a.company_phone),        false),
-        ("Company Email",   fmt_opt(&a.company_email),        false),
-        ("Industry",        fmt_opt(&a.industry),             false),
-        ("Company Type",    fmt_opt(&a.company_type),         false),
-        ("Employees",       fmt_i32(&a.num_employees),        false),
-        ("Annual Revenue",  fmt_f64(&a.annual_revenue),       false),
-        ("Year Est.",       fmt_i16(&a.year_established),     false),
-        ("Street",          fmt_opt(&a.street_address),       false),
-        ("City",            fmt_opt(&a.city),                 false),
-        ("State",           fmt_opt(&a.state),                false),
-        ("Postal Code",     fmt_opt(&a.postal_code),          false),
-        ("Country",         fmt_opt(&a.country),              false),
-        ("Data Source",     fmt_opt(&a.data_source),          false),
-        ("Created At",      fmt_opt(&a.created_at),           true),
-        ("Updated At",      fmt_opt(&a.updated_at),           true),
+        ("Account ID", a.id.clone(), true),
+        ("Name", a.name.clone(), false),
+        ("DBA Name", fmt_opt(&a.dba_name), false),
+        ("Type", type_label.to_string(), false),
+        ("Status", status_label.to_string(), false),
+        ("Domain", fmt_opt(&a.domain), false),
+        ("Website", fmt_opt(&a.website), false),
+        ("Company Phone", fmt_opt(&a.company_phone), false),
+        ("Company Email", fmt_opt(&a.company_email), false),
+        ("Industry", fmt_opt(&a.industry), false),
+        ("Company Type", fmt_opt(&a.company_type), false),
+        ("Employees", fmt_i32(&a.num_employees), false),
+        ("Annual Revenue", fmt_f64(&a.annual_revenue), false),
+        ("Year Est.", fmt_i16(&a.year_established), false),
+        ("Street", fmt_opt(&a.street_address), false),
+        ("City", fmt_opt(&a.city), false),
+        ("State", fmt_opt(&a.state), false),
+        ("Postal Code", fmt_opt(&a.postal_code), false),
+        ("Country", fmt_opt(&a.country), false),
+        ("Data Source", fmt_opt(&a.data_source), false),
+        ("Created At", fmt_opt(&a.created_at), true),
+        ("Updated At", fmt_opt(&a.updated_at), true),
     ]);
 
     view! {

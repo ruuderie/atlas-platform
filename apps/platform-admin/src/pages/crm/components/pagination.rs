@@ -5,13 +5,17 @@ use leptos::prelude::*;
 /// `per_page`: records per page (used to detect last page).
 /// `count`: reactive count of records in the current page result.
 #[component]
-pub fn Pagination(
-    page: RwSignal<u64>,
-    per_page: u64,
-    count: Signal<usize>,
-) -> impl IntoView {
-    let on_prev = move |_| { if page.get() > 1 { page.update(|p| *p -= 1); } };
-    let on_next = move |_| { if count.get() as u64 >= per_page { page.update(|p| *p += 1); } };
+pub fn Pagination(page: RwSignal<u64>, per_page: u64, count: Signal<usize>) -> impl IntoView {
+    let on_prev = move |_| {
+        if page.get() > 1 {
+            page.update(|p| *p -= 1);
+        }
+    };
+    let on_next = move |_| {
+        if count.get() as u64 >= per_page {
+            page.update(|p| *p += 1);
+        }
+    };
 
     view! {
         <div

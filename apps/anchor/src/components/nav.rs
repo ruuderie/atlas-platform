@@ -196,13 +196,13 @@ pub fn Nav() -> impl IntoView {
         // ── Fixed top nav bar ──────────────────────────────────────────────────
         // Z-INDEX ANCHOR: This nav is always present at z-[60] (z-index:60).
         //
-        // RULE: Modals and full-screen overlays MUST use z-index ≥ 70 to appear 
+        // RULE: Modals and full-screen overlays MUST use z-index ≥ 70 to appear
         //   above this bar.
         //
         // NOTE ON PAGE COMPONENTS (like AtlasLoginPanel):
-        //   Do NOT force them to use `position: fixed` or `z-index: 70`. They 
-        //   should flow naturally in the document (min-height: 100vh) and be 
-        //   cleared by a layout shell (e.g., `<main pt-24>`). If buttons on 
+        //   Do NOT force them to use `position: fixed` or `z-index: 70`. They
+        //   should flow naturally in the document (min-height: 100vh) and be
+        //   cleared by a layout shell (e.g., `<main pt-24>`). If buttons on
         //   those components break, it is usually a WASM hydration cache mismatch
         //   caused by Cloudflare, not a z-index layout issue.
         //

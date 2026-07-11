@@ -1,27 +1,27 @@
 #![allow(dead_code, unused_imports)]
+use crate::entities::{contact, deal_contact, file, file_association};
+use crate::models::file::{FileAssociation, FileModel};
+use crate::services::search_sync;
+use crate::traits::file::FileAssociable;
+use chrono::{DateTime, Utc};
+use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
-use crate::traits::file::FileAssociable;
-use crate::models::file::{FileAssociation, FileModel};
-use crate::entities::{file_association,file, deal_contact, contact}; 
-use sea_orm::Set;
-use crate::services::search_sync;
 use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "deal")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub customer_id: Uuid,  // Reference to the customer
+    pub customer_id: Uuid, // Reference to the customer
     pub name: String,
-    pub amount: f64,  // Deal amount
-    pub status: String,  // e.g., "Prospecting", "Qualification", "Closed Won", "Closed Lost"
+    pub amount: f64,                       // Deal amount
+    pub status: String, // e.g., "Prospecting", "Qualification", "Closed Won", "Closed Lost"
     pub stage: String,  // Current stage in the sales process
-    pub close_date: Option<DateTime<Utc>>,  // Expected or actual close date
+    pub close_date: Option<DateTime<Utc>>, // Expected or actual close date
     pub is_active: bool,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
@@ -73,11 +73,7 @@ impl Related<super::note::Entity> for Entity {
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {
-    async fn after_save<C>(
-        model: Model,
-        db: &C,
-        _insert: bool,
-    ) -> Result<Model, DbErr>
+    async fn after_save<C>(model: Model, db: &C, _insert: bool) -> Result<Model, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -100,10 +96,7 @@ impl ActiveModelBehavior for ActiveModel {
         Ok(model)
     }
 
-    async fn after_delete<C>(
-        self,
-        db: &C,
-    ) -> Result<Self, DbErr>
+    async fn after_delete<C>(self, db: &C) -> Result<Self, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -134,7 +127,9 @@ impl FileAssociation for Model {
             file_id: Set(file.id),
             associated_entity_type: Set(Entity::entity_type().to_string()),
             associated_entity_id: Set(self.id),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }
@@ -167,7 +162,11 @@ impl FileAssociation for Model {
 }
 
 impl Model {
-    pub async fn add_contact(&self, db: &DatabaseConnection, contact: &contact::Model) -> Result<(), DbErr> {
+    pub async fn add_contact(
+        &self,
+        db: &DatabaseConnection,
+        contact: &contact::Model,
+    ) -> Result<(), DbErr> {
         let deal_contact = deal_contact::ActiveModel {
             deal_id: Set(self.id),
             contact_id: Set(contact.id),
@@ -176,7 +175,11 @@ impl Model {
         Ok(())
     }
 
-    pub async fn remove_contact(&self, db: &DatabaseConnection, contact: &contact::Model) -> Result<(), DbErr> {
+    pub async fn remove_contact(
+        &self,
+        db: &DatabaseConnection,
+        contact: &contact::Model,
+    ) -> Result<(), DbErr> {
         deal_contact::Entity::delete_many()
             .filter(deal_contact::Column::DealId.eq(self.id))
             .filter(deal_contact::Column::ContactId.eq(contact.id))
@@ -185,15 +188,16 @@ impl Model {
         Ok(())
     }
 
-    pub async fn get_contacts(&self, db: &DatabaseConnection) -> Result<Vec<contact::Model>, DbErr> {
+    pub async fn get_contacts(
+        &self,
+        db: &DatabaseConnection,
+    ) -> Result<Vec<contact::Model>, DbErr> {
         let deal_contacts = deal_contact::Entity::find()
             .filter(deal_contact::Column::DealId.eq(self.id))
             .all(db)
             .await?;
 
-        let contact_ids: Vec<Uuid> = deal_contacts.into_iter()
-            .map(|dc| dc.contact_id)
-            .collect();
+        let contact_ids: Vec<Uuid> = deal_contacts.into_iter().map(|dc| dc.contact_id).collect();
 
         let contacts = contact::Entity::find()
             .filter(contact::Column::Id.is_in(contact_ids))

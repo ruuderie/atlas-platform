@@ -1,13 +1,13 @@
-use leptos::prelude::*;
-use crate::api::crm::{get_accounts, create_account};
-use crate::api::models::{AccountModel, AccountType, AccountStatus, CreateAccount};
+use crate::api::crm::{create_account, get_accounts};
+use crate::api::models::{AccountModel, AccountStatus, AccountType, CreateAccount};
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
-    kpi_strip::{KpiStrip, KpiItem},
+    kpi_strip::{KpiItem, KpiStrip},
+    pagination::Pagination,
     record_drawer::RecordDrawer,
     record_row::{RecordRow, initials},
-    pagination::Pagination,
 };
+use leptos::prelude::*;
 
 const PER_PAGE: u64 = 25;
 
@@ -15,19 +15,19 @@ const PER_PAGE: u64 = 25;
 fn sanitize_account_name(name: &str) -> String {
     match name {
         "__platform__" => "Platform (System)".to_string(),
-        n if n.starts_with("__") && n.ends_with("__") => {
-            n.trim_matches('_').replace('_', " ")
-                .split_whitespace()
-                .map(|w| {
-                    let mut c = w.chars();
-                    match c.next() {
-                        None    => String::new(),
-                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
-        }
+        n if n.starts_with("__") && n.ends_with("__") => n
+            .trim_matches('_')
+            .replace('_', " ")
+            .split_whitespace()
+            .map(|w| {
+                let mut c = w.chars();
+                match c.next() {
+                    None => String::new(),
+                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
         n if n == "—" || n.is_empty() => "Unnamed Account".to_string(),
         n => n.to_string(),
     }
@@ -42,20 +42,20 @@ fn sanitize_account_name(name: &str) -> String {
 
 #[component]
 pub fn AccountsPage() -> impl IntoView {
-    let search_filter    = RwSignal::new(String::new());
+    let search_filter = RwSignal::new(String::new());
     let search_debounced = RwSignal::new(String::new());
-    let status_filter    = RwSignal::new("all".to_string());
-    let type_filter      = RwSignal::new("all".to_string());
-    let page             = RwSignal::new(1_u64);
+    let status_filter = RwSignal::new("all".to_string());
+    let type_filter = RwSignal::new("all".to_string());
+    let page = RwSignal::new(1_u64);
 
-    let selected    = RwSignal::new(None::<AccountModel>);
+    let selected = RwSignal::new(None::<AccountModel>);
     let drawer_open = RwSignal::new(false);
 
     // ── Create modal ──────────────────────────────────────────────────────────
     let show_create = RwSignal::new(false);
-    let new_name    = RwSignal::new(String::new());
+    let new_name = RwSignal::new(String::new());
     let create_busy = RwSignal::new(false);
-    let toast       = use_context::<crate::app::GlobalToast>().expect("toast");
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast");
 
     // Debounce search input
     Effect::new(move |_| {
@@ -70,13 +70,27 @@ pub fn AccountsPage() -> impl IntoView {
     let accounts_res = LocalResource::new(move || {
         let search = search_debounced.get();
         let status = status_filter.get();
-        let atype  = type_filter.get();
-        let pg     = page.get();
+        let atype = type_filter.get();
+        let pg = page.get();
         async move {
-            let s = if search.is_empty() { None } else { Some(search.as_str()) };
-            let st = if status == "all" { None } else { Some(status.as_str()) };
-            let at = if atype == "all" { None } else { Some(atype.as_str()) };
-            get_accounts(s, pg, PER_PAGE, st, at).await.unwrap_or_default()
+            let s = if search.is_empty() {
+                None
+            } else {
+                Some(search.as_str())
+            };
+            let st = if status == "all" {
+                None
+            } else {
+                Some(status.as_str())
+            };
+            let at = if atype == "all" {
+                None
+            } else {
+                Some(atype.as_str())
+            };
+            get_accounts(s, pg, PER_PAGE, st, at)
+                .await
+                .unwrap_or_default()
         }
     });
 
@@ -89,7 +103,9 @@ pub fn AccountsPage() -> impl IntoView {
         create_busy.set(true);
         let resource = accounts_res.clone();
         leptos::task::spawn_local(async move {
-            let data = CreateAccount { name: name.trim().to_string() };
+            let data = CreateAccount {
+                name: name.trim().to_string(),
+            };
             match create_account(data).await {
                 Ok(_) => {
                     toast.show_toast("Success", "Account created.", "success");
@@ -106,31 +122,43 @@ pub fn AccountsPage() -> impl IntoView {
     // ── KPI strip — use enum comparisons, not string matches ─────────────────
     let kpi_items = Signal::derive(move || {
         let accounts = accounts_res.get().unwrap_or_default();
-        let total    = accounts.len();
-        let active   = accounts.iter().filter(|a| a.status   == AccountStatus::Active).count();
-        let prospect = accounts.iter().filter(|a| a.status   == AccountStatus::Prospect).count();
-        let orgs     = accounts.iter().filter(|a| a.account_type == AccountType::Organization).count();
-        let inds     = accounts.iter().filter(|a| a.account_type == AccountType::Individual).count();
+        let total = accounts.len();
+        let active = accounts
+            .iter()
+            .filter(|a| a.status == AccountStatus::Active)
+            .count();
+        let prospect = accounts
+            .iter()
+            .filter(|a| a.status == AccountStatus::Prospect)
+            .count();
+        let orgs = accounts
+            .iter()
+            .filter(|a| a.account_type == AccountType::Organization)
+            .count();
+        let inds = accounts
+            .iter()
+            .filter(|a| a.account_type == AccountType::Individual)
+            .count();
         vec![
-            KpiItem::new("Total",         &total.to_string()).color("var(--cobalt)"),
-            KpiItem::new("Active",        &active.to_string()).color("var(--green)"),
-            KpiItem::new("Prospect",      &prospect.to_string()).color("var(--amber)"),
+            KpiItem::new("Total", &total.to_string()).color("var(--cobalt)"),
+            KpiItem::new("Active", &active.to_string()).color("var(--green)"),
+            KpiItem::new("Prospect", &prospect.to_string()).color("var(--amber)"),
             KpiItem::new("Organizations", &orgs.to_string()),
-            KpiItem::new("Individuals",   &inds.to_string()),
+            KpiItem::new("Individuals", &inds.to_string()),
         ]
     });
 
     // ── Filter pills ──────────────────────────────────────────────────────────
     let status_pills = vec![
-        PillOption::new("all",       "All"),
-        PillOption::new("active",    "Active"),
-        PillOption::new("prospect",  "Prospect"),
+        PillOption::new("all", "All"),
+        PillOption::new("active", "Active"),
+        PillOption::new("prospect", "Prospect"),
         PillOption::new("suspended", "Suspended"),
     ];
     let type_pills = vec![
-        PillOption::new("all",          "All Types"),
+        PillOption::new("all", "All Types"),
         PillOption::new("organization", "Orgs"),
-        PillOption::new("individual",   "Individuals"),
+        PillOption::new("individual", "Individuals"),
     ];
 
     let page_count = Signal::derive(move || accounts_res.get().unwrap_or_default().len());

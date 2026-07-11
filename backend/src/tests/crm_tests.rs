@@ -3,92 +3,105 @@ use axum::{
     http::{Request, StatusCode},
 };
 // use sea_orm_migration::MigratorTrait; // unused - removed
-use tower::ServiceExt;
-use serde_json::json;
 use super::test_utils;
+use serde_json::json;
+use tower::ServiceExt;
 
-use fake::{Fake, faker::{
-    company::en::CompanyName,
-    internet::en::SafeEmail,
-    phone_number::en::PhoneNumber,
-}};
+use crate::handlers::contacts::ContactResponse;
 use crate::models::customer::Customer;
 use crate::models::deal::DealModel;
-use crate::handlers::contacts::ContactResponse;
 use crate::tests::api_tests::setup_test_app;
+use fake::{
+    Fake,
+    faker::{company::en::CompanyName, internet::en::SafeEmail, phone_number::en::PhoneNumber},
+};
 
 #[tokio::test]
 async fn test_crm_customers() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    
+
     // Test creating a customer
     let name = CompanyName().fake::<String>();
     let email = SafeEmail().fake::<String>();
     let phone = PhoneNumber().fake::<String>();
 
     // Note: Trying /admin/customers based on routes.rs
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("POST")
                 .uri("/api/customers")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
-                .body(Body::from(json!({
-                    "name": name,
-                    "customer_type": "BusinessEntity",
-                    "email": email,
-                    "phone": phone,
-                    "attributes": {
-                        "shipper": false,
-                        "carrier": false,
-                        "loan_seeker": false,
-                        "loan_broker": false,
-                        "software_vendor": false,
-                        "tenant": false,
-                        "software_development_client": false,
-                        "salesforce_client": false,
-                        "web3_client": false,
-                        "bitcoiner": false,
-                        "zk": false,
-                        "lender": false,
-                        "advertiser": false,
-                        "gp": false,
-                        "construction_contractor": false,
-                        "construction_client": false,
-                        "landlord": false
-                    }
-                }).to_string()))
-                .unwrap()
+                .body(Body::from(
+                    json!({
+                        "name": name,
+                        "customer_type": "BusinessEntity",
+                        "email": email,
+                        "phone": phone,
+                        "attributes": {
+                            "shipper": false,
+                            "carrier": false,
+                            "loan_seeker": false,
+                            "loan_broker": false,
+                            "software_vendor": false,
+                            "tenant": false,
+                            "software_development_client": false,
+                            "salesforce_client": false,
+                            "web3_client": false,
+                            "bitcoiner": false,
+                            "zk": false,
+                            "lender": false,
+                            "advertiser": false,
+                            "gp": false,
+                            "construction_contractor": false,
+                            "construction_client": false,
+                            "landlord": false
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
         )
         .await
         .unwrap();
-    
+
     let status = response.status();
-    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
-    
+
     if status == StatusCode::NOT_FOUND {
         // Fallback to /api/admin/customers or /api/customers if /admin/customers is not found
         panic!("Route not found. Response: {}", body);
     }
-    
-    assert_eq!(status, StatusCode::CREATED, "Failed to create customer: {}", body);
+
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "Failed to create customer: {}",
+        body
+    );
 
     let customer: Customer = serde_json::from_str(&body).unwrap();
     assert_eq!(customer.name, name);
     assert_eq!(customer.email.unwrap(), email);
 
     // Test GET customer
-    let get_response = app.clone()
+    let get_response = app
+        .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/api/customers/{}", customer.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
-                .unwrap()
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -97,17 +110,22 @@ async fn test_crm_customers() {
 
     // Test PUT customer
     let updated_name = format!("Updated {}", name);
-    let put_response = app.clone()
+    let put_response = app
+        .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("PUT")
                 .uri(format!("/api/customers/{}", customer.id))
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
-                .body(Body::from(json!({
-                    "name": updated_name
-                }).to_string()))
-                .unwrap()
+                .body(Body::from(
+                    json!({
+                        "name": updated_name
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -115,14 +133,16 @@ async fn test_crm_customers() {
     assert_eq!(put_response.status(), StatusCode::OK);
 
     // Test DELETE customer
-    let delete_response = app.clone()
+    let delete_response = app
+        .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("DELETE")
                 .uri(format!("/api/customers/{}", customer.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
-                .unwrap()
+                .unwrap(),
         )
         .await
         .unwrap();
@@ -155,32 +175,49 @@ async fn test_crm_deals() {
                     "attributes": { "shipper": false, "carrier": false, "loan_seeker": false, "loan_broker": false, "software_vendor": false, "tenant": false, "software_development_client": false, "salesforce_client": false, "web3_client": false, "bitcoiner": false, "zk": false, "lender": false, "advertiser": false, "gp": false, "construction_contractor": false, "construction_client": false, "landlord": false }
                 }).to_string())).unwrap()
         ).await.unwrap();
-    
-    let cust_bytes = axum::body::to_bytes(customer_res.into_body(), usize::MAX).await.unwrap();
+
+    let cust_bytes = axum::body::to_bytes(customer_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let customer: Customer = serde_json::from_slice(&cust_bytes).unwrap();
 
     // Test creating a deal
     let deal_name = "Major Contract".to_string();
-    let deal_res = app.clone()
+    let deal_res = app
+        .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("POST")
                 .uri("/api/deals")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
-                .body(Body::from(json!({
-                    "customer_id": customer.id,
-                    "name": deal_name,
-                    "amount": 50000.0,
-                    "status": "Open",
-                    "stage": "Prospecting",
-                    "close_date": null
-                }).to_string())).unwrap()
-        ).await.unwrap();
-    
+                .body(Body::from(
+                    json!({
+                        "customer_id": customer.id,
+                        "name": deal_name,
+                        "amount": 50000.0,
+                        "status": "Open",
+                        "stage": "Prospecting",
+                        "close_date": null
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
     let status = deal_res.status();
-    let body_bytes = axum::body::to_bytes(deal_res.into_body(), usize::MAX).await.unwrap();
-    assert_eq!(status, StatusCode::CREATED, "Deal creation failed: {:?}", String::from_utf8_lossy(&body_bytes));
+    let body_bytes = axum::body::to_bytes(deal_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "Deal creation failed: {:?}",
+        String::from_utf8_lossy(&body_bytes)
+    );
 
     let deal: DealModel = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(deal.name, deal_name);
@@ -207,31 +244,48 @@ async fn test_crm_contacts() {
                     "attributes": { "shipper": false, "carrier": false, "loan_seeker": false, "loan_broker": false, "software_vendor": false, "tenant": false, "software_development_client": false, "salesforce_client": false, "web3_client": false, "bitcoiner": false, "zk": false, "lender": false, "advertiser": false, "gp": false, "construction_contractor": false, "construction_client": false, "landlord": false }
                 }).to_string())).unwrap()
         ).await.unwrap();
-    
-    let cust_bytes = axum::body::to_bytes(customer_res.into_body(), usize::MAX).await.unwrap();
+
+    let cust_bytes = axum::body::to_bytes(customer_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let customer: Customer = serde_json::from_slice(&cust_bytes).unwrap();
 
     // Test creating a contact
     let contact_name = "John Doe".to_string();
-    let contact_res = app.clone()
+    let contact_res = app
+        .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("POST")
                 .uri("/api/contacts")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
-                .body(Body::from(json!({
-                    "customer_id": customer.id,
-                    "name": contact_name,
-                    "first_name": "John",
-                    "last_name": "Doe",
-                    "email": "john@example.com"
-                }).to_string())).unwrap()
-        ).await.unwrap();
-        
+                .body(Body::from(
+                    json!({
+                        "customer_id": customer.id,
+                        "name": contact_name,
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "email": "john@example.com"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
     let status = contact_res.status();
-    let body_bytes = axum::body::to_bytes(contact_res.into_body(), usize::MAX).await.unwrap();
-    assert_eq!(status, StatusCode::CREATED, "Contact creation failed: {:?}", String::from_utf8_lossy(&body_bytes));
+    let body_bytes = axum::body::to_bytes(contact_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "Contact creation failed: {:?}",
+        String::from_utf8_lossy(&body_bytes)
+    );
 
     let contact: ContactResponse = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(contact.full_name.as_deref(), Some("John Doe"));

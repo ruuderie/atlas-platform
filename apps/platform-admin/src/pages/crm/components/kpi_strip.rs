@@ -11,19 +11,28 @@ pub struct KpiItem {
 
 impl KpiItem {
     pub fn new(label: &str, value: &str) -> Self {
-        Self { label: label.to_string(), value: value.to_string(), sub: None, color: None }
+        Self {
+            label: label.to_string(),
+            value: value.to_string(),
+            sub: None,
+            color: None,
+        }
     }
-    pub fn sub(mut self, sub: &str) -> Self { self.sub = Some(sub.to_string()); self }
-    pub fn color(mut self, color: &str) -> Self { self.color = Some(color.to_string()); self }
+    pub fn sub(mut self, sub: &str) -> Self {
+        self.sub = Some(sub.to_string());
+        self
+    }
+    pub fn color(mut self, color: &str) -> Self {
+        self.color = Some(color.to_string());
+        self
+    }
 }
 
 /// Compact inline KPI strip.
 /// Critical layout is inlined on every element so the strip renders correctly
 /// even when the external CSS file is cached/stale.
 #[component]
-pub fn KpiStrip(
-    #[prop(into)] items: Signal<Vec<KpiItem>>,
-) -> impl IntoView {
+pub fn KpiStrip(#[prop(into)] items: Signal<Vec<KpiItem>>) -> impl IntoView {
     view! {
         <div
             class="crm-kpi-strip"

@@ -1,14 +1,14 @@
 #![allow(dead_code, unused_imports)]
+use crate::entities::{file, file_association};
+use crate::models::address::AddressJson;
+use crate::models::file::{FileAssociation, FileModel};
+use crate::traits::file::FileAssociable;
+use chrono::{DateTime, Utc};
+use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
-use crate::models::address::{ AddressJson};
-use crate::traits::file::FileAssociable;
-use crate::models::file::{FileAssociation, FileModel};
-use crate::entities::{file_association,file}; 
-use sea_orm::{Set};
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "lead")]
@@ -59,7 +59,7 @@ pub enum Relation {
     Customer,
     Contact,
     Deal,
-FileAssociation,
+    FileAssociation,
 }
 
 impl RelationTrait for Relation {
@@ -156,7 +156,9 @@ impl FileAssociation for Model {
             file_id: Set(file.id),
             associated_entity_type: Set(Entity::entity_type().to_string()),
             associated_entity_id: Set(self.id),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }

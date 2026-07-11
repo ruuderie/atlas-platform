@@ -1,10 +1,10 @@
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline_generic::{
-    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+    ActivityModel, ActivityStatus, ActivityType, CrmTimelineGeneric, FileModel, NoteModel,
 };
-use shared_ui::utils::ResourceState;
 use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
+use shared_ui::utils::ResourceState;
 
 use super::*;
 
@@ -67,7 +67,7 @@ pub fn LeadTable() -> impl IntoView {
                                         {move || selected_lead.get().map(|lead| {
                                             let navigate = navigate.clone();
                                             view! {
-                                                <LeadCrmPane 
+                                                <LeadCrmPane
                                                     lead_record=lead
                                                     stages=statuses.clone()
                                                     on_close=Callback::new(move |_: ()| {
@@ -115,13 +115,13 @@ pub fn LeadTable() -> impl IntoView {
                                                         let title_disp = lead.title.clone().unwrap_or_else(|| "-".to_string());
                                                         let status_disp = lead.lead_status.clone().unwrap_or_else(|| "New".to_string());
                                                         let source_disp = lead.source.clone().unwrap_or_else(|| "Unknown".to_string());
-                                                        
+
                                                         // Dynamic pipeline-based status badge styling
                                                         let matched_color = statuses.iter()
                                                             .find(|s| s.status_key.to_lowercase() == status_disp.to_lowercase())
                                                             .map(|s| s.color.as_str())
                                                             .unwrap_or("slate");
-                                                            
+
                                                         let badge_classes = match matched_color {
                                                             "blue" => "bg-blue-500/10 text-blue-500 border-blue-500/20",
                                                             "purple" => "bg-purple-500/10 text-purple-500 border-purple-500/20",
@@ -131,9 +131,9 @@ pub fn LeadTable() -> impl IntoView {
                                                             "rose" => "bg-rose-500/10 text-rose-500 border-rose-500/20",
                                                             _ => "bg-slate-500/10 text-slate-400 border-slate-500/20",
                                                         };
- 
+
                                                         view! {
-                                                            <tr 
+                                                            <tr
                                                                 class="hover:bg-surface-container-high transition-all duration-150 cursor-pointer"
                                                                 on:click={
                                                                     let navigate = navigate.clone();
@@ -159,7 +159,7 @@ pub fn LeadTable() -> impl IntoView {
                                                                 <td class="py-4 px-4 text-outline text-xs">{source_disp}</td>
                                                                 <td class="py-4 px-4 text-outline-variant text-xs">{lead.created_at.chars().take(10).collect::<String>()}</td>
                                                                 <td class="py-4 px-4 text-right">
-                                                                    <button 
+                                                                    <button
                                                                         on:click={
                                                                             let navigate = navigate.clone();
                                                                             move |e| {
@@ -175,7 +175,7 @@ pub fn LeadTable() -> impl IntoView {
                                                                                     }
                                                                                 });
                                                                             }
-                                                                        } 
+                                                                        }
                                                                         class="text-error hover:underline text-xs tracking-wider uppercase font-bold"
                                                                     >
                                                                         "Drop"
@@ -224,19 +224,28 @@ fn LeadCrmPane(
             body: "<p>Hello,</p><p>We are excited to share our custom proposal based on our initial discussion. Please review the attached details and let us know if you have any questions or when you would be available for a quick walkthrough.</p><p>Best regards,<br/>The Consulting Team</p>".to_string(),
         },
     ];
-    
+
     // Internal signals for notes, activities and stages
-    let (current_stage, set_current_stage) = signal(lead_record.lead_status.clone().unwrap_or_else(|| "New".to_string()));
-    
+    let (current_stage, set_current_stage) = signal(
+        lead_record
+            .lead_status
+            .clone()
+            .unwrap_or_else(|| "New".to_string()),
+    );
+
     let lead_id = lead_record.id;
     let notes_res = Resource::new(move || refresh.get(), move |_| get_lead_notes(lead_id));
-    let activities_res = Resource::new(move || refresh.get(), move |_| get_lead_activities(lead_id));
-    let attachments_res = Resource::new(move || refresh.get(), move |_| get_lead_attachments(lead_id));
+    let activities_res =
+        Resource::new(move || refresh.get(), move |_| get_lead_activities(lead_id));
+    let attachments_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_lead_attachments(lead_id),
+    );
 
     // Avatar Url State
     let (avatar_url_signal, set_avatar_url_signal) = signal(lead_record.avatar_url.clone());
     let avatar_input_ref = NodeRef::<leptos::html::Input>::new();
-    
+
     let trigger_avatar_upload = move |_| {
         if let Some(input) = avatar_input_ref.get() {
             input.click();
@@ -253,7 +262,7 @@ fn LeadCrmPane(
     let (title, set_title) = signal(lead_record.title.clone().unwrap_or_default());
     let (source, set_source) = signal(lead_record.source.clone().unwrap_or_default());
     let (message, set_message) = signal(lead_record.message.clone().unwrap_or_default());
-    
+
     let (edit_mode, set_edit_mode) = signal(false);
 
     let handle_stage_change = move |new_stage: String| {
@@ -269,8 +278,9 @@ fn LeadCrmPane(
                     ActivityStatus::Completed,
                     None,
                     Some(chrono::Utc::now().to_rfc3339()),
-                    Vec::new()
-                ).await;
+                    Vec::new(),
+                )
+                .await;
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -301,8 +311,10 @@ fn LeadCrmPane(
 
         leptos::task::spawn_local(async move {
             match update_lead_details(
-                lead_id, n, fn_opt, ln_opt, em_val, ph_val, co_val, ti_val, so_val, me_val, av_opt
-            ).await {
+                lead_id, n, fn_opt, ln_opt, em_val, ph_val, co_val, ti_val, so_val, me_val, av_opt,
+            )
+            .await
+            {
                 Ok(_) => {
                     set_edit_mode.set(false);
                     set_refresh.set(refresh.get_untracked() + 1);
@@ -314,35 +326,59 @@ fn LeadCrmPane(
         });
     };
 
-    let add_note_cb = Callback::new(move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_lead_note(lead_id, content, is_private, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let add_note_cb = Callback::new(
+        move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_lead_note(lead_id, content, is_private, files).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let log_activity_cb = Callback::new(move |(act_type, title, desc, status, due_date, completed_at, files): (ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_lead_activity(lead_id, act_type, title, desc, status, due_date, completed_at, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let log_activity_cb = Callback::new(
+        move |(act_type, title, desc, status, due_date, completed_at, files): (
+            ActivityType,
+            String,
+            Option<String>,
+            ActivityStatus,
+            Option<String>,
+            Option<String>,
+            Vec<FileModel>,
+        )| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_lead_activity(
+                    lead_id,
+                    act_type,
+                    title,
+                    desc,
+                    status,
+                    due_date,
+                    completed_at,
+                    files,
+                )
+                .await
+                {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let update_activity_status_cb = Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = update_lead_activity_status(act_id, status).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
+    let update_activity_status_cb =
+        Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = update_lead_activity_status(act_id, status).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
         });
-    });
 
     let delete_note_cb = Callback::new(move |note_id: uuid::Uuid| {
         let set_refresh = set_refresh.clone();
@@ -382,7 +418,9 @@ fn LeadCrmPane(
 
     let download_attachment_cb = Callback::new(move |file_key: String| {
         leptos::task::spawn_local(async move {
-            if let Ok(download_url) = crate::pages::admin::contacts::get_attachment_download_url(file_key).await {
+            if let Ok(download_url) =
+                crate::pages::admin::contacts::get_attachment_download_url(file_key).await
+            {
                 #[cfg(not(feature = "ssr"))]
                 if let Some(win) = web_sys::window() {
                     let _ = win.open_with_url_and_target(&download_url, "_blank");
@@ -408,7 +446,9 @@ fn LeadCrmPane(
             #[cfg(not(feature = "ssr"))]
             {
                 use leptos::wasm_bindgen::JsCast;
-                let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                let target = ev
+                    .target()
+                    .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
                 if let Some(input) = target {
                     if let Some(files) = input.files() {
                         if let Some(file) = files.get(0) {
@@ -424,12 +464,27 @@ fn LeadCrmPane(
                             let set_refresh = set_refresh.clone();
                             let refresh = refresh.clone();
                             let set_avatar_url_signal = set_avatar_url_signal.clone();
-                            
+
                             leptos::task::spawn_local(async move {
-                                if let Ok((_, key)) = shared_ui::components::file_attachments::upload_file_to_s3(file).await {
+                                if let Ok((_, key)) =
+                                    shared_ui::components::file_attachments::upload_file_to_s3(file)
+                                        .await
+                                {
                                     if let Ok(_) = update_lead_details(
-                                        lead_id, name_val, fn_val, ln_val, em_val, ph_val, co_val, ti_val, so_val, me_val, Some(key.clone())
-                                    ).await {
+                                        lead_id,
+                                        name_val,
+                                        fn_val,
+                                        ln_val,
+                                        em_val,
+                                        ph_val,
+                                        co_val,
+                                        ti_val,
+                                        so_val,
+                                        me_val,
+                                        Some(key.clone()),
+                                    )
+                                    .await
+                                    {
                                         set_avatar_url_signal.set(Some(key));
                                         set_refresh.set(refresh.get_untracked() + 1);
                                     }
@@ -446,8 +501,8 @@ fn LeadCrmPane(
         <div class="w-full bg-background flex flex-col animate-slide-in font-sans text-on-surface">
             // Breadcrumb navigation header
             <div class="flex items-center gap-2 mb-6 text-xs font-mono text-outline-variant">
-                <button 
-                    on:click=move |_| on_close.run(()) 
+                <button
+                    on:click=move |_| on_close.run(())
                     class="hover:text-primary transition-colors flex items-center gap-1 font-bold uppercase tracking-wider"
                 >
                     <span class="material-symbols-outlined text-[14px]">"arrow_back"</span>
@@ -457,24 +512,24 @@ fn LeadCrmPane(
 
             // Salesforce-style layout container
             <div class="flex flex-col lg:flex-row gap-6 w-full items-start">
-                
+
                 // LEFT COLUMN (65% width) - Core info and status
                 <div class="w-full lg:w-[65%] space-y-6 flex flex-col">
-                    
+
                     // Main Highlight Panel / Avatar & Quick Details
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex items-center gap-4">
-                            <input 
-                                type="file" 
+                            <input
+                                type="file"
                                 node_ref=avatar_input_ref
                                 on:change=handle_avatar_change
                                 class="hidden"
                             />
-                            <div 
+                            <div
                                 on:click=trigger_avatar_upload
                                 class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 relative group cursor-pointer overflow-hidden"
                             >
-                                <Show 
+                                <Show
                                     when=move || avatar_url_signal.get().is_some()
                                     fallback=move || {
                                         let name_val = name.get();
@@ -488,7 +543,7 @@ fn LeadCrmPane(
                                         }
                                     }
                                 >
-                                    <img 
+                                    <img
                                         src=move || avatar_url_signal.get().unwrap_or_default()
                                         class="w-full h-full object-cover animate-fade-in"
                                     />
@@ -592,7 +647,7 @@ fn LeadCrmPane(
                                         <div class="flex items-center gap-2">
                                             <span class="text-on-surface font-semibold break-all">{move || if email.get().is_empty() { "-".to_string() } else { email.get() }}</span>
                                             <Show when=move || !email.get().is_empty()>
-                                                <button 
+                                                <button
                                                     on:click=move |_| set_composer_open.set(true)
                                                     class="text-primary hover:text-primary-container p-0.5 rounded transition-colors flex items-center justify-center"
                                                     title="Compose Email"
@@ -629,8 +684,8 @@ fn LeadCrmPane(
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"First Name *"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=first_name
                                             on:input=move |ev| set_first_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -638,8 +693,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Last Name"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=last_name
                                             on:input=move |ev| set_last_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -647,8 +702,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Email"</label>
-                                        <input 
-                                            type="email" 
+                                        <input
+                                            type="email"
                                             prop:value=email
                                             on:input=move |ev| set_email.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -656,8 +711,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Phone"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=phone
                                             on:input=move |ev| set_phone.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -665,8 +720,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Company"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=company
                                             on:input=move |ev| set_company.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -674,8 +729,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Title"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=title
                                             on:input=move |ev| set_title.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -683,8 +738,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Source"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=source
                                             on:input=move |ev| set_source.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"

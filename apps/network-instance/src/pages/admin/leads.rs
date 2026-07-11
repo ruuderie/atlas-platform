@@ -1,12 +1,12 @@
+use crate::pages::admin::contacts::send_network_crm_email;
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline_generic::{
-    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+    ActivityModel, ActivityStatus, ActivityType, CrmTimelineGeneric, FileModel, NoteModel,
 };
-use shared_ui::utils::ResourceState;
 use shared_ui::components::email_composer::{EmailComposer, EmailTemplate};
-use crate::pages::admin::contacts::send_network_crm_email;
 use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
+use shared_ui::utils::ResourceState;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct LeadRecord {
@@ -28,8 +28,8 @@ pub struct LeadRecord {
 
 #[server(GetNetworkLeads, "/api")]
 pub async fn get_leads() -> Result<Vec<LeadRecord>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -60,46 +60,86 @@ pub async fn get_leads() -> Result<Vec<LeadRecord>, ServerFnError> {
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let formatted = items.into_iter().map(|item| {
-            let id = uuid::Uuid::parse_str(item.get("id").and_then(|v| v.as_str()).unwrap_or_default()).unwrap_or_default();
-            let name = item.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            let first_name = item.get("first_name").and_then(|v| v.as_str()).map(String::from);
-            let last_name = item.get("last_name").and_then(|v| v.as_str()).map(String::from);
-            let email = item.get("email").and_then(|v| v.as_str()).map(String::from);
-            let phone = item.get("phone").and_then(|v| v.as_str()).map(String::from);
-            let company = item.get("company").and_then(|v| v.as_str()).map(String::from);
-            let title = item.get("title").and_then(|v| v.as_str()).map(String::from);
-            let lead_status = item.get("lead_status").and_then(|v| v.as_str()).map(String::from);
-            let message = item.get("message").and_then(|v| v.as_str()).map(String::from);
-            let source = item.get("source").and_then(|v| v.as_str()).map(String::from);
-            let is_converted = item.get("is_converted").and_then(|v| v.as_bool()).unwrap_or(false);
-            let avatar_url = item.get("avatar_url").and_then(|v| v.as_str()).map(String::from);
-            
-            // Format created_at date
-            let created_at_str = item.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
-            let created_at = chrono::DateTime::parse_from_rfc3339(created_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_else(|_| created_at_str.to_string());
+        let items: Vec<serde_json::Value> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let formatted = items
+            .into_iter()
+            .map(|item| {
+                let id = uuid::Uuid::parse_str(
+                    item.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
+                )
+                .unwrap_or_default();
+                let name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let first_name = item
+                    .get("first_name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let last_name = item
+                    .get("last_name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let email = item.get("email").and_then(|v| v.as_str()).map(String::from);
+                let phone = item.get("phone").and_then(|v| v.as_str()).map(String::from);
+                let company = item
+                    .get("company")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let title = item.get("title").and_then(|v| v.as_str()).map(String::from);
+                let lead_status = item
+                    .get("lead_status")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let message = item
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let source = item
+                    .get("source")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let is_converted = item
+                    .get("is_converted")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let avatar_url = item
+                    .get("avatar_url")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
 
-            LeadRecord {
-                id,
-                name,
-                first_name,
-                last_name,
-                email,
-                phone,
-                company,
-                title,
-                lead_status,
-                message,
-                source,
-                is_converted,
-                avatar_url,
-                created_at,
-            }
-        }).collect();
+                // Format created_at date
+                let created_at_str = item
+                    .get("created_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let created_at = chrono::DateTime::parse_from_rfc3339(created_at_str)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|_| created_at_str.to_string());
+
+                LeadRecord {
+                    id,
+                    name,
+                    first_name,
+                    last_name,
+                    email,
+                    phone,
+                    company,
+                    title,
+                    lead_status,
+                    message,
+                    source,
+                    is_converted,
+                    avatar_url,
+                    created_at,
+                }
+            })
+            .collect();
         Ok(formatted)
     } else {
         Err(ServerFnError::new("Failed to fetch leads from backend"))
@@ -108,8 +148,8 @@ pub async fn get_leads() -> Result<Vec<LeadRecord>, ServerFnError> {
 
 #[server(DeleteNetworkLead, "/api")]
 pub async fn delete_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -148,8 +188,8 @@ pub async fn delete_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[server(ConvertNetworkLead, "/api")]
 pub async fn convert_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -188,8 +228,8 @@ pub async fn convert_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[server(GetNetworkLeadCrmStatuses, "/api")]
 pub async fn get_lead_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -220,16 +260,35 @@ pub async fn get_lead_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFnErr
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let options = items.into_iter().map(|item| {
-            CrmStatusOption {
-                status_key: item.get("status_key").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                label: item.get("label").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                color: item.get("color").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        let items: Vec<serde_json::Value> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let options = items
+            .into_iter()
+            .map(|item| CrmStatusOption {
+                status_key: item
+                    .get("status_key")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                label: item
+                    .get("label")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                color: item
+                    .get("color")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
                 sort_order: item.get("sort_order").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-                is_system: item.get("is_system").and_then(|v| v.as_bool()).unwrap_or(false),
-            }
-        }).collect();
+                is_system: item
+                    .get("is_system")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+            })
+            .collect();
         Ok(options)
     } else {
         Err(ServerFnError::new("Failed to fetch lead crm statuses"))
@@ -238,8 +297,8 @@ pub async fn get_lead_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFnErr
 
 #[server(UpdateNetworkLeadStage, "/api")]
 pub async fn update_lead_stage(id: uuid::Uuid, stage: String) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -262,7 +321,7 @@ pub async fn update_lead_stage(id: uuid::Uuid, stage: String) -> Result<(), Serv
 
     let url = format!("{}/api/leads/{}", api_base_url(), id);
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "lead_status": stage
     });
@@ -296,8 +355,8 @@ pub async fn update_lead_details(
     message: Option<String>,
     avatar_url: Option<String>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -320,7 +379,7 @@ pub async fn update_lead_details(
 
     let url = format!("{}/api/leads/{}", api_base_url(), id);
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "name": name,
         "first_name": first_name,
@@ -350,9 +409,11 @@ pub async fn update_lead_details(
 }
 
 #[server(GetNetworkLeadAttachments, "/api")]
-pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn get_lead_attachments(
+    lead_id: uuid::Uuid,
+) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -373,7 +434,11 @@ pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocum
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/admin/files/associated/Lead/{}", api_base_url(), lead_id);
+    let url = format!(
+        "{}/api/admin/files/associated/Lead/{}",
+        api_base_url(),
+        lead_id
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -383,27 +448,47 @@ pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocum
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let docs = items.into_iter().map(|item| {
-            let id = uuid::Uuid::parse_str(item.get("id").and_then(|v| v.as_str()).unwrap_or_default()).unwrap_or_default();
-            let file_url = item.get("storage_path").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            let file_name = item.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            
-            let uploaded_at_str = item.get("date_upload").and_then(|v| v.as_str()).unwrap_or_default();
-            let uploaded_at = chrono::DateTime::parse_from_rfc3339(uploaded_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_else(|_| uploaded_at_str.to_string());
+        let items: Vec<serde_json::Value> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let docs = items
+            .into_iter()
+            .map(|item| {
+                let id = uuid::Uuid::parse_str(
+                    item.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
+                )
+                .unwrap_or_default();
+                let file_url = item
+                    .get("storage_path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let file_name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
 
-            RecordDocumentModel {
-                id,
-                tenant_id: uuid::Uuid::default(),
-                target_record_id: lead_id,
-                file_url,
-                file_name,
-                uploaded_at,
-            }
-        }).collect();
+                let uploaded_at_str = item
+                    .get("date_upload")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let uploaded_at = chrono::DateTime::parse_from_rfc3339(uploaded_at_str)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_else(|_| uploaded_at_str.to_string());
+
+                RecordDocumentModel {
+                    id,
+                    tenant_id: uuid::Uuid::default(),
+                    target_record_id: lead_id,
+                    file_url,
+                    file_name,
+                    uploaded_at,
+                }
+            })
+            .collect();
         Ok(docs)
     } else {
         Err(ServerFnError::new("Failed to fetch lead documents"))
@@ -411,9 +496,13 @@ pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocum
 }
 
 #[server(AddNetworkLeadAttachment, "/api")]
-pub async fn add_lead_attachment(lead_id: uuid::Uuid, file_name: String, file_url: String) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn add_lead_attachment(
+    lead_id: uuid::Uuid,
+    file_name: String,
+    file_url: String,
+) -> Result<(), ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -435,7 +524,7 @@ pub async fn add_lead_attachment(lead_id: uuid::Uuid, file_name: String, file_ur
     };
 
     let client = reqwest::Client::new();
-    
+
     // 1. Create file record
     let create_url = format!("{}/api/admin/files", api_base_url());
     let create_payload = serde_json::json!({
@@ -448,7 +537,7 @@ pub async fn add_lead_attachment(lead_id: uuid::Uuid, file_name: String, file_ur
         "is_anonymous": false,
         "user_id": null
     });
-    
+
     let create_res = client
         .post(&create_url)
         .header("Cookie", format!("session={}", token))
@@ -461,11 +550,22 @@ pub async fn add_lead_attachment(lead_id: uuid::Uuid, file_name: String, file_ur
         return Err(ServerFnError::new("Failed to create file record"));
     }
 
-    let created_file: serde_json::Value = create_res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let file_id = created_file.get("id").and_then(|v| v.as_str()).ok_or_else(|| ServerFnError::new("Missing file ID"))?;
+    let created_file: serde_json::Value = create_res
+        .json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let file_id = created_file
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ServerFnError::new("Missing file ID"))?;
 
     // 2. Create file association
-    let associate_url = format!("{}/api/admin/files/{}/associate/Lead/{}", api_base_url(), file_id, lead_id);
+    let associate_url = format!(
+        "{}/api/admin/files/{}/associate/Lead/{}",
+        api_base_url(),
+        file_id,
+        lead_id
+    );
     let associate_res = client
         .post(&associate_url)
         .header("Cookie", format!("session={}", token))
@@ -481,9 +581,12 @@ pub async fn add_lead_attachment(lead_id: uuid::Uuid, file_name: String, file_ur
 }
 
 #[server(DeleteNetworkLeadAttachment, "/api")]
-pub async fn delete_lead_attachment(lead_id: uuid::Uuid, doc_id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn delete_lead_attachment(
+    lead_id: uuid::Uuid,
+    doc_id: uuid::Uuid,
+) -> Result<(), ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -529,9 +632,8 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
     if access_key.is_empty() || endpoint.is_empty() {
         return Err(ServerFnError::ServerError("R2 unconfigured".into()));
     }
-    let credentials = aws_sdk_s3::config::Credentials::new(
-        access_key, secret, None, None, "cloudflare"
-    );
+    let credentials =
+        aws_sdk_s3::config::Credentials::new(access_key, secret, None, None, "cloudflare");
     let s3_config = aws_sdk_s3::config::Builder::new()
         .credentials_provider(credentials)
         .region(aws_sdk_s3::config::Region::new("auto"))
@@ -540,23 +642,27 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
     let client = aws_sdk_s3::Client::from_conf(s3_config);
     let expires_in = std::time::Duration::from_secs(3600);
     let presigning_config = aws_sdk_s3::presigning::PresigningConfig::expires_in(expires_in)
-        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
-    
+        .map_err(|e| {
+            ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
+
     let presigned_req = client
         .get_object()
         .bucket(&bucket_name)
         .key(&file_key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
-        
+        .map_err(|e| {
+            ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
+
     Ok(presigned_req.uri().to_string())
 }
 
 #[server(GetNetworkLeadNotes, "/api")]
 pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -577,7 +683,11 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, Serve
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/crm/notes?entity_type=Lead&entity_id={}", api_base_url(), lead_id);
+    let url = format!(
+        "{}/api/crm/notes?entity_type=Lead&entity_id={}",
+        api_base_url(),
+        lead_id
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -587,7 +697,10 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, Serve
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let notes: Vec<NoteModel> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
+        let notes: Vec<NoteModel> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
         Ok(notes)
     } else {
         Err(ServerFnError::new("Failed to fetch lead notes"))
@@ -596,13 +709,13 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, Serve
 
 #[server(AddNetworkLeadNote, "/api")]
 pub async fn add_lead_note(
-    lead_id: uuid::Uuid, 
-    content: String, 
-    is_private: bool, 
-    files: Vec<FileModel>
+    lead_id: uuid::Uuid,
+    content: String,
+    is_private: bool,
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -625,7 +738,7 @@ pub async fn add_lead_note(
 
     let url = format!("{}/api/crm/notes", api_base_url());
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "entity_type": "Lead",
         "entity_id": lead_id,
@@ -651,8 +764,8 @@ pub async fn add_lead_note(
 
 #[server(DeleteNetworkLeadNote, "/api")]
 pub async fn delete_lead_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -691,8 +804,8 @@ pub async fn delete_lead_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> 
 
 #[server(GetNetworkLeadActivities, "/api")]
 pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityModel>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -713,7 +826,11 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityMode
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/crm/activities?entity_type=Lead&entity_id={}", api_base_url(), lead_id);
+    let url = format!(
+        "{}/api/crm/activities?entity_type=Lead&entity_id={}",
+        api_base_url(),
+        lead_id
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -723,7 +840,10 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityMode
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let activities: Vec<ActivityModel> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
+        let activities: Vec<ActivityModel> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
         Ok(activities)
     } else {
         Err(ServerFnError::new("Failed to fetch lead activities"))
@@ -739,10 +859,10 @@ pub async fn add_lead_activity(
     status: ActivityStatus,
     due_date: Option<String>,
     completed_at: Option<String>,
-    files: Vec<FileModel>
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -763,12 +883,16 @@ pub async fn add_lead_activity(
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let parsed_due_date = due_date.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
-    let parsed_completed_at = completed_at.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_due_date = due_date
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_completed_at = completed_at
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
 
     let url = format!("{}/api/crm/activities", api_base_url());
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "lead_id": lead_id,
         "activity_type": activity_type,
@@ -799,10 +923,10 @@ pub async fn add_lead_activity(
 #[server(UpdateNetworkLeadActivityStatus, "/api")]
 pub async fn update_lead_activity_status(
     activity_id: uuid::Uuid,
-    status: ActivityStatus
+    status: ActivityStatus,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -825,7 +949,7 @@ pub async fn update_lead_activity_status(
 
     let url = format!("{}/api/crm/activities/{}", api_base_url(), activity_id);
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "status": status
     });
@@ -847,8 +971,8 @@ pub async fn update_lead_activity_status(
 
 #[server(DeleteNetworkLeadActivity, "/api")]
 pub async fn delete_lead_activity(activity_id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -909,7 +1033,7 @@ pub fn LeadTable() -> impl IntoView {
                                     view! {
                                         {move || selected_lead.get().map(|lead| {
                                             view! {
-                                                <LeadCrmPane 
+                                                <LeadCrmPane
                                                     lead_record=lead
                                                     stages=statuses.clone()
                                                     on_close=Callback::new(move |_: ()| set_selected_lead.set(None))
@@ -956,13 +1080,13 @@ pub fn LeadTable() -> impl IntoView {
                                                         let title_disp = lead.title.clone().unwrap_or_else(|| "-".to_string());
                                                         let status_disp = lead.lead_status.clone().unwrap_or_else(|| "New".to_string());
                                                         let source_disp = lead.source.clone().unwrap_or_else(|| "Unknown".to_string());
-                                                        
+
                                                         // Dynamic pipeline-based status badge styling
                                                         let matched_color = statuses.iter()
                                                             .find(|s| s.status_key.to_lowercase() == status_disp.to_lowercase())
                                                             .map(|s| s.color.as_str())
                                                             .unwrap_or("slate");
-                                                            
+
                                                         let badge_classes = match matched_color {
                                                             "blue" => "bg-blue-500/10 text-blue-500 border-blue-500/20",
                                                             "purple" => "bg-purple-500/10 text-purple-500 border-purple-500/20",
@@ -974,7 +1098,7 @@ pub fn LeadTable() -> impl IntoView {
                                                         };
 
                                                         view! {
-                                                            <tr 
+                                                            <tr
                                                                 class="hover:bg-surface-container-high transition-all duration-150 cursor-pointer"
                                                                 on:click=move |_| set_selected_lead.set(Some(c.clone()))
                                                             >
@@ -995,7 +1119,7 @@ pub fn LeadTable() -> impl IntoView {
                                                                 <td class="py-4 px-4 text-outline text-xs">{source_disp}</td>
                                                                 <td class="py-4 px-4 text-outline-variant text-xs">{lead.created_at.chars().take(10).collect::<String>()}</td>
                                                                 <td class="py-4 px-4 text-right">
-                                                                    <button 
+                                                                    <button
                                                                         on:click=move |e| {
                                                                             e.stop_propagation();
                                                                             let id = lead.id;
@@ -1007,7 +1131,7 @@ pub fn LeadTable() -> impl IntoView {
                                                                                     }
                                                                                 }
                                                                             });
-                                                                        } 
+                                                                        }
                                                                         class="text-error hover:underline text-xs tracking-wider uppercase font-bold"
                                                                     >
                                                                         "Drop"
@@ -1057,12 +1181,21 @@ fn LeadCrmPane(
     ];
 
     // Internal signals for notes, activities and stages
-    let (current_stage, set_current_stage) = signal(lead_record.lead_status.clone().unwrap_or_else(|| "New".to_string()));
-    
+    let (current_stage, set_current_stage) = signal(
+        lead_record
+            .lead_status
+            .clone()
+            .unwrap_or_else(|| "New".to_string()),
+    );
+
     let lead_id = lead_record.id;
     let notes_res = Resource::new(move || refresh.get(), move |_| get_lead_notes(lead_id));
-    let activities_res = Resource::new(move || refresh.get(), move |_| get_lead_activities(lead_id));
-    let attachments_res = Resource::new(move || refresh.get(), move |_| get_lead_attachments(lead_id));
+    let activities_res =
+        Resource::new(move || refresh.get(), move |_| get_lead_activities(lead_id));
+    let attachments_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_lead_attachments(lead_id),
+    );
 
     // Field signals for properties editing
     let (name, set_name) = signal(lead_record.name.clone());
@@ -1078,7 +1211,7 @@ fn LeadCrmPane(
     // Avatar Url State
     let (avatar_url_signal, set_avatar_url_signal) = signal(lead_record.avatar_url.clone());
     let avatar_input_ref = NodeRef::<leptos::html::Input>::new();
-    
+
     let trigger_avatar_upload = move |_| {
         if let Some(input) = avatar_input_ref.get() {
             input.click();
@@ -1127,28 +1260,53 @@ fn LeadCrmPane(
             #[cfg(not(feature = "ssr"))]
             {
                 use leptos::wasm_bindgen::JsCast;
-                let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                let target = ev
+                    .target()
+                    .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
                 if let Some(input) = target {
                     if let Some(files) = input.files() {
                         if let Some(file) = files.get(0) {
                             let name_val = name.get_untracked();
-                            let fn_val = Some(first_name.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let ln_val = Some(last_name.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let em_val = Some(email.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let ph_val = Some(phone.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let co_val = Some(company.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let ti_val = Some(title.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let so_val = Some(source.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let me_val = Some(message.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let fn_val =
+                                Some(first_name.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let ln_val =
+                                Some(last_name.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let em_val =
+                                Some(email.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let ph_val =
+                                Some(phone.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let co_val =
+                                Some(company.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let ti_val =
+                                Some(title.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let so_val =
+                                Some(source.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let me_val =
+                                Some(message.get_untracked()).filter(|s: &String| !s.is_empty());
                             let set_refresh = set_refresh.clone();
                             let refresh = refresh.clone();
                             let set_avatar_url_signal = set_avatar_url_signal.clone();
-                            
+
                             leptos::task::spawn_local(async move {
-                                if let Ok((_, key)) = shared_ui::components::file_attachments::upload_file_to_s3(file).await {
+                                if let Ok((_, key)) =
+                                    shared_ui::components::file_attachments::upload_file_to_s3(file)
+                                        .await
+                                {
                                     if let Ok(_) = update_lead_details(
-                                        lead_id, name_val, fn_val, ln_val, em_val, ph_val, co_val, ti_val, so_val, me_val, Some(key.clone())
-                                    ).await {
+                                        lead_id,
+                                        name_val,
+                                        fn_val,
+                                        ln_val,
+                                        em_val,
+                                        ph_val,
+                                        co_val,
+                                        ti_val,
+                                        so_val,
+                                        me_val,
+                                        Some(key.clone()),
+                                    )
+                                    .await
+                                    {
                                         set_avatar_url_signal.set(Some(key));
                                         set_refresh.set(refresh.get_untracked() + 1);
                                     }
@@ -1160,7 +1318,7 @@ fn LeadCrmPane(
             }
         }
     };
-    
+
     let (edit_mode, set_edit_mode) = signal(false);
     let (save_error, set_save_error) = signal::<Option<String>>(None);
 
@@ -1177,8 +1335,9 @@ fn LeadCrmPane(
                     ActivityStatus::Completed,
                     None,
                     Some(chrono::Utc::now().to_rfc3339()),
-                    Vec::new()
-                ).await;
+                    Vec::new(),
+                )
+                .await;
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -1207,8 +1366,11 @@ fn LeadCrmPane(
 
         leptos::task::spawn_local(async move {
             match update_lead_details(
-                lead_id, n, fn_opt, ln_opt, em_val, ph_val, co_val, ti_val, so_val, me_val, avatar_val
-            ).await {
+                lead_id, n, fn_opt, ln_opt, em_val, ph_val, co_val, ti_val, so_val, me_val,
+                avatar_val,
+            )
+            .await
+            {
                 Ok(_) => {
                     set_edit_mode.set(false);
                     set_refresh.set(refresh.get_untracked() + 1);
@@ -1220,35 +1382,59 @@ fn LeadCrmPane(
         });
     };
 
-    let add_note_cb = Callback::new(move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_lead_note(lead_id, content, is_private, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let add_note_cb = Callback::new(
+        move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_lead_note(lead_id, content, is_private, files).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let log_activity_cb = Callback::new(move |(act_type, title, desc, status, due_date, completed_at, files): (ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_lead_activity(lead_id, act_type, title, desc, status, due_date, completed_at, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let log_activity_cb = Callback::new(
+        move |(act_type, title, desc, status, due_date, completed_at, files): (
+            ActivityType,
+            String,
+            Option<String>,
+            ActivityStatus,
+            Option<String>,
+            Option<String>,
+            Vec<FileModel>,
+        )| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_lead_activity(
+                    lead_id,
+                    act_type,
+                    title,
+                    desc,
+                    status,
+                    due_date,
+                    completed_at,
+                    files,
+                )
+                .await
+                {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let update_activity_status_cb = Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = update_lead_activity_status(act_id, status).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
+    let update_activity_status_cb =
+        Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = update_lead_activity_status(act_id, status).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
         });
-    });
 
     let delete_note_cb = Callback::new(move |note_id: uuid::Uuid| {
         let set_refresh = set_refresh.clone();
@@ -1274,8 +1460,8 @@ fn LeadCrmPane(
         <div class="w-full bg-background flex flex-col animate-slide-in font-sans text-on-surface">
             // Breadcrumb navigation header
             <div class="flex items-center gap-2 mb-6 text-xs font-mono text-outline-variant">
-                <button 
-                    on:click=move |_| on_close.run(()) 
+                <button
+                    on:click=move |_| on_close.run(())
                     class="hover:text-primary transition-colors flex items-center gap-1 font-bold uppercase tracking-wider"
                 >
                     <span class="material-symbols-outlined text-[14px]">"arrow_back"</span>
@@ -1285,24 +1471,24 @@ fn LeadCrmPane(
 
             // Salesforce-style layout container
             <div class="flex flex-col lg:flex-row gap-6 w-full items-start">
-                
+
                 // LEFT COLUMN (65% width) - Core info and status
                 <div class="w-full lg:w-[65%] space-y-6 flex flex-col">
-                    
+
                     // Main Highlight Panel / Avatar & Quick Details
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex items-center gap-4">
-                            <input 
-                                type="file" 
+                            <input
+                                type="file"
                                 node_ref=avatar_input_ref
                                 on:change=handle_avatar_change
                                 class="hidden"
                             />
-                            <div 
+                            <div
                                 on:click=trigger_avatar_upload
                                 class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 relative group cursor-pointer overflow-hidden"
                             >
-                                <Show 
+                                <Show
                                     when=move || avatar_url_signal.get().is_some()
                                     fallback=move || {
                                         let name_val = name.get();
@@ -1316,7 +1502,7 @@ fn LeadCrmPane(
                                         }
                                     }
                                 >
-                                    <img 
+                                    <img
                                         src=move || avatar_url_signal.get().unwrap_or_default()
                                         class="w-full h-full object-cover animate-fade-in"
                                     />
@@ -1420,7 +1606,7 @@ fn LeadCrmPane(
                                         <div class="flex items-center gap-2">
                                             <span class="text-on-surface font-semibold break-all">{move || if email.get().is_empty() { "-".to_string() } else { email.get() }}</span>
                                             <Show when=move || !email.get().is_empty()>
-                                                <button 
+                                                <button
                                                     on:click=move |_| set_composer_open.set(true)
                                                     class="text-primary hover:text-primary-container p-0.5 rounded transition-colors flex items-center justify-center"
                                                     title="Compose Email"
@@ -1461,8 +1647,8 @@ fn LeadCrmPane(
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"First Name *"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=first_name
                                             on:input=move |ev| set_first_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1470,8 +1656,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Last Name"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=last_name
                                             on:input=move |ev| set_last_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1479,8 +1665,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Email"</label>
-                                        <input 
-                                            type="email" 
+                                        <input
+                                            type="email"
                                             prop:value=email
                                             on:input=move |ev| set_email.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1488,8 +1674,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Phone"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=phone
                                             on:input=move |ev| set_phone.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1497,8 +1683,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Company"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=company
                                             on:input=move |ev| set_company.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1506,8 +1692,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Title"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=title
                                             on:input=move |ev| set_title.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1515,8 +1701,8 @@ fn LeadCrmPane(
                                     </div>
                                     <div class="col-span-2">
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Source"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=source
                                             on:input=move |ev| set_source.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1525,7 +1711,7 @@ fn LeadCrmPane(
                                 </div>
                                 <div>
                                     <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Message / Quote Details"</label>
-                                    <textarea 
+                                    <textarea
                                         prop:value=message
                                         on:input=move |ev| set_message.set(event_target_value(&ev))
                                         rows="3"

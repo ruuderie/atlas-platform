@@ -1,34 +1,34 @@
-use leptos::prelude::*;
-use crate::api::crm::{get_deals, update_deal, create_deal};
-use crate::api::models::{DealModel, CreateDeal};
+use crate::api::crm::{create_deal, get_deals, update_deal};
+use crate::api::models::{CreateDeal, DealModel};
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
-    kpi_strip::{KpiStrip, KpiItem},
+    kpi_strip::{KpiItem, KpiStrip},
+    pagination::Pagination,
     record_drawer::RecordDrawer,
     record_row::{RecordRow, initials},
-    pagination::Pagination,
 };
+use leptos::prelude::*;
 
 const PER_PAGE: u64 = 25;
 
 fn deal_stage_tag(stage: &str) -> &'static str {
     match stage {
         "Qualification" => "tag tag-qualify",
-        "Proposal"      => "tag tag-proposal",
-        "Negotiation"   => "tag tag-negotiation",
-        "Closed Won"    => "tag tag-won",
-        "Closed Lost"   => "tag tag-lost",
-        _               => "tag",
+        "Proposal" => "tag tag-proposal",
+        "Negotiation" => "tag tag-negotiation",
+        "Closed Won" => "tag tag-won",
+        "Closed Lost" => "tag tag-lost",
+        _ => "tag",
     }
 }
 
 #[component]
 pub fn OpportunitiesPage() -> impl IntoView {
-    let stage_filter  = RwSignal::new("all".to_string());
+    let stage_filter = RwSignal::new("all".to_string());
     let search_filter = RwSignal::new(String::new());
-    let page          = RwSignal::new(1_u64);
+    let page = RwSignal::new(1_u64);
 
-    let selected    = RwSignal::new(None::<DealModel>);
+    let selected = RwSignal::new(None::<DealModel>);
     let drawer_open = RwSignal::new(false);
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
@@ -37,9 +37,9 @@ pub fn OpportunitiesPage() -> impl IntoView {
 
     // New Deal modal state
     let show_create = RwSignal::new(false);
-    let new_name    = RwSignal::new(String::new());
-    let new_amount  = RwSignal::new(String::new());
-    let new_stage   = RwSignal::new("Qualification".to_string());
+    let new_name = RwSignal::new(String::new());
+    let new_amount = RwSignal::new(String::new());
+    let new_stage = RwSignal::new("Qualification".to_string());
     let is_creating = RwSignal::new(false);
 
     // Deals API — declared before handle_create_deal so the closure can call refetch()
@@ -50,15 +50,17 @@ pub fn OpportunitiesPage() -> impl IntoView {
     });
 
     let handle_create_deal = move |_| {
-        let name   = new_name.get().trim().to_string();
+        let name = new_name.get().trim().to_string();
         let amount_str = new_amount.get().trim().to_string();
-        let stage  = new_stage.get();
+        let stage = new_stage.get();
         if name.is_empty() {
             toast.show_toast("Validation", "Deal name is required.", "error");
             return;
         }
         let amount: f32 = amount_str.parse().unwrap_or(0.0);
-        if is_creating.get() { return; }
+        if is_creating.get() {
+            return;
+        }
         is_creating.set(true);
         let t = toast.clone();
         leptos::task::spawn_local(async move {
@@ -85,40 +87,47 @@ pub fn OpportunitiesPage() -> impl IntoView {
     };
 
     let kpi_items = Signal::derive(move || {
-        let deals   = deals_res.get().unwrap_or_default();
-        let open: Vec<_> = deals.iter()
+        let deals = deals_res.get().unwrap_or_default();
+        let open: Vec<_> = deals
+            .iter()
             .filter(|d| d.stage != "Closed Won" && d.stage != "Closed Lost")
             .collect();
         let pipeline: f32 = open.iter().map(|d| d.amount).sum();
-        let won: f32 = deals.iter()
+        let won: f32 = deals
+            .iter()
             .filter(|d| d.stage == "Closed Won")
-            .map(|d| d.amount).sum();
-        let avg = if deals.is_empty() { 0f32 } else {
+            .map(|d| d.amount)
+            .sum();
+        let avg = if deals.is_empty() {
+            0f32
+        } else {
             deals.iter().map(|d| d.amount).sum::<f32>() / deals.len() as f32
         };
         vec![
-            KpiItem::new("Open",       &open.len().to_string()).color("var(--cobalt)"),
-            KpiItem::new("Pipeline",   &format!("${:.1}k", pipeline / 1000.0)).color("var(--cobalt)"),
+            KpiItem::new("Open", &open.len().to_string()).color("var(--cobalt)"),
+            KpiItem::new("Pipeline", &format!("${:.1}k", pipeline / 1000.0)).color("var(--cobalt)"),
             KpiItem::new("Closed Won", &format!("${:.1}k", won / 1000.0)).color("var(--green)"),
-            KpiItem::new("Avg Deal",   &format!("${:.0}", avg)),
+            KpiItem::new("Avg Deal", &format!("${:.0}", avg)),
         ]
     });
 
     let stage_pills = StoredValue::new(vec![
-        PillOption::new("all",           "All"),
+        PillOption::new("all", "All"),
         PillOption::new("Qualification", "Qualify"),
-        PillOption::new("Proposal",      "Proposal"),
-        PillOption::new("Negotiation",   "Negotiate"),
-        PillOption::new("Closed Won",    "Won"),
-        PillOption::new("Closed Lost",   "Lost"),
+        PillOption::new("Proposal", "Proposal"),
+        PillOption::new("Negotiation", "Negotiate"),
+        PillOption::new("Closed Won", "Won"),
+        PillOption::new("Closed Lost", "Lost"),
     ]);
 
     let filtered = Signal::derive(move || {
         let search = search_filter.get().to_lowercase();
-        let stage  = stage_filter.get();
-        let pg     = page.get() as usize;
+        let stage = stage_filter.get();
+        let pg = page.get() as usize;
         let offset = (pg - 1) * PER_PAGE as usize;
-        deals_res.get().unwrap_or_default()
+        deals_res
+            .get()
+            .unwrap_or_default()
             .into_iter()
             .filter(|d| {
                 let ms = search.is_empty() || d.name.to_lowercase().contains(&search);

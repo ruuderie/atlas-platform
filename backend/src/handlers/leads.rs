@@ -1,15 +1,14 @@
 use axum::{
-    extract::{Extension, Path, Json, Query},
+    Router,
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-
 
 // ============================================================
 // LEGACY CRM HANDLER - CUTOVER IN PROGRESS
-// This file is a migration bridge. 
+// This file is a migration bridge.
 // New code should use:
 //   - AccountService + ContactService for parties
 //   - OpportunityService for leads/deals
@@ -17,30 +16,33 @@ use axum::{
 //   - Ledger for any billing
 // Old direct entity writes (lead::, contact:: etc.) are being phased out.
 // ============================================================
+use crate::entities::{
+    account, activity, atlas_lead, contact, lead, listing, note, user, user_account,
+};
+use crate::models::lead::{CreateLeadInput, LeadModel, UpdateLeadInput};
+use chrono::Utc;
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait, TransactionTrait
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
+    TransactionTrait,
 };
 use uuid::Uuid;
-use chrono::Utc;
-use crate::entities::{lead, listing, account, note, user, activity, contact, user_account, atlas_lead};
-use crate::models::lead::{LeadModel, CreateLeadInput, UpdateLeadInput};
 
 // New unified services (cutover in progress)
+use crate::models::activity::{ActivityModel, CreateActivityInput};
+use crate::models::file::FileAssociation;
+use crate::models::note::{CreateNoteInput, NoteModel};
 use crate::services::account_service::AccountService;
 use crate::services::contact_service::ContactService;
-use crate::services::opportunity_service::OpportunityService;
 use crate::services::ledger;
-use crate::models::file::FileAssociation;
-use crate::models::note::{NoteModel, CreateNoteInput};
-use crate::models::activity::{ActivityModel, CreateActivityInput};
+use crate::services::opportunity_service::OpportunityService;
 use axum::http::HeaderMap;
-use std::time::{Instant, Duration};
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
-static RATE_LIMITER: Lazy<Arc<DashMap<String, (u32, Instant)>>> = Lazy::new(|| Arc::new(DashMap::new()));
+static RATE_LIMITER: Lazy<Arc<DashMap<String, (u32, Instant)>>> =
+    Lazy::new(|| Arc::new(DashMap::new()));
 
 /// Optional query params accepted by all CRM list endpoints.
 #[derive(serde::Deserialize, Default)]
@@ -61,15 +63,14 @@ pub struct CrmListParams {
 
 impl CrmListParams {
     pub fn offset(&self) -> u64 {
-        let page    = self.page.unwrap_or(1).max(1);
-        let per_pg  = self.per_page.unwrap_or(50).min(200).max(1);
+        let page = self.page.unwrap_or(1).max(1);
+        let per_pg = self.per_page.unwrap_or(50).min(200).max(1);
         (page - 1) * per_pg
     }
     pub fn limit(&self) -> u64 {
         self.per_page.unwrap_or(50).min(200).max(1)
     }
 }
-
 
 pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
@@ -84,7 +85,10 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/leads/{id}", put(update_lead))
         .route("/api/leads/{id}", delete(delete_lead))
         .route("/api/crm/leads/{id}/convert", post(convert_lead))
-        .route("/api/leads/{lead_id}/files/{file_id}", post(add_file_to_lead))
+        .route(
+            "/api/leads/{lead_id}/files/{file_id}",
+            post(add_file_to_lead),
+        )
         .route("/api/leads/{id}/files", get(get_lead_files))
         .route("/api/leads/{id}/notes", get(get_lead_notes))
         .route("/api/leads/{id}/activities", get(get_lead_activities))
@@ -105,7 +109,11 @@ pub async fn create_lead(
     }
 
     // 2. IP Rate Limiting
-    if let Some(ip) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()).or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok())) {
+    if let Some(ip) = headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok()))
+    {
         let ip = ip.split(',').next().unwrap_or("").trim().to_string();
         if !ip.is_empty() {
             let mut entry = RATE_LIMITER.entry(ip).or_insert((0, Instant::now()));
@@ -114,7 +122,8 @@ pub async fn create_lead(
                 entry.value_mut().1 = Instant::now();
             } else {
                 entry.value_mut().0 += 1;
-                if entry.value().0 > 3 { // Max 3 leads per minute per IP
+                if entry.value().0 > 3 {
+                    // Max 3 leads per minute per IP
                     tracing::warn!("Rate limit exceeded for lead submissions from IP");
                     return Err(StatusCode::TOO_MANY_REQUESTS);
                 }
@@ -136,19 +145,22 @@ pub async fn create_lead(
     if let Some(listing_id) = input.listing_id {
         // If a listing is provided, find the account associated with the listing's profile
         if let Ok(Some(lst)) = listing::Entity::find_by_id(listing_id).one(&db).await {
-            if let Ok(Some(profile)) = crate::entities::profile::Entity::find_by_id(lst.profile_id).one(&db).await {
+            if let Ok(Some(profile)) = crate::entities::profile::Entity::find_by_id(lst.profile_id)
+                .one(&db)
+                .await
+            {
                 resolved_account_id = Some(profile.account_id);
             }
         }
     }
-    
+
     // If no listing provided or listing not found, fallback to the primary account of the active network
     if resolved_account_id.is_none() {
         if let Some(Extension(site_config)) = &site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
                 .filter(account::Column::TenantId.eq(site_config.tenant_id))
                 .one(&db)
-                .await 
+                .await
             {
                 resolved_account_id = Some(primary_account.id);
             } else {
@@ -263,7 +275,11 @@ pub async fn ingest_lead(
     }
 
     // 2. IP Rate Limiting (same pattern as create_lead)
-    if let Some(ip) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()).or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok())) {
+    if let Some(ip) = headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok()))
+    {
         let ip = ip.split(',').next().unwrap_or("").trim().to_string();
         if !ip.is_empty() {
             let mut entry = RATE_LIMITER.entry(ip).or_insert((0, Instant::now()));
@@ -283,7 +299,7 @@ pub async fn ingest_lead(
     // 3. Deduplication & Exclusivity (30 days)
     let mut cond = sea_orm::Condition::any();
     let mut has_contact_info = false;
-    
+
     if let Some(ref email) = input.email {
         if !email.is_empty() {
             cond = cond.add(lead::Column::Email.eq(email.clone()));
@@ -316,7 +332,10 @@ pub async fn ingest_lead(
     let mut resolved_account_id = None;
     if let Some(listing_id) = input.listing_id {
         if let Ok(Some(lst)) = listing::Entity::find_by_id(listing_id).one(&db).await {
-            if let Ok(Some(profile)) = crate::entities::profile::Entity::find_by_id(lst.profile_id).one(&db).await {
+            if let Ok(Some(profile)) = crate::entities::profile::Entity::find_by_id(lst.profile_id)
+                .one(&db)
+                .await
+            {
                 resolved_account_id = Some(profile.account_id);
             }
         }
@@ -324,9 +343,17 @@ pub async fn ingest_lead(
 
     if resolved_account_id.is_none() {
         // Try dynamic matchmaking based on zip code
-        let target_zip = input.shipping_address.as_ref().and_then(|a| a.0.postal_code.clone())
-            .or_else(|| input.billing_address.as_ref().and_then(|a| a.0.postal_code.clone()));
-            
+        let target_zip = input
+            .shipping_address
+            .as_ref()
+            .and_then(|a| a.0.postal_code.clone())
+            .or_else(|| {
+                input
+                    .billing_address
+                    .as_ref()
+                    .and_then(|a| a.0.postal_code.clone())
+            });
+
         if let Some(zip) = target_zip {
             // Find a profile that covers this zip code
             let profiles = crate::entities::profile::Entity::find()
@@ -334,7 +361,7 @@ pub async fn ingest_lead(
                 .all(&db)
                 .await
                 .unwrap_or_default();
-            
+
             // In-memory filter for now (ideally this is a Postgres ArrayContains query)
             let matched_profile = profiles.into_iter().find(|p| {
                 if let Some(ref zips) = p.service_area_zips {
@@ -343,19 +370,19 @@ pub async fn ingest_lead(
                     false
                 }
             });
-            
+
             if let Some(p) = matched_profile {
                 resolved_account_id = Some(p.account_id);
             }
         }
     }
-    
+
     if resolved_account_id.is_none() {
         if let Some(Extension(site_config)) = &site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
                 .filter(account::Column::TenantId.eq(site_config.tenant_id))
                 .one(&db)
-                .await 
+                .await
             {
                 resolved_account_id = Some(primary_account.id);
             } else {
@@ -386,10 +413,16 @@ pub async fn ingest_lead(
         instagram: Set(input.instagram.clone()),
         facebook: Set(input.facebook.clone()),
         message: Set(input.message.clone()),
-        source: Set(input.source.clone().or_else(|| Some("API Ingestion".to_string()))),
+        source: Set(input
+            .source
+            .clone()
+            .or_else(|| Some("API Ingestion".to_string()))),
         company: Set(input.company.clone()),
         title: Set(input.title.clone()),
-        lead_status: Set(input.lead_status.clone().or_else(|| Some("New".to_string()))),
+        lead_status: Set(input
+            .lead_status
+            .clone()
+            .or_else(|| Some("New".to_string()))),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         tenant_id: Set(resolved_tenant_id),
@@ -411,20 +444,39 @@ pub async fn ingest_lead(
 
     // === HANDLER CUTOVER: Dual-write to new unified model ===
     if let Some(tid) = resolved_tenant_id {
-        if let Ok(account_id) = AccountService::find_or_create_tenant_account(&db, tid, "tenant").await {
+        if let Ok(account_id) =
+            AccountService::find_or_create_tenant_account(&db, tid, "tenant").await
+        {
             // Land the lead as a proper Opportunity in the new model
             let _ = OpportunityService::create_opportunity(
-                &db, tid, "lead", &legacy_lead.name, Some(account_id), None, Some(25), Some("new")
-            ).await;
+                &db,
+                tid,
+                "lead",
+                &legacy_lead.name,
+                Some(account_id),
+                None,
+                Some(25),
+                Some("new"),
+            )
+            .await;
 
             // Record via unified ledger (preferred path going forward)
-            let _ = ledger::record_lead_purchase(&db, tid, account_id, legacy_lead.id, 5000, Some("stripe")).await;
+            let _ = ledger::record_lead_purchase(
+                &db,
+                tid,
+                account_id,
+                legacy_lead.id,
+                5000,
+                Some("stripe"),
+            )
+            .await;
         }
     }
 
-
-    
-    Ok((StatusCode::CREATED, JsonResponse(LeadModel::from(legacy_lead))))
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(LeadModel::from(legacy_lead)),
+    ))
 }
 
 pub async fn get_leads(
@@ -436,9 +488,10 @@ pub async fn get_leads(
     // Regular admins remain scoped to their profile's tenant.
     let is_super_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(current_user.id))
-        .filter(crate::entities::user_account::Column::Role.eq(
-            crate::entities::user_account::UserRole::PlatformSuperAdmin,
-        ))
+        .filter(
+            crate::entities::user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .one(&db)
         .await
         .unwrap_or(None)
@@ -493,20 +546,27 @@ pub async fn get_leads(
             l.name.to_lowercase().contains(&t)
                 || l.email.as_deref().unwrap_or("").to_lowercase().contains(&t)
                 || l.phone.as_deref().unwrap_or("").contains(&t)
-                || l.company.as_deref().unwrap_or("").to_lowercase().contains(&t)
+                || l.company
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .contains(&t)
         });
     }
 
     // Source prefix filter — e.g. "waitlist:my-slug" for product waitlist leads
     if let Some(ref prefix) = params.source_prefix {
         leads.retain(|l| {
-            l.source.as_deref().unwrap_or("").starts_with(prefix.as_str())
+            l.source
+                .as_deref()
+                .unwrap_or("")
+                .starts_with(prefix.as_str())
         });
     }
 
     // Pagination (in-memory slice)
     let offset = params.offset() as usize;
-    let limit  = params.limit()  as usize;
+    let limit = params.limit() as usize;
     let page_slice: Vec<LeadModel> = leads.into_iter().skip(offset).take(limit).collect();
 
     Ok(JsonResponse(page_slice))
@@ -523,7 +583,7 @@ pub async fn get_lead(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(&db)
@@ -557,7 +617,7 @@ pub async fn update_lead(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(&db)
@@ -677,8 +737,11 @@ pub async fn update_lead(
         lead.avatar_url = Set(Some(avatar_url));
     }
 
-    let updated_lead = lead.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+    let updated_lead = lead
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     Ok(JsonResponse(LeadModel::from(updated_lead)))
 }
 
@@ -693,7 +756,7 @@ pub async fn delete_lead(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(&db)
@@ -712,7 +775,9 @@ pub async fn delete_lead(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    lead.delete(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    lead.delete(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -730,12 +795,10 @@ pub async fn add_file_to_lead(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    lead.add_file(&db, file_id)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to add file to lead: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    lead.add_file(&db, file_id).await.map_err(|e| {
+        tracing::error!("Failed to add file to lead: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -753,12 +816,10 @@ pub async fn get_lead_files(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let file_ids = lead.get_associated_files(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to get associated files: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let file_ids = lead.get_associated_files(&db).await.map_err(|e| {
+        tracing::error!("Failed to get associated files: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(file_ids))
 }
@@ -800,7 +861,8 @@ pub async fn get_lead_activities(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let activity_models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
+    let activity_models: Vec<ActivityModel> =
+        activities.into_iter().map(ActivityModel::from).collect();
     Ok(JsonResponse(activity_models))
 }
 
@@ -833,9 +895,15 @@ pub async fn create_lead_note(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted_note = new_note.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(NoteModel::from(inserted_note))))
+    let inserted_note = new_note
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(NoteModel::from(inserted_note)),
+    ))
 }
 
 #[allow(dead_code)]
@@ -867,9 +935,15 @@ pub async fn create_lead_activity(
         ..Default::default()
     };
 
-    let inserted_activity = new_activity.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(inserted_activity))))
+    let inserted_activity = new_activity
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(ActivityModel::from(inserted_activity)),
+    ))
 }
 
 pub async fn convert_lead(
@@ -883,7 +957,7 @@ pub async fn convert_lead(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(&db)
@@ -906,7 +980,10 @@ pub async fn convert_lead(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let txn = db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let txn = db
+        .begin()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut duplicate_contact = None;
     if let Some(ref email) = lead_model.email {
@@ -965,7 +1042,9 @@ pub async fn convert_lead(
         })?;
 
         // New unified path (note: using &db during txn for service compatibility in cutover phase)
-        if let Ok(acc_id) = AccountService::find_or_create_tenant_account(&db, user_tenant_id, "tenant").await {
+        if let Ok(acc_id) =
+            AccountService::find_or_create_tenant_account(&db, user_tenant_id, "tenant").await
+        {
             let _ = ContactService::create_contact(
                 &db,
                 user_tenant_id,
@@ -974,7 +1053,8 @@ pub async fn convert_lead(
                 lead_model.last_name.as_deref(),
                 lead_model.email.as_deref(),
                 false,
-            ).await;
+            )
+            .await;
         }
 
         new_contact_id
@@ -992,9 +1072,9 @@ pub async fn convert_lead(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    txn.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    txn.commit()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(JsonResponse(LeadModel::from(updated)))
 }
-
-

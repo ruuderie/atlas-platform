@@ -1,10 +1,10 @@
+use crate::api::crm::{
+    add_contact_note, convert_lead, get_contact_activities, get_contact_notes,
+    log_contact_activity, update_lead,
+};
+use crate::api::models::{CrmActivity, CrmNote, LeadModel};
 /// Lead Detail Page — full stitch-aligned implementation for atlas_leads
 use leptos::prelude::*;
-use crate::api::crm::{
-    get_contact_notes, add_contact_note, get_contact_activities,
-    convert_lead, update_lead, log_contact_activity,
-};
-use crate::api::models::{CrmNote, CrmActivity, LeadModel};
 
 fn fmt_opt(v: &Option<String>) -> String {
     v.as_deref().unwrap_or("—").to_string()
@@ -27,10 +27,10 @@ pub fn LeadDetail(
     let l = lead.clone();
     let id = l.id.clone();
 
-    let toast        = use_context::<crate::app::GlobalToast>().expect("toast");
-    let active_tab   = RwSignal::new("overview");
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast");
+    let active_tab = RwSignal::new("overview");
     let note_content = RwSignal::new(String::new());
-    let call_notes   = RwSignal::new(String::new());
+    let call_notes = RwSignal::new(String::new());
     let (trigger, set_trigger) = signal(0_u32);
 
     // ── Async resources ──────────────────────────────────────────────────────
@@ -57,7 +57,9 @@ pub fn LeadDetail(
         let toast2 = toast.clone();
         move |_| {
             let content = note_content.get();
-            if content.trim().is_empty() { return; }
+            if content.trim().is_empty() {
+                return;
+            }
             let id3 = id2.clone();
             let toast3 = toast2.clone();
             leptos::task::spawn_local(async move {
@@ -102,7 +104,11 @@ pub fn LeadDetail(
             leptos::task::spawn_local(async move {
                 match convert_lead(&id3).await {
                     Ok(_) => {
-                        toast3.show_toast("Converted", "Lead converted to Contact + Account.", "success");
+                        toast3.show_toast(
+                            "Converted",
+                            "Lead converted to Contact + Account.",
+                            "success",
+                        );
                         on_convert_done.run(());
                     }
                     Err(e) => toast3.show_toast("Error", &e, "error"),
@@ -120,7 +126,11 @@ pub fn LeadDetail(
             leptos::task::spawn_local(async move {
                 match update_lead(&id3, &new_status).await {
                     Ok(_) => {
-                        toast3.show_toast("Status", &format!("Lead moved to {}", new_status), "success");
+                        toast3.show_toast(
+                            "Status",
+                            &format!("Lead moved to {}", new_status),
+                            "success",
+                        );
                         set_trigger.update(|v| *v += 1);
                     }
                     Err(e) => toast3.show_toast("Error", &e, "error"),
@@ -130,69 +140,96 @@ pub fn LeadDetail(
     });
 
     // ── Pre-extracted display values ─────────────────────────────────────────
-    let name         = l.name.clone();
-    let initials     = ini2(&name);
-    let email_val    = fmt_opt(&l.email);
-    let phone_val    = fmt_opt(&l.phone);
-    let company_val  = fmt_opt(&l.company);
-    let title_val    = fmt_opt(&l.title);
-    let source_val   = fmt_opt(&l.source);
-    let status_val   = l.lead_status.clone().unwrap_or_else(|| "new".into());
+    let name = l.name.clone();
+    let initials = ini2(&name);
+    let email_val = fmt_opt(&l.email);
+    let phone_val = fmt_opt(&l.phone);
+    let company_val = fmt_opt(&l.company);
+    let title_val = fmt_opt(&l.title);
+    let source_val = fmt_opt(&l.source);
+    let status_val = l.lead_status.clone().unwrap_or_else(|| "new".into());
     let is_converted = l.is_converted;
 
     let subtitle = {
         let mut p = Vec::new();
-        if title_val != "—"   { p.push(title_val.clone()); }
-        if company_val != "—" { p.push(company_val.clone()); }
+        if title_val != "—" {
+            p.push(title_val.clone());
+        }
+        if company_val != "—" {
+            p.push(company_val.clone());
+        }
         p.join(" · ")
     };
 
     // Stage stepper data
     let stages: &[&str] = &["New", "Contacted", "Qualified", "Proposal"];
-    let current_idx = stages.iter()
+    let current_idx = stages
+        .iter()
         .position(|&s| s.to_lowercase() == status_val.to_lowercase())
         .unwrap_or(0);
-    let is_disqualified  = status_val.to_lowercase() == "disqualified";
-    let is_conv          = is_converted || status_val.to_lowercase() == "converted";
-    let terminal_class   = if is_disqualified { "sf-step terminal-lost" }
-                           else if is_conv    { "sf-step terminal-won"  }
-                           else               { "sf-step future"        };
-    let terminal_label   = if is_disqualified { "Disqualified" } else { "Converted" };
+    let is_disqualified = status_val.to_lowercase() == "disqualified";
+    let is_conv = is_converted || status_val.to_lowercase() == "converted";
+    let terminal_class = if is_disqualified {
+        "sf-step terminal-lost"
+    } else if is_conv {
+        "sf-step terminal-won"
+    } else {
+        "sf-step future"
+    };
+    let terminal_label = if is_disqualified {
+        "Disqualified"
+    } else {
+        "Converted"
+    };
 
     let sc = move |i: usize| -> &'static str {
-        if is_conv { return "sf-step done"; }
-        if i < current_idx { "sf-step done" }
-        else if i == current_idx { "sf-step current" }
-        else { "sf-step future" }
+        if is_conv {
+            return "sf-step done";
+        }
+        if i < current_idx {
+            "sf-step done"
+        } else if i == current_idx {
+            "sf-step current"
+        } else {
+            "sf-step future"
+        }
     };
 
     // Detail rows
     let detail_rows = StoredValue::new(vec![
-        ("Lead ID",    l.id.clone(),                    true),
-        ("Name",       l.name.clone(),                  false),
-        ("First Name", fmt_opt(&l.first_name),          false),
-        ("Last Name",  fmt_opt(&l.last_name),           false),
-        ("Email",      fmt_opt(&l.email),               false),
-        ("Phone",      fmt_opt(&l.phone),               false),
-        ("WhatsApp",   fmt_opt(&l.whatsapp),            false),
-        ("Telegram",   fmt_opt(&l.telegram),            false),
-        ("Company",    fmt_opt(&l.company),             false),
-        ("Title",      fmt_opt(&l.title),               false),
-        ("Source",     fmt_opt(&l.source),              false),
-        ("Status",     fmt_opt(&l.lead_status),        false),
-        ("Converted",  if l.is_converted { "Yes".into() } else { "No".into() }, false),
-        ("Created At", fmt_opt(&l.created_at),          true),
-        ("Updated At", fmt_opt(&l.updated_at),          true),
+        ("Lead ID", l.id.clone(), true),
+        ("Name", l.name.clone(), false),
+        ("First Name", fmt_opt(&l.first_name), false),
+        ("Last Name", fmt_opt(&l.last_name), false),
+        ("Email", fmt_opt(&l.email), false),
+        ("Phone", fmt_opt(&l.phone), false),
+        ("WhatsApp", fmt_opt(&l.whatsapp), false),
+        ("Telegram", fmt_opt(&l.telegram), false),
+        ("Company", fmt_opt(&l.company), false),
+        ("Title", fmt_opt(&l.title), false),
+        ("Source", fmt_opt(&l.source), false),
+        ("Status", fmt_opt(&l.lead_status), false),
+        (
+            "Converted",
+            if l.is_converted {
+                "Yes".into()
+            } else {
+                "No".into()
+            },
+            false,
+        ),
+        ("Created At", fmt_opt(&l.created_at), true),
+        ("Updated At", fmt_opt(&l.updated_at), true),
     ]);
 
     // Right-rail info rows
     let info_rows = StoredValue::new(vec![
-        ("Status",  status_val.clone()),
-        ("Source",  source_val.clone()),
+        ("Status", status_val.clone()),
+        ("Source", source_val.clone()),
         ("Company", company_val.clone()),
-        ("Title",   title_val.clone()),
-        ("Email",   email_val.clone()),
-        ("Phone",   phone_val.clone()),
+        ("Title", title_val.clone()),
+        ("Email", email_val.clone()),
+        ("Phone", phone_val.clone()),
     ]);
 
     view! {

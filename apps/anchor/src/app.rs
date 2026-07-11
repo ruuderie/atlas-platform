@@ -210,10 +210,10 @@ pub fn App() -> impl IntoView {
                 <div class="flex flex-col min-h-screen">
                 // ── Z-INDEX & HYDRATION CONTRACT ────────────────────────────────────────
                 // <Nav /> is rendered here unconditionally on every route at z-[60].
-                // 
+                //
                 // In-Flow Layouts:
-                //   Components like AtlasLoginPanel and dashboards flow in the 
-                //   document and MUST use `pt-24` (or similar padding) in their 
+                //   Components like AtlasLoginPanel and dashboards flow in the
+                //   document and MUST use `pt-24` (or similar padding) in their
                 //   layout shell (e.g., `<main pt-24>`) to clear the `<Nav />`.
                 //
                 // Full-Screen Overlays:

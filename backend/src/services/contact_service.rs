@@ -1,8 +1,10 @@
 #![allow(dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait};
-use uuid::Uuid;
+use crate::entities::atlas_contact::{
+    self, ActiveModel as ContactActiveModel, Entity as ContactEntity,
+};
 use chrono::Utc;
-use crate::entities::atlas_contact::{self, Entity as ContactEntity, ActiveModel as ContactActiveModel};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use uuid::Uuid;
 
 /// Service layer for the unified Contact concept.
 /// Every contact belongs to an Account.

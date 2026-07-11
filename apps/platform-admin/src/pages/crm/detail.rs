@@ -1,18 +1,17 @@
-use leptos::prelude::*;
-use leptos_router::hooks::{use_params_map, use_location};
-use uuid::Uuid;
-use crate::api::crm::{
-    get_lead_by_id, get_account_by_id, get_deal_by_id, get_contact_by_id,
-    convert_lead, add_contact_note, get_contact_notes, get_contact_activities,
-    log_call_activity,
-};
-use crate::api::models::{LeadModel, AccountModel, DealModel, ContactModel};
 use crate::api::communications::{SendEmailPayload, send_email};
+use crate::api::crm::{
+    add_contact_note, convert_lead, get_account_by_id, get_contact_activities, get_contact_by_id,
+    get_contact_notes, get_deal_by_id, get_lead_by_id, log_call_activity,
+};
 use crate::api::files::{get_admin_presign, put_to_presigned_url};
-use crate::pages::crm::contact_detail::ContactDetail;
+use crate::api::models::{AccountModel, ContactModel, DealModel, LeadModel};
 use crate::pages::crm::account_detail::AccountDetail;
-use crate::pages::crm::lead_detail::LeadDetail;
+use crate::pages::crm::contact_detail::ContactDetail;
 use crate::pages::crm::deal_detail::DealDetail;
+use crate::pages::crm::lead_detail::LeadDetail;
+use leptos::prelude::*;
+use leptos_router::hooks::{use_location, use_params_map};
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub enum EntityDetail {
@@ -33,13 +32,25 @@ pub fn CrmDetail() -> impl IntoView {
     // Derive entity type from URL path: /leads/:id → "lead", /contacts/:id → "contact", etc.
     let entity_type = move || {
         let path = location.pathname.get();
-        if path.starts_with("/leads/")    { "lead".to_string() }
-        else if path.starts_with("/contacts/") { "contact".to_string() }
-        else if path.starts_with("/accounts/") { "account".to_string() }
-        else if path.starts_with("/pipeline/") { "deal".to_string() }
-        else { String::new() }
+        if path.starts_with("/leads/") {
+            "lead".to_string()
+        } else if path.starts_with("/contacts/") {
+            "contact".to_string()
+        } else if path.starts_with("/accounts/") {
+            "account".to_string()
+        } else if path.starts_with("/pipeline/") {
+            "deal".to_string()
+        } else {
+            String::new()
+        }
     };
-    let record_id = move || params.get().get("id").map(|s| s.to_string()).unwrap_or_default();
+    let record_id = move || {
+        params
+            .get()
+            .get("id")
+            .map(|s| s.to_string())
+            .unwrap_or_default()
+    };
 
     let (trigger_refresh, set_trigger_refresh) = signal(0);
     let active_tab = RwSignal::new("overview".to_string());
@@ -47,38 +58,48 @@ pub fn CrmDetail() -> impl IntoView {
 
     // ── Email modal state ─────────────────────────────────────────────────────
     let show_email_modal = RwSignal::new(false);
-    let email_to    = RwSignal::new("".to_string());
-    let email_subj  = RwSignal::new("".to_string());
-    let email_body  = RwSignal::new("".to_string());
-    let is_sending  = RwSignal::new(false);
+    let email_to = RwSignal::new("".to_string());
+    let email_subj = RwSignal::new("".to_string());
+    let email_body = RwSignal::new("".to_string());
+    let is_sending = RwSignal::new(false);
 
     // ── Call modal state ──────────────────────────────────────────────────────
-    let show_call_modal     = RwSignal::new(false);
-    let call_duration       = RwSignal::new("5".to_string());
-    let call_direction      = RwSignal::new("outbound".to_string());
-    let call_outcome        = RwSignal::new("connected".to_string());
-    let call_notes          = RwSignal::new("".to_string());
+    let show_call_modal = RwSignal::new(false);
+    let call_duration = RwSignal::new("5".to_string());
+    let call_direction = RwSignal::new("outbound".to_string());
+    let call_outcome = RwSignal::new("connected".to_string());
+    let call_notes = RwSignal::new("".to_string());
     let call_transcript_key = RwSignal::new(Option::<String>::None);
     let call_transcript_name = RwSignal::new("".to_string());
-    let is_logging_call     = RwSignal::new(false);
+    let is_logging_call = RwSignal::new(false);
     let is_uploading_transcript = RwSignal::new(false);
 
-    let details_res = LocalResource::new(
-        move || {
-            trigger_refresh.get();
-            let entity = entity_type();
-            let id = record_id();
-            async move {
-                match entity.as_str() {
-                    "lead"    => get_lead_by_id(&id).await.map(EntityDetail::Lead).unwrap_or(EntityDetail::Unknown),
-                    "contact" => get_contact_by_id(&id).await.map(EntityDetail::Contact).unwrap_or(EntityDetail::Unknown),
-                    "account" => get_account_by_id(&id).await.map(EntityDetail::Account).unwrap_or(EntityDetail::Unknown),
-                    "deal"    => get_deal_by_id(&id).await.map(EntityDetail::Deal).unwrap_or(EntityDetail::Unknown),
-                    _ => EntityDetail::Unknown,
-                }
+    let details_res = LocalResource::new(move || {
+        trigger_refresh.get();
+        let entity = entity_type();
+        let id = record_id();
+        async move {
+            match entity.as_str() {
+                "lead" => get_lead_by_id(&id)
+                    .await
+                    .map(EntityDetail::Lead)
+                    .unwrap_or(EntityDetail::Unknown),
+                "contact" => get_contact_by_id(&id)
+                    .await
+                    .map(EntityDetail::Contact)
+                    .unwrap_or(EntityDetail::Unknown),
+                "account" => get_account_by_id(&id)
+                    .await
+                    .map(EntityDetail::Account)
+                    .unwrap_or(EntityDetail::Unknown),
+                "deal" => get_deal_by_id(&id)
+                    .await
+                    .map(EntityDetail::Deal)
+                    .unwrap_or(EntityDetail::Unknown),
+                _ => EntityDetail::Unknown,
             }
         }
-    );
+    });
 
     let notes_res = LocalResource::new(move || {
         trigger_refresh.get();
@@ -128,7 +149,9 @@ pub fn CrmDetail() -> impl IntoView {
     let handle_add_note = move |_: leptos::ev::MouseEvent| {
         let id = record_id();
         let content = note_content.get();
-        if content.is_empty() { return; }
+        if content.is_empty() {
+            return;
+        }
         let toast = toast.clone();
         leptos::task::spawn_local(async move {
             match add_contact_note(&id, &content).await {
@@ -147,7 +170,7 @@ pub fn CrmDetail() -> impl IntoView {
     // Pre-populate email To field from the current record's email
     let open_email_modal = move |_: leptos::ev::MouseEvent| {
         let email = match details_res.get() {
-            Some(EntityDetail::Lead(ref l))    => l.email.clone().unwrap_or_default(),
+            Some(EntityDetail::Lead(ref l)) => l.email.clone().unwrap_or_default(),
             Some(EntityDetail::Contact(ref c)) => c.email.clone().unwrap_or_default(),
             _ => String::new(),
         };
@@ -203,7 +226,9 @@ pub fn CrmDetail() -> impl IntoView {
         use wasm_bindgen::JsCast;
         let input: web_sys::HtmlInputElement = ev.target().unwrap().dyn_into().unwrap();
         let files = input.files().unwrap();
-        if files.length() == 0 { return; }
+        if files.length() == 0 {
+            return;
+        }
         let file = files.item(0).unwrap();
         let name = file.name();
         let mime = file.type_();
@@ -232,7 +257,11 @@ pub fn CrmDetail() -> impl IntoView {
             // 4. Store file_key for use when logging call
             call_transcript_key.set(Some(presign.file_key));
             call_transcript_name.set(name);
-            toast2.show_toast("Transcript", "Transcript uploaded. Ready to log call.", "success");
+            toast2.show_toast(
+                "Transcript",
+                "Transcript uploaded. Ready to log call.",
+                "success",
+            );
             is_uploading_transcript.set(false);
         });
     };
@@ -247,9 +276,21 @@ pub fn CrmDetail() -> impl IntoView {
         let transcript_key = call_transcript_key.get();
         let file_paths: Vec<String> = transcript_key.into_iter().collect();
 
-        let lead_id    = if entity == "lead"    { Some(id.clone()) } else { None };
-        let contact_id = if entity == "contact" { Some(id.clone()) } else { None };
-        let account_id = if entity == "account" { Some(id.clone()) } else { None };
+        let lead_id = if entity == "lead" {
+            Some(id.clone())
+        } else {
+            None
+        };
+        let contact_id = if entity == "contact" {
+            Some(id.clone())
+        } else {
+            None
+        };
+        let account_id = if entity == "account" {
+            Some(id.clone())
+        } else {
+            None
+        };
 
         is_logging_call.set(true);
         let toast2 = toast.clone();
@@ -263,7 +304,9 @@ pub fn CrmDetail() -> impl IntoView {
                 &outcome,
                 &notes,
                 file_paths,
-            ).await {
+            )
+            .await
+            {
                 Ok(_) => {
                     toast2.show_toast("CRM", "Call logged successfully.", "success");
                     show_call_modal.set(false);
@@ -279,10 +322,10 @@ pub fn CrmDetail() -> impl IntoView {
     };
 
     let record_name = move || match details_res.get() {
-        Some(EntityDetail::Lead(ref l))    => l.name.clone(),
+        Some(EntityDetail::Lead(ref l)) => l.name.clone(),
         Some(EntityDetail::Contact(ref c)) => c.display_name().to_string(),
         Some(EntityDetail::Account(ref a)) => a.name.clone(),
-        Some(EntityDetail::Deal(ref d))    => d.name.clone(),
+        Some(EntityDetail::Deal(ref d)) => d.name.clone(),
         _ => "Record Details".to_string(),
     };
 

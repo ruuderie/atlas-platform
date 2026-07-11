@@ -1,12 +1,12 @@
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline_generic::{
-    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+    ActivityModel, ActivityStatus, ActivityType, CrmTimelineGeneric, FileModel, NoteModel,
 };
-use shared_ui::components::properties_editor::PropertiesEditor;
-use shared_ui::utils::ResourceState;
 use shared_ui::components::email_composer::{EmailComposer, EmailTemplate};
 use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
+use shared_ui::components::properties_editor::PropertiesEditor;
+use shared_ui::utils::ResourceState;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct ContactRecord {
@@ -30,8 +30,8 @@ pub struct ContactRecord {
 
 #[server(GetNetworkContacts, "/api")]
 pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -62,55 +62,101 @@ pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let formatted = items.into_iter().map(|item| {
-            let id = uuid::Uuid::parse_str(item.get("id").and_then(|v| v.as_str()).unwrap_or_default()).unwrap_or_default();
-            let customer_id = item.get("customer_id").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok());
-            let name = item.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            let first_name = item.get("first_name").and_then(|v| v.as_str()).map(String::from);
-            let last_name = item.get("last_name").and_then(|v| v.as_str()).map(String::from);
-            let email = item.get("email").and_then(|v| v.as_str()).map(String::from);
-            let phone = item.get("phone").and_then(|v| v.as_str()).map(String::from);
-            let whatsapp = item.get("whatsapp").and_then(|v| v.as_str()).map(String::from);
-            let telegram = item.get("telegram").and_then(|v| v.as_str()).map(String::from);
-            let twitter = item.get("twitter").and_then(|v| v.as_str()).map(String::from);
-            let instagram = item.get("instagram").and_then(|v| v.as_str()).map(String::from);
-            let facebook = item.get("facebook").and_then(|v| v.as_str()).map(String::from);
-            let properties = item.get("properties").cloned();
-            let avatar_url = item.get("avatar_url").and_then(|v| v.as_str()).map(String::from);
-            
-            // Format dates
-            let created_at_str = item.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
-            let created_at = chrono::DateTime::parse_from_rfc3339(created_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_else(|_| created_at_str.to_string());
-                
-            let updated_at_str = item.get("updated_at").and_then(|v| v.as_str()).unwrap_or_default();
-            let updated_at = chrono::DateTime::parse_from_rfc3339(updated_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_else(|_| updated_at_str.to_string());
+        let items: Vec<serde_json::Value> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let formatted = items
+            .into_iter()
+            .map(|item| {
+                let id = uuid::Uuid::parse_str(
+                    item.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
+                )
+                .unwrap_or_default();
+                let customer_id = item
+                    .get("customer_id")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| uuid::Uuid::parse_str(s).ok());
+                let name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let first_name = item
+                    .get("first_name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let last_name = item
+                    .get("last_name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let email = item.get("email").and_then(|v| v.as_str()).map(String::from);
+                let phone = item.get("phone").and_then(|v| v.as_str()).map(String::from);
+                let whatsapp = item
+                    .get("whatsapp")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let telegram = item
+                    .get("telegram")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let twitter = item
+                    .get("twitter")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let instagram = item
+                    .get("instagram")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let facebook = item
+                    .get("facebook")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                let properties = item.get("properties").cloned();
+                let avatar_url = item
+                    .get("avatar_url")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
 
-            ContactRecord {
-                id,
-                customer_id,
-                name,
-                first_name,
-                last_name,
-                email,
-                phone,
-                whatsapp,
-                telegram,
-                twitter,
-                instagram,
-                facebook,
-                properties,
-                avatar_url,
-                created_at,
-                updated_at,
-            }
-        }).collect();
+                // Format dates
+                let created_at_str = item
+                    .get("created_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let created_at = chrono::DateTime::parse_from_rfc3339(created_at_str)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|_| created_at_str.to_string());
+
+                let updated_at_str = item
+                    .get("updated_at")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let updated_at = chrono::DateTime::parse_from_rfc3339(updated_at_str)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|_| updated_at_str.to_string());
+
+                ContactRecord {
+                    id,
+                    customer_id,
+                    name,
+                    first_name,
+                    last_name,
+                    email,
+                    phone,
+                    whatsapp,
+                    telegram,
+                    twitter,
+                    instagram,
+                    facebook,
+                    properties,
+                    avatar_url,
+                    created_at,
+                    updated_at,
+                }
+            })
+            .collect();
         Ok(formatted)
     } else {
         Err(ServerFnError::new("Failed to fetch contacts from backend"))
@@ -119,8 +165,8 @@ pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
 
 #[server(DeleteNetworkContact, "/api")]
 pub async fn delete_contact(id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -159,8 +205,8 @@ pub async fn delete_contact(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[server(GetNetworkContactCrmStatuses, "/api")]
 pub async fn get_contact_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -181,7 +227,10 @@ pub async fn get_contact_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFn
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/crm/status-options?object_type=Contact", api_base_url());
+    let url = format!(
+        "{}/api/crm/status-options?object_type=Contact",
+        api_base_url()
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -191,16 +240,35 @@ pub async fn get_contact_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFn
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let options = items.into_iter().map(|item| {
-            CrmStatusOption {
-                status_key: item.get("status_key").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                label: item.get("label").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                color: item.get("color").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        let items: Vec<serde_json::Value> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let options = items
+            .into_iter()
+            .map(|item| CrmStatusOption {
+                status_key: item
+                    .get("status_key")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                label: item
+                    .get("label")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                color: item
+                    .get("color")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
                 sort_order: item.get("sort_order").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-                is_system: item.get("is_system").and_then(|v| v.as_bool()).unwrap_or(false),
-            }
-        }).collect();
+                is_system: item
+                    .get("is_system")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+            })
+            .collect();
         Ok(options)
     } else {
         Err(ServerFnError::new("Failed to fetch contact crm statuses"))
@@ -223,8 +291,8 @@ pub async fn update_contact_details(
     properties: Option<serde_json::Value>,
     avatar_url: Option<String>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -247,7 +315,7 @@ pub async fn update_contact_details(
 
     let url = format!("{}/api/contacts/{}", api_base_url(), id);
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "name": name,
         "first_name": first_name,
@@ -287,8 +355,8 @@ pub async fn send_network_crm_email(
     lead_id: Option<uuid::Uuid>,
     attachments: Vec<String>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -324,9 +392,16 @@ pub async fn send_network_crm_email(
         return Err(ServerFnError::new("Unauthorized"));
     }
 
-    let me_val: serde_json::Value = me_res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let tenant_id_str = me_val.get("tenant_id").and_then(|v| v.as_str()).ok_or_else(|| ServerFnError::new("Missing tenant context"))?;
-    let tenant_id = uuid::Uuid::parse_str(tenant_id_str).map_err(|e| ServerFnError::new(e.to_string()))?;
+    let me_val: serde_json::Value = me_res
+        .json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let tenant_id_str = me_val
+        .get("tenant_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ServerFnError::new("Missing tenant context"))?;
+    let tenant_id =
+        uuid::Uuid::parse_str(tenant_id_str).map_err(|e| ServerFnError::new(e.to_string()))?;
 
     // 2. Post email dispatch to `/api/communications/email`
     let email_url = format!("{}/api/communications/email", api_base_url());
@@ -348,7 +423,10 @@ pub async fn send_network_crm_email(
 
     if !email_res.status().is_success() {
         let err_text = email_res.text().await.unwrap_or_default();
-        return Err(ServerFnError::new(format!("Email delivery failed: {}", err_text)));
+        return Err(ServerFnError::new(format!(
+            "Email delivery failed: {}",
+            err_text
+        )));
     }
 
     // 3. Log a completed activity record in the database for the contact or lead
@@ -373,9 +451,11 @@ pub async fn send_network_crm_email(
 }
 
 #[server(GetNetworkContactAttachments, "/api")]
-pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn get_contact_attachments(
+    contact_id: uuid::Uuid,
+) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -396,7 +476,11 @@ pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<Recor
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/admin/files/associated/Contact/{}", api_base_url(), contact_id);
+    let url = format!(
+        "{}/api/admin/files/associated/Contact/{}",
+        api_base_url(),
+        contact_id
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -406,27 +490,47 @@ pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<Recor
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let docs = items.into_iter().map(|item| {
-            let id = uuid::Uuid::parse_str(item.get("id").and_then(|v| v.as_str()).unwrap_or_default()).unwrap_or_default();
-            let file_url = item.get("storage_path").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            let file_name = item.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
-            
-            let uploaded_at_str = item.get("date_upload").and_then(|v| v.as_str()).unwrap_or_default();
-            let uploaded_at = chrono::DateTime::parse_from_rfc3339(uploaded_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_else(|_| uploaded_at_str.to_string());
+        let items: Vec<serde_json::Value> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        let docs = items
+            .into_iter()
+            .map(|item| {
+                let id = uuid::Uuid::parse_str(
+                    item.get("id").and_then(|v| v.as_str()).unwrap_or_default(),
+                )
+                .unwrap_or_default();
+                let file_url = item
+                    .get("storage_path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let file_name = item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
 
-            RecordDocumentModel {
-                id,
-                tenant_id: uuid::Uuid::default(),
-                target_record_id: contact_id,
-                file_url,
-                file_name,
-                uploaded_at,
-            }
-        }).collect();
+                let uploaded_at_str = item
+                    .get("date_upload")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let uploaded_at = chrono::DateTime::parse_from_rfc3339(uploaded_at_str)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                    .unwrap_or_else(|_| uploaded_at_str.to_string());
+
+                RecordDocumentModel {
+                    id,
+                    tenant_id: uuid::Uuid::default(),
+                    target_record_id: contact_id,
+                    file_url,
+                    file_name,
+                    uploaded_at,
+                }
+            })
+            .collect();
         Ok(docs)
     } else {
         Err(ServerFnError::new("Failed to fetch contact documents"))
@@ -434,9 +538,13 @@ pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<Recor
 }
 
 #[server(AddNetworkContactAttachment, "/api")]
-pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, file_url: String) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn add_contact_attachment(
+    contact_id: uuid::Uuid,
+    file_name: String,
+    file_url: String,
+) -> Result<(), ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -458,7 +566,7 @@ pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, f
     };
 
     let client = reqwest::Client::new();
-    
+
     // 1. Create file record
     let create_url = format!("{}/api/admin/files", api_base_url());
     let create_payload = serde_json::json!({
@@ -471,7 +579,7 @@ pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, f
         "is_anonymous": false,
         "user_id": null
     });
-    
+
     let create_res = client
         .post(&create_url)
         .header("Cookie", format!("session={}", token))
@@ -484,11 +592,22 @@ pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, f
         return Err(ServerFnError::new("Failed to create file record"));
     }
 
-    let created_file: serde_json::Value = create_res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-    let file_id = created_file.get("id").and_then(|v| v.as_str()).ok_or_else(|| ServerFnError::new("Missing file ID"))?;
+    let created_file: serde_json::Value = create_res
+        .json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let file_id = created_file
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ServerFnError::new("Missing file ID"))?;
 
     // 2. Create file association
-    let associate_url = format!("{}/api/admin/files/{}/associate/Contact/{}", api_base_url(), file_id, contact_id);
+    let associate_url = format!(
+        "{}/api/admin/files/{}/associate/Contact/{}",
+        api_base_url(),
+        file_id,
+        contact_id
+    );
     let associate_res = client
         .post(&associate_url)
         .header("Cookie", format!("session={}", token))
@@ -504,9 +623,12 @@ pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, f
 }
 
 #[server(DeleteNetworkContactAttachment, "/api")]
-pub async fn delete_contact_attachment(contact_id: uuid::Uuid, doc_id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn delete_contact_attachment(
+    contact_id: uuid::Uuid,
+    doc_id: uuid::Uuid,
+) -> Result<(), ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -552,9 +674,8 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
     if access_key.is_empty() || endpoint.is_empty() {
         return Err(ServerFnError::ServerError("R2 unconfigured".into()));
     }
-    let credentials = aws_sdk_s3::config::Credentials::new(
-        access_key, secret, None, None, "cloudflare"
-    );
+    let credentials =
+        aws_sdk_s3::config::Credentials::new(access_key, secret, None, None, "cloudflare");
     let s3_config = aws_sdk_s3::config::Builder::new()
         .credentials_provider(credentials)
         .region(aws_sdk_s3::config::Region::new("auto"))
@@ -563,23 +684,27 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
     let client = aws_sdk_s3::Client::from_conf(s3_config);
     let expires_in = std::time::Duration::from_secs(3600);
     let presigning_config = aws_sdk_s3::presigning::PresigningConfig::expires_in(expires_in)
-        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
-    
+        .map_err(|e| {
+            ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
+
     let presigned_req = client
         .get_object()
         .bucket(&bucket_name)
         .key(&file_key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
-        
+        .map_err(|e| {
+            ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
+
     Ok(presigned_req.uri().to_string())
 }
 
 #[server(GetNetworkContactNotes, "/api")]
 pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>, ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -600,7 +725,11 @@ pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>,
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/crm/notes?entity_type=Contact&entity_id={}", api_base_url(), contact_id);
+    let url = format!(
+        "{}/api/crm/notes?entity_type=Contact&entity_id={}",
+        api_base_url(),
+        contact_id
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -610,7 +739,10 @@ pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>,
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let notes: Vec<NoteModel> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
+        let notes: Vec<NoteModel> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
         Ok(notes)
     } else {
         Err(ServerFnError::new("Failed to fetch contact notes"))
@@ -619,13 +751,13 @@ pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>,
 
 #[server(AddNetworkContactNote, "/api")]
 pub async fn add_contact_note(
-    contact_id: uuid::Uuid, 
-    content: String, 
-    is_private: bool, 
-    files: Vec<FileModel>
+    contact_id: uuid::Uuid,
+    content: String,
+    is_private: bool,
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -648,7 +780,7 @@ pub async fn add_contact_note(
 
     let url = format!("{}/api/crm/notes", api_base_url());
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "entity_type": "Contact",
         "entity_id": contact_id,
@@ -674,8 +806,8 @@ pub async fn add_contact_note(
 
 #[server(DeleteNetworkContactNote, "/api")]
 pub async fn delete_contact_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -713,9 +845,11 @@ pub async fn delete_contact_note(note_id: uuid::Uuid) -> Result<(), ServerFnErro
 }
 
 #[server(GetNetworkContactActivities, "/api")]
-pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<ActivityModel>, ServerFnError> {
-    use axum::http::request::Parts;
+pub async fn get_contact_activities(
+    contact_id: uuid::Uuid,
+) -> Result<Vec<ActivityModel>, ServerFnError> {
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -736,7 +870,11 @@ pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<Activi
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/crm/activities?entity_type=Contact&entity_id={}", api_base_url(), contact_id);
+    let url = format!(
+        "{}/api/crm/activities?entity_type=Contact&entity_id={}",
+        api_base_url(),
+        contact_id
+    );
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -746,7 +884,10 @@ pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<Activi
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let activities: Vec<ActivityModel> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
+        let activities: Vec<ActivityModel> = res
+            .json()
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
         Ok(activities)
     } else {
         Err(ServerFnError::new("Failed to fetch contact activities"))
@@ -762,10 +903,10 @@ pub async fn add_contact_activity(
     status: ActivityStatus,
     due_date: Option<String>,
     completed_at: Option<String>,
-    files: Vec<FileModel>
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -786,12 +927,16 @@ pub async fn add_contact_activity(
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let parsed_due_date = due_date.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
-    let parsed_completed_at = completed_at.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_due_date = due_date
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_completed_at = completed_at
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
 
     let url = format!("{}/api/crm/activities", api_base_url());
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "contact_id": contact_id,
         "activity_type": activity_type,
@@ -822,10 +967,10 @@ pub async fn add_contact_activity(
 #[server(UpdateNetworkContactActivityStatus, "/api")]
 pub async fn update_contact_activity_status(
     activity_id: uuid::Uuid,
-    status: ActivityStatus
+    status: ActivityStatus,
 ) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -848,7 +993,7 @@ pub async fn update_contact_activity_status(
 
     let url = format!("{}/api/crm/activities/{}", api_base_url(), activity_id);
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "status": status
     });
@@ -864,14 +1009,16 @@ pub async fn update_contact_activity_status(
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(ServerFnError::new("Failed to update contact activity status"))
+        Err(ServerFnError::new(
+            "Failed to update contact activity status",
+        ))
     }
 }
 
 #[server(DeleteNetworkContactActivity, "/api")]
 pub async fn delete_contact_activity(activity_id: uuid::Uuid) -> Result<(), ServerFnError> {
-    use axum::http::request::Parts;
     use crate::auth::api_base_url;
+    use axum::http::request::Parts;
 
     let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
         req_parts
@@ -932,7 +1079,7 @@ pub fn ContactTable() -> impl IntoView {
                                     view! {
                                         {move || selected_contact.get().map(|contact| {
                                             view! {
-                                                <ContactCrmPane 
+                                                <ContactCrmPane
                                                     contact_record=contact
                                                     stages=statuses.clone()
                                                     on_close=Callback::new(move |_: ()| set_selected_contact.set(None))
@@ -973,20 +1120,20 @@ pub fn ContactTable() -> impl IntoView {
                                                         let c = contact.clone();
                                                         let email_disp = contact.email.clone().unwrap_or_else(|| "-".to_string());
                                                         let phone_disp = contact.phone.clone().unwrap_or_else(|| "-".to_string());
-                                                        
+
                                                         // Extract status from properties JSON
                                                         let status_disp = contact.properties.as_ref()
                                                             .and_then(|p| p.get("status"))
                                                             .and_then(|s| s.as_str())
                                                             .unwrap_or("prospect")
                                                             .to_string();
-                                                        
+
                                                         // Dynamic pipeline-based status badge styling
                                                         let matched_color = statuses.iter()
                                                             .find(|s| s.status_key.to_lowercase() == status_disp.to_lowercase())
                                                             .map(|s| s.color.as_str())
                                                             .unwrap_or("slate");
-                                                            
+
                                                         let badge_classes = match matched_color {
                                                             "blue" => "bg-blue-500/10 text-blue-500 border-blue-500/20",
                                                             "purple" => "bg-purple-500/10 text-purple-500 border-purple-500/20",
@@ -998,7 +1145,7 @@ pub fn ContactTable() -> impl IntoView {
                                                         };
 
                                                         view! {
-                                                            <tr 
+                                                            <tr
                                                                 class="hover:bg-surface-container-high transition-all duration-150 cursor-pointer"
                                                                 on:click=move |_| set_selected_contact.set(Some(c.clone()))
                                                             >
@@ -1026,7 +1173,7 @@ pub fn ContactTable() -> impl IntoView {
                                                                     </span>
                                                                 </td>
                                                                 <td class="py-4 px-4 text-right">
-                                                                    <button 
+                                                                    <button
                                                                         on:click=move |e| {
                                                                             e.stop_propagation();
                                                                             let id = contact.id;
@@ -1038,7 +1185,7 @@ pub fn ContactTable() -> impl IntoView {
                                                                                     }
                                                                                 }
                                                                             });
-                                                                        } 
+                                                                        }
                                                                         class="text-error hover:underline text-xs tracking-wider uppercase font-bold"
                                                                     >
                                                                         "Drop"
@@ -1073,14 +1220,16 @@ fn ContactCrmPane(
     refresh: ReadSignal<i32>,
 ) -> impl IntoView {
     // Extract status from properties JSON
-    let status_val = contact_record.properties.as_ref()
+    let status_val = contact_record
+        .properties
+        .as_ref()
         .and_then(|p| p.get("status"))
         .and_then(|s| s.as_str())
         .unwrap_or("prospect")
         .to_string();
 
     let (current_stage, set_current_stage) = signal(status_val);
-    
+
     let (composer_open, set_composer_open) = signal(false);
 
     let default_templates = vec![
@@ -1095,16 +1244,25 @@ fn ContactCrmPane(
             body: "<p>Hello,</p><p>We are excited to share our custom proposal based on our initial discussion. Please review the attached details and let us know if you have any questions or when you would be available for a quick walkthrough.</p><p>Best regards,<br/>The Consulting Team</p>".to_string(),
         },
     ];
-    
+
     let contact_id = contact_record.id;
-    let notes_res = Resource::new(move || refresh.get(), move |_| get_contact_notes(contact_id));
-    let activities_res = Resource::new(move || refresh.get(), move |_| get_contact_activities(contact_id));
-    let attachments_res = Resource::new(move || refresh.get(), move |_| get_contact_attachments(contact_id));
+    let notes_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_contact_notes(contact_id),
+    );
+    let activities_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_contact_activities(contact_id),
+    );
+    let attachments_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_contact_attachments(contact_id),
+    );
 
     // Avatar Url State
     let (avatar_url_signal, set_avatar_url_signal) = signal(contact_record.avatar_url.clone());
     let avatar_input_ref = NodeRef::<leptos::html::Input>::new();
-    
+
     let trigger_avatar_upload = move |_| {
         if let Some(input) = avatar_input_ref.get() {
             input.click();
@@ -1138,7 +1296,8 @@ fn ContactCrmPane(
 
     // Field signals for standard details editing
     let (name, set_name) = signal(contact_record.name.clone());
-    let (first_name, set_first_name) = signal(contact_record.first_name.clone().unwrap_or_default());
+    let (first_name, set_first_name) =
+        signal(contact_record.first_name.clone().unwrap_or_default());
     let (last_name, set_last_name) = signal(contact_record.last_name.clone().unwrap_or_default());
     let (email, set_email) = signal(contact_record.email.clone().unwrap_or_default());
     let (phone, set_phone) = signal(contact_record.phone.clone().unwrap_or_default());
@@ -1147,10 +1306,10 @@ fn ContactCrmPane(
     let (twitter, set_twitter) = signal(contact_record.twitter.clone().unwrap_or_default());
     let (instagram, set_instagram) = signal(contact_record.instagram.clone().unwrap_or_default());
     let (facebook, set_facebook) = signal(contact_record.facebook.clone().unwrap_or_default());
-    
+
     // Properties JSON RwSignal for PropertiesEditor
     let properties_signal = RwSignal::new(contact_record.properties.clone());
-    
+
     let handle_avatar_change = {
         let set_refresh = set_refresh.clone();
         let refresh = refresh.clone();
@@ -1170,30 +1329,58 @@ fn ContactCrmPane(
             #[cfg(not(feature = "ssr"))]
             {
                 use leptos::wasm_bindgen::JsCast;
-                let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                let target = ev
+                    .target()
+                    .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
                 if let Some(input) = target {
                     if let Some(files) = input.files() {
                         if let Some(file) = files.get(0) {
                             let name_val = name.get_untracked();
-                            let fn_val = Some(first_name.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let ln_val = Some(last_name.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let em_val = Some(email.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let ph_val = Some(phone.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let wa_val = Some(whatsapp.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let tg_val = Some(telegram.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let tw_val = Some(twitter.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let ig_val = Some(instagram.get_untracked()).filter(|s: &String| !s.is_empty());
-                            let fb_val = Some(facebook.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let fn_val =
+                                Some(first_name.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let ln_val =
+                                Some(last_name.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let em_val =
+                                Some(email.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let ph_val =
+                                Some(phone.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let wa_val =
+                                Some(whatsapp.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let tg_val =
+                                Some(telegram.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let tw_val =
+                                Some(twitter.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let ig_val =
+                                Some(instagram.get_untracked()).filter(|s: &String| !s.is_empty());
+                            let fb_val =
+                                Some(facebook.get_untracked()).filter(|s: &String| !s.is_empty());
                             let props = properties_signal.get_untracked();
                             let set_refresh = set_refresh.clone();
                             let refresh = refresh.clone();
                             let set_avatar_url_signal = set_avatar_url_signal.clone();
-                            
+
                             leptos::task::spawn_local(async move {
-                                if let Ok((_, key)) = shared_ui::components::file_attachments::upload_file_to_s3(file).await {
+                                if let Ok((_, key)) =
+                                    shared_ui::components::file_attachments::upload_file_to_s3(file)
+                                        .await
+                                {
                                     if let Ok(_) = update_contact_details(
-                                        contact_id, name_val, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, props, Some(key.clone())
-                                    ).await {
+                                        contact_id,
+                                        name_val,
+                                        fn_val,
+                                        ln_val,
+                                        em_val,
+                                        ph_val,
+                                        wa_val,
+                                        tg_val,
+                                        tw_val,
+                                        ig_val,
+                                        fb_val,
+                                        props,
+                                        Some(key.clone()),
+                                    )
+                                    .await
+                                    {
                                         set_avatar_url_signal.set(Some(key));
                                         set_refresh.set(refresh.get_untracked() + 1);
                                     }
@@ -1205,21 +1392,26 @@ fn ContactCrmPane(
             }
         }
     };
-    
+
     let (edit_mode, set_edit_mode) = signal(false);
     let (save_error, set_save_error) = signal::<Option<String>>(None);
 
     let handle_stage_change = move |new_stage: String| {
         set_current_stage.set(new_stage.clone());
         let stage_cl = new_stage.clone();
-        
+
         // Update status in properties JSON payload
-        let mut props = properties_signal.get_untracked().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+        let mut props = properties_signal
+            .get_untracked()
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
         if let serde_json::Value::Object(ref mut map) = props {
-            map.insert("status".to_string(), serde_json::Value::String(stage_cl.clone()));
+            map.insert(
+                "status".to_string(),
+                serde_json::Value::String(stage_cl.clone()),
+            );
         }
         properties_signal.set(Some(props.clone()));
-        
+
         let n = name.get();
         let fn_val = Some(first_name.get()).filter(|s| !s.is_empty());
         let ln_val = Some(last_name.get()).filter(|s| !s.is_empty());
@@ -1234,8 +1426,22 @@ fn ContactCrmPane(
 
         leptos::task::spawn_local(async move {
             if let Ok(_) = update_contact_details(
-                contact_id, n, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
-            ).await {
+                contact_id,
+                n,
+                fn_val,
+                ln_val,
+                em_val,
+                ph_val,
+                wa_val,
+                tg_val,
+                tw_val,
+                ig_val,
+                fb_val,
+                Some(props),
+                avatar_val,
+            )
+            .await
+            {
                 let _ = add_contact_activity(
                     contact_id,
                     ActivityType::Log,
@@ -1244,8 +1450,9 @@ fn ContactCrmPane(
                     ActivityStatus::Completed,
                     None,
                     Some(chrono::Utc::now().to_rfc3339()),
-                    Vec::new()
-                ).await;
+                    Vec::new(),
+                )
+                .await;
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -1272,17 +1479,36 @@ fn ContactCrmPane(
         let ig_val = Some(instagram.get()).filter(|s| !s.is_empty());
         let fb_val = Some(facebook.get()).filter(|s| !s.is_empty());
         let avatar_val = avatar_url_signal.get_untracked();
-        
+
         // Include status in the saved properties JSON
-        let mut props = properties_signal.get().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+        let mut props = properties_signal
+            .get()
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
         if let serde_json::Value::Object(ref mut map) = props {
-            map.insert("status".to_string(), serde_json::Value::String(current_stage.get_untracked()));
+            map.insert(
+                "status".to_string(),
+                serde_json::Value::String(current_stage.get_untracked()),
+            );
         }
 
         leptos::task::spawn_local(async move {
             match update_contact_details(
-                contact_id, n, fn_opt, ln_opt, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
-            ).await {
+                contact_id,
+                n,
+                fn_opt,
+                ln_opt,
+                em_val,
+                ph_val,
+                wa_val,
+                tg_val,
+                tw_val,
+                ig_val,
+                fb_val,
+                Some(props),
+                avatar_val,
+            )
+            .await
+            {
                 Ok(_) => {
                     set_edit_mode.set(false);
                     set_refresh.set(refresh.get_untracked() + 1);
@@ -1294,35 +1520,59 @@ fn ContactCrmPane(
         });
     };
 
-    let add_note_cb = Callback::new(move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_contact_note(contact_id, content, is_private, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let add_note_cb = Callback::new(
+        move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_contact_note(contact_id, content, is_private, files).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let log_activity_cb = Callback::new(move |(act_type, title, desc, status, due_date, completed_at, files): (ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_contact_activity(contact_id, act_type, title, desc, status, due_date, completed_at, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let log_activity_cb = Callback::new(
+        move |(act_type, title, desc, status, due_date, completed_at, files): (
+            ActivityType,
+            String,
+            Option<String>,
+            ActivityStatus,
+            Option<String>,
+            Option<String>,
+            Vec<FileModel>,
+        )| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_contact_activity(
+                    contact_id,
+                    act_type,
+                    title,
+                    desc,
+                    status,
+                    due_date,
+                    completed_at,
+                    files,
+                )
+                .await
+                {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let update_activity_status_cb = Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = update_contact_activity_status(act_id, status).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
+    let update_activity_status_cb =
+        Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = update_contact_activity_status(act_id, status).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
         });
-    });
 
     let delete_note_cb = Callback::new(move |note_id: uuid::Uuid| {
         let set_refresh = set_refresh.clone();
@@ -1348,8 +1598,8 @@ fn ContactCrmPane(
         <div class="w-full bg-background flex flex-col animate-slide-in font-sans text-on-surface">
             // Breadcrumb navigation header
             <div class="flex items-center gap-2 mb-6 text-xs font-mono text-outline-variant">
-                <button 
-                    on:click=move |_| on_close.run(()) 
+                <button
+                    on:click=move |_| on_close.run(())
                     class="hover:text-primary transition-colors flex items-center gap-1 font-bold uppercase tracking-wider"
                 >
                     <span class="material-symbols-outlined text-[14px]">"arrow_back"</span>
@@ -1359,24 +1609,24 @@ fn ContactCrmPane(
 
             // Salesforce-style layout container
             <div class="flex flex-col lg:flex-row gap-6 w-full items-start">
-                
+
                 // LEFT COLUMN (65% width) - Core info and status
                 <div class="w-full lg:w-[65%] space-y-6 flex flex-col">
-                    
+
                     // Main Highlight Panel / Avatar & Quick Details
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex items-center gap-4">
-                            <input 
-                                type="file" 
+                            <input
+                                type="file"
                                 node_ref=avatar_input_ref
                                 on:change=handle_avatar_change
                                 class="hidden"
                             />
-                            <div 
+                            <div
                                 on:click=trigger_avatar_upload
                                 class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 relative group cursor-pointer overflow-hidden"
                             >
-                                <Show 
+                                <Show
                                     when=move || avatar_url_signal.get().is_some()
                                     fallback=move || {
                                         let name_val = name.get();
@@ -1390,7 +1640,7 @@ fn ContactCrmPane(
                                         }
                                     }
                                 >
-                                    <img 
+                                    <img
                                         src=move || avatar_url_signal.get().unwrap_or_default()
                                         class="w-full h-full object-cover animate-fade-in"
                                     />
@@ -1469,7 +1719,7 @@ fn ContactCrmPane(
                                         <div class="flex items-center gap-2">
                                             <span class="text-on-surface font-semibold break-all">{move || if email.get().is_empty() { "-".to_string() } else { email.get() }}</span>
                                             <Show when=move || !email.get().is_empty()>
-                                                <button 
+                                                <button
                                                     on:click=move |_| set_composer_open.set(true)
                                                     class="text-primary hover:text-primary-container p-0.5 rounded transition-colors flex items-center justify-center"
                                                     title="Compose Email"
@@ -1506,8 +1756,8 @@ fn ContactCrmPane(
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"First Name *"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=first_name
                                             on:input=move |ev| set_first_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1515,8 +1765,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Last Name"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=last_name
                                             on:input=move |ev| set_last_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1524,8 +1774,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Email"</label>
-                                        <input 
-                                            type="email" 
+                                        <input
+                                            type="email"
                                             prop:value=email
                                             on:input=move |ev| set_email.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1533,8 +1783,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Phone"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=phone
                                             on:input=move |ev| set_phone.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1542,8 +1792,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"WhatsApp"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=whatsapp
                                             on:input=move |ev| set_whatsapp.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1551,8 +1801,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Telegram"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=telegram
                                             on:input=move |ev| set_telegram.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1560,8 +1810,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Twitter / X"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=twitter
                                             on:input=move |ev| set_twitter.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -1569,8 +1819,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Instagram"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=instagram
                                             on:input=move |ev| set_instagram.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"

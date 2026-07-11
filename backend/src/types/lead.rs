@@ -49,12 +49,12 @@ impl LeadStatus {
 impl fmt::Display for LeadStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::New          => "new",
-            Self::Contacted    => "contacted",
-            Self::Qualifying   => "qualifying",
-            Self::Qualified    => "qualified",
+            Self::New => "new",
+            Self::Contacted => "contacted",
+            Self::Qualifying => "qualifying",
+            Self::Qualified => "qualified",
             Self::Disqualified => "disqualified",
-            Self::Converted    => "converted",
+            Self::Converted => "converted",
         })
     }
 }
@@ -63,13 +63,13 @@ impl TryFrom<String> for LeadStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "new"          => Ok(Self::New),
-            "contacted"    => Ok(Self::Contacted),
-            "qualifying"   => Ok(Self::Qualifying),
-            "qualified"    => Ok(Self::Qualified),
+            "new" => Ok(Self::New),
+            "contacted" => Ok(Self::Contacted),
+            "qualifying" => Ok(Self::Qualifying),
+            "qualified" => Ok(Self::Qualified),
             "disqualified" => Ok(Self::Disqualified),
-            "converted"    => Ok(Self::Converted),
-            other          => Err(format!("unknown LeadStatus: '{other}'")),
+            "converted" => Ok(Self::Converted),
+            other => Err(format!("unknown LeadStatus: '{other}'")),
         }
     }
 }
@@ -125,16 +125,16 @@ impl DataSource {
 impl fmt::Display for DataSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Fmcsa           => f.write_str("fmcsa"),
+            Self::Fmcsa => f.write_str("fmcsa"),
             Self::BusinessLeadsUsa => f.write_str("business_leads_usa"),
-            Self::DotRegistry     => f.write_str("dot_registry"),
-            Self::Manual          => f.write_str("manual"),
-            Self::WebForm         => f.write_str("web_form"),
-            Self::Zoominfo        => f.write_str("zoominfo"),
-            Self::Linkedin        => f.write_str("linkedin"),
-            Self::Mwbe            => f.write_str("mwbe"),
-            Self::Referral        => f.write_str("referral"),
-            Self::Other(s)        => f.write_str(s),
+            Self::DotRegistry => f.write_str("dot_registry"),
+            Self::Manual => f.write_str("manual"),
+            Self::WebForm => f.write_str("web_form"),
+            Self::Zoominfo => f.write_str("zoominfo"),
+            Self::Linkedin => f.write_str("linkedin"),
+            Self::Mwbe => f.write_str("mwbe"),
+            Self::Referral => f.write_str("referral"),
+            Self::Other(s) => f.write_str(s),
         }
     }
 }
@@ -142,16 +142,16 @@ impl fmt::Display for DataSource {
 impl From<String> for DataSource {
     fn from(s: String) -> Self {
         match s.as_str() {
-            "fmcsa"              => Self::Fmcsa,
+            "fmcsa" => Self::Fmcsa,
             "business_leads_usa" => Self::BusinessLeadsUsa,
-            "dot_registry"       => Self::DotRegistry,
-            "manual"             => Self::Manual,
-            "web_form"           => Self::WebForm,
-            "zoominfo"           => Self::Zoominfo,
-            "linkedin"           => Self::Linkedin,
-            "mwbe"               => Self::Mwbe,
-            "referral"           => Self::Referral,
-            other                => Self::Other(other.to_string()),
+            "dot_registry" => Self::DotRegistry,
+            "manual" => Self::Manual,
+            "web_form" => Self::WebForm,
+            "zoominfo" => Self::Zoominfo,
+            "linkedin" => Self::Linkedin,
+            "mwbe" => Self::Mwbe,
+            "referral" => Self::Referral,
+            other => Self::Other(other.to_string()),
         }
     }
 }
@@ -180,10 +180,10 @@ pub enum CompanyType {
 impl fmt::Display for CompanyType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Public     => "public",
-            Self::Private    => "private",
+            Self::Public => "public",
+            Self::Private => "private",
             Self::Government => "government",
-            Self::Nonprofit  => "nonprofit",
+            Self::Nonprofit => "nonprofit",
             Self::Individual => "individual",
         })
     }
@@ -193,12 +193,12 @@ impl TryFrom<String> for CompanyType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "public"     => Ok(Self::Public),
-            "private"    => Ok(Self::Private),
+            "public" => Ok(Self::Public),
+            "private" => Ok(Self::Private),
             "government" => Ok(Self::Government),
-            "nonprofit"  => Ok(Self::Nonprofit),
+            "nonprofit" => Ok(Self::Nonprofit),
             "individual" => Ok(Self::Individual),
-            other        => Err(format!("unknown CompanyType: '{other}'")),
+            other => Err(format!("unknown CompanyType: '{other}'")),
         }
     }
 }
@@ -221,9 +221,9 @@ impl fmt::Display for LocationType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Headquarters => "headquarters",
-            Self::Branch       => "branch",
-            Self::Single       => "single",
-            Self::Franchise    => "franchise",
+            Self::Branch => "branch",
+            Self::Single => "single",
+            Self::Franchise => "franchise",
         })
     }
 }
@@ -233,10 +233,10 @@ impl TryFrom<String> for LocationType {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "headquarters" => Ok(Self::Headquarters),
-            "branch"       => Ok(Self::Branch),
-            "single"       => Ok(Self::Single),
-            "franchise"    => Ok(Self::Franchise),
-            other          => Err(format!("unknown LocationType: '{other}'")),
+            "branch" => Ok(Self::Branch),
+            "single" => Ok(Self::Single),
+            "franchise" => Ok(Self::Franchise),
+            other => Err(format!("unknown LocationType: '{other}'")),
         }
     }
 }
@@ -265,10 +265,10 @@ impl fmt::Display for OpportunityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::CrmLeadConversion => "crm_lead_conversion",
-            Self::Manual            => "manual",
-            Self::Renewal           => "renewal",
-            Self::Upsell            => "upsell",
-            Self::Partner           => "partner",
+            Self::Manual => "manual",
+            Self::Renewal => "renewal",
+            Self::Upsell => "upsell",
+            Self::Partner => "partner",
         })
     }
 }
@@ -278,11 +278,11 @@ impl TryFrom<String> for OpportunityType {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "crm_lead_conversion" => Ok(Self::CrmLeadConversion),
-            "manual"              => Ok(Self::Manual),
-            "renewal"             => Ok(Self::Renewal),
-            "upsell"              => Ok(Self::Upsell),
-            "partner"             => Ok(Self::Partner),
-            other                 => Err(format!("unknown OpportunityType: '{other}'")),
+            "manual" => Ok(Self::Manual),
+            "renewal" => Ok(Self::Renewal),
+            "upsell" => Ok(Self::Upsell),
+            "partner" => Ok(Self::Partner),
+            other => Err(format!("unknown OpportunityType: '{other}'")),
         }
     }
 }
@@ -310,12 +310,12 @@ impl OpportunityStatus {
 impl fmt::Display for OpportunityStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Prospecting  => "prospecting",
+            Self::Prospecting => "prospecting",
             Self::Qualification => "qualification",
-            Self::Proposal     => "proposal",
-            Self::Negotiation  => "negotiation",
-            Self::ClosedWon    => "closed_won",
-            Self::ClosedLost   => "closed_lost",
+            Self::Proposal => "proposal",
+            Self::Negotiation => "negotiation",
+            Self::ClosedWon => "closed_won",
+            Self::ClosedLost => "closed_lost",
         })
     }
 }
@@ -324,13 +324,13 @@ impl TryFrom<String> for OpportunityStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "prospecting"   => Ok(Self::Prospecting),
+            "prospecting" => Ok(Self::Prospecting),
             "qualification" => Ok(Self::Qualification),
-            "proposal"      => Ok(Self::Proposal),
-            "negotiation"   => Ok(Self::Negotiation),
-            "closed_won"    => Ok(Self::ClosedWon),
-            "closed_lost"   => Ok(Self::ClosedLost),
-            other           => Err(format!("unknown OpportunityStatus: '{other}'")),
+            "proposal" => Ok(Self::Proposal),
+            "negotiation" => Ok(Self::Negotiation),
+            "closed_won" => Ok(Self::ClosedWon),
+            "closed_lost" => Ok(Self::ClosedLost),
+            other => Err(format!("unknown OpportunityStatus: '{other}'")),
         }
     }
 }

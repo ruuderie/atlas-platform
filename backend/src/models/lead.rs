@@ -1,8 +1,8 @@
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 use crate::entities::lead;
 use crate::models::address::AddressJson;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeadModel {

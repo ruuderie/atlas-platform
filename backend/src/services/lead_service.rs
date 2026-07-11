@@ -1,16 +1,18 @@
 #![allow(dead_code)]
+use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
     TransactionTrait,
 };
-use uuid::Uuid;
-use chrono::Utc;
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_lead::{self, Entity as LeadEntity, ActiveModel as LeadActiveModel};
-use crate::entities::atlas_account::{self, Entity as AccountEntity, ActiveModel as AccountActiveModel};
-use crate::entities::atlas_contact::{ActiveModel as ContactActiveModel};
-use crate::entities::atlas_opportunity::{ActiveModel as OpportunityActiveModel};
+use crate::entities::atlas_account::{
+    self, ActiveModel as AccountActiveModel, Entity as AccountEntity,
+};
+use crate::entities::atlas_contact::ActiveModel as ContactActiveModel;
+use crate::entities::atlas_lead::{self, ActiveModel as LeadActiveModel, Entity as LeadEntity};
+use crate::entities::atlas_opportunity::ActiveModel as OpportunityActiveModel;
 use crate::entities::atlas_scorecard_template;
 use crate::services::scorecard_service::ScorecardService;
 
@@ -213,7 +215,8 @@ impl LeadService {
                     let account_id = Self::upsert_account(txn, tenant_id, &lead).await?;
 
                     // ── 2. Create the Contact ─────────────────────────────────────
-                    let contact_id = Self::create_contact_from_lead(txn, tenant_id, account_id, &lead).await?;
+                    let contact_id =
+                        Self::create_contact_from_lead(txn, tenant_id, account_id, &lead).await?;
 
                     // ── 3. Create the Opportunity ─────────────────────────────────
                     let opportunity_id = Self::create_opportunity_from_lead(
@@ -499,7 +502,9 @@ impl LeadService {
         let opportunity = OpportunityActiveModel {
             id: Set(Uuid::new_v4()),
             tenant_id: Set(tenant_id),
-            opportunity_type: Set(crate::types::lead::OpportunityType::CrmLeadConversion.to_string()),
+            opportunity_type: Set(
+                crate::types::lead::OpportunityType::CrmLeadConversion.to_string()
+            ),
             name: Set(opp_name),
             crm_lead_id: Set(Some(lead.id)),
             status: Set(crate::types::lead::OpportunityStatus::Prospecting.to_string()),

@@ -1,11 +1,11 @@
+use crate::pages::admin::contacts::send_crm_email;
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline_generic::{
-    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+    ActivityModel, ActivityStatus, ActivityType, CrmTimelineGeneric, FileModel, NoteModel,
 };
-use shared_ui::utils::ResourceState;
-use crate::pages::admin::contacts::send_crm_email;
 use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
+use shared_ui::utils::ResourceState;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct LeadRecord {
@@ -27,9 +27,9 @@ pub struct LeadRecord {
 
 #[server(GetLeads, "/api")]
 pub async fn get_leads() -> Result<Vec<LeadRecord>, ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -77,9 +77,9 @@ pub async fn get_leads() -> Result<Vec<LeadRecord>, ServerFnError> {
 
 #[server(DeleteLead, "/api")]
 pub async fn delete_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -99,9 +99,9 @@ pub async fn delete_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[server(ConvertLead, "/api")]
 pub async fn convert_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -141,7 +141,8 @@ pub async fn convert_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
     let instagram: Option<String> = row.try_get("instagram").unwrap_or(None);
     let facebook: Option<String> = row.try_get("facebook").unwrap_or(None);
     let billing_address: Option<serde_json::Value> = row.try_get("billing_address").unwrap_or(None);
-    let shipping_address: Option<serde_json::Value> = row.try_get("shipping_address").unwrap_or(None);
+    let shipping_address: Option<serde_json::Value> =
+        row.try_get("shipping_address").unwrap_or(None);
 
     // Start SQLx transaction
     let mut tx = state.pool.begin().await?;
@@ -151,7 +152,7 @@ pub async fn convert_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
     if let Some(ref email_str) = email {
         if !email_str.is_empty() {
             duplicate_contact_id = sqlx::query_scalar(
-                "SELECT id FROM contact WHERE tenant_id = $1 AND email = $2 LIMIT 1"
+                "SELECT id FROM contact WHERE tenant_id = $1 AND email = $2 LIMIT 1",
             )
             .bind(tenant.0)
             .bind(email_str)
@@ -164,7 +165,7 @@ pub async fn convert_lead(id: uuid::Uuid) -> Result<(), ServerFnError> {
         if let Some(ref phone_str) = phone {
             if !phone_str.is_empty() {
                 duplicate_contact_id = sqlx::query_scalar(
-                    "SELECT id FROM contact WHERE tenant_id = $1 AND phone = $2 LIMIT 1"
+                    "SELECT id FROM contact WHERE tenant_id = $1 AND phone = $2 LIMIT 1",
                 )
                 .bind(tenant.0)
                 .bind(phone_str)
@@ -229,7 +230,7 @@ pub async fn get_lead_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFnErr
         "SELECT status_key, label, color, sort_order, is_system \
          FROM crm_status_option \
          WHERE tenant_id = $1 AND object_type = 'Lead' \
-         ORDER BY sort_order ASC"
+         ORDER BY sort_order ASC",
     )
     .bind(tenant.0)
     .fetch_all(&state.pool)
@@ -251,9 +252,9 @@ pub async fn get_lead_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFnErr
 
 #[server(UpdateLeadStage, "/api")]
 pub async fn update_lead_stage(id: uuid::Uuid, stage: String) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -264,7 +265,7 @@ pub async fn update_lead_stage(id: uuid::Uuid, stage: String) -> Result<(), Serv
 
     sqlx::query(
         "UPDATE lead SET lead_status = $1, updated_at = NOW() \
-         WHERE id = $2 AND tenant_id = $3"
+         WHERE id = $2 AND tenant_id = $3",
     )
     .bind(stage)
     .bind(id)
@@ -289,9 +290,9 @@ pub async fn update_lead_details(
     message: Option<String>,
     avatar_url: Option<String>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -323,7 +324,9 @@ pub async fn update_lead_details(
 }
 
 #[server(GetLeadAttachments, "/api")]
-pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
+pub async fn get_lead_attachments(
+    lead_id: uuid::Uuid,
+) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
@@ -334,32 +337,39 @@ pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocum
          FROM files f \
          INNER JOIN file_associations fa ON f.id = fa.file_id \
          WHERE fa.associated_entity_type = 'Lead' AND fa.associated_entity_id = $1 \
-         ORDER BY f.created_at DESC"
+         ORDER BY f.created_at DESC",
     )
     .bind(lead_id)
     .fetch_all(&state.pool)
     .await?;
 
     use sqlx::Row;
-    let docs = rows.into_iter().map(|row| {
-        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
-        let file_id_str: String = row.get("file_id");
-        let id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
-        RecordDocumentModel {
-            id,
-            tenant_id: tenant.0.unwrap_or_default(),
-            target_record_id: lead_id,
-            file_url: row.get("storage_path"),
-            file_name: row.get("name"),
-            uploaded_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
-        }
-    }).collect();
+    let docs = rows
+        .into_iter()
+        .map(|row| {
+            let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+            let file_id_str: String = row.get("file_id");
+            let id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
+            RecordDocumentModel {
+                id,
+                tenant_id: tenant.0.unwrap_or_default(),
+                target_record_id: lead_id,
+                file_url: row.get("storage_path"),
+                file_name: row.get("name"),
+                uploaded_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
+            }
+        })
+        .collect();
 
     Ok(docs)
 }
 
 #[server(AddLeadAttachment, "/api")]
-pub async fn add_lead_attachment(lead_id: uuid::Uuid, file_name: String, file_url: String) -> Result<(), ServerFnError> {
+pub async fn add_lead_attachment(
+    lead_id: uuid::Uuid,
+    file_name: String,
+    file_url: String,
+) -> Result<(), ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
@@ -397,12 +407,10 @@ pub async fn delete_lead_attachment(doc_id: uuid::Uuid) -> Result<(), ServerFnEr
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    sqlx::query(
-        "DELETE FROM files WHERE id = $1"
-    )
-    .bind(doc_id.to_string())
-    .execute(&state.pool)
-    .await?;
+    sqlx::query("DELETE FROM files WHERE id = $1")
+        .bind(doc_id.to_string())
+        .execute(&state.pool)
+        .await?;
 
     Ok(())
 }
@@ -420,9 +428,9 @@ pub async fn add_lead(
     source: Option<String>,
     message: Option<String>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -440,12 +448,15 @@ pub async fn add_lead(
         if let Some(ref p) = phone {
             let trimmed = p.trim();
             if !trimmed.is_empty() {
-                let cleaned: String = trimmed.chars()
+                let cleaned: String = trimmed
+                    .chars()
                     .filter(|c| c.is_ascii_digit() || *c == '+')
                     .collect();
                 if cleaned.starts_with('+') && cleaned.len() >= 8 && cleaned.len() <= 16 {
                     let after_plus = &cleaned[1..];
-                    if after_plus.chars().all(|c| c.is_ascii_digit()) && !after_plus.starts_with('0') {
+                    if after_plus.chars().all(|c| c.is_ascii_digit())
+                        && !after_plus.starts_with('0')
+                    {
                         validated_phone = Some(cleaned);
                     } else {
                         return Err(ServerFnError::ServerError("Invalid phone format. Please enter a valid international number in E.164 format (e.g., +15551234567).".into()));
@@ -462,17 +473,34 @@ pub async fn add_lead(
             if !trimmed.is_empty() {
                 let parts: Vec<&str> = trimmed.split('@').collect();
                 if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-                    return Err(ServerFnError::ServerError("Invalid email address format (e.g. user@domain.com).".into()));
+                    return Err(ServerFnError::ServerError(
+                        "Invalid email address format (e.g. user@domain.com).".into(),
+                    ));
                 }
                 let domain = parts[1].to_lowercase();
                 if !domain.contains('.') || domain.starts_with('.') || domain.ends_with('.') {
-                    return Err(ServerFnError::ServerError("Invalid email address format (e.g. user@domain.com).".into()));
+                    return Err(ServerFnError::ServerError(
+                        "Invalid email address format (e.g. user@domain.com).".into(),
+                    ));
                 }
-                
+
                 // Block test list
-                let blocked = ["test.com", "example.com", "tempmail.com", "mailinator.com", "junk.com", "trashmail.com"];
+                let blocked = [
+                    "test.com",
+                    "example.com",
+                    "tempmail.com",
+                    "mailinator.com",
+                    "junk.com",
+                    "trashmail.com",
+                ];
                 if blocked.contains(&domain.as_str()) {
-                    return Err(ServerFnError::ServerError(format!("The domain '{}' is blocked or reserved for testing.", domain).into()));
+                    return Err(ServerFnError::ServerError(
+                        format!(
+                            "The domain '{}' is blocked or reserved for testing.",
+                            domain
+                        )
+                        .into(),
+                    ));
                 }
 
                 // DNS resolving check
@@ -480,7 +508,13 @@ pub async fn add_lead(
                 match tokio::net::lookup_host(host_to_resolve.as_str()).await {
                     Ok(mut addrs) => {
                         if addrs.next().is_none() {
-                            return Err(ServerFnError::ServerError(format!("The email domain '{}' does not resolve to any active hosts.", domain).into()));
+                            return Err(ServerFnError::ServerError(
+                                format!(
+                                    "The email domain '{}' does not resolve to any active hosts.",
+                                    domain
+                                )
+                                .into(),
+                            ));
                         }
                     }
                     Err(_) => {
@@ -538,18 +572,19 @@ pub async fn add_lead(
     Ok(())
 }
 
-
 #[server(GetLeadNotes, "/api")]
 pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     let user_id = match check_session().await {
         Ok(true) => {
-            let uid: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1").fetch_one(&state.pool).await?;
+            let uid: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
+                .fetch_one(&state.pool)
+                .await?;
             uid
         }
         _ => return Err(ServerFnError::ServerError("Unauthorized".into())),
@@ -572,7 +607,7 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, Serve
     let mut notes = Vec::new();
     for row in rows {
         let note_id: uuid::Uuid = row.get("id");
-        
+
         let file_rows = sqlx::query(
             "SELECT f.id, f.name, f.size, f.mime_type, f.hash_sha256, f.storage_type, f.storage_path, f.views, f.downloads, f.bandwidth_used, f.bandwidth_used_paid, f.date_upload, f.date_last_view, f.is_anonymous, f.user_id \
              FROM file f \
@@ -589,7 +624,8 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, Serve
             let file_id_str: String = f_row.get("id");
             let file_id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
             let date_upload: chrono::DateTime<chrono::Utc> = f_row.get("date_upload");
-            let date_last_view: Option<chrono::DateTime<chrono::Utc>> = f_row.try_get("date_last_view").unwrap_or(None);
+            let date_last_view: Option<chrono::DateTime<chrono::Utc>> =
+                f_row.try_get("date_last_view").unwrap_or(None);
             let user_id_str: Option<String> = f_row.try_get("user_id").unwrap_or(None);
             let user_uuid = user_id_str.and_then(|s| uuid::Uuid::parse_str(&s).ok());
 
@@ -634,21 +670,21 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, Serve
 
 #[server(AddLeadNote, "/api")]
 pub async fn add_lead_note(
-    lead_id: uuid::Uuid, 
-    content: String, 
-    is_private: bool, 
-    files: Vec<FileModel>
+    lead_id: uuid::Uuid,
+    content: String,
+    is_private: bool,
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
-    
+
     let user_id: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
         .fetch_one(&state.pool)
         .await?;
@@ -669,10 +705,11 @@ pub async fn add_lead_note(
     .await?;
 
     for file in files {
-        let file_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
-            .bind(file.id.to_string())
-            .fetch_one(&state.pool)
-            .await?;
+        let file_exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
+                .bind(file.id.to_string())
+                .fetch_one(&state.pool)
+                .await?;
 
         if !file_exists {
             sqlx::query(
@@ -707,12 +744,12 @@ pub async fn add_lead_note(
 
 #[server(DeleteLeadNote, "/api")]
 pub async fn delete_lead_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
@@ -770,7 +807,8 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityMode
             let file_id_str: String = f_row.get("id");
             let file_id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
             let date_upload: chrono::DateTime<chrono::Utc> = f_row.get("date_upload");
-            let date_last_view: Option<chrono::DateTime<chrono::Utc>> = f_row.try_get("date_last_view").unwrap_or(None);
+            let date_last_view: Option<chrono::DateTime<chrono::Utc>> =
+                f_row.try_get("date_last_view").unwrap_or(None);
             let user_id_str: Option<String> = f_row.try_get("user_id").unwrap_or(None);
             let user_uuid = user_id_str.and_then(|s| uuid::Uuid::parse_str(&s).ok());
 
@@ -795,7 +833,7 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityMode
 
         let activity_type_str: String = row.get("activity_type");
         let status_str: String = row.get("status");
-        
+
         let activity_type = match activity_type_str.as_str() {
             "Log" => ActivityType::Log,
             "Task" => ActivityType::Task,
@@ -810,8 +848,10 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityMode
             _ => ActivityStatus::Open,
         };
 
-        let due_date: Option<chrono::DateTime<chrono::Utc>> = row.try_get("due_date").unwrap_or(None);
-        let completed_at: Option<chrono::DateTime<chrono::Utc>> = row.try_get("completed_at").unwrap_or(None);
+        let due_date: Option<chrono::DateTime<chrono::Utc>> =
+            row.try_get("due_date").unwrap_or(None);
+        let completed_at: Option<chrono::DateTime<chrono::Utc>> =
+            row.try_get("completed_at").unwrap_or(None);
         let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
         let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
 
@@ -851,11 +891,11 @@ pub async fn add_lead_activity(
     status: ActivityStatus,
     due_date: Option<String>,
     completed_at: Option<String>,
-    files: Vec<FileModel>
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
@@ -879,8 +919,12 @@ pub async fn add_lead_activity(
         ActivityStatus::Completed => "Completed",
     };
 
-    let parsed_due_date = due_date.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
-    let parsed_completed_at = completed_at.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_due_date = due_date
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_completed_at = completed_at
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
 
     let act_id = uuid::Uuid::new_v4();
 
@@ -902,10 +946,11 @@ pub async fn add_lead_activity(
     .await?;
 
     for file in files {
-        let file_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
-            .bind(file.id.to_string())
-            .fetch_one(&state.pool)
-            .await?;
+        let file_exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
+                .bind(file.id.to_string())
+                .fetch_one(&state.pool)
+                .await?;
 
         if !file_exists {
             sqlx::query(
@@ -926,7 +971,7 @@ pub async fn add_lead_activity(
 
         sqlx::query(
             "INSERT INTO activity_attachment (id, activity_id, file_id, created_at) \
-             VALUES ($1, $2, $3, NOW())"
+             VALUES ($1, $2, $3, NOW())",
         )
         .bind(uuid::Uuid::new_v4())
         .bind(act_id)
@@ -941,11 +986,11 @@ pub async fn add_lead_activity(
 #[server(UpdateLeadActivityStatus, "/api")]
 pub async fn update_lead_activity_status(
     activity_id: uuid::Uuid,
-    status: ActivityStatus
+    status: ActivityStatus,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
@@ -980,9 +1025,9 @@ pub async fn update_lead_activity_status(
 
 #[server(DeleteLeadActivity, "/api")]
 pub async fn delete_lead_activity(activity_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 

@@ -1,7 +1,7 @@
+use crate::api::crm::{add_contact_note, get_contact_activities, get_contact_notes};
+use crate::api::models::{ContactModel, CrmActivity, CrmNote};
 /// Contact Detail Page — full stitch-aligned implementation
 use leptos::prelude::*;
-use crate::api::crm::{add_contact_note, get_contact_notes, get_contact_activities};
-use crate::api::models::{ContactModel, CrmNote, CrmActivity};
 
 fn ini2(s: &str) -> String {
     s.split_whitespace()
@@ -25,7 +25,7 @@ pub fn ContactDetail(
     let id = c.id.clone();
     let toast = use_context::<crate::app::GlobalToast>().expect("toast");
 
-    let active_tab   = RwSignal::new("overview");
+    let active_tab = RwSignal::new("overview");
     let note_content = RwSignal::new(String::new());
     let (trigger, set_trigger) = signal(0_u32);
 
@@ -50,7 +50,9 @@ pub fn ContactDetail(
         let id2 = id.clone();
         move |_| {
             let content = note_content.get();
-            if content.trim().is_empty() { return; }
+            if content.trim().is_empty() {
+                return;
+            }
             let id3 = id2.clone();
             let toast2 = toast.clone();
             leptos::task::spawn_local(async move {
@@ -67,63 +69,91 @@ pub fn ContactDetail(
     });
 
     // ── Pre-computed display values (no closures over c needed in view) ─────────
-    let display      = c.display_name().to_string();
-    let initials     = ini2(&display);
-    let subtitle     = {
+    let display = c.display_name().to_string();
+    let initials = ini2(&display);
+    let subtitle = {
         let mut p = Vec::new();
-        if let Some(ref t) = c.title      { p.push(t.clone()); }
-        if let Some(ref d) = c.department { p.push(d.clone()); }
+        if let Some(ref t) = c.title {
+            p.push(t.clone());
+        }
+        if let Some(ref d) = c.department {
+            p.push(d.clone());
+        }
         p.join(" · ")
     };
-    let email_val      = c.email.clone().unwrap_or_default();
+    let email_val = c.email.clone().unwrap_or_default();
     let email_verified = c.email_verified;
-    let phone_val      = c.phone.clone().unwrap_or_default();
+    let phone_val = c.phone.clone().unwrap_or_default();
     let phone_verified = c.phone_verified;
-    let is_primary     = c.is_primary;
-    let account_id     = StoredValue::new(c.account_id.clone());
-    let whatsapp_val   = c.whatsapp.clone().unwrap_or_default();
-    let linkedin_val   = c.linkedin_url.clone().unwrap_or_default();
+    let is_primary = c.is_primary;
+    let account_id = StoredValue::new(c.account_id.clone());
+    let whatsapp_val = c.whatsapp.clone().unwrap_or_default();
+    let linkedin_val = c.linkedin_url.clone().unwrap_or_default();
     let contact_id_display = c.id.clone();
 
     // ── Rows stored reactively to avoid FnOnce captures ─────────────────────
     let channel_rows = StoredValue::new(vec![
-        ("Email",    fmt_opt(&c.email),        c.email_verified),
-        ("Phone",    fmt_opt(&c.phone),        c.phone_verified),
-        ("WhatsApp", fmt_opt(&c.whatsapp),     false),
+        ("Email", fmt_opt(&c.email), c.email_verified),
+        ("Phone", fmt_opt(&c.phone), c.phone_verified),
+        ("WhatsApp", fmt_opt(&c.whatsapp), false),
         ("LinkedIn", fmt_opt(&c.linkedin_url), false),
-        ("Telegram", fmt_opt(&c.telegram),     false),
+        ("Telegram", fmt_opt(&c.telegram), false),
     ]);
 
     let identity_rows = StoredValue::new(vec![
-        ("First Name",  fmt_opt(&c.first_name)),
-        ("Last Name",   fmt_opt(&c.last_name)),
-        ("Full Name",   fmt_opt(&c.full_name)),
-        ("Title",       fmt_opt(&c.title)),
-        ("Department",  fmt_opt(&c.department)),
+        ("First Name", fmt_opt(&c.first_name)),
+        ("Last Name", fmt_opt(&c.last_name)),
+        ("Full Name", fmt_opt(&c.full_name)),
+        ("Title", fmt_opt(&c.title)),
+        ("Department", fmt_opt(&c.department)),
         ("Data Source", fmt_opt(&c.data_source)),
     ]);
 
     let detail_rows = StoredValue::new(vec![
-        ("Contact ID",      c.id.clone(),                         true),
-        ("Account ID",      c.account_id.clone(),                 true),
-        ("First Name",      fmt_opt(&c.first_name),               false),
-        ("Last Name",       fmt_opt(&c.last_name),                false),
-        ("Full Name",       fmt_opt(&c.full_name),                false),
-        ("Preferred Name",  fmt_opt(&c.preferred_name),           false),
-        ("Title",           fmt_opt(&c.title),                    false),
-        ("Department",      fmt_opt(&c.department),               false),
-        ("Is Primary",      if c.is_primary { "Yes".into() } else { "No".into() }, false),
-        ("Email",           fmt_opt(&c.email),                    false),
-        ("Email Verified",  if c.email_verified { "Yes · MillionVerifier".into() } else { "No".into() }, false),
-        ("Phone",           fmt_opt(&c.phone),                    false),
-        ("Phone Verified",  if c.phone_verified { "Yes".into() } else { "No".into() }, false),
-        ("WhatsApp",        fmt_opt(&c.whatsapp),                 false),
-        ("Telegram",        fmt_opt(&c.telegram),                 false),
-        ("LinkedIn URL",    fmt_opt(&c.linkedin_url),             false),
-        ("Avatar URL",      fmt_opt(&c.avatar_url),               false),
-        ("Data Source",     fmt_opt(&c.data_source),              false),
-        ("Created At",      fmt_opt(&c.created_at),               true),
-        ("Updated At",      fmt_opt(&c.updated_at),               true),
+        ("Contact ID", c.id.clone(), true),
+        ("Account ID", c.account_id.clone(), true),
+        ("First Name", fmt_opt(&c.first_name), false),
+        ("Last Name", fmt_opt(&c.last_name), false),
+        ("Full Name", fmt_opt(&c.full_name), false),
+        ("Preferred Name", fmt_opt(&c.preferred_name), false),
+        ("Title", fmt_opt(&c.title), false),
+        ("Department", fmt_opt(&c.department), false),
+        (
+            "Is Primary",
+            if c.is_primary {
+                "Yes".into()
+            } else {
+                "No".into()
+            },
+            false,
+        ),
+        ("Email", fmt_opt(&c.email), false),
+        (
+            "Email Verified",
+            if c.email_verified {
+                "Yes · MillionVerifier".into()
+            } else {
+                "No".into()
+            },
+            false,
+        ),
+        ("Phone", fmt_opt(&c.phone), false),
+        (
+            "Phone Verified",
+            if c.phone_verified {
+                "Yes".into()
+            } else {
+                "No".into()
+            },
+            false,
+        ),
+        ("WhatsApp", fmt_opt(&c.whatsapp), false),
+        ("Telegram", fmt_opt(&c.telegram), false),
+        ("LinkedIn URL", fmt_opt(&c.linkedin_url), false),
+        ("Avatar URL", fmt_opt(&c.avatar_url), false),
+        ("Data Source", fmt_opt(&c.data_source), false),
+        ("Created At", fmt_opt(&c.created_at), true),
+        ("Updated At", fmt_opt(&c.updated_at), true),
     ]);
 
     view! {

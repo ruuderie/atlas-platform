@@ -137,9 +137,9 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
     // PUBLIC_API_BASE_URL is the HTTPS URL of the backend API as seen from the browser
     // (e.g. https://api.dev.atlas.oply.co). This is distinct from ATLAS_API_URL which
     // is the internal cluster URL used for SSR-side server fn calls.
-    let public_api_base_url = std::env::var("PUBLIC_API_BASE_URL")
-        .unwrap_or_else(|_| std::env::var("ATLAS_API_URL")
-            .unwrap_or_else(|_| "http://localhost:8000".to_string()));
+    let public_api_base_url = std::env::var("PUBLIC_API_BASE_URL").unwrap_or_else(|_| {
+        std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string())
+    });
 
     // Inline the env script as a raw string so it is synchronously available
     // before any WASM or JS module executes. This matches the platform-admin pattern.
@@ -260,7 +260,6 @@ pub fn main() {
     // The window.__atlasReady flag is set via a Leptos Effect in App() in app.rs,
     // which fires on the client after the reactive system initialises.
 }
-
 
 // Trigger build
 // trigger deploy

@@ -1526,9 +1526,7 @@ pub fn MailingListForm(
 // CRM Lead Form
 // -----------------------------------------
 #[component]
-pub fn LeadForm(
-    initial_record: Option<crate::pages::admin::leads::LeadRecord>,
-) -> impl IntoView {
+pub fn LeadForm(initial_record: Option<crate::pages::admin::leads::LeadRecord>) -> impl IntoView {
     let set_modal_state = expect_context::<WriteSignal<ModalState>>();
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let refresh = expect_context::<ReadSignal<i32>>();
@@ -1536,16 +1534,66 @@ pub fn LeadForm(
     let is_edit = initial_record.is_some();
     let id_val = initial_record.as_ref().map(|r| r.id).unwrap_or_default();
 
-    let (name, set_name) = signal(initial_record.as_ref().map(|r| r.name.clone()).unwrap_or_default());
-    let (first_name, set_first_name) = signal(initial_record.as_ref().and_then(|r| r.first_name.clone()).unwrap_or_default());
-    let (last_name, set_last_name) = signal(initial_record.as_ref().and_then(|r| r.last_name.clone()).unwrap_or_default());
-    let (email, set_email) = signal(initial_record.as_ref().and_then(|r| r.email.clone()).unwrap_or_default());
-    let (phone, set_phone) = signal(initial_record.as_ref().and_then(|r| r.phone.clone()).unwrap_or_default());
-    let (company, set_company) = signal(initial_record.as_ref().and_then(|r| r.company.clone()).unwrap_or_default());
-    let (title, set_title) = signal(initial_record.as_ref().and_then(|r| r.title.clone()).unwrap_or_default());
-    let (lead_status, set_lead_status) = signal(initial_record.as_ref().and_then(|r| r.lead_status.clone()).unwrap_or_else(|| "new".to_string()));
-    let (source, set_source) = signal(initial_record.as_ref().and_then(|r| r.source.clone()).unwrap_or_else(|| "Manual".to_string()));
-    let (message, set_message) = signal(initial_record.as_ref().and_then(|r| r.message.clone()).unwrap_or_default());
+    let (name, set_name) = signal(
+        initial_record
+            .as_ref()
+            .map(|r| r.name.clone())
+            .unwrap_or_default(),
+    );
+    let (first_name, set_first_name) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.first_name.clone())
+            .unwrap_or_default(),
+    );
+    let (last_name, set_last_name) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.last_name.clone())
+            .unwrap_or_default(),
+    );
+    let (email, set_email) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.email.clone())
+            .unwrap_or_default(),
+    );
+    let (phone, set_phone) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.phone.clone())
+            .unwrap_or_default(),
+    );
+    let (company, set_company) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.company.clone())
+            .unwrap_or_default(),
+    );
+    let (title, set_title) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.title.clone())
+            .unwrap_or_default(),
+    );
+    let (lead_status, set_lead_status) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.lead_status.clone())
+            .unwrap_or_else(|| "new".to_string()),
+    );
+    let (source, set_source) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.source.clone())
+            .unwrap_or_else(|| "Manual".to_string()),
+    );
+    let (message, set_message) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.message.clone())
+            .unwrap_or_default(),
+    );
 
     let (save_error, set_save_error) = signal::<Option<String>>(None);
     let avatar_url_val = initial_record.as_ref().and_then(|r| r.avatar_url.clone());
@@ -1559,46 +1607,79 @@ pub fn LeadForm(
         }
         let n = format!("{} {}", fn_val, ln_val).trim().to_string();
 
-        let fn_opt = { let s = first_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let ln_opt = { let s = last_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let em_opt = { let s = email.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let ph_opt = { let s = phone.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let co_opt = { let s = company.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let ti_opt = { let s = title.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let fn_opt = {
+            let s = first_name.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let ln_opt = {
+            let s = last_name.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let em_opt = {
+            let s = email.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let ph_opt = {
+            let s = phone.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let co_opt = {
+            let s = company.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let ti_opt = {
+            let s = title.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
         let st_opt = Some(lead_status.get_untracked());
         let src_opt = Some(source.get_untracked());
-        let msg_opt = { let s = message.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let msg_opt = {
+            let s = message.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
         let av_opt = avatar_url_val.clone();
 
         set_save_error.set(None);
         leptos::task::spawn_local(async move {
             let res = if is_edit {
                 crate::pages::admin::leads::update_lead_details(
-                    id_val,
-                    n,
-                    fn_opt,
-                    ln_opt,
-                    em_opt,
-                    ph_opt,
-                    co_opt,
-                    ti_opt,
-                    src_opt,
-                    msg_opt,
+                    id_val, n, fn_opt, ln_opt, em_opt, ph_opt, co_opt, ti_opt, src_opt, msg_opt,
                     av_opt,
-                ).await
+                )
+                .await
             } else {
                 crate::pages::admin::leads::add_lead(
-                    n,
-                    fn_opt,
-                    ln_opt,
-                    em_opt,
-                    ph_opt,
-                    co_opt,
-                    ti_opt,
-                    st_opt,
-                    src_opt,
-                    msg_opt,
-                ).await
+                    n, fn_opt, ln_opt, em_opt, ph_opt, co_opt, ti_opt, st_opt, src_opt, msg_opt,
+                )
+                .await
             };
 
             match res {
@@ -1687,18 +1768,68 @@ pub fn ContactForm(
     let is_edit = initial_record.is_some();
     let id_val = initial_record.as_ref().map(|r| r.id).unwrap_or_default();
 
-    let (name, set_name) = signal(initial_record.as_ref().map(|r| r.name.clone()).unwrap_or_default());
-    let (first_name, set_first_name) = signal(initial_record.as_ref().and_then(|r| r.first_name.clone()).unwrap_or_default());
-    let (last_name, set_last_name) = signal(initial_record.as_ref().and_then(|r| r.last_name.clone()).unwrap_or_default());
-    let (email, set_email) = signal(initial_record.as_ref().and_then(|r| r.email.clone()).unwrap_or_default());
-    let (phone, set_phone) = signal(initial_record.as_ref().and_then(|r| r.phone.clone()).unwrap_or_default());
-    
+    let (name, set_name) = signal(
+        initial_record
+            .as_ref()
+            .map(|r| r.name.clone())
+            .unwrap_or_default(),
+    );
+    let (first_name, set_first_name) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.first_name.clone())
+            .unwrap_or_default(),
+    );
+    let (last_name, set_last_name) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.last_name.clone())
+            .unwrap_or_default(),
+    );
+    let (email, set_email) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.email.clone())
+            .unwrap_or_default(),
+    );
+    let (phone, set_phone) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.phone.clone())
+            .unwrap_or_default(),
+    );
+
     // Social Profiles
-    let (whatsapp, set_whatsapp) = signal(initial_record.as_ref().and_then(|r| r.whatsapp.clone()).unwrap_or_default());
-    let (telegram, set_telegram) = signal(initial_record.as_ref().and_then(|r| r.telegram.clone()).unwrap_or_default());
-    let (twitter, set_twitter) = signal(initial_record.as_ref().and_then(|r| r.twitter.clone()).unwrap_or_default());
-    let (instagram, set_instagram) = signal(initial_record.as_ref().and_then(|r| r.instagram.clone()).unwrap_or_default());
-    let (facebook, set_facebook) = signal(initial_record.as_ref().and_then(|r| r.facebook.clone()).unwrap_or_default());
+    let (whatsapp, set_whatsapp) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.whatsapp.clone())
+            .unwrap_or_default(),
+    );
+    let (telegram, set_telegram) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.telegram.clone())
+            .unwrap_or_default(),
+    );
+    let (twitter, set_twitter) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.twitter.clone())
+            .unwrap_or_default(),
+    );
+    let (instagram, set_instagram) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.instagram.clone())
+            .unwrap_or_default(),
+    );
+    let (facebook, set_facebook) = signal(
+        initial_record
+            .as_ref()
+            .and_then(|r| r.facebook.clone())
+            .unwrap_or_default(),
+    );
 
     // Mailing List Option (Integration)
     let (subscribe_list, set_subscribe_list) = signal(false);
@@ -1706,10 +1837,11 @@ pub fn ContactForm(
 
     // Properties (Metadata Editor)
     let (properties_str, set_properties_str) = signal(
-        initial_record.as_ref()
+        initial_record
+            .as_ref()
             .and_then(|r| r.properties.as_ref())
             .map(|p| serde_json::to_string_pretty(p).unwrap_or_else(|_| "{}".to_string()))
-            .unwrap_or_else(|| "{\n  \"tags\": [],\n  \"status\": \"prospect\"\n}".to_string())
+            .unwrap_or_else(|| "{\n  \"tags\": [],\n  \"status\": \"prospect\"\n}".to_string()),
     );
 
     let (save_error, set_save_error) = signal::<Option<String>>(None);
@@ -1724,23 +1856,87 @@ pub fn ContactForm(
         }
         let n = format!("{} {}", fn_val, ln_val).trim().to_string();
 
-        let fn_opt = { let s = first_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let ln_opt = { let s = last_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let em_opt = { let s = email.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let ph_opt = { let s = phone.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let wa_opt = { let s = whatsapp.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let tg_opt = { let s = telegram.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let tw_opt = { let s = twitter.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let ig_opt = { let s = instagram.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-        let fb_opt = { let s = facebook.get_untracked(); if s.is_empty() { None } else { Some(s) } };
-
-        let parsed_properties = match serde_json::from_str::<serde_json::Value>(&properties_str.get_untracked()) {
-            Ok(v) => Some(v),
-            Err(e) => {
-                set_save_error.set(Some(format!("Invalid Properties JSON: {}", e)));
-                return;
+        let fn_opt = {
+            let s = first_name.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
             }
         };
+        let ln_opt = {
+            let s = last_name.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let em_opt = {
+            let s = email.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let ph_opt = {
+            let s = phone.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let wa_opt = {
+            let s = whatsapp.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let tg_opt = {
+            let s = telegram.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let tw_opt = {
+            let s = twitter.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let ig_opt = {
+            let s = instagram.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+        let fb_opt = {
+            let s = facebook.get_untracked();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        };
+
+        let parsed_properties =
+            match serde_json::from_str::<serde_json::Value>(&properties_str.get_untracked()) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    set_save_error.set(Some(format!("Invalid Properties JSON: {}", e)));
+                    return;
+                }
+            };
 
         let sub_email = em_opt.clone().unwrap_or_default();
         let sub_active = subscribe_list.get_untracked() && !sub_email.is_empty();
@@ -1764,7 +1960,8 @@ pub fn ContactForm(
                     fb_opt,
                     parsed_properties,
                     av_opt,
-                ).await
+                )
+                .await
             } else {
                 crate::pages::admin::contacts::add_contact(
                     n,
@@ -1778,14 +1975,20 @@ pub fn ContactForm(
                     ig_opt,
                     fb_opt,
                     parsed_properties,
-                ).await
+                )
+                .await
             };
 
             match res {
                 Ok(_) => {
                     // Optionally subscribe to the mailing list
                     if sub_active {
-                        let _ = crate::pages::dynamic_landing::handle_dynamic_lead(sub_tag, sub_email, vec![]).await;
+                        let _ = crate::pages::dynamic_landing::handle_dynamic_lead(
+                            sub_tag,
+                            sub_email,
+                            vec![],
+                        )
+                        .await;
                     }
                     set_refresh.set(refresh.get_untracked() + 1);
                     set_modal_state.set(ModalState::None);
@@ -1863,7 +2066,7 @@ pub fn ContactForm(
                                 </p>
                             </div>
                         </label>
-                        
+
                         <Show when=move || subscribe_list.get()>
                             <div class="flex flex-col gap-2 mt-2">
                                 <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"List Identifier (Tags)"</label>

@@ -1,7 +1,7 @@
-/// Deal / Opportunity Detail Page — atlas_deals
-use leptos::prelude::*;
 use crate::api::crm::update_deal;
 use crate::api::models::DealModel;
+/// Deal / Opportunity Detail Page — atlas_deals
+use leptos::prelude::*;
 
 #[component]
 pub fn DealDetail(deal: DealModel) -> impl IntoView {
@@ -10,28 +10,43 @@ pub fn DealDetail(deal: DealModel) -> impl IntoView {
 
     // Stage stepper
     let stages: &[(&str, &str)] = &[
-        ("prospecting",  "Prospecting"),
-        ("qualifying",   "Qualifying"),
-        ("proposal",     "Proposal"),
-        ("negotiation",  "Negotiation"),
-        ("closed_won",   "Closed Won"),
-        ("closed_lost",  "Closed Lost"),
+        ("prospecting", "Prospecting"),
+        ("qualifying", "Qualifying"),
+        ("proposal", "Proposal"),
+        ("negotiation", "Negotiation"),
+        ("closed_won", "Closed Won"),
+        ("closed_lost", "Closed Lost"),
     ];
 
     let current_stage = d.stage.to_lowercase();
-    let current_idx = stages.iter()
+    let current_idx = stages
+        .iter()
         .position(|(k, _)| *k == current_stage.as_str())
         .unwrap_or(0);
-    let is_won  = current_stage == "closed_won";
+    let is_won = current_stage == "closed_won";
     let is_lost = current_stage == "closed_lost";
 
     let sc = move |i: usize| -> &'static str {
-        if is_won && i == 4  { return "sf-step terminal-won"; }
-        if is_lost && i == 5 { return "sf-step terminal-lost"; }
-        if is_won || is_lost { return if i < 4 { "sf-step done" } else { "sf-step future" }; }
-        if i < current_idx   { "sf-step done" }
-        else if i == current_idx { "sf-step current" }
-        else { "sf-step future" }
+        if is_won && i == 4 {
+            return "sf-step terminal-won";
+        }
+        if is_lost && i == 5 {
+            return "sf-step terminal-lost";
+        }
+        if is_won || is_lost {
+            return if i < 4 {
+                "sf-step done"
+            } else {
+                "sf-step future"
+            };
+        }
+        if i < current_idx {
+            "sf-step done"
+        } else if i == current_idx {
+            "sf-step current"
+        } else {
+            "sf-step future"
+        }
     };
 
     let handle_stage = StoredValue::new({
@@ -43,7 +58,11 @@ pub fn DealDetail(deal: DealModel) -> impl IntoView {
             let toast2 = toast.clone();
             leptos::task::spawn_local(async move {
                 match update_deal(&id3, &new_stage, &status3).await {
-                    Ok(_) => toast2.show_toast("Deal", &format!("Stage updated to {}", new_stage), "success"),
+                    Ok(_) => toast2.show_toast(
+                        "Deal",
+                        &format!("Stage updated to {}", new_stage),
+                        "success",
+                    ),
                     Err(e) => toast2.show_toast("Error", &e, "error"),
                 }
             });
@@ -52,20 +71,20 @@ pub fn DealDetail(deal: DealModel) -> impl IntoView {
 
     // Detail rows
     let detail_rows = StoredValue::new(vec![
-        ("Deal ID",      d.id.clone(),         true),
-        ("Name",         d.name.clone(),        false),
-        ("Customer ID",  d.customer_id.clone(), true),
-        ("Amount",       format!("${:.2}", d.amount), false),
-        ("Stage",        d.stage.clone(),       false),
-        ("Status",       d.status.clone(),      false),
+        ("Deal ID", d.id.clone(), true),
+        ("Name", d.name.clone(), false),
+        ("Customer ID", d.customer_id.clone(), true),
+        ("Amount", format!("${:.2}", d.amount), false),
+        ("Stage", d.stage.clone(), false),
+        ("Status", d.status.clone(), false),
     ]);
 
     // Pre-extracted values
-    let name        = d.name.clone();
-    let amount_str  = format!("${:.2}", d.amount);
-    let stage_str   = d.stage.clone();
-    let status_str  = d.status.clone();
-    let account_id  = StoredValue::new(d.customer_id.clone());
+    let name = d.name.clone();
+    let amount_str = format!("${:.2}", d.amount);
+    let stage_str = d.stage.clone();
+    let status_str = d.status.clone();
+    let account_id = StoredValue::new(d.customer_id.clone());
 
     view! {
         <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">

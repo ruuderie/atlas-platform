@@ -1,36 +1,38 @@
-use leptos::prelude::*;
-use crate::api::crm::{get_contacts, create_contact};
+use crate::api::crm::{create_contact, get_contacts};
 use crate::api::models::{ContactModel, CreateContact};
 use crate::pages::crm::components::{
-    kpi_strip::{KpiStrip, KpiItem},
+    kpi_strip::{KpiItem, KpiStrip},
+    pagination::Pagination,
     record_drawer::RecordDrawer,
     record_row::{RecordRow, initials},
-    pagination::Pagination,
 };
+use leptos::prelude::*;
 
 const PER_PAGE: u64 = 25;
 
-fn fmt_date(s: &str) -> String { s.chars().take(10).collect() }
+fn fmt_date(s: &str) -> String {
+    s.chars().take(10).collect()
+}
 
 #[component]
 pub fn ContactsPage() -> impl IntoView {
-    let search_filter    = RwSignal::new(String::new());
+    let search_filter = RwSignal::new(String::new());
     let search_debounced = RwSignal::new(String::new());
-    let page             = RwSignal::new(1_u64);
-    let primary_filter   = RwSignal::new(false);
+    let page = RwSignal::new(1_u64);
+    let primary_filter = RwSignal::new(false);
 
-    let selected    = RwSignal::new(None::<ContactModel>);
+    let selected = RwSignal::new(None::<ContactModel>);
     let drawer_open = RwSignal::new(false);
 
     // ── Create modal signals ──────────────────────────────────────────────────
-    let show_create  = RwSignal::new(false);
-    let new_first    = RwSignal::new(String::new());
-    let new_last     = RwSignal::new(String::new());
-    let new_email    = RwSignal::new(String::new());
-    let new_phone    = RwSignal::new(String::new());
-    let new_title    = RwSignal::new(String::new());
-    let create_busy  = RwSignal::new(false);
-    let toast        = use_context::<crate::app::GlobalToast>().expect("toast");
+    let show_create = RwSignal::new(false);
+    let new_first = RwSignal::new(String::new());
+    let new_last = RwSignal::new(String::new());
+    let new_email = RwSignal::new(String::new());
+    let new_phone = RwSignal::new(String::new());
+    let new_title = RwSignal::new(String::new());
+    let create_busy = RwSignal::new(false);
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast");
 
     // Debounce search
     Effect::new(move |_| {
@@ -44,17 +46,27 @@ pub fn ContactsPage() -> impl IntoView {
 
     let contacts_res = LocalResource::new(move || {
         let search = search_debounced.get();
-        let pg     = page.get();
-        let role   = if primary_filter.get() { Some("primary") } else { None };
+        let pg = page.get();
+        let role = if primary_filter.get() {
+            Some("primary")
+        } else {
+            None
+        };
         async move {
-            let s = if search.is_empty() { None } else { Some(search.as_str()) };
-            get_contacts(s, pg, PER_PAGE, role).await.unwrap_or_default()
+            let s = if search.is_empty() {
+                None
+            } else {
+                Some(search.as_str())
+            };
+            get_contacts(s, pg, PER_PAGE, role)
+                .await
+                .unwrap_or_default()
         }
     });
 
     let handle_create = move |_| {
         let first = new_first.get();
-        let last  = new_last.get();
+        let last = new_last.get();
         if first.trim().is_empty() && last.trim().is_empty() {
             toast.show_toast("Error", "At least first or last name is required.", "error");
             return;
@@ -63,17 +75,37 @@ pub fn ContactsPage() -> impl IntoView {
         let resource = contacts_res.clone();
         leptos::task::spawn_local(async move {
             let data = CreateContact {
-                first_name:   if first.trim().is_empty() { None } else { Some(first.trim().to_string()) },
-                last_name:    if last.trim().is_empty()  { None } else { Some(last.trim().to_string()) },
-                full_name:    None,
-                email:        if new_email.get().trim().is_empty() { None } else { Some(new_email.get().trim().to_string()) },
-                phone:        if new_phone.get().trim().is_empty() { None } else { Some(new_phone.get().trim().to_string()) },
-                title:        if new_title.get().trim().is_empty() { None } else { Some(new_title.get().trim().to_string()) },
-                department:   None,
-                whatsapp:     None,
-                telegram:     None,
+                first_name: if first.trim().is_empty() {
+                    None
+                } else {
+                    Some(first.trim().to_string())
+                },
+                last_name: if last.trim().is_empty() {
+                    None
+                } else {
+                    Some(last.trim().to_string())
+                },
+                full_name: None,
+                email: if new_email.get().trim().is_empty() {
+                    None
+                } else {
+                    Some(new_email.get().trim().to_string())
+                },
+                phone: if new_phone.get().trim().is_empty() {
+                    None
+                } else {
+                    Some(new_phone.get().trim().to_string())
+                },
+                title: if new_title.get().trim().is_empty() {
+                    None
+                } else {
+                    Some(new_title.get().trim().to_string())
+                },
+                department: None,
+                whatsapp: None,
+                telegram: None,
                 linkedin_url: None,
-                account_id:   None,
+                account_id: None,
             };
             match create_contact(data).await {
                 Ok(_) => {
@@ -94,16 +126,16 @@ pub fn ContactsPage() -> impl IntoView {
 
     // ── KPI strip ─────────────────────────────────────────────────────────────
     let kpi_items = Signal::derive(move || {
-        let contacts       = contacts_res.get().unwrap_or_default();
-        let total          = contacts.len();
+        let contacts = contacts_res.get().unwrap_or_default();
+        let total = contacts.len();
         let verified_email = contacts.iter().filter(|c| c.email_verified).count();
-        let has_whatsapp   = contacts.iter().filter(|c| c.whatsapp.is_some()).count();
-        let primary_count  = contacts.iter().filter(|c| c.is_primary).count();
+        let has_whatsapp = contacts.iter().filter(|c| c.whatsapp.is_some()).count();
+        let primary_count = contacts.iter().filter(|c| c.is_primary).count();
         vec![
-            KpiItem::new("Total",          &total.to_string()),
+            KpiItem::new("Total", &total.to_string()),
             KpiItem::new("Email Verified", &verified_email.to_string()).color("var(--green)"),
-            KpiItem::new("WhatsApp",       &has_whatsapp.to_string()).color("var(--cobalt)"),
-            KpiItem::new("Primary",        &primary_count.to_string()).color("var(--amber)"),
+            KpiItem::new("WhatsApp", &has_whatsapp.to_string()).color("var(--cobalt)"),
+            KpiItem::new("Primary", &primary_count.to_string()).color("var(--amber)"),
         ]
     });
 

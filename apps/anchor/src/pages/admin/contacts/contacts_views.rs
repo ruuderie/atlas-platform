@@ -1,11 +1,11 @@
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline_generic::{
-    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+    ActivityModel, ActivityStatus, ActivityType, CrmTimelineGeneric, FileModel, NoteModel,
 };
+use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
 use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::utils::ResourceState;
-use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
 
 use super::*;
 
@@ -68,7 +68,7 @@ pub fn ContactTable() -> impl IntoView {
                                         {move || selected_contact.get().map(|contact| {
                                             let navigate = navigate.clone();
                                             view! {
-                                                <ContactCrmPane 
+                                                <ContactCrmPane
                                                     contact_record=contact
                                                     stages=statuses.clone()
                                                     on_close=Callback::new(move |_: ()| {
@@ -110,20 +110,20 @@ pub fn ContactTable() -> impl IntoView {
                                                         let navigate = navigate.clone();
                                                         let email_disp = contact.email.clone().unwrap_or_else(|| "-".to_string());
                                                         let phone_disp = contact.phone.clone().unwrap_or_else(|| "-".to_string());
-                                                        
+
                                                         // Extract status from properties JSON
                                                         let status_disp = contact.properties.as_ref()
                                                             .and_then(|p| p.get("status"))
                                                             .and_then(|s| s.as_str())
                                                             .unwrap_or("prospect")
                                                             .to_string();
-                                                        
+
                                                         // Dynamic pipeline-based status badge styling
                                                         let matched_color = statuses.iter()
                                                             .find(|s| s.status_key.to_lowercase() == status_disp.to_lowercase())
                                                             .map(|s| s.color.as_str())
                                                             .unwrap_or("slate");
-                                                            
+
                                                          let badge_classes = match matched_color {
                                                             "blue" => "bg-blue-500/10 text-blue-500 border-blue-500/20",
                                                             "purple" => "bg-purple-500/10 text-purple-500 border-purple-500/20",
@@ -135,7 +135,7 @@ pub fn ContactTable() -> impl IntoView {
                                                          };
 
                                                         view! {
-                                                            <tr 
+                                                            <tr
                                                                 class="hover:bg-surface-container-high transition-all duration-150 cursor-pointer"
                                                                 on:click={
                                                                     let navigate = navigate.clone();
@@ -168,7 +168,7 @@ pub fn ContactTable() -> impl IntoView {
                                                                     </span>
                                                                 </td>
                                                                 <td class="py-4 px-4 text-right">
-                                                                    <button 
+                                                                    <button
                                                                         on:click={
                                                                             let navigate = navigate.clone();
                                                                             move |e| {
@@ -184,7 +184,7 @@ pub fn ContactTable() -> impl IntoView {
                                                                                     }
                                                                                 });
                                                                             }
-                                                                        } 
+                                                                        }
                                                                         class="text-error hover:underline text-xs tracking-wider uppercase font-bold"
                                                                     >
                                                                         "Drop"
@@ -233,25 +233,36 @@ fn ContactCrmPane(
             body: "<p>Hello,</p><p>We are excited to share our custom proposal based on our initial discussion. Please review the attached details and let us know if you have any questions or when you would be available for a quick walkthrough.</p><p>Best regards,<br/>The Consulting Team</p>".to_string(),
         },
     ];
-    
+
     // Extract status from properties JSON
-    let status_val = contact_record.properties.as_ref()
+    let status_val = contact_record
+        .properties
+        .as_ref()
         .and_then(|p| p.get("status"))
         .and_then(|s| s.as_str())
         .unwrap_or("prospect")
         .to_string();
 
     let (current_stage, set_current_stage) = signal(status_val);
-    
+
     let contact_id = contact_record.id;
-    let notes_res = Resource::new(move || refresh.get(), move |_| get_contact_notes(contact_id));
-    let activities_res = Resource::new(move || refresh.get(), move |_| get_contact_activities(contact_id));
-    let attachments_res = Resource::new(move || refresh.get(), move |_| get_contact_attachments(contact_id));
+    let notes_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_contact_notes(contact_id),
+    );
+    let activities_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_contact_activities(contact_id),
+    );
+    let attachments_res = Resource::new(
+        move || refresh.get(),
+        move |_| get_contact_attachments(contact_id),
+    );
 
     // Avatar Url State
     let (avatar_url_signal, set_avatar_url_signal) = signal(contact_record.avatar_url.clone());
     let avatar_input_ref = NodeRef::<leptos::html::Input>::new();
-    
+
     let trigger_avatar_upload = move |_| {
         if let Some(input) = avatar_input_ref.get() {
             input.click();
@@ -260,7 +271,8 @@ fn ContactCrmPane(
 
     // Field signals for standard details editing
     let (name, set_name) = signal(contact_record.name.clone());
-    let (first_name, set_first_name) = signal(contact_record.first_name.clone().unwrap_or_default());
+    let (first_name, set_first_name) =
+        signal(contact_record.first_name.clone().unwrap_or_default());
     let (last_name, set_last_name) = signal(contact_record.last_name.clone().unwrap_or_default());
     let (email, set_email) = signal(contact_record.email.clone().unwrap_or_default());
     let (phone, set_phone) = signal(contact_record.phone.clone().unwrap_or_default());
@@ -269,24 +281,29 @@ fn ContactCrmPane(
     let (twitter, set_twitter) = signal(contact_record.twitter.clone().unwrap_or_default());
     let (instagram, set_instagram) = signal(contact_record.instagram.clone().unwrap_or_default());
     let (facebook, set_facebook) = signal(contact_record.facebook.clone().unwrap_or_default());
-    
+
     // Properties JSON RwSignal for PropertiesEditor
     let properties_signal = RwSignal::new(contact_record.properties.clone());
-    
+
     let (edit_mode, set_edit_mode) = signal(false);
     let (save_error, set_save_error) = signal::<Option<String>>(None);
 
     let handle_stage_change = move |new_stage: String| {
         set_current_stage.set(new_stage.clone());
         let stage_cl = new_stage.clone();
-        
+
         // Update status in properties JSON payload
-        let mut props = properties_signal.get_untracked().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+        let mut props = properties_signal
+            .get_untracked()
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
         if let serde_json::Value::Object(ref mut map) = props {
-            map.insert("status".to_string(), serde_json::Value::String(stage_cl.clone()));
+            map.insert(
+                "status".to_string(),
+                serde_json::Value::String(stage_cl.clone()),
+            );
         }
         properties_signal.set(Some(props.clone()));
-        
+
         let n = name.get();
         let fn_val = Some(first_name.get()).filter(|s| !s.is_empty());
         let ln_val = Some(last_name.get()).filter(|s| !s.is_empty());
@@ -301,8 +318,22 @@ fn ContactCrmPane(
         let avatar_val = avatar_url_signal.get_untracked();
         leptos::task::spawn_local(async move {
             if let Ok(_) = update_contact_details(
-                contact_id, n, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
-            ).await {
+                contact_id,
+                n,
+                fn_val,
+                ln_val,
+                em_val,
+                ph_val,
+                wa_val,
+                tg_val,
+                tw_val,
+                ig_val,
+                fb_val,
+                Some(props),
+                avatar_val,
+            )
+            .await
+            {
                 // Log timeline activity
                 let _ = add_contact_activity(
                     contact_id,
@@ -312,8 +343,9 @@ fn ContactCrmPane(
                     ActivityStatus::Completed,
                     None,
                     Some(chrono::Utc::now().to_rfc3339()),
-                    Vec::new()
-                ).await;
+                    Vec::new(),
+                )
+                .await;
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -339,18 +371,37 @@ fn ContactCrmPane(
         let tw_val = Some(twitter.get()).filter(|s| !s.is_empty());
         let ig_val = Some(instagram.get()).filter(|s| !s.is_empty());
         let fb_val = Some(facebook.get()).filter(|s| !s.is_empty());
-        
+
         // Include status in the saved properties JSON
-        let mut props = properties_signal.get().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+        let mut props = properties_signal
+            .get()
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
         if let serde_json::Value::Object(ref mut map) = props {
-            map.insert("status".to_string(), serde_json::Value::String(current_stage.get_untracked()));
+            map.insert(
+                "status".to_string(),
+                serde_json::Value::String(current_stage.get_untracked()),
+            );
         }
 
         let avatar_val = avatar_url_signal.get_untracked();
         leptos::task::spawn_local(async move {
             match update_contact_details(
-                contact_id, n, fn_opt, ln_opt, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
-            ).await {
+                contact_id,
+                n,
+                fn_opt,
+                ln_opt,
+                em_val,
+                ph_val,
+                wa_val,
+                tg_val,
+                tw_val,
+                ig_val,
+                fb_val,
+                Some(props),
+                avatar_val,
+            )
+            .await
+            {
                 Ok(_) => {
                     set_edit_mode.set(false);
                     set_refresh.set(refresh.get_untracked() + 1);
@@ -362,35 +413,59 @@ fn ContactCrmPane(
         });
     };
 
-    let add_note_cb = Callback::new(move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_contact_note(contact_id, content, is_private, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let add_note_cb = Callback::new(
+        move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_contact_note(contact_id, content, is_private, files).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let log_activity_cb = Callback::new(move |(act_type, title, desc, status, due_date, completed_at, files): (ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = add_contact_activity(contact_id, act_type, title, desc, status, due_date, completed_at, files).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
-        });
-    });
+    let log_activity_cb = Callback::new(
+        move |(act_type, title, desc, status, due_date, completed_at, files): (
+            ActivityType,
+            String,
+            Option<String>,
+            ActivityStatus,
+            Option<String>,
+            Option<String>,
+            Vec<FileModel>,
+        )| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = add_contact_activity(
+                    contact_id,
+                    act_type,
+                    title,
+                    desc,
+                    status,
+                    due_date,
+                    completed_at,
+                    files,
+                )
+                .await
+                {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
+        },
+    );
 
-    let update_activity_status_cb = Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
-        let set_refresh = set_refresh.clone();
-        let refresh = refresh.clone();
-        leptos::task::spawn_local(async move {
-            if let Ok(_) = update_contact_activity_status(act_id, status).await {
-                set_refresh.set(refresh.get_untracked() + 1);
-            }
+    let update_activity_status_cb =
+        Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
+            let set_refresh = set_refresh.clone();
+            let refresh = refresh.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(_) = update_contact_activity_status(act_id, status).await {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+            });
         });
-    });
 
     let delete_note_cb = Callback::new(move |note_id: uuid::Uuid| {
         let set_refresh = set_refresh.clone();
@@ -457,7 +532,9 @@ fn ContactCrmPane(
             #[cfg(not(feature = "ssr"))]
             {
                 use leptos::wasm_bindgen::JsCast;
-                let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                let target = ev
+                    .target()
+                    .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
                 if let Some(input) = target {
                     if let Some(files) = input.files() {
                         if let Some(file) = files.get(0) {
@@ -475,12 +552,29 @@ fn ContactCrmPane(
                             let set_refresh = set_refresh.clone();
                             let refresh = refresh.clone();
                             let set_avatar_url_signal = set_avatar_url_signal.clone();
-                            
+
                             leptos::task::spawn_local(async move {
-                                if let Ok((_, key)) = shared_ui::components::file_attachments::upload_file_to_s3(file).await {
+                                if let Ok((_, key)) =
+                                    shared_ui::components::file_attachments::upload_file_to_s3(file)
+                                        .await
+                                {
                                     if let Ok(_) = update_contact_details(
-                                        contact_id, name_val, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, props, Some(key.clone())
-                                    ).await {
+                                        contact_id,
+                                        name_val,
+                                        fn_val,
+                                        ln_val,
+                                        em_val,
+                                        ph_val,
+                                        wa_val,
+                                        tg_val,
+                                        tw_val,
+                                        ig_val,
+                                        fb_val,
+                                        props,
+                                        Some(key.clone()),
+                                    )
+                                    .await
+                                    {
                                         set_avatar_url_signal.set(Some(key));
                                         set_refresh.set(refresh.get_untracked() + 1);
                                     }
@@ -497,8 +591,8 @@ fn ContactCrmPane(
         <div class="w-full bg-background flex flex-col animate-slide-in font-sans text-on-surface">
             // Breadcrumb navigation header
             <div class="flex items-center gap-2 mb-6 text-xs font-mono text-outline-variant">
-                <button 
-                    on:click=move |_| on_close.run(()) 
+                <button
+                    on:click=move |_| on_close.run(())
                     class="hover:text-primary transition-colors flex items-center gap-1 font-bold uppercase tracking-wider"
                 >
                     <span class="material-symbols-outlined text-[14px]">"arrow_back"</span>
@@ -508,24 +602,24 @@ fn ContactCrmPane(
 
             // Salesforce-style layout container
             <div class="flex flex-col lg:flex-row gap-6 w-full items-start">
-                
+
                 // LEFT COLUMN (65% width) - Core info and status
                 <div class="w-full lg:w-[65%] space-y-6 flex flex-col">
-                    
+
                     // Main Highlight Panel / Avatar & Quick Details
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex items-center gap-4">
-                            <input 
-                                type="file" 
+                            <input
+                                type="file"
                                 node_ref=avatar_input_ref
                                 on:change=handle_avatar_change
                                 class="hidden"
                             />
-                            <div 
+                            <div
                                 on:click=trigger_avatar_upload
                                 class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 relative group cursor-pointer overflow-hidden"
                             >
-                                <Show 
+                                <Show
                                     when=move || avatar_url_signal.get().is_some()
                                     fallback=move || {
                                         let name_val = name.get();
@@ -539,7 +633,7 @@ fn ContactCrmPane(
                                         }
                                     }
                                 >
-                                    <img 
+                                    <img
                                         src=move || avatar_url_signal.get().unwrap_or_default()
                                         class="w-full h-full object-cover animate-fade-in"
                                     />
@@ -617,7 +711,7 @@ fn ContactCrmPane(
                                         <div class="flex items-center gap-2">
                                             <span class="text-on-surface font-semibold break-all">{move || if email.get().is_empty() { "-".to_string() } else { email.get() }}</span>
                                             <Show when=move || !email.get().is_empty()>
-                                                <button 
+                                                <button
                                                     on:click=move |_| set_composer_open.set(true)
                                                     class="text-primary hover:text-primary-container p-0.5 rounded transition-colors flex items-center justify-center"
                                                     title="Compose Email"
@@ -654,8 +748,8 @@ fn ContactCrmPane(
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"First Name *"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=first_name
                                             on:input=move |ev| set_first_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -663,8 +757,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Last Name"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=last_name
                                             on:input=move |ev| set_last_name.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -672,8 +766,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Email"</label>
-                                        <input 
-                                            type="email" 
+                                        <input
+                                            type="email"
                                             prop:value=email
                                             on:input=move |ev| set_email.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -681,8 +775,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Phone"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=phone
                                             on:input=move |ev| set_phone.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -690,8 +784,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"WhatsApp"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=whatsapp
                                             on:input=move |ev| set_whatsapp.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -699,8 +793,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Telegram"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=telegram
                                             on:input=move |ev| set_telegram.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -708,8 +802,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Twitter / X"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=twitter
                                             on:input=move |ev| set_twitter.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
@@ -717,8 +811,8 @@ fn ContactCrmPane(
                                     </div>
                                     <div>
                                         <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Instagram"</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             prop:value=instagram
                                             on:input=move |ev| set_instagram.set(event_target_value(&ev))
                                             class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"

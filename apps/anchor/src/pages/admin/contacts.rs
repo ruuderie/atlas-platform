@@ -1,11 +1,11 @@
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline_generic::{
-    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+    ActivityModel, ActivityStatus, ActivityType, CrmTimelineGeneric, FileModel, NoteModel,
 };
+use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
 use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::utils::ResourceState;
-use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct ContactRecord {
@@ -29,9 +29,9 @@ pub struct ContactRecord {
 
 #[server(GetContacts, "/api")]
 pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -82,9 +82,9 @@ pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
 
 #[server(DeleteContact, "/api")]
 pub async fn delete_contact(id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -114,7 +114,7 @@ pub async fn get_contact_crm_statuses() -> Result<Vec<CrmStatusOption>, ServerFn
         "SELECT status_key, label, color, sort_order, is_system \
          FROM crm_status_option \
          WHERE tenant_id = $1 AND object_type = 'Contact' \
-         ORDER BY sort_order ASC"
+         ORDER BY sort_order ASC",
     )
     .bind(tenant.0)
     .fetch_all(&state.pool)
@@ -150,9 +150,9 @@ pub async fn update_contact_details(
     properties: Option<serde_json::Value>,
     avatar_url: Option<String>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -199,9 +199,9 @@ pub async fn add_contact(
     facebook: Option<String>,
     properties: Option<serde_json::Value>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -219,12 +219,15 @@ pub async fn add_contact(
         if let Some(ref p) = phone {
             let trimmed = p.trim();
             if !trimmed.is_empty() {
-                let cleaned: String = trimmed.chars()
+                let cleaned: String = trimmed
+                    .chars()
                     .filter(|c| c.is_ascii_digit() || *c == '+')
                     .collect();
                 if cleaned.starts_with('+') && cleaned.len() >= 8 && cleaned.len() <= 16 {
                     let after_plus = &cleaned[1..];
-                    if after_plus.chars().all(|c| c.is_ascii_digit()) && !after_plus.starts_with('0') {
+                    if after_plus.chars().all(|c| c.is_ascii_digit())
+                        && !after_plus.starts_with('0')
+                    {
                         validated_phone = Some(cleaned);
                     } else {
                         return Err(ServerFnError::ServerError("Invalid phone format. Please enter a valid international number in E.164 format (e.g., +15551234567).".into()));
@@ -241,17 +244,34 @@ pub async fn add_contact(
             if !trimmed.is_empty() {
                 let parts: Vec<&str> = trimmed.split('@').collect();
                 if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-                    return Err(ServerFnError::ServerError("Invalid email address format (e.g. user@domain.com).".into()));
+                    return Err(ServerFnError::ServerError(
+                        "Invalid email address format (e.g. user@domain.com).".into(),
+                    ));
                 }
                 let domain = parts[1].to_lowercase();
                 if !domain.contains('.') || domain.starts_with('.') || domain.ends_with('.') {
-                    return Err(ServerFnError::ServerError("Invalid email address format (e.g. user@domain.com).".into()));
+                    return Err(ServerFnError::ServerError(
+                        "Invalid email address format (e.g. user@domain.com).".into(),
+                    ));
                 }
-                
+
                 // Block test list
-                let blocked = ["test.com", "example.com", "tempmail.com", "mailinator.com", "junk.com", "trashmail.com"];
+                let blocked = [
+                    "test.com",
+                    "example.com",
+                    "tempmail.com",
+                    "mailinator.com",
+                    "junk.com",
+                    "trashmail.com",
+                ];
                 if blocked.contains(&domain.as_str()) {
-                    return Err(ServerFnError::ServerError(format!("The domain '{}' is blocked or reserved for testing.", domain).into()));
+                    return Err(ServerFnError::ServerError(
+                        format!(
+                            "The domain '{}' is blocked or reserved for testing.",
+                            domain
+                        )
+                        .into(),
+                    ));
                 }
 
                 // DNS resolving check
@@ -259,7 +279,13 @@ pub async fn add_contact(
                 match tokio::net::lookup_host(host_to_resolve.as_str()).await {
                     Ok(mut addrs) => {
                         if addrs.next().is_none() {
-                            return Err(ServerFnError::ServerError(format!("The email domain '{}' does not resolve to any active hosts.", domain).into()));
+                            return Err(ServerFnError::ServerError(
+                                format!(
+                                    "The email domain '{}' does not resolve to any active hosts.",
+                                    domain
+                                )
+                                .into(),
+                            ));
                         }
                     }
                     Err(_) => {
@@ -328,9 +354,9 @@ pub async fn send_crm_email(
 ) -> Result<(), ServerFnError> {
     #[cfg(feature = "ssr")]
     {
+        use crate::auth::check_session;
         use axum::Extension;
         use leptos_axum::extract;
-        use crate::auth::check_session;
         use lettre::message::{header, MultiPart, SinglePart};
         use lettre::transport::smtp::authentication::Credentials;
         use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
@@ -343,12 +369,11 @@ pub async fn send_crm_email(
         let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
         // 1. Fetch Tenant Settings for SMTP override (if any)
-        let settings_rows = sqlx::query(
-            "SELECT key, value FROM tenant_setting WHERE tenant_id = $1"
-        )
-        .bind(tenant.0)
-        .fetch_all(&state.pool)
-        .await?;
+        let settings_rows =
+            sqlx::query("SELECT key, value FROM tenant_setting WHERE tenant_id = $1")
+                .bind(tenant.0)
+                .fetch_all(&state.pool)
+                .await?;
 
         let mut custom_host = None;
         let mut custom_port = None;
@@ -371,11 +396,22 @@ pub async fn send_crm_email(
         }
 
         // 2. Fallback to System environment variables if no Custom settings
-        let host = custom_host.unwrap_or_else(|| std::env::var("SMTP_SERVER").unwrap_or_else(|_| "localhost".to_string()));
-        let port = custom_port.unwrap_or_else(|| std::env::var("SMTP_PORT").unwrap_or_else(|_| "587".to_string()).parse().unwrap_or(587));
-        let username = custom_username.unwrap_or_else(|| std::env::var("SMTP_USERNAME").unwrap_or_default());
+        let host = custom_host.unwrap_or_else(|| {
+            std::env::var("SMTP_SERVER").unwrap_or_else(|_| "localhost".to_string())
+        });
+        let port = custom_port.unwrap_or_else(|| {
+            std::env::var("SMTP_PORT")
+                .unwrap_or_else(|_| "587".to_string())
+                .parse()
+                .unwrap_or(587)
+        });
+        let username =
+            custom_username.unwrap_or_else(|| std::env::var("SMTP_USERNAME").unwrap_or_default());
         let token = custom_token.unwrap_or_else(|| std::env::var("SMTP_TOKEN").unwrap_or_default());
-        let from_email = custom_from.unwrap_or_else(|| std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas-platform.local".to_string()));
+        let from_email = custom_from.unwrap_or_else(|| {
+            std::env::var("SMTP_FROM")
+                .unwrap_or_else(|_| "noreply@atlas-platform.local".to_string())
+        });
 
         // 3. Construct MultiPart Body
         let mut multipart = MultiPart::mixed().singlepart(
@@ -393,7 +429,11 @@ pub async fn send_crm_email(
 
             if !access_key.is_empty() && !endpoint.is_empty() {
                 let credentials = aws_sdk_s3::config::Credentials::new(
-                    access_key, secret, None, None, "cloudflare"
+                    access_key,
+                    secret,
+                    None,
+                    None,
+                    "cloudflare",
                 );
                 let s3_config = aws_sdk_s3::config::Builder::new()
                     .credentials_provider(credentials)
@@ -403,10 +443,20 @@ pub async fn send_crm_email(
 
                 let client = aws_sdk_s3::Client::from_conf(s3_config);
                 for file_key in &attachments {
-                    if let Ok(resp) = client.get_object().bucket(&bucket_name).key(file_key).send().await {
+                    if let Ok(resp) = client
+                        .get_object()
+                        .bucket(&bucket_name)
+                        .key(file_key)
+                        .send()
+                        .await
+                    {
                         if let Ok(data) = resp.body.collect().await {
                             let bytes = data.into_bytes().to_vec();
-                            let filename = file_key.split('/').last().unwrap_or("attachment").to_string();
+                            let filename = file_key
+                                .split('/')
+                                .last()
+                                .unwrap_or("attachment")
+                                .to_string();
                             let ext = filename.split('.').last().unwrap_or("").to_lowercase();
                             let mime = match ext.as_str() {
                                 "pdf" => "application/pdf",
@@ -431,15 +481,24 @@ pub async fn send_crm_email(
 
         // 5. Construct Email Message
         let email = Message::builder()
-            .from(from_email.parse().map_err(|e| ServerFnError::new(format!("Invalid FROM email: {}", e)))?)
-            .to(to_email.parse().map_err(|e| ServerFnError::new(format!("Invalid TO email: {}", e)))?)
+            .from(
+                from_email
+                    .parse()
+                    .map_err(|e| ServerFnError::new(format!("Invalid FROM email: {}", e)))?,
+            )
+            .to(to_email
+                .parse()
+                .map_err(|e| ServerFnError::new(format!("Invalid TO email: {}", e)))?)
             .subject(&subject)
             .multipart(multipart)
             .map_err(|e| ServerFnError::new(format!("Failed to build email message: {}", e)))?;
 
         // 6. Send email
         if host == "localhost" || host.is_empty() {
-            leptos::logging::log!("SMTP Host not configured. Mocking email send to: {}", to_email);
+            leptos::logging::log!(
+                "SMTP Host not configured. Mocking email send to: {}",
+                to_email
+            );
         } else {
             let creds = Credentials::new(username, token);
             let mailer: AsyncSmtpTransport<Tokio1Executor> = if port == 465 {
@@ -456,7 +515,10 @@ pub async fn send_crm_email(
                     .build()
             };
 
-            mailer.send(email).await.map_err(|e| ServerFnError::new(format!("SMTP delivery failed: {}", e)))?;
+            mailer
+                .send(email)
+                .await
+                .map_err(|e| ServerFnError::new(format!("SMTP delivery failed: {}", e)))?;
         }
 
         // 7. Insert activity record
@@ -481,18 +543,19 @@ pub async fn send_crm_email(
     Ok(())
 }
 
-
 #[server(GetContactNotes, "/api")]
 pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>, ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     let user_id = match check_session().await {
         Ok(true) => {
-            let uid: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1").fetch_one(&state.pool).await?;
+            let uid: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
+                .fetch_one(&state.pool)
+                .await?;
             uid
         }
         _ => return Err(ServerFnError::ServerError("Unauthorized".into())),
@@ -515,7 +578,7 @@ pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>,
     let mut notes = Vec::new();
     for row in rows {
         let note_id: uuid::Uuid = row.get("id");
-        
+
         let file_rows = sqlx::query(
             "SELECT f.id, f.name, f.size, f.mime_type, f.hash_sha256, f.storage_type, f.storage_path, f.views, f.downloads, f.bandwidth_used, f.bandwidth_used_paid, f.date_upload, f.date_last_view, f.is_anonymous, f.user_id \
              FROM file f \
@@ -532,7 +595,8 @@ pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>,
             let file_id_str: String = f_row.get("id");
             let file_id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
             let date_upload: chrono::DateTime<chrono::Utc> = f_row.get("date_upload");
-            let date_last_view: Option<chrono::DateTime<chrono::Utc>> = f_row.try_get("date_last_view").unwrap_or(None);
+            let date_last_view: Option<chrono::DateTime<chrono::Utc>> =
+                f_row.try_get("date_last_view").unwrap_or(None);
             let user_id_str: Option<String> = f_row.try_get("user_id").unwrap_or(None);
             let user_uuid = user_id_str.and_then(|s| uuid::Uuid::parse_str(&s).ok());
 
@@ -577,21 +641,21 @@ pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>,
 
 #[server(AddContactNote, "/api")]
 pub async fn add_contact_note(
-    contact_id: uuid::Uuid, 
-    content: String, 
-    is_private: bool, 
-    files: Vec<FileModel>
+    contact_id: uuid::Uuid,
+    content: String,
+    is_private: bool,
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
-    
+
     let user_id: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
         .fetch_one(&state.pool)
         .await?;
@@ -612,10 +676,11 @@ pub async fn add_contact_note(
     .await?;
 
     for file in files {
-        let file_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
-            .bind(file.id.to_string())
-            .fetch_one(&state.pool)
-            .await?;
+        let file_exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
+                .bind(file.id.to_string())
+                .fetch_one(&state.pool)
+                .await?;
 
         if !file_exists {
             sqlx::query(
@@ -650,12 +715,12 @@ pub async fn add_contact_note(
 
 #[server(DeleteContactNote, "/api")]
 pub async fn delete_contact_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
@@ -675,7 +740,9 @@ pub async fn delete_contact_note(note_id: uuid::Uuid) -> Result<(), ServerFnErro
 }
 
 #[server(GetContactActivities, "/api")]
-pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<ActivityModel>, ServerFnError> {
+pub async fn get_contact_activities(
+    contact_id: uuid::Uuid,
+) -> Result<Vec<ActivityModel>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
@@ -713,7 +780,8 @@ pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<Activi
             let file_id_str: String = f_row.get("id");
             let file_id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
             let date_upload: chrono::DateTime<chrono::Utc> = f_row.get("date_upload");
-            let date_last_view: Option<chrono::DateTime<chrono::Utc>> = f_row.try_get("date_last_view").unwrap_or(None);
+            let date_last_view: Option<chrono::DateTime<chrono::Utc>> =
+                f_row.try_get("date_last_view").unwrap_or(None);
             let user_id_str: Option<String> = f_row.try_get("user_id").unwrap_or(None);
             let user_uuid = user_id_str.and_then(|s| uuid::Uuid::parse_str(&s).ok());
 
@@ -738,7 +806,7 @@ pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<Activi
 
         let activity_type_str: String = row.get("activity_type");
         let status_str: String = row.get("status");
-        
+
         let activity_type = match activity_type_str.as_str() {
             "Log" => ActivityType::Log,
             "Task" => ActivityType::Task,
@@ -753,8 +821,10 @@ pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<Activi
             _ => ActivityStatus::Open,
         };
 
-        let due_date: Option<chrono::DateTime<chrono::Utc>> = row.try_get("due_date").unwrap_or(None);
-        let completed_at: Option<chrono::DateTime<chrono::Utc>> = row.try_get("completed_at").unwrap_or(None);
+        let due_date: Option<chrono::DateTime<chrono::Utc>> =
+            row.try_get("due_date").unwrap_or(None);
+        let completed_at: Option<chrono::DateTime<chrono::Utc>> =
+            row.try_get("completed_at").unwrap_or(None);
         let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
         let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
 
@@ -794,11 +864,11 @@ pub async fn add_contact_activity(
     status: ActivityStatus,
     due_date: Option<String>,
     completed_at: Option<String>,
-    files: Vec<FileModel>
+    files: Vec<FileModel>,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
@@ -822,8 +892,12 @@ pub async fn add_contact_activity(
         ActivityStatus::Completed => "Completed",
     };
 
-    let parsed_due_date = due_date.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
-    let parsed_completed_at = completed_at.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_due_date = due_date
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_completed_at = completed_at
+        .and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok())
+        .map(|dt| dt.with_timezone(&chrono::Utc));
 
     let act_id = uuid::Uuid::new_v4();
 
@@ -845,10 +919,11 @@ pub async fn add_contact_activity(
     .await?;
 
     for file in files {
-        let file_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
-            .bind(file.id.to_string())
-            .fetch_one(&state.pool)
-            .await?;
+        let file_exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
+                .bind(file.id.to_string())
+                .fetch_one(&state.pool)
+                .await?;
 
         if !file_exists {
             sqlx::query(
@@ -869,7 +944,7 @@ pub async fn add_contact_activity(
 
         sqlx::query(
             "INSERT INTO activity_attachment (id, activity_id, file_id, created_at) \
-             VALUES ($1, $2, $3, NOW())"
+             VALUES ($1, $2, $3, NOW())",
         )
         .bind(uuid::Uuid::new_v4())
         .bind(act_id)
@@ -884,11 +959,11 @@ pub async fn add_contact_activity(
 #[server(UpdateContactActivityStatus, "/api")]
 pub async fn update_contact_activity_status(
     activity_id: uuid::Uuid,
-    status: ActivityStatus
+    status: ActivityStatus,
 ) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
@@ -923,9 +998,9 @@ pub async fn update_contact_activity_status(
 
 #[server(DeleteContactActivity, "/api")]
 pub async fn delete_contact_activity(activity_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
@@ -948,7 +1023,9 @@ pub async fn delete_contact_activity(activity_id: uuid::Uuid) -> Result<(), Serv
 }
 
 #[server(GetContactAttachments, "/api")]
-pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
+pub async fn get_contact_attachments(
+    contact_id: uuid::Uuid,
+) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
@@ -959,32 +1036,39 @@ pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<Recor
          FROM files f \
          INNER JOIN file_associations fa ON f.id = fa.file_id \
          WHERE fa.associated_entity_type = 'Contact' AND fa.associated_entity_id = $1 \
-         ORDER BY f.created_at DESC"
+         ORDER BY f.created_at DESC",
     )
     .bind(contact_id)
     .fetch_all(&state.pool)
     .await?;
 
     use sqlx::Row;
-    let docs = rows.into_iter().map(|row| {
-        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
-        let file_id_str: String = row.get("file_id");
-        let id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
-        RecordDocumentModel {
-            id,
-            tenant_id: tenant.0.unwrap_or_default(),
-            target_record_id: contact_id,
-            file_url: row.get("storage_path"),
-            file_name: row.get("name"),
-            uploaded_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
-        }
-    }).collect();
+    let docs = rows
+        .into_iter()
+        .map(|row| {
+            let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+            let file_id_str: String = row.get("file_id");
+            let id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
+            RecordDocumentModel {
+                id,
+                tenant_id: tenant.0.unwrap_or_default(),
+                target_record_id: contact_id,
+                file_url: row.get("storage_path"),
+                file_name: row.get("name"),
+                uploaded_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
+            }
+        })
+        .collect();
 
     Ok(docs)
 }
 
 #[server(AddContactAttachment, "/api")]
-pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, file_url: String) -> Result<(), ServerFnError> {
+pub async fn add_contact_attachment(
+    contact_id: uuid::Uuid,
+    file_name: String,
+    file_url: String,
+) -> Result<(), ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
@@ -1022,12 +1106,10 @@ pub async fn delete_contact_attachment(doc_id: uuid::Uuid) -> Result<(), ServerF
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    sqlx::query(
-        "DELETE FROM files WHERE id = $1"
-    )
-    .bind(doc_id.to_string())
-    .execute(&state.pool)
-    .await?;
+    sqlx::query("DELETE FROM files WHERE id = $1")
+        .bind(doc_id.to_string())
+        .execute(&state.pool)
+        .await?;
 
     Ok(())
 }
@@ -1043,9 +1125,8 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
         return Err(ServerFnError::ServerError("R2 unconfigured".into()));
     }
 
-    let credentials = aws_sdk_s3::config::Credentials::new(
-        access_key, secret, None, None, "cloudflare"
-    );
+    let credentials =
+        aws_sdk_s3::config::Credentials::new(access_key, secret, None, None, "cloudflare");
     let s3_config = aws_sdk_s3::config::Builder::new()
         .credentials_provider(credentials)
         .region(aws_sdk_s3::config::Region::new("auto"))
@@ -1055,16 +1136,20 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
     let client = aws_sdk_s3::Client::from_conf(s3_config);
     let expires_in = std::time::Duration::from_secs(3600);
     let presigning_config = aws_sdk_s3::presigning::PresigningConfig::expires_in(expires_in)
-        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
-    
+        .map_err(|e| {
+            ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
+
     let presigned_req = client
         .get_object()
         .bucket(&bucket_name)
         .key(&file_key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
-        
+        .map_err(|e| {
+            ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
+
     Ok(presigned_req.uri().to_string())
 }
 

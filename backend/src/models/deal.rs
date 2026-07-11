@@ -1,8 +1,8 @@
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 use crate::entities::deal;
 use crate::models::file::FileModel;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DealModel {
     pub id: Uuid,

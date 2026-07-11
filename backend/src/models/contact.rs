@@ -1,9 +1,9 @@
-use uuid::Uuid;
+use crate::entities::contact;
+use crate::models::Validate;
+use crate::models::address::AddressJson;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::entities::contact;
-use crate::models::address::{AddressJson};
-use crate::models::Validate;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct Contact {

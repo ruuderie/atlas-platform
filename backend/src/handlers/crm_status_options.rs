@@ -1,21 +1,20 @@
 use axum::{
-    extract::{Extension, Path, Query, Json},
+    Router,
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait,
-};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
+};
 use serde::Deserialize;
+use uuid::Uuid;
 
-use crate::entities::{crm_status_option, user, user_account, profile};
+use crate::entities::{crm_status_option, profile, user, user_account};
 use crate::models::crm_status_option::{
-    CrmStatusOptionModel, CreateCrmStatusOptionInput, UpdateCrmStatusOptionInput
+    CreateCrmStatusOptionInput, CrmStatusOptionModel, UpdateCrmStatusOptionInput,
 };
 
 #[derive(Debug, Deserialize)]
@@ -31,24 +30,21 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/crm/status-options/{id}", delete(delete_status_option))
 }
 
-async fn get_status_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn get_status_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     let user_accounts = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(user_id))
         .all(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = profile::Entity::find()
         .filter(profile::Column::AccountId.is_in(account_ids))
         .one(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::FORBIDDEN)?;
-        
+
     Ok(profile.tenant_id)
 }
 
@@ -59,8 +55,8 @@ pub async fn get_status_options(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = get_status_tenant_id(&db, current_user.id).await?;
 
-    let mut query_builder = crm_status_option::Entity::find()
-        .filter(crm_status_option::Column::TenantId.eq(tenant_id));
+    let mut query_builder =
+        crm_status_option::Entity::find().filter(crm_status_option::Column::TenantId.eq(tenant_id));
 
     if let Some(obj_type) = query.object_type {
         query_builder = query_builder.filter(crm_status_option::Column::ObjectType.eq(obj_type));
@@ -71,7 +67,10 @@ pub async fn get_status_options(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let mut option_models: Vec<CrmStatusOptionModel> = options.into_iter().map(CrmStatusOptionModel::from).collect();
+    let mut option_models: Vec<CrmStatusOptionModel> = options
+        .into_iter()
+        .map(CrmStatusOptionModel::from)
+        .collect();
     // Sort by sort_order ascending
     option_models.sort_by_key(|o| o.sort_order);
 
@@ -114,8 +113,14 @@ pub async fn create_status_option(
         updated_at: Set(Utc::now().into()),
     };
 
-    let opt = new_option.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok((StatusCode::CREATED, JsonResponse(CrmStatusOptionModel::from(opt))))
+    let opt = new_option
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(CrmStatusOptionModel::from(opt)),
+    ))
 }
 
 pub async fn update_status_option(
@@ -149,7 +154,10 @@ pub async fn update_status_option(
     }
     active.updated_at = Set(Utc::now().into());
 
-    let updated = active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(JsonResponse(CrmStatusOptionModel::from(updated)))
 }
 
@@ -175,6 +183,9 @@ pub async fn delete_status_option(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    existing.delete(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    existing
+        .delete(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(StatusCode::NO_CONTENT)
 }

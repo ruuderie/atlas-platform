@@ -1,59 +1,74 @@
-use leptos::prelude::*;
-use crate::api::crm::{get_leads, create_lead};
-use crate::api::models::{LeadModel, CreateLead};
+use crate::api::crm::{create_lead, get_leads};
+use crate::api::models::{CreateLead, LeadModel};
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
-    kpi_strip::{KpiStrip, KpiItem},
+    kpi_strip::{KpiItem, KpiStrip},
+    pagination::Pagination,
     record_drawer::RecordDrawer,
     record_row::{RecordRow, initials},
-    pagination::Pagination,
 };
+use leptos::prelude::*;
 
 const PER_PAGE: u64 = 25;
 
 fn lead_stage_tag(status: &str) -> &'static str {
     match status {
-        "New"          => "tag",
-        "Contacted"    => "tag tag-contacted",
-        "Qualified"    => "tag tag-proposal",
-        "Proposal"     => "tag tag-proposal",
-        "Converted"    => "tag tag-won",
+        "New" => "tag",
+        "Contacted" => "tag tag-contacted",
+        "Qualified" => "tag tag-proposal",
+        "Proposal" => "tag tag-proposal",
+        "Converted" => "tag tag-won",
         "Disqualified" => "tag tag-disqualified",
-        _              => "tag",
+        _ => "tag",
     }
 }
 
 /// Returns an inline-style color for the stage dot/circle.
 fn stage_dot_color(status: &str) -> &'static str {
     match status {
-        "New"          => "var(--cobalt)",
-        "Contacted"    => "var(--amber)",
-        "Qualified"    => "var(--cobalt)",
-        "Proposal"     => "var(--violet)",
-        "Converted"    => "var(--green)",
+        "New" => "var(--cobalt)",
+        "Contacted" => "var(--amber)",
+        "Qualified" => "var(--cobalt)",
+        "Proposal" => "var(--violet)",
+        "Converted" => "var(--green)",
         "Disqualified" => "var(--red)",
-        _              => "var(--text-muted)",
+        _ => "var(--text-muted)",
     }
 }
 
 /// Returns border+color style string for a source tag badge.
 fn source_tag_style(source: &str) -> &'static str {
     match source.to_lowercase().as_str() {
-        s if s.contains("fmcsa")    => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
-        s if s.contains("biz")      => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
-        s if s.contains("dot")      => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
-        s if s.contains("campaign") => "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)",
-        s if s.contains("referral") => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
-        _                           => "color:var(--text-muted);border-color:var(--border-default)",
+        s if s.contains("fmcsa") => {
+            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"
+        }
+        s if s.contains("biz") => {
+            "color:var(--green);border-color:var(--green);background:var(--green-dim)"
+        }
+        s if s.contains("dot") => {
+            "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)"
+        }
+        s if s.contains("campaign") => {
+            "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)"
+        }
+        s if s.contains("referral") => {
+            "color:var(--green);border-color:var(--green);background:var(--green-dim)"
+        }
+        _ => "color:var(--text-muted);border-color:var(--border-default)",
     }
 }
 
-fn fmt_date(s: &str) -> String { s.chars().take(10).collect() }
+fn fmt_date(s: &str) -> String {
+    s.chars().take(10).collect()
+}
 
 /// Render a 5-step stage progress stepper for the lead drawer.
 fn stage_stepper(current: String) -> impl IntoView {
     let stages = ["New", "Contacted", "Qualified", "Proposal", "Converted"];
-    let current_idx = stages.iter().position(|&s| s == current.as_str()).unwrap_or(0);
+    let current_idx = stages
+        .iter()
+        .position(|&s| s == current.as_str())
+        .unwrap_or(0);
     view! {
         <div style="display:flex;align-items:center;padding:14px 20px 12px;border-bottom:1px solid var(--border-default);flex-shrink:0;gap:0;">
             {stages.iter().enumerate().map(|(i, &stage)| {
@@ -100,20 +115,20 @@ fn stage_stepper(current: String) -> impl IntoView {
 
 #[component]
 pub fn LeadsPage() -> impl IntoView {
-    let stage_filter     = RwSignal::new("all".to_string());
-    let search_filter    = RwSignal::new(String::new());
+    let stage_filter = RwSignal::new("all".to_string());
+    let search_filter = RwSignal::new(String::new());
     let search_debounced = RwSignal::new(String::new());
-    let page             = RwSignal::new(1_u64);
+    let page = RwSignal::new(1_u64);
 
-    let selected    = RwSignal::new(None::<LeadModel>);
+    let selected = RwSignal::new(None::<LeadModel>);
     let drawer_open = RwSignal::new(false);
 
     // ── Create modal ──────────────────────────────────────────────────────────
-    let show_create  = RwSignal::new(false);
-    let new_name     = RwSignal::new(String::new());
-    let new_email    = RwSignal::new(String::new());
-    let create_busy  = RwSignal::new(false);
-    let toast        = use_context::<crate::app::GlobalToast>().expect("toast");
+    let show_create = RwSignal::new(false);
+    let new_name = RwSignal::new(String::new());
+    let new_email = RwSignal::new(String::new());
+    let create_busy = RwSignal::new(false);
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast");
 
     // 350 ms debounce
     Effect::new(move |_| {
@@ -127,12 +142,18 @@ pub fn LeadsPage() -> impl IntoView {
 
     let leads_res = LocalResource::new(move || {
         let search = search_debounced.get();
-        let stage  = stage_filter.get();
-        let pg     = page.get();
+        let stage = stage_filter.get();
+        let pg = page.get();
         async move {
-            let s  = if search.is_empty() { None } else { Some(search.as_str()) };
+            let s = if search.is_empty() {
+                None
+            } else {
+                Some(search.as_str())
+            };
             let st = Some(stage.as_str());
-            get_leads(s, pg, PER_PAGE, st, None).await.unwrap_or_default()
+            get_leads(s, pg, PER_PAGE, st, None)
+                .await
+                .unwrap_or_default()
         }
     });
 
@@ -143,11 +164,18 @@ pub fn LeadsPage() -> impl IntoView {
             return;
         }
         let email = new_email.get();
-        let email_opt = if email.trim().is_empty() { None } else { Some(email.trim().to_string()) };
+        let email_opt = if email.trim().is_empty() {
+            None
+        } else {
+            Some(email.trim().to_string())
+        };
         create_busy.set(true);
         let resource = leads_res.clone();
         leptos::task::spawn_local(async move {
-            let data = CreateLead { name: name.trim().to_string(), email: email_opt };
+            let data = CreateLead {
+                name: name.trim().to_string(),
+                email: email_opt,
+            };
             match create_lead(data).await {
                 Ok(_) => {
                     toast.show_toast("Success", "Lead created.", "success");
@@ -164,25 +192,31 @@ pub fn LeadsPage() -> impl IntoView {
 
     let kpi_items = Signal::derive(move || {
         let leads = leads_res.get().unwrap_or_default();
-        let n     = leads.len();
-        let new_c = leads.iter().filter(|l| l.lead_status.as_deref().unwrap_or("New") == "New").count();
-        let qual  = leads.iter().filter(|l| l.lead_status.as_deref() == Some("Qualified")).count();
-        let conv  = leads.iter().filter(|l| l.is_converted).count();
+        let n = leads.len();
+        let new_c = leads
+            .iter()
+            .filter(|l| l.lead_status.as_deref().unwrap_or("New") == "New")
+            .count();
+        let qual = leads
+            .iter()
+            .filter(|l| l.lead_status.as_deref() == Some("Qualified"))
+            .count();
+        let conv = leads.iter().filter(|l| l.is_converted).count();
         vec![
-            KpiItem::new("Showing",   &n.to_string()).sub("this page"),
-            KpiItem::new("New",       &new_c.to_string()).color("var(--cobalt)"),
+            KpiItem::new("Showing", &n.to_string()).sub("this page"),
+            KpiItem::new("New", &new_c.to_string()).color("var(--cobalt)"),
             KpiItem::new("Qualified", &qual.to_string()),
             KpiItem::new("Converted", &conv.to_string()).color("var(--green)"),
         ]
     });
 
     let stage_pills = vec![
-        PillOption::new("all",          "All"),
-        PillOption::new("New",          "New"),
-        PillOption::new("Contacted",    "Contacted"),
-        PillOption::new("Qualified",    "Qualified"),
-        PillOption::new("Proposal",     "Proposal"),
-        PillOption::new("Converted",    "Converted"),
+        PillOption::new("all", "All"),
+        PillOption::new("New", "New"),
+        PillOption::new("Contacted", "Contacted"),
+        PillOption::new("Qualified", "Qualified"),
+        PillOption::new("Proposal", "Proposal"),
+        PillOption::new("Converted", "Converted"),
         PillOption::new("Disqualified", "Disqualified"),
     ];
 
