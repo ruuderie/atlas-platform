@@ -21,11 +21,11 @@
 //! No net-new tables.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -101,14 +101,13 @@ async fn register_document(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    let doc_type =
-        PmDocumentType::try_from(input.document_type.clone()).map_err(|_| {
-            tracing::warn!(
-                "register_document: unknown document_type '{}'",
-                input.document_type
-            );
-            StatusCode::UNPROCESSABLE_ENTITY
-        })?;
+    let doc_type = PmDocumentType::try_from(input.document_type.clone()).map_err(|_| {
+        tracing::warn!(
+            "register_document: unknown document_type '{}'",
+            input.document_type
+        );
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
 
     let id = VaultService::register_document_full(
         &db,
@@ -117,7 +116,10 @@ async fn register_document(
         input.entity_id,
         doc_type,
         &input.r2_key,
-        input.mime_type.as_deref().unwrap_or("application/octet-stream"),
+        input
+            .mime_type
+            .as_deref()
+            .unwrap_or("application/octet-stream"),
         input.size_bytes,
     )
     .await
@@ -148,13 +150,11 @@ async fn list_documents(
         .order_by_desc(crate::entities::atlas_document::Column::CreatedAt);
 
     if let Some(et) = &query.entity_type {
-        finder = finder.filter(
-            crate::entities::atlas_document::Column::RelatedEntityType.eq(et.as_str()),
-        );
+        finder = finder
+            .filter(crate::entities::atlas_document::Column::RelatedEntityType.eq(et.as_str()));
     }
     if let Some(eid) = query.entity_id {
-        finder = finder
-            .filter(crate::entities::atlas_document::Column::RelatedEntityId.eq(eid));
+        finder = finder.filter(crate::entities::atlas_document::Column::RelatedEntityId.eq(eid));
     }
 
     let documents = finder.all(&db).await.map_err(|e| {

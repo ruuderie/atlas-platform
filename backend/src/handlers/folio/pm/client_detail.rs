@@ -19,14 +19,13 @@ use crate::extractors::folio_role::PropertyManagerOnly;
 use crate::extractors::tenant::TenantContext;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/pm/clients/{account_id}", get(get_client_detail))
+    Router::new().route("/api/folio/pm/clients/{account_id}", get(get_client_detail))
 }
 
 #[derive(Serialize)]
 pub struct ClientDetail {
-    pub account_id:    Uuid,
-    pub display_name:  String,
+    pub account_id: Uuid,
+    pub display_name: String,
     /// Portfolio rows where managed_account_id = account_id
     pub portfolio_ids: Vec<Uuid>,
     /// Active lease count
@@ -76,8 +75,8 @@ async fn get_client_detail(
     };
 
     Json(ClientDetail {
-        account_id:    client.account_id,
-        display_name:  client.display_name,
+        account_id: client.account_id,
+        display_name: client.display_name,
         portfolio_ids: portfolios.iter().map(|p| p.id).collect(),
         active_leases,
     })

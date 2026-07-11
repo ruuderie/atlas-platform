@@ -9,27 +9,27 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WholesaleSummary {
-    pub id:             Uuid,
+    pub id: Uuid,
     pub property_address: String,
-    pub stage:          String,  // lead | negotiating | under_contract | closed | dead
-    pub arv_cents:      Option<i64>,
-    pub repair_cents:   Option<i64>,
-    pub offer_cents:    Option<i64>,
-    pub created_at:     String,
+    pub stage: String, // lead | negotiating | under_contract | closed | dead
+    pub arv_cents: Option<i64>,
+    pub repair_cents: Option<i64>,
+    pub offer_cents: Option<i64>,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaoResult {
-    pub mao_cents:         i64,
-    pub arv_cents:         i64,
-    pub repair_cents:      i64,
+    pub mao_cents: i64,
+    pub arv_cents: i64,
+    pub repair_cents: i64,
     pub wholesale_fee_cents: i64,
     pub equity_cushion_pct: f64,
 }
@@ -37,18 +37,27 @@ pub struct MaoResult {
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchWholesaleLeads, "/api")]
-pub async fn fetch_wholesale_leads() -> Result<Vec<WholesaleSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_wholesale_leads(
+) -> Result<Vec<WholesaleSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<WholesaleSummary>>(
-        "/api/folio/wholesale", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/wholesale",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(CalcMao, "/api")]
-pub async fn calc_mao(arv: i64, repair: i64, fee: i64) -> Result<MaoResult, server_fn::error::ServerFnError> {
+pub async fn calc_mao(
+    arv: i64,
+    repair: i64,
+    fee: i64,
+) -> Result<MaoResult, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -60,18 +69,28 @@ pub async fn calc_mao(arv: i64, repair: i64, fee: i64) -> Result<MaoResult, serv
         "multiplier": 0.7
     });
     crate::atlas_client::authenticated_post::<serde_json::Value, MaoResult>(
-        "/api/folio/wholesale/mao", &token, None, &body,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/wholesale/mao",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -79,25 +98,29 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 fn fmt_k(cents: i64) -> String {
     let k = cents as f64 / 100_000.0;
-    if k >= 1.0 { format!("${:.0}k", k) } else { format!("${}", cents / 100) }
+    if k >= 1.0 {
+        format!("${:.0}k", k)
+    } else {
+        format!("${}", cents / 100)
+    }
 }
 
 const STAGES: &[(&str, &str)] = &[
-    ("lead",           "📋 Lead"),
-    ("negotiating",    "🤝 Negotiating"),
+    ("lead", "📋 Lead"),
+    ("negotiating", "🤝 Negotiating"),
     ("under_contract", "📝 Under Contract"),
-    ("closed",         "✅ Closed"),
-    ("dead",           "💀 Dead"),
+    ("closed", "✅ Closed"),
+    ("dead", "💀 Dead"),
 ];
 
 fn stage_color(stage: &str) -> &'static str {
     match stage {
-        "lead"           => "#60a5fa",
-        "negotiating"    => "#fbbf24",
+        "lead" => "#60a5fa",
+        "negotiating" => "#fbbf24",
         "under_contract" => "#a78bfa",
-        "closed"         => "#4ade80",
-        "dead"           => "#94a3b8",
-        _                => "#94a3b8",
+        "closed" => "#4ade80",
+        "dead" => "#94a3b8",
+        _ => "#94a3b8",
     }
 }
 
@@ -105,24 +128,38 @@ fn stage_color(stage: &str) -> &'static str {
 
 #[component]
 pub fn LandlordWholesaling() -> impl IntoView {
-    let refresh     = RwSignal::new(0u32);
-    let show_calc   = RwSignal::new(false);
-    let calc_arv    = RwSignal::new(String::new());
+    let refresh = RwSignal::new(0u32);
+    let show_calc = RwSignal::new(false);
+    let calc_arv = RwSignal::new(String::new());
     let calc_repair = RwSignal::new(String::new());
-    let calc_fee    = RwSignal::new(String::new());
+    let calc_fee = RwSignal::new(String::new());
     let calc_result = RwSignal::new(None::<MaoResult>);
     let calculating = RwSignal::new(false);
 
-    let leads_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_wholesale_leads(),
-    );
+    let leads_res = Resource::new(move || refresh.get(), |_| fetch_wholesale_leads());
 
     let handle_calc = move |_: leptos::ev::MouseEvent| {
-        let arv    = calc_arv.get().replace(['$', ',', 'k', ' '], "").parse::<f64>().unwrap_or(0.0) as i64 * 100;
-        let repair = calc_repair.get().replace(['$', ',', 'k', ' '], "").parse::<f64>().unwrap_or(0.0) as i64 * 100;
-        let fee    = calc_fee.get().replace(['$', ',', 'k', ' '], "").parse::<f64>().unwrap_or(0.0) as i64 * 100;
-        if arv == 0 { return; }
+        let arv = calc_arv
+            .get()
+            .replace(['$', ',', 'k', ' '], "")
+            .parse::<f64>()
+            .unwrap_or(0.0) as i64
+            * 100;
+        let repair = calc_repair
+            .get()
+            .replace(['$', ',', 'k', ' '], "")
+            .parse::<f64>()
+            .unwrap_or(0.0) as i64
+            * 100;
+        let fee = calc_fee
+            .get()
+            .replace(['$', ',', 'k', ' '], "")
+            .parse::<f64>()
+            .unwrap_or(0.0) as i64
+            * 100;
+        if arv == 0 {
+            return;
+        }
         calculating.set(true);
         spawn_local(async move {
             if let Ok(res) = calc_mao(arv, repair, fee).await {

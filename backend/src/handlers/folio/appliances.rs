@@ -28,19 +28,20 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::entities::{atlas_asset, user};
-use crate::services::pm::appliance::
-    {ApplianceService, CreateApplianceInput, UpdateApplianceLifecycleInput};
+use crate::services::pm::appliance::{
+    ApplianceService, CreateApplianceInput, UpdateApplianceLifecycleInput,
+};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -227,10 +228,10 @@ async fn list_all_appliances(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let appliances: Vec<crate::services::pm::appliance::ApplianceDetail> =
-        rows.into_iter()
-            .map(crate::services::pm::appliance::to_detail_pub)
-            .collect();
+    let appliances: Vec<crate::services::pm::appliance::ApplianceDetail> = rows
+        .into_iter()
+        .map(crate::services::pm::appliance::to_detail_pub)
+        .collect();
 
     Ok(axum::response::Json(appliances))
 }

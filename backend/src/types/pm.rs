@@ -54,9 +54,9 @@ impl Jurisdiction {
     pub fn default_currency(&self) -> &'static str {
         match self {
             Self::Us | Self::Vi => "USD",
-            Self::Br            => "BRL",
-            Self::Do            => "DOP",
-            Self::Ht            => "HTG",
+            Self::Br => "BRL",
+            Self::Do => "DOP",
+            Self::Ht => "HTG",
         }
     }
 }
@@ -167,9 +167,9 @@ pub enum CreditIdField {
 impl fmt::Display for CreditIdField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Cpf      => "cpf",
+            Self::Cpf => "cpf",
             Self::SsnLast4 => "ssn_last4",
-            Self::Cnpj     => "cnpj",
+            Self::Cnpj => "cnpj",
         })
     }
 }
@@ -178,9 +178,9 @@ impl TryFrom<String> for CreditIdField {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "cpf"       => Ok(Self::Cpf),
+            "cpf" => Ok(Self::Cpf),
             "ssn_last4" => Ok(Self::SsnLast4),
-            "cnpj"      => Ok(Self::Cnpj),
+            "cnpj" => Ok(Self::Cnpj),
             other => Err(format!("unknown CreditIdField: '{other}'")),
         }
     }
@@ -210,8 +210,12 @@ impl SubJurisdiction {
     /// Formats as `US-FL-MIAMI-DADE`, `BR-SP`, or `BR`.
     pub fn label(&self) -> String {
         let mut parts = vec![self.country.to_string()];
-        if let Some(st) = self.state { parts.push(st.to_string()); }
-        if let Some(cc) = self.county_city { parts.push(cc.to_string()); }
+        if let Some(st) = self.state {
+            parts.push(st.to_string());
+        }
+        if let Some(cc) = self.county_city {
+            parts.push(cc.to_string());
+        }
         parts.join("-")
     }
 }
@@ -302,7 +306,7 @@ impl PropertyType {
     pub fn scorecard_entity_type(&self) -> ScorecardEntityType {
         match self {
             Self::Str => ScorecardEntityType::StrProperty,
-            _         => ScorecardEntityType::RentalUnit,
+            _ => ScorecardEntityType::RentalUnit,
         }
     }
 }
@@ -311,11 +315,11 @@ impl fmt::Display for PropertyType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::SingleFamily => "single_family",
-            Self::Condo        => "condo",
-            Self::Townhouse    => "townhouse",
-            Self::MultiFamily  => "multi_family",
-            Self::Str          => "str",
-            Self::Commercial   => "commercial",
+            Self::Condo => "condo",
+            Self::Townhouse => "townhouse",
+            Self::MultiFamily => "multi_family",
+            Self::Str => "str",
+            Self::Commercial => "commercial",
         })
     }
 }
@@ -325,11 +329,11 @@ impl TryFrom<String> for PropertyType {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "single_family" => Ok(Self::SingleFamily),
-            "condo"         => Ok(Self::Condo),
-            "townhouse"     => Ok(Self::Townhouse),
-            "multi_family"  => Ok(Self::MultiFamily),
-            "str"           => Ok(Self::Str),
-            "commercial"    => Ok(Self::Commercial),
+            "condo" => Ok(Self::Condo),
+            "townhouse" => Ok(Self::Townhouse),
+            "multi_family" => Ok(Self::MultiFamily),
+            "str" => Ok(Self::Str),
+            "commercial" => Ok(Self::Commercial),
             other => Err(format!("unknown PropertyType: '{other}'")),
         }
     }
@@ -363,13 +367,13 @@ pub enum PmCaseType {
 impl fmt::Display for PmCaseType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Maintenance         => "maintenance",
+            Self::Maintenance => "maintenance",
             Self::ComplianceViolation => "compliance_violation",
-            Self::ApplicationReview   => "application_review",
-            Self::LeaseRenewal        => "lease_renewal",
-            Self::MoveOut             => "move_out",
+            Self::ApplicationReview => "application_review",
+            Self::LeaseRenewal => "lease_renewal",
+            Self::MoveOut => "move_out",
             Self::ScheduledInspection => "scheduled_inspection",
-            Self::ReportRequest       => "report_request",
+            Self::ReportRequest => "report_request",
         })
     }
 }
@@ -378,13 +382,13 @@ impl TryFrom<String> for PmCaseType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "maintenance"          => Ok(Self::Maintenance),
+            "maintenance" => Ok(Self::Maintenance),
             "compliance_violation" => Ok(Self::ComplianceViolation),
-            "application_review"   => Ok(Self::ApplicationReview),
-            "lease_renewal"        => Ok(Self::LeaseRenewal),
-            "move_out"             => Ok(Self::MoveOut),
+            "application_review" => Ok(Self::ApplicationReview),
+            "lease_renewal" => Ok(Self::LeaseRenewal),
+            "move_out" => Ok(Self::MoveOut),
             "scheduled_inspection" => Ok(Self::ScheduledInspection),
-            "report_request"       => Ok(Self::ReportRequest),
+            "report_request" => Ok(Self::ReportRequest),
             other => Err(format!("unknown PmCaseType: '{other}'")),
         }
     }
@@ -412,12 +416,12 @@ pub enum AtlasEntityType {
 impl fmt::Display for AtlasEntityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::AtlasAsset           => "atlas_asset",
-            Self::AtlasContact         => "atlas_contact",
-            Self::AtlasOpportunity     => "atlas_opportunity",
+            Self::AtlasAsset => "atlas_asset",
+            Self::AtlasContact => "atlas_contact",
+            Self::AtlasOpportunity => "atlas_opportunity",
             Self::AtlasServiceProvider => "atlas_service_provider",
-            Self::AtlasLead            => "atlas_lead",
-            Self::AtlasAccount         => "atlas_account",
+            Self::AtlasLead => "atlas_lead",
+            Self::AtlasAccount => "atlas_account",
         })
     }
 }
@@ -426,12 +430,12 @@ impl TryFrom<String> for AtlasEntityType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "atlas_asset"            => Ok(Self::AtlasAsset),
-            "atlas_contact"          => Ok(Self::AtlasContact),
-            "atlas_opportunity"      => Ok(Self::AtlasOpportunity),
+            "atlas_asset" => Ok(Self::AtlasAsset),
+            "atlas_contact" => Ok(Self::AtlasContact),
+            "atlas_opportunity" => Ok(Self::AtlasOpportunity),
             "atlas_service_provider" => Ok(Self::AtlasServiceProvider),
-            "atlas_lead"             => Ok(Self::AtlasLead),
-            "atlas_account"          => Ok(Self::AtlasAccount),
+            "atlas_lead" => Ok(Self::AtlasLead),
+            "atlas_account" => Ok(Self::AtlasAccount),
             other => Err(format!("unknown AtlasEntityType: '{other}'")),
         }
     }
@@ -458,11 +462,11 @@ pub enum PmContractType {
 impl fmt::Display for PmContractType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Lease               => "lease",
-            Self::StrBooking          => "str_booking",
-            Self::VendorService       => "vendor_service",
+            Self::Lease => "lease",
+            Self::StrBooking => "str_booking",
+            Self::VendorService => "vendor_service",
             Self::ManagementAgreement => "management_agreement",
-            Self::WholesalePurchase   => "wholesale_purchase",
+            Self::WholesalePurchase => "wholesale_purchase",
         })
     }
 }
@@ -471,11 +475,11 @@ impl TryFrom<String> for PmContractType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "lease"                => Ok(Self::Lease),
-            "str_booking"          => Ok(Self::StrBooking),
-            "vendor_service"       => Ok(Self::VendorService),
+            "lease" => Ok(Self::Lease),
+            "str_booking" => Ok(Self::StrBooking),
+            "vendor_service" => Ok(Self::VendorService),
             "management_agreement" => Ok(Self::ManagementAgreement),
-            "wholesale_purchase"   => Ok(Self::WholesalePurchase),
+            "wholesale_purchase" => Ok(Self::WholesalePurchase),
             other => Err(format!("unknown PmContractType: '{other}'")),
         }
     }
@@ -504,11 +508,11 @@ pub enum GuaranteeType {
 impl fmt::Display for GuaranteeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Fiador               => "fiador",
-            Self::SeguroFianca         => "seguro_fianca",
-            Self::Caucao               => "caucao",
-            Self::TituloCapitalizacao  => "titulo_capitalizacao",
-            Self::None                 => "none",
+            Self::Fiador => "fiador",
+            Self::SeguroFianca => "seguro_fianca",
+            Self::Caucao => "caucao",
+            Self::TituloCapitalizacao => "titulo_capitalizacao",
+            Self::None => "none",
         })
     }
 }
@@ -517,11 +521,11 @@ impl TryFrom<String> for GuaranteeType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "fiador"               => Ok(Self::Fiador),
-            "seguro_fianca"        => Ok(Self::SeguroFianca),
-            "caucao"               => Ok(Self::Caucao),
+            "fiador" => Ok(Self::Fiador),
+            "seguro_fianca" => Ok(Self::SeguroFianca),
+            "caucao" => Ok(Self::Caucao),
             "titulo_capitalizacao" => Ok(Self::TituloCapitalizacao),
-            "none"                 => Ok(Self::None),
+            "none" => Ok(Self::None),
             other => Err(format!("unknown GuaranteeType: '{other}'")),
         }
     }
@@ -551,12 +555,12 @@ impl MaintenanceCategory {
     /// Returns the matching vendor `TradeType` for dispatch routing.
     pub fn preferred_trade(&self) -> TradeType {
         match self {
-            Self::Plumbing    => TradeType::Plumber,
-            Self::Electrical  => TradeType::Electrician,
-            Self::Hvac        => TradeType::Hvac,
-            Self::Structural  => TradeType::GeneralContractor,
-            Self::Roofing     => TradeType::Roofer,
-            _                 => TradeType::General,
+            Self::Plumbing => TradeType::Plumber,
+            Self::Electrical => TradeType::Electrician,
+            Self::Hvac => TradeType::Hvac,
+            Self::Structural => TradeType::GeneralContractor,
+            Self::Roofing => TradeType::Roofer,
+            _ => TradeType::General,
         }
     }
 }
@@ -564,14 +568,14 @@ impl MaintenanceCategory {
 impl fmt::Display for MaintenanceCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Plumbing    => "plumbing",
-            Self::Electrical  => "electrical",
-            Self::Hvac        => "hvac",
-            Self::Structural  => "structural",
-            Self::Pest        => "pest",
-            Self::Appliance   => "appliance",
-            Self::Roofing     => "roofing",
-            Self::General     => "general",
+            Self::Plumbing => "plumbing",
+            Self::Electrical => "electrical",
+            Self::Hvac => "hvac",
+            Self::Structural => "structural",
+            Self::Pest => "pest",
+            Self::Appliance => "appliance",
+            Self::Roofing => "roofing",
+            Self::General => "general",
         })
     }
 }
@@ -580,14 +584,14 @@ impl TryFrom<String> for MaintenanceCategory {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "plumbing"    => Ok(Self::Plumbing),
-            "electrical"  => Ok(Self::Electrical),
-            "hvac"        => Ok(Self::Hvac),
-            "structural"  => Ok(Self::Structural),
-            "pest"        => Ok(Self::Pest),
-            "appliance"   => Ok(Self::Appliance),
-            "roofing"     => Ok(Self::Roofing),
-            "general"     => Ok(Self::General),
+            "plumbing" => Ok(Self::Plumbing),
+            "electrical" => Ok(Self::Electrical),
+            "hvac" => Ok(Self::Hvac),
+            "structural" => Ok(Self::Structural),
+            "pest" => Ok(Self::Pest),
+            "appliance" => Ok(Self::Appliance),
+            "roofing" => Ok(Self::Roofing),
+            "general" => Ok(Self::General),
             other => Err(format!("unknown MaintenanceCategory: '{other}'")),
         }
     }
@@ -609,7 +613,7 @@ pub enum TradeType {
     Roofer,
     Painter,
     Landscaper,
-    Cleaner,     // STR turnover cleaning
+    Cleaner, // STR turnover cleaning
     Inspector,
     General,
 }
@@ -617,16 +621,16 @@ pub enum TradeType {
 impl fmt::Display for TradeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Plumber           => "plumber",
-            Self::Electrician       => "electrician",
-            Self::Hvac              => "hvac",
+            Self::Plumber => "plumber",
+            Self::Electrician => "electrician",
+            Self::Hvac => "hvac",
             Self::GeneralContractor => "general_contractor",
-            Self::Roofer            => "roofer",
-            Self::Painter           => "painter",
-            Self::Landscaper        => "landscaper",
-            Self::Cleaner           => "cleaner",
-            Self::Inspector         => "inspector",
-            Self::General           => "general",
+            Self::Roofer => "roofer",
+            Self::Painter => "painter",
+            Self::Landscaper => "landscaper",
+            Self::Cleaner => "cleaner",
+            Self::Inspector => "inspector",
+            Self::General => "general",
         })
     }
 }
@@ -635,16 +639,16 @@ impl TryFrom<String> for TradeType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "plumber"            => Ok(Self::Plumber),
-            "electrician"        => Ok(Self::Electrician),
-            "hvac"               => Ok(Self::Hvac),
+            "plumber" => Ok(Self::Plumber),
+            "electrician" => Ok(Self::Electrician),
+            "hvac" => Ok(Self::Hvac),
             "general_contractor" => Ok(Self::GeneralContractor),
-            "roofer"             => Ok(Self::Roofer),
-            "painter"            => Ok(Self::Painter),
-            "landscaper"         => Ok(Self::Landscaper),
-            "cleaner"            => Ok(Self::Cleaner),
-            "inspector"          => Ok(Self::Inspector),
-            "general"            => Ok(Self::General),
+            "roofer" => Ok(Self::Roofer),
+            "painter" => Ok(Self::Painter),
+            "landscaper" => Ok(Self::Landscaper),
+            "cleaner" => Ok(Self::Cleaner),
+            "inspector" => Ok(Self::Inspector),
+            "general" => Ok(Self::General),
             other => Err(format!("unknown TradeType: '{other}'")),
         }
     }
@@ -677,12 +681,12 @@ impl WholesaleStage {
 impl fmt::Display for WholesaleStage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::New           => "new",
-            Self::Qualified     => "qualified",
-            Self::Negotiating   => "negotiating",
+            Self::New => "new",
+            Self::Qualified => "qualified",
+            Self::Negotiating => "negotiating",
             Self::UnderContract => "under_contract",
-            Self::Closed        => "closed",
-            Self::Dead          => "dead",
+            Self::Closed => "closed",
+            Self::Dead => "dead",
         })
     }
 }
@@ -691,12 +695,12 @@ impl TryFrom<String> for WholesaleStage {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "new"            => Ok(Self::New),
-            "qualified"      => Ok(Self::Qualified),
-            "negotiating"    => Ok(Self::Negotiating),
+            "new" => Ok(Self::New),
+            "qualified" => Ok(Self::Qualified),
+            "negotiating" => Ok(Self::Negotiating),
             "under_contract" => Ok(Self::UnderContract),
-            "closed"         => Ok(Self::Closed),
-            "dead"           => Ok(Self::Dead),
+            "closed" => Ok(Self::Closed),
+            "dead" => Ok(Self::Dead),
             other => Err(format!("unknown WholesaleStage: '{other}'")),
         }
     }
@@ -725,15 +729,15 @@ pub enum SellerMotivation {
 impl fmt::Display for SellerMotivation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Divorce           => "divorce",
-            Self::Probate           => "probate",
-            Self::Foreclosure       => "foreclosure",
-            Self::RelocationJob     => "relocation_job",
+            Self::Divorce => "divorce",
+            Self::Probate => "probate",
+            Self::Foreclosure => "foreclosure",
+            Self::RelocationJob => "relocation_job",
             Self::FinancialDistress => "financial_distress",
-            Self::Inheritance       => "inheritance",
-            Self::Downsizing        => "downsizing",
-            Self::TiredLandlord     => "tired_landlord",
-            Self::Other             => "other",
+            Self::Inheritance => "inheritance",
+            Self::Downsizing => "downsizing",
+            Self::TiredLandlord => "tired_landlord",
+            Self::Other => "other",
         })
     }
 }
@@ -742,15 +746,15 @@ impl TryFrom<String> for SellerMotivation {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "divorce"            => Ok(Self::Divorce),
-            "probate"            => Ok(Self::Probate),
-            "foreclosure"        => Ok(Self::Foreclosure),
-            "relocation_job"     => Ok(Self::RelocationJob),
+            "divorce" => Ok(Self::Divorce),
+            "probate" => Ok(Self::Probate),
+            "foreclosure" => Ok(Self::Foreclosure),
+            "relocation_job" => Ok(Self::RelocationJob),
             "financial_distress" => Ok(Self::FinancialDistress),
-            "inheritance"        => Ok(Self::Inheritance),
-            "downsizing"         => Ok(Self::Downsizing),
-            "tired_landlord"     => Ok(Self::TiredLandlord),
-            "other"              => Ok(Self::Other),
+            "inheritance" => Ok(Self::Inheritance),
+            "downsizing" => Ok(Self::Downsizing),
+            "tired_landlord" => Ok(Self::TiredLandlord),
+            "other" => Ok(Self::Other),
             other => Err(format!("unknown SellerMotivation: '{other}'")),
         }
     }
@@ -773,9 +777,9 @@ pub enum PmOpportunityType {
 impl fmt::Display for PmOpportunityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::WholesaleLead    => "wholesale_lead",
+            Self::WholesaleLead => "wholesale_lead",
             Self::LeaseApplication => "lease_application",
-            Self::LeaseRenewal     => "lease_renewal",
+            Self::LeaseRenewal => "lease_renewal",
         })
     }
 }
@@ -784,9 +788,9 @@ impl TryFrom<String> for PmOpportunityType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "wholesale_lead"    => Ok(Self::WholesaleLead),
+            "wholesale_lead" => Ok(Self::WholesaleLead),
             "lease_application" => Ok(Self::LeaseApplication),
-            "lease_renewal"     => Ok(Self::LeaseRenewal),
+            "lease_renewal" => Ok(Self::LeaseRenewal),
             other => Err(format!("unknown PmOpportunityType: '{other}'")),
         }
     }
@@ -813,8 +817,8 @@ impl fmt::Display for StrPermitCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::PrincipalResidence => "principal_residence",
-            Self::Hosted             => "hosted",
-            Self::NonHosted          => "non_hosted",
+            Self::Hosted => "hosted",
+            Self::NonHosted => "non_hosted",
         })
     }
 }
@@ -824,8 +828,8 @@ impl TryFrom<String> for StrPermitCategory {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "principal_residence" => Ok(Self::PrincipalResidence),
-            "hosted"              => Ok(Self::Hosted),
-            "non_hosted"          => Ok(Self::NonHosted),
+            "hosted" => Ok(Self::Hosted),
+            "non_hosted" => Ok(Self::NonHosted),
             other => Err(format!("unknown StrPermitCategory: '{other}'")),
         }
     }
@@ -850,9 +854,9 @@ pub enum PmRegistrationType {
 impl fmt::Display for PmRegistrationType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::StrPermit              => "str_permit",
-            Self::ContractorLicense      => "contractor_license",
-            Self::BusinessLicense        => "business_license",
+            Self::StrPermit => "str_permit",
+            Self::ContractorLicense => "contractor_license",
+            Self::BusinessLicense => "business_license",
             Self::CertificateOfOccupancy => "certificate_of_occupancy",
         })
     }
@@ -862,9 +866,9 @@ impl TryFrom<String> for PmRegistrationType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "str_permit"               => Ok(Self::StrPermit),
-            "contractor_license"       => Ok(Self::ContractorLicense),
-            "business_license"         => Ok(Self::BusinessLicense),
+            "str_permit" => Ok(Self::StrPermit),
+            "contractor_license" => Ok(Self::ContractorLicense),
+            "business_license" => Ok(Self::BusinessLicense),
             "certificate_of_occupancy" => Ok(Self::CertificateOfOccupancy),
             other => Err(format!("unknown PmRegistrationType: '{other}'")),
         }
@@ -893,9 +897,9 @@ pub enum ScorecardEntityType {
 impl fmt::Display for ScorecardEntityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::StrProperty  => "str_property",
-            Self::RentalUnit   => "rental_unit",
-            Self::Contractor   => "contractor",
+            Self::StrProperty => "str_property",
+            Self::RentalUnit => "rental_unit",
+            Self::Contractor => "contractor",
             Self::WholesaleLead => "wholesale_lead",
         })
     }
@@ -905,9 +909,9 @@ impl TryFrom<String> for ScorecardEntityType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "str_property"   => Ok(Self::StrProperty),
-            "rental_unit"    => Ok(Self::RentalUnit),
-            "contractor"     => Ok(Self::Contractor),
+            "str_property" => Ok(Self::StrProperty),
+            "rental_unit" => Ok(Self::RentalUnit),
+            "contractor" => Ok(Self::Contractor),
             "wholesale_lead" => Ok(Self::WholesaleLead),
             other => Err(format!("unknown ScorecardEntityType: '{other}'")),
         }
@@ -967,15 +971,15 @@ impl FolioRole {
     /// Used by the frontend router to redirect after login.
     pub fn home_path(&self) -> &'static str {
         match self {
-            Self::Landlord          => "/dashboard",
-            Self::Tenant            => "/my-home",
-            Self::StrGuest          => "/g",
-            Self::Vendor            => "/work-orders",
-            Self::PropertyManager   => "/pm",
-            Self::Owner             => "/owner",
-            Self::Cohost            => "/ch",
-            Self::Agent             => "/a",
-            Self::Broker            => "/b",
+            Self::Landlord => "/dashboard",
+            Self::Tenant => "/my-home",
+            Self::StrGuest => "/g",
+            Self::Vendor => "/work-orders",
+            Self::PropertyManager => "/pm",
+            Self::Owner => "/owner",
+            Self::Cohost => "/ch",
+            Self::Agent => "/a",
+            Self::Broker => "/b",
             Self::PropertyOwnerLite => "/dashboard",
         }
     }
@@ -1007,15 +1011,15 @@ impl FolioRole {
 impl fmt::Display for FolioRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Landlord          => "landlord",
-            Self::Tenant            => "tenant",
-            Self::StrGuest          => "str_guest",
-            Self::Vendor            => "vendor",
-            Self::PropertyManager   => "property_manager",
-            Self::Owner             => "owner",
-            Self::Cohost            => "cohost",
-            Self::Agent             => "agent",
-            Self::Broker            => "broker",
+            Self::Landlord => "landlord",
+            Self::Tenant => "tenant",
+            Self::StrGuest => "str_guest",
+            Self::Vendor => "vendor",
+            Self::PropertyManager => "property_manager",
+            Self::Owner => "owner",
+            Self::Cohost => "cohost",
+            Self::Agent => "agent",
+            Self::Broker => "broker",
             Self::PropertyOwnerLite => "property_owner_lite",
         })
     }
@@ -1025,19 +1029,21 @@ impl TryFrom<String> for FolioRole {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "landlord"             => Ok(Self::Landlord),
-            "tenant"               => Ok(Self::Tenant),
-            "str_guest"            => Ok(Self::StrGuest),
-            "vendor"               => Ok(Self::Vendor),
-            "property_manager"     => Ok(Self::PropertyManager),
-            "owner"                => Ok(Self::Owner),
-            "cohost"               => Ok(Self::Cohost),
-            "agent"                => Ok(Self::Agent),
-            "broker"               => Ok(Self::Broker),
-            "property_owner_lite"  => Ok(Self::PropertyOwnerLite),
+            "landlord" => Ok(Self::Landlord),
+            "tenant" => Ok(Self::Tenant),
+            "str_guest" => Ok(Self::StrGuest),
+            "vendor" => Ok(Self::Vendor),
+            "property_manager" => Ok(Self::PropertyManager),
+            "owner" => Ok(Self::Owner),
+            "cohost" => Ok(Self::Cohost),
+            "agent" => Ok(Self::Agent),
+            "broker" => Ok(Self::Broker),
+            "property_owner_lite" => Ok(Self::PropertyOwnerLite),
             // str_host was removed — it is an asset trait, not a role.
             // Invites with app_role="str_host" are rejected at provision validation.
-            other => Err(format!("unknown FolioRole: '{other}' (hint: use 'landlord' — STR capability is enabled per-asset)")),
+            other => Err(format!(
+                "unknown FolioRole: '{other}' (hint: use 'landlord' — STR capability is enabled per-asset)"
+            )),
         }
     }
 }
@@ -1079,13 +1085,13 @@ pub enum PropertyValueSource {
 impl fmt::Display for PropertyValueSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::ManualEntry       => "manual",
-            Self::PurchasePrice     => "purchase_price",
-            Self::ZillowAvm         => "zillow_avm",
-            Self::CountyRecord      => "county_record",
+            Self::ManualEntry => "manual",
+            Self::PurchasePrice => "purchase_price",
+            Self::ZillowAvm => "zillow_avm",
+            Self::CountyRecord => "county_record",
             Self::CertifiedAppraisal => "certified_appraisal",
-            Self::BankAppraisal     => "bank_appraisal",
-            Self::AgentCma          => "agent_cma",
+            Self::BankAppraisal => "bank_appraisal",
+            Self::AgentCma => "agent_cma",
         })
     }
 }
@@ -1094,13 +1100,13 @@ impl TryFrom<String> for PropertyValueSource {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "manual"              => Ok(Self::ManualEntry),
-            "purchase_price"      => Ok(Self::PurchasePrice),
-            "zillow_avm"          => Ok(Self::ZillowAvm),
-            "county_record"       => Ok(Self::CountyRecord),
+            "manual" => Ok(Self::ManualEntry),
+            "purchase_price" => Ok(Self::PurchasePrice),
+            "zillow_avm" => Ok(Self::ZillowAvm),
+            "county_record" => Ok(Self::CountyRecord),
             "certified_appraisal" => Ok(Self::CertifiedAppraisal),
-            "bank_appraisal"      => Ok(Self::BankAppraisal),
-            "agent_cma"           => Ok(Self::AgentCma),
+            "bank_appraisal" => Ok(Self::BankAppraisal),
+            "agent_cma" => Ok(Self::AgentCma),
             other => Err(format!("unknown PropertyValueSource: '{other}'")),
         }
     }
@@ -1128,8 +1134,8 @@ pub enum InvitePurpose {
 impl fmt::Display for InvitePurpose {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Onboarding      => "onboarding",
-            Self::ReviewRequest   => "review_request",
+            Self::Onboarding => "onboarding",
+            Self::ReviewRequest => "review_request",
             Self::NetworkReferral => "network_referral",
         })
     }
@@ -1139,8 +1145,8 @@ impl TryFrom<String> for InvitePurpose {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "onboarding"       => Ok(Self::Onboarding),
-            "review_request"   => Ok(Self::ReviewRequest),
+            "onboarding" => Ok(Self::Onboarding),
+            "review_request" => Ok(Self::ReviewRequest),
             "network_referral" => Ok(Self::NetworkReferral),
             other => Err(format!("unknown InvitePurpose: '{other}'")),
         }
@@ -1166,7 +1172,7 @@ impl fmt::Display for TemplateScope {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Platform => "platform",
-            Self::Tenant   => "tenant",
+            Self::Tenant => "tenant",
         })
     }
 }
@@ -1176,7 +1182,7 @@ impl TryFrom<String> for TemplateScope {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "platform" => Ok(Self::Platform),
-            "tenant"   => Ok(Self::Tenant),
+            "tenant" => Ok(Self::Tenant),
             other => Err(format!("unknown TemplateScope: '{other}'")),
         }
     }
@@ -1199,7 +1205,7 @@ pub enum ConominioExpenseCategory {
 impl fmt::Display for ConominioExpenseCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::DespesasOrdinarias      => "despesas_ordinarias",
+            Self::DespesasOrdinarias => "despesas_ordinarias",
             Self::DespesasExtraordinarias => "despesas_extraordinarias",
         })
     }
@@ -1209,7 +1215,7 @@ impl TryFrom<String> for ConominioExpenseCategory {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "despesas_ordinarias"      => Ok(Self::DespesasOrdinarias),
+            "despesas_ordinarias" => Ok(Self::DespesasOrdinarias),
             "despesas_extraordinarias" => Ok(Self::DespesasExtraordinarias),
             other => Err(format!("unknown ConominioExpenseCategory: '{other}'")),
         }
@@ -1261,16 +1267,34 @@ mod tests {
 
     #[test]
     fn test_property_type_scorecard_entity() {
-        assert_eq!(PropertyType::Str.scorecard_entity_type(), ScorecardEntityType::StrProperty);
-        assert_eq!(PropertyType::Condo.scorecard_entity_type(), ScorecardEntityType::RentalUnit);
-        assert_eq!(PropertyType::SingleFamily.scorecard_entity_type(), ScorecardEntityType::RentalUnit);
+        assert_eq!(
+            PropertyType::Str.scorecard_entity_type(),
+            ScorecardEntityType::StrProperty
+        );
+        assert_eq!(
+            PropertyType::Condo.scorecard_entity_type(),
+            ScorecardEntityType::RentalUnit
+        );
+        assert_eq!(
+            PropertyType::SingleFamily.scorecard_entity_type(),
+            ScorecardEntityType::RentalUnit
+        );
     }
 
     #[test]
     fn test_maintenance_preferred_trade() {
-        assert_eq!(MaintenanceCategory::Plumbing.preferred_trade(), TradeType::Plumber);
-        assert_eq!(MaintenanceCategory::Electrical.preferred_trade(), TradeType::Electrician);
-        assert_eq!(MaintenanceCategory::Pest.preferred_trade(), TradeType::General);
+        assert_eq!(
+            MaintenanceCategory::Plumbing.preferred_trade(),
+            TradeType::Plumber
+        );
+        assert_eq!(
+            MaintenanceCategory::Electrical.preferred_trade(),
+            TradeType::Electrician
+        );
+        assert_eq!(
+            MaintenanceCategory::Pest.preferred_trade(),
+            TradeType::General
+        );
     }
 
     #[test]
@@ -1340,11 +1364,11 @@ pub enum OtaPlatform {
 impl fmt::Display for OtaPlatform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OtaPlatform::Airbnb    => write!(f, "airbnb"),
-            OtaPlatform::Vrbo      => write!(f, "vrbo"),
+            OtaPlatform::Airbnb => write!(f, "airbnb"),
+            OtaPlatform::Vrbo => write!(f, "vrbo"),
             OtaPlatform::BookingCom => write!(f, "booking_com"),
-            OtaPlatform::Direct    => write!(f, "direct"),
-            OtaPlatform::Other(s)  => write!(f, "{s}"),
+            OtaPlatform::Direct => write!(f, "direct"),
+            OtaPlatform::Other(s) => write!(f, "{s}"),
         }
     }
 }
@@ -1353,11 +1377,11 @@ impl TryFrom<String> for OtaPlatform {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "airbnb"                      => Ok(OtaPlatform::Airbnb),
-            "vrbo"                        => Ok(OtaPlatform::Vrbo),
+            "airbnb" => Ok(OtaPlatform::Airbnb),
+            "vrbo" => Ok(OtaPlatform::Vrbo),
             "booking_com" | "booking.com" => Ok(OtaPlatform::BookingCom),
-            "direct"                      => Ok(OtaPlatform::Direct),
-            other                         => Ok(OtaPlatform::Other(other.to_string())),
+            "direct" => Ok(OtaPlatform::Direct),
+            other => Ok(OtaPlatform::Other(other.to_string())),
         }
     }
 }
@@ -1397,13 +1421,13 @@ pub enum BillingInterval {
 impl fmt::Display for BillingInterval {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BillingInterval::Nightly   => write!(f, "nightly"),
-            BillingInterval::Hourly    => write!(f, "hourly"),
-            BillingInterval::Daily     => write!(f, "daily"),
-            BillingInterval::Weekly    => write!(f, "weekly"),
-            BillingInterval::Monthly   => write!(f, "monthly"),
-            BillingInterval::Annually  => write!(f, "annually"),
-            BillingInterval::PerUnit   => write!(f, "per_unit"),
+            BillingInterval::Nightly => write!(f, "nightly"),
+            BillingInterval::Hourly => write!(f, "hourly"),
+            BillingInterval::Daily => write!(f, "daily"),
+            BillingInterval::Weekly => write!(f, "weekly"),
+            BillingInterval::Monthly => write!(f, "monthly"),
+            BillingInterval::Annually => write!(f, "annually"),
+            BillingInterval::PerUnit => write!(f, "per_unit"),
         }
     }
 }
@@ -1412,14 +1436,14 @@ impl TryFrom<String> for BillingInterval {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "nightly"  => Ok(BillingInterval::Nightly),
-            "hourly"   => Ok(BillingInterval::Hourly),
-            "daily"    => Ok(BillingInterval::Daily),
-            "weekly"   => Ok(BillingInterval::Weekly),
-            "monthly"  => Ok(BillingInterval::Monthly),
+            "nightly" => Ok(BillingInterval::Nightly),
+            "hourly" => Ok(BillingInterval::Hourly),
+            "daily" => Ok(BillingInterval::Daily),
+            "weekly" => Ok(BillingInterval::Weekly),
+            "monthly" => Ok(BillingInterval::Monthly),
             "annually" => Ok(BillingInterval::Annually),
             "per_unit" => Ok(BillingInterval::PerUnit),
-            other      => Err(format!("unknown BillingInterval: {other}")),
+            other => Err(format!("unknown BillingInterval: {other}")),
         }
     }
 }
@@ -1458,13 +1482,13 @@ pub enum CatalogEntryType {
 impl fmt::Display for CatalogEntryType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CatalogEntryType::RoomType         => write!(f, "room_type"),
-            CatalogEntryType::ServiceSlot      => write!(f, "service_slot"),
-            CatalogEntryType::PackageTier      => write!(f, "package_tier"),
+            CatalogEntryType::RoomType => write!(f, "room_type"),
+            CatalogEntryType::ServiceSlot => write!(f, "service_slot"),
+            CatalogEntryType::PackageTier => write!(f, "package_tier"),
             CatalogEntryType::SubscriptionTier => write!(f, "subscription_tier"),
-            CatalogEntryType::CoverageOption   => write!(f, "coverage_option"),
-            CatalogEntryType::AddOn            => write!(f, "add_on"),
-            CatalogEntryType::EquipmentUnit    => write!(f, "equipment_unit"),
+            CatalogEntryType::CoverageOption => write!(f, "coverage_option"),
+            CatalogEntryType::AddOn => write!(f, "add_on"),
+            CatalogEntryType::EquipmentUnit => write!(f, "equipment_unit"),
         }
     }
 }
@@ -1473,14 +1497,14 @@ impl TryFrom<String> for CatalogEntryType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "room_type"         => Ok(CatalogEntryType::RoomType),
-            "service_slot"      => Ok(CatalogEntryType::ServiceSlot),
-            "package_tier"      => Ok(CatalogEntryType::PackageTier),
+            "room_type" => Ok(CatalogEntryType::RoomType),
+            "service_slot" => Ok(CatalogEntryType::ServiceSlot),
+            "package_tier" => Ok(CatalogEntryType::PackageTier),
             "subscription_tier" => Ok(CatalogEntryType::SubscriptionTier),
-            "coverage_option"   => Ok(CatalogEntryType::CoverageOption),
-            "add_on"            => Ok(CatalogEntryType::AddOn),
-            "equipment_unit"    => Ok(CatalogEntryType::EquipmentUnit),
-            other               => Err(format!("unknown CatalogEntryType: {other}")),
+            "coverage_option" => Ok(CatalogEntryType::CoverageOption),
+            "add_on" => Ok(CatalogEntryType::AddOn),
+            "equipment_unit" => Ok(CatalogEntryType::EquipmentUnit),
+            other => Err(format!("unknown CatalogEntryType: {other}")),
         }
     }
 }
@@ -1517,11 +1541,11 @@ pub enum BookingChannel {
 impl fmt::Display for BookingChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BookingChannel::Direct    => write!(f, "direct"),
-            BookingChannel::Ota       => write!(f, "ota"),
-            BookingChannel::Gds       => write!(f, "gds"),
+            BookingChannel::Direct => write!(f, "direct"),
+            BookingChannel::Ota => write!(f, "ota"),
+            BookingChannel::Gds => write!(f, "gds"),
             BookingChannel::Corporate => write!(f, "corporate"),
-            BookingChannel::Group     => write!(f, "group"),
+            BookingChannel::Group => write!(f, "group"),
         }
     }
 }
@@ -1530,12 +1554,12 @@ impl TryFrom<String> for BookingChannel {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "direct"    => Ok(BookingChannel::Direct),
-            "ota"       => Ok(BookingChannel::Ota),
-            "gds"       => Ok(BookingChannel::Gds),
+            "direct" => Ok(BookingChannel::Direct),
+            "ota" => Ok(BookingChannel::Ota),
+            "gds" => Ok(BookingChannel::Gds),
             "corporate" => Ok(BookingChannel::Corporate),
-            "group"     => Ok(BookingChannel::Group),
-            other       => Err(format!("unknown BookingChannel: {other}")),
+            "group" => Ok(BookingChannel::Group),
+            other => Err(format!("unknown BookingChannel: {other}")),
         }
     }
 }
@@ -1584,14 +1608,14 @@ pub enum CampaignType {
 impl fmt::Display for CampaignType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CampaignType::ColdEmail   => write!(f, "cold_email"),
-            CampaignType::DirectMail  => write!(f, "direct_mail"),
-            CampaignType::Ppc         => write!(f, "ppc"),
-            CampaignType::Social      => write!(f, "social"),
-            CampaignType::EventBased  => write!(f, "event_based"),
-            CampaignType::Sms         => write!(f, "sms"),
-            CampaignType::Content     => write!(f, "content"),
-            CampaignType::Referral    => write!(f, "referral"),
+            CampaignType::ColdEmail => write!(f, "cold_email"),
+            CampaignType::DirectMail => write!(f, "direct_mail"),
+            CampaignType::Ppc => write!(f, "ppc"),
+            CampaignType::Social => write!(f, "social"),
+            CampaignType::EventBased => write!(f, "event_based"),
+            CampaignType::Sms => write!(f, "sms"),
+            CampaignType::Content => write!(f, "content"),
+            CampaignType::Referral => write!(f, "referral"),
             CampaignType::Retargeting => write!(f, "retargeting"),
         }
     }
@@ -1601,16 +1625,16 @@ impl TryFrom<String> for CampaignType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "cold_email"   => Ok(CampaignType::ColdEmail),
-            "direct_mail"  => Ok(CampaignType::DirectMail),
-            "ppc"          => Ok(CampaignType::Ppc),
-            "social"       => Ok(CampaignType::Social),
-            "event_based"  => Ok(CampaignType::EventBased),
-            "sms"          => Ok(CampaignType::Sms),
-            "content"      => Ok(CampaignType::Content),
-            "referral"     => Ok(CampaignType::Referral),
-            "retargeting"  => Ok(CampaignType::Retargeting),
-            other          => Err(format!("unknown CampaignType: {other}")),
+            "cold_email" => Ok(CampaignType::ColdEmail),
+            "direct_mail" => Ok(CampaignType::DirectMail),
+            "ppc" => Ok(CampaignType::Ppc),
+            "social" => Ok(CampaignType::Social),
+            "event_based" => Ok(CampaignType::EventBased),
+            "sms" => Ok(CampaignType::Sms),
+            "content" => Ok(CampaignType::Content),
+            "referral" => Ok(CampaignType::Referral),
+            "retargeting" => Ok(CampaignType::Retargeting),
+            other => Err(format!("unknown CampaignType: {other}")),
         }
     }
 }
@@ -1638,12 +1662,12 @@ pub enum CampaignStatus {
 impl fmt::Display for CampaignStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CampaignStatus::Draft     => write!(f, "draft"),
+            CampaignStatus::Draft => write!(f, "draft"),
             CampaignStatus::Scheduled => write!(f, "scheduled"),
-            CampaignStatus::Active    => write!(f, "active"),
-            CampaignStatus::Paused    => write!(f, "paused"),
+            CampaignStatus::Active => write!(f, "active"),
+            CampaignStatus::Paused => write!(f, "paused"),
             CampaignStatus::Completed => write!(f, "completed"),
-            CampaignStatus::Archived  => write!(f, "archived"),
+            CampaignStatus::Archived => write!(f, "archived"),
         }
     }
 }
@@ -1652,13 +1676,13 @@ impl TryFrom<String> for CampaignStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "draft"     => Ok(CampaignStatus::Draft),
+            "draft" => Ok(CampaignStatus::Draft),
             "scheduled" => Ok(CampaignStatus::Scheduled),
-            "active"    => Ok(CampaignStatus::Active),
-            "paused"    => Ok(CampaignStatus::Paused),
+            "active" => Ok(CampaignStatus::Active),
+            "paused" => Ok(CampaignStatus::Paused),
             "completed" => Ok(CampaignStatus::Completed),
-            "archived"  => Ok(CampaignStatus::Archived),
-            other       => Err(format!("unknown CampaignStatus: {other}")),
+            "archived" => Ok(CampaignStatus::Archived),
+            other => Err(format!("unknown CampaignStatus: {other}")),
         }
     }
 }
@@ -1692,11 +1716,11 @@ pub enum EnrollmentStatus {
 impl fmt::Display for EnrollmentStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EnrollmentStatus::Active       => write!(f, "active"),
-            EnrollmentStatus::Paused       => write!(f, "paused"),
-            EnrollmentStatus::Completed    => write!(f, "completed"),
-            EnrollmentStatus::Exited       => write!(f, "exited"),
-            EnrollmentStatus::Bounced      => write!(f, "bounced"),
+            EnrollmentStatus::Active => write!(f, "active"),
+            EnrollmentStatus::Paused => write!(f, "paused"),
+            EnrollmentStatus::Completed => write!(f, "completed"),
+            EnrollmentStatus::Exited => write!(f, "exited"),
+            EnrollmentStatus::Bounced => write!(f, "bounced"),
             EnrollmentStatus::Unsubscribed => write!(f, "unsubscribed"),
         }
     }
@@ -1706,13 +1730,13 @@ impl TryFrom<String> for EnrollmentStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "active"       => Ok(EnrollmentStatus::Active),
-            "paused"       => Ok(EnrollmentStatus::Paused),
-            "completed"    => Ok(EnrollmentStatus::Completed),
-            "exited"       => Ok(EnrollmentStatus::Exited),
-            "bounced"      => Ok(EnrollmentStatus::Bounced),
+            "active" => Ok(EnrollmentStatus::Active),
+            "paused" => Ok(EnrollmentStatus::Paused),
+            "completed" => Ok(EnrollmentStatus::Completed),
+            "exited" => Ok(EnrollmentStatus::Exited),
+            "bounced" => Ok(EnrollmentStatus::Bounced),
             "unsubscribed" => Ok(EnrollmentStatus::Unsubscribed),
-            other          => Err(format!("unknown EnrollmentStatus: {other}")),
+            other => Err(format!("unknown EnrollmentStatus: {other}")),
         }
     }
 }
@@ -1753,14 +1777,14 @@ pub enum CampaignGoalType {
 impl fmt::Display for CampaignGoalType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CampaignGoalType::LeadCapture         => write!(f, "lead_capture"),
-            CampaignGoalType::Booking             => write!(f, "booking"),
-            CampaignGoalType::Application         => write!(f, "application"),
-            CampaignGoalType::Sale                => write!(f, "sale"),
-            CampaignGoalType::Registration        => write!(f, "registration"),
-            CampaignGoalType::Subscription        => write!(f, "subscription"),
-            CampaignGoalType::Signup              => write!(f, "signup"),
-            CampaignGoalType::OnboardingComplete  => write!(f, "onboarding_complete"),
+            CampaignGoalType::LeadCapture => write!(f, "lead_capture"),
+            CampaignGoalType::Booking => write!(f, "booking"),
+            CampaignGoalType::Application => write!(f, "application"),
+            CampaignGoalType::Sale => write!(f, "sale"),
+            CampaignGoalType::Registration => write!(f, "registration"),
+            CampaignGoalType::Subscription => write!(f, "subscription"),
+            CampaignGoalType::Signup => write!(f, "signup"),
+            CampaignGoalType::OnboardingComplete => write!(f, "onboarding_complete"),
         }
     }
 }
@@ -1769,15 +1793,15 @@ impl TryFrom<String> for CampaignGoalType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "lead_capture"         => Ok(CampaignGoalType::LeadCapture),
-            "booking"              => Ok(CampaignGoalType::Booking),
-            "application"          => Ok(CampaignGoalType::Application),
-            "sale"                 => Ok(CampaignGoalType::Sale),
-            "registration"         => Ok(CampaignGoalType::Registration),
-            "subscription"         => Ok(CampaignGoalType::Subscription),
-            "signup"               => Ok(CampaignGoalType::Signup),
-            "onboarding_complete"  => Ok(CampaignGoalType::OnboardingComplete),
-            other                  => Err(format!("unknown CampaignGoalType: {other}")),
+            "lead_capture" => Ok(CampaignGoalType::LeadCapture),
+            "booking" => Ok(CampaignGoalType::Booking),
+            "application" => Ok(CampaignGoalType::Application),
+            "sale" => Ok(CampaignGoalType::Sale),
+            "registration" => Ok(CampaignGoalType::Registration),
+            "subscription" => Ok(CampaignGoalType::Subscription),
+            "signup" => Ok(CampaignGoalType::Signup),
+            "onboarding_complete" => Ok(CampaignGoalType::OnboardingComplete),
+            other => Err(format!("unknown CampaignGoalType: {other}")),
         }
     }
 }
@@ -1811,12 +1835,12 @@ pub enum SequenceStepType {
 impl fmt::Display for SequenceStepType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SequenceStepType::Email     => write!(f, "email"),
-            SequenceStepType::Sms       => write!(f, "sms"),
-            SequenceStepType::Wait      => write!(f, "wait"),
+            SequenceStepType::Email => write!(f, "email"),
+            SequenceStepType::Sms => write!(f, "sms"),
+            SequenceStepType::Wait => write!(f, "wait"),
             SequenceStepType::Condition => write!(f, "condition"),
-            SequenceStepType::Task      => write!(f, "task"),
-            SequenceStepType::Linkedin  => write!(f, "linkedin"),
+            SequenceStepType::Task => write!(f, "task"),
+            SequenceStepType::Linkedin => write!(f, "linkedin"),
         }
     }
 }
@@ -1825,13 +1849,13 @@ impl TryFrom<String> for SequenceStepType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "email"     => Ok(SequenceStepType::Email),
-            "sms"       => Ok(SequenceStepType::Sms),
-            "wait"      => Ok(SequenceStepType::Wait),
+            "email" => Ok(SequenceStepType::Email),
+            "sms" => Ok(SequenceStepType::Sms),
+            "wait" => Ok(SequenceStepType::Wait),
             "condition" => Ok(SequenceStepType::Condition),
-            "task"      => Ok(SequenceStepType::Task),
-            "linkedin"  => Ok(SequenceStepType::Linkedin),
-            other       => Err(format!("unknown SequenceStepType: {other}")),
+            "task" => Ok(SequenceStepType::Task),
+            "linkedin" => Ok(SequenceStepType::Linkedin),
+            other => Err(format!("unknown SequenceStepType: {other}")),
         }
     }
 }
@@ -1869,16 +1893,16 @@ pub enum CampaignEventType {
 impl fmt::Display for CampaignEventType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CampaignEventType::Sent          => write!(f, "sent"),
-            CampaignEventType::Delivered     => write!(f, "delivered"),
-            CampaignEventType::Opened        => write!(f, "opened"),
-            CampaignEventType::Clicked       => write!(f, "clicked"),
-            CampaignEventType::Replied       => write!(f, "replied"),
-            CampaignEventType::Bounced       => write!(f, "bounced"),
-            CampaignEventType::Unsubscribed  => write!(f, "unsubscribed"),
-            CampaignEventType::SpamReported  => write!(f, "spam_reported"),
-            CampaignEventType::Converted     => write!(f, "converted"),
-            CampaignEventType::FormFill      => write!(f, "form_fill"),
+            CampaignEventType::Sent => write!(f, "sent"),
+            CampaignEventType::Delivered => write!(f, "delivered"),
+            CampaignEventType::Opened => write!(f, "opened"),
+            CampaignEventType::Clicked => write!(f, "clicked"),
+            CampaignEventType::Replied => write!(f, "replied"),
+            CampaignEventType::Bounced => write!(f, "bounced"),
+            CampaignEventType::Unsubscribed => write!(f, "unsubscribed"),
+            CampaignEventType::SpamReported => write!(f, "spam_reported"),
+            CampaignEventType::Converted => write!(f, "converted"),
+            CampaignEventType::FormFill => write!(f, "form_fill"),
         }
     }
 }
@@ -1887,17 +1911,17 @@ impl TryFrom<String> for CampaignEventType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "sent"          => Ok(CampaignEventType::Sent),
-            "delivered"     => Ok(CampaignEventType::Delivered),
-            "opened"        => Ok(CampaignEventType::Opened),
-            "clicked"       => Ok(CampaignEventType::Clicked),
-            "replied"       => Ok(CampaignEventType::Replied),
-            "bounced"       => Ok(CampaignEventType::Bounced),
-            "unsubscribed"  => Ok(CampaignEventType::Unsubscribed),
+            "sent" => Ok(CampaignEventType::Sent),
+            "delivered" => Ok(CampaignEventType::Delivered),
+            "opened" => Ok(CampaignEventType::Opened),
+            "clicked" => Ok(CampaignEventType::Clicked),
+            "replied" => Ok(CampaignEventType::Replied),
+            "bounced" => Ok(CampaignEventType::Bounced),
+            "unsubscribed" => Ok(CampaignEventType::Unsubscribed),
             "spam_reported" => Ok(CampaignEventType::SpamReported),
-            "converted"     => Ok(CampaignEventType::Converted),
-            "form_fill"     => Ok(CampaignEventType::FormFill),
-            other           => Err(format!("unknown CampaignEventType: {other}")),
+            "converted" => Ok(CampaignEventType::Converted),
+            "form_fill" => Ok(CampaignEventType::FormFill),
+            other => Err(format!("unknown CampaignEventType: {other}")),
         }
     }
 }
@@ -1935,11 +1959,11 @@ pub enum CampaignChannel {
 impl fmt::Display for CampaignChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CampaignChannel::Email    => write!(f, "email"),
-            CampaignChannel::Sms      => write!(f, "sms"),
+            CampaignChannel::Email => write!(f, "email"),
+            CampaignChannel::Sms => write!(f, "sms"),
             CampaignChannel::PpcClick => write!(f, "ppc_click"),
-            CampaignChannel::Social   => write!(f, "social"),
-            CampaignChannel::Event    => write!(f, "event"),
+            CampaignChannel::Social => write!(f, "social"),
+            CampaignChannel::Event => write!(f, "event"),
             CampaignChannel::Referral => write!(f, "referral"),
             CampaignChannel::Linkedin => write!(f, "linkedin"),
         }
@@ -1950,14 +1974,14 @@ impl TryFrom<String> for CampaignChannel {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "email"     => Ok(CampaignChannel::Email),
-            "sms"       => Ok(CampaignChannel::Sms),
+            "email" => Ok(CampaignChannel::Email),
+            "sms" => Ok(CampaignChannel::Sms),
             "ppc_click" => Ok(CampaignChannel::PpcClick),
-            "social"    => Ok(CampaignChannel::Social),
-            "event"     => Ok(CampaignChannel::Event),
-            "referral"  => Ok(CampaignChannel::Referral),
-            "linkedin"  => Ok(CampaignChannel::Linkedin),
-            other       => Err(format!("unknown CampaignChannel: {other}")),
+            "social" => Ok(CampaignChannel::Social),
+            "event" => Ok(CampaignChannel::Event),
+            "referral" => Ok(CampaignChannel::Referral),
+            "linkedin" => Ok(CampaignChannel::Linkedin),
+            other => Err(format!("unknown CampaignChannel: {other}")),
         }
     }
 }
@@ -2009,16 +2033,16 @@ impl fmt::Display for AttributionChannel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AttributionChannel::OrganicSearch => write!(f, "organic_search"),
-            AttributionChannel::PaidSearch    => write!(f, "paid_search"),
-            AttributionChannel::PaidSocial    => write!(f, "paid_social"),
+            AttributionChannel::PaidSearch => write!(f, "paid_search"),
+            AttributionChannel::PaidSocial => write!(f, "paid_social"),
             AttributionChannel::OrganicSocial => write!(f, "organic_social"),
-            AttributionChannel::ColdEmail     => write!(f, "cold_email"),
-            AttributionChannel::Referral      => write!(f, "referral"),
-            AttributionChannel::Event         => write!(f, "event"),
-            AttributionChannel::Direct        => write!(f, "direct"),
-            AttributionChannel::Sms           => write!(f, "sms"),
-            AttributionChannel::Content       => write!(f, "content"),
-            AttributionChannel::Affiliate     => write!(f, "affiliate"),
+            AttributionChannel::ColdEmail => write!(f, "cold_email"),
+            AttributionChannel::Referral => write!(f, "referral"),
+            AttributionChannel::Event => write!(f, "event"),
+            AttributionChannel::Direct => write!(f, "direct"),
+            AttributionChannel::Sms => write!(f, "sms"),
+            AttributionChannel::Content => write!(f, "content"),
+            AttributionChannel::Affiliate => write!(f, "affiliate"),
         }
     }
 }
@@ -2028,17 +2052,17 @@ impl TryFrom<String> for AttributionChannel {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
             "organic_search" => Ok(AttributionChannel::OrganicSearch),
-            "paid_search"    => Ok(AttributionChannel::PaidSearch),
-            "paid_social"    => Ok(AttributionChannel::PaidSocial),
+            "paid_search" => Ok(AttributionChannel::PaidSearch),
+            "paid_social" => Ok(AttributionChannel::PaidSocial),
             "organic_social" => Ok(AttributionChannel::OrganicSocial),
-            "cold_email"     => Ok(AttributionChannel::ColdEmail),
-            "referral"       => Ok(AttributionChannel::Referral),
-            "event"          => Ok(AttributionChannel::Event),
-            "direct"         => Ok(AttributionChannel::Direct),
-            "sms"            => Ok(AttributionChannel::Sms),
-            "content"        => Ok(AttributionChannel::Content),
-            "affiliate"      => Ok(AttributionChannel::Affiliate),
-            other            => Err(format!("unknown AttributionChannel: {other}")),
+            "cold_email" => Ok(AttributionChannel::ColdEmail),
+            "referral" => Ok(AttributionChannel::Referral),
+            "event" => Ok(AttributionChannel::Event),
+            "direct" => Ok(AttributionChannel::Direct),
+            "sms" => Ok(AttributionChannel::Sms),
+            "content" => Ok(AttributionChannel::Content),
+            "affiliate" => Ok(AttributionChannel::Affiliate),
+            other => Err(format!("unknown AttributionChannel: {other}")),
         }
     }
 }
@@ -2074,10 +2098,10 @@ pub enum AttributionModel {
 impl fmt::Display for AttributionModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AttributionModel::FirstTouch    => write!(f, "first_touch"),
-            AttributionModel::LastTouch     => write!(f, "last_touch"),
-            AttributionModel::Linear        => write!(f, "linear"),
-            AttributionModel::TimeDecay     => write!(f, "time_decay"),
+            AttributionModel::FirstTouch => write!(f, "first_touch"),
+            AttributionModel::LastTouch => write!(f, "last_touch"),
+            AttributionModel::Linear => write!(f, "linear"),
+            AttributionModel::TimeDecay => write!(f, "time_decay"),
             AttributionModel::PositionBased => write!(f, "position_based"),
         }
     }
@@ -2087,12 +2111,12 @@ impl TryFrom<String> for AttributionModel {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "first_touch"    => Ok(AttributionModel::FirstTouch),
-            "last_touch"     => Ok(AttributionModel::LastTouch),
-            "linear"         => Ok(AttributionModel::Linear),
-            "time_decay"     => Ok(AttributionModel::TimeDecay),
+            "first_touch" => Ok(AttributionModel::FirstTouch),
+            "last_touch" => Ok(AttributionModel::LastTouch),
+            "linear" => Ok(AttributionModel::Linear),
+            "time_decay" => Ok(AttributionModel::TimeDecay),
             "position_based" => Ok(AttributionModel::PositionBased),
-            other            => Err(format!("unknown AttributionModel: {other}")),
+            other => Err(format!("unknown AttributionModel: {other}")),
         }
     }
 }
@@ -2132,14 +2156,14 @@ pub enum EventType {
 impl fmt::Display for EventType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EventType::OpenHouse       => write!(f, "open_house"),
-            EventType::Webinar         => write!(f, "webinar"),
-            EventType::Conference      => write!(f, "conference"),
-            EventType::Meetup          => write!(f, "meetup"),
-            EventType::Training        => write!(f, "training"),
-            EventType::LiveExperience  => write!(f, "live_experience"),
+            EventType::OpenHouse => write!(f, "open_house"),
+            EventType::Webinar => write!(f, "webinar"),
+            EventType::Conference => write!(f, "conference"),
+            EventType::Meetup => write!(f, "meetup"),
+            EventType::Training => write!(f, "training"),
+            EventType::LiveExperience => write!(f, "live_experience"),
             EventType::BrandActivation => write!(f, "brand_activation"),
-            EventType::VenueBooking    => write!(f, "venue_booking"),
+            EventType::VenueBooking => write!(f, "venue_booking"),
         }
     }
 }
@@ -2148,15 +2172,15 @@ impl TryFrom<String> for EventType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "open_house"       => Ok(EventType::OpenHouse),
-            "webinar"          => Ok(EventType::Webinar),
-            "conference"       => Ok(EventType::Conference),
-            "meetup"           => Ok(EventType::Meetup),
-            "training"         => Ok(EventType::Training),
-            "live_experience"  => Ok(EventType::LiveExperience),
+            "open_house" => Ok(EventType::OpenHouse),
+            "webinar" => Ok(EventType::Webinar),
+            "conference" => Ok(EventType::Conference),
+            "meetup" => Ok(EventType::Meetup),
+            "training" => Ok(EventType::Training),
+            "live_experience" => Ok(EventType::LiveExperience),
             "brand_activation" => Ok(EventType::BrandActivation),
-            "venue_booking"    => Ok(EventType::VenueBooking),
-            other              => Err(format!("unknown EventType: {other}")),
+            "venue_booking" => Ok(EventType::VenueBooking),
+            other => Err(format!("unknown EventType: {other}")),
         }
     }
 }
@@ -2188,13 +2212,13 @@ pub enum EventStatus {
 impl fmt::Display for EventStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EventStatus::Draft              => write!(f, "draft"),
-            EventStatus::Published          => write!(f, "published"),
-            EventStatus::Active             => write!(f, "active"),
+            EventStatus::Draft => write!(f, "draft"),
+            EventStatus::Published => write!(f, "published"),
+            EventStatus::Active => write!(f, "active"),
             EventStatus::RegistrationClosed => write!(f, "registration_closed"),
-            EventStatus::InProgress         => write!(f, "in_progress"),
-            EventStatus::Completed          => write!(f, "completed"),
-            EventStatus::Cancelled          => write!(f, "cancelled"),
+            EventStatus::InProgress => write!(f, "in_progress"),
+            EventStatus::Completed => write!(f, "completed"),
+            EventStatus::Cancelled => write!(f, "cancelled"),
         }
     }
 }
@@ -2203,14 +2227,14 @@ impl TryFrom<String> for EventStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "draft"               => Ok(EventStatus::Draft),
-            "published"           => Ok(EventStatus::Published),
-            "active"              => Ok(EventStatus::Active),
+            "draft" => Ok(EventStatus::Draft),
+            "published" => Ok(EventStatus::Published),
+            "active" => Ok(EventStatus::Active),
             "registration_closed" => Ok(EventStatus::RegistrationClosed),
-            "in_progress"         => Ok(EventStatus::InProgress),
-            "completed"           => Ok(EventStatus::Completed),
-            "cancelled"           => Ok(EventStatus::Cancelled),
-            other                 => Err(format!("unknown EventStatus: {other}")),
+            "in_progress" => Ok(EventStatus::InProgress),
+            "completed" => Ok(EventStatus::Completed),
+            "cancelled" => Ok(EventStatus::Cancelled),
+            other => Err(format!("unknown EventStatus: {other}")),
         }
     }
 }
@@ -2243,11 +2267,11 @@ impl fmt::Display for RegistrationStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RegistrationStatus::PendingPayment => write!(f, "pending_payment"),
-            RegistrationStatus::Confirmed      => write!(f, "confirmed"),
-            RegistrationStatus::Waitlisted     => write!(f, "waitlisted"),
-            RegistrationStatus::Cancelled      => write!(f, "cancelled"),
-            RegistrationStatus::CheckedIn      => write!(f, "checked_in"),
-            RegistrationStatus::NoShow         => write!(f, "no_show"),
+            RegistrationStatus::Confirmed => write!(f, "confirmed"),
+            RegistrationStatus::Waitlisted => write!(f, "waitlisted"),
+            RegistrationStatus::Cancelled => write!(f, "cancelled"),
+            RegistrationStatus::CheckedIn => write!(f, "checked_in"),
+            RegistrationStatus::NoShow => write!(f, "no_show"),
         }
     }
 }
@@ -2257,12 +2281,12 @@ impl TryFrom<String> for RegistrationStatus {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
             "pending_payment" => Ok(RegistrationStatus::PendingPayment),
-            "confirmed"       => Ok(RegistrationStatus::Confirmed),
-            "waitlisted"      => Ok(RegistrationStatus::Waitlisted),
-            "cancelled"       => Ok(RegistrationStatus::Cancelled),
-            "checked_in"      => Ok(RegistrationStatus::CheckedIn),
-            "no_show"         => Ok(RegistrationStatus::NoShow),
-            other             => Err(format!("unknown RegistrationStatus: {other}")),
+            "confirmed" => Ok(RegistrationStatus::Confirmed),
+            "waitlisted" => Ok(RegistrationStatus::Waitlisted),
+            "cancelled" => Ok(RegistrationStatus::Cancelled),
+            "checked_in" => Ok(RegistrationStatus::CheckedIn),
+            "no_show" => Ok(RegistrationStatus::NoShow),
+            other => Err(format!("unknown RegistrationStatus: {other}")),
         }
     }
 }
@@ -2297,12 +2321,12 @@ pub enum QuoteStatus {
 impl fmt::Display for QuoteStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            QuoteStatus::Draft      => write!(f, "draft"),
-            QuoteStatus::Sent       => write!(f, "sent"),
-            QuoteStatus::Accepted   => write!(f, "accepted"),
-            QuoteStatus::Rejected   => write!(f, "rejected"),
-            QuoteStatus::Expired    => write!(f, "expired"),
-            QuoteStatus::Converted  => write!(f, "converted"),
+            QuoteStatus::Draft => write!(f, "draft"),
+            QuoteStatus::Sent => write!(f, "sent"),
+            QuoteStatus::Accepted => write!(f, "accepted"),
+            QuoteStatus::Rejected => write!(f, "rejected"),
+            QuoteStatus::Expired => write!(f, "expired"),
+            QuoteStatus::Converted => write!(f, "converted"),
             QuoteStatus::Superseded => write!(f, "superseded"),
         }
     }
@@ -2312,14 +2336,14 @@ impl TryFrom<String> for QuoteStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "draft"      => Ok(QuoteStatus::Draft),
-            "sent"       => Ok(QuoteStatus::Sent),
-            "accepted"   => Ok(QuoteStatus::Accepted),
-            "rejected"   => Ok(QuoteStatus::Rejected),
-            "expired"    => Ok(QuoteStatus::Expired),
-            "converted"  => Ok(QuoteStatus::Converted),
+            "draft" => Ok(QuoteStatus::Draft),
+            "sent" => Ok(QuoteStatus::Sent),
+            "accepted" => Ok(QuoteStatus::Accepted),
+            "rejected" => Ok(QuoteStatus::Rejected),
+            "expired" => Ok(QuoteStatus::Expired),
+            "converted" => Ok(QuoteStatus::Converted),
             "superseded" => Ok(QuoteStatus::Superseded),
-            other        => Err(format!("unknown QuoteStatus: {other}")),
+            other => Err(format!("unknown QuoteStatus: {other}")),
         }
     }
 }
@@ -2354,13 +2378,13 @@ pub enum QuoteLineItemType {
 impl fmt::Display for QuoteLineItemType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            QuoteLineItemType::Product            => write!(f, "product"),
-            QuoteLineItemType::Service            => write!(f, "service"),
-            QuoteLineItemType::Fee                => write!(f, "fee"),
-            QuoteLineItemType::Tax                => write!(f, "tax"),
-            QuoteLineItemType::Discount           => write!(f, "discount"),
+            QuoteLineItemType::Product => write!(f, "product"),
+            QuoteLineItemType::Service => write!(f, "service"),
+            QuoteLineItemType::Fee => write!(f, "fee"),
+            QuoteLineItemType::Tax => write!(f, "tax"),
+            QuoteLineItemType::Discount => write!(f, "discount"),
             QuoteLineItemType::PercentageDiscount => write!(f, "percentage_discount"),
-            QuoteLineItemType::Custom             => write!(f, "custom"),
+            QuoteLineItemType::Custom => write!(f, "custom"),
         }
     }
 }
@@ -2369,14 +2393,14 @@ impl TryFrom<String> for QuoteLineItemType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "product"             => Ok(QuoteLineItemType::Product),
-            "service"             => Ok(QuoteLineItemType::Service),
-            "fee"                 => Ok(QuoteLineItemType::Fee),
-            "tax"                 => Ok(QuoteLineItemType::Tax),
-            "discount"            => Ok(QuoteLineItemType::Discount),
+            "product" => Ok(QuoteLineItemType::Product),
+            "service" => Ok(QuoteLineItemType::Service),
+            "fee" => Ok(QuoteLineItemType::Fee),
+            "tax" => Ok(QuoteLineItemType::Tax),
+            "discount" => Ok(QuoteLineItemType::Discount),
             "percentage_discount" => Ok(QuoteLineItemType::PercentageDiscount),
-            "custom"              => Ok(QuoteLineItemType::Custom),
-            other                 => Err(format!("unknown QuoteLineItemType: {other}")),
+            "custom" => Ok(QuoteLineItemType::Custom),
+            other => Err(format!("unknown QuoteLineItemType: {other}")),
         }
     }
 }
@@ -2412,13 +2436,13 @@ pub enum OpportunityStage {
 impl fmt::Display for OpportunityStage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OpportunityStage::Prospecting  => write!(f, "prospecting"),
-            OpportunityStage::Qualified    => write!(f, "qualified"),
-            OpportunityStage::Proposal     => write!(f, "proposal"),
-            OpportunityStage::Negotiation  => write!(f, "negotiation"),
-            OpportunityStage::ClosedWon    => write!(f, "closed_won"),
-            OpportunityStage::ClosedLost   => write!(f, "closed_lost"),
-            OpportunityStage::OnHold       => write!(f, "on_hold"),
+            OpportunityStage::Prospecting => write!(f, "prospecting"),
+            OpportunityStage::Qualified => write!(f, "qualified"),
+            OpportunityStage::Proposal => write!(f, "proposal"),
+            OpportunityStage::Negotiation => write!(f, "negotiation"),
+            OpportunityStage::ClosedWon => write!(f, "closed_won"),
+            OpportunityStage::ClosedLost => write!(f, "closed_lost"),
+            OpportunityStage::OnHold => write!(f, "on_hold"),
         }
     }
 }
@@ -2428,13 +2452,13 @@ impl TryFrom<String> for OpportunityStage {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
             "prospecting" => Ok(OpportunityStage::Prospecting),
-            "qualified"   => Ok(OpportunityStage::Qualified),
-            "proposal"    => Ok(OpportunityStage::Proposal),
+            "qualified" => Ok(OpportunityStage::Qualified),
+            "proposal" => Ok(OpportunityStage::Proposal),
             "negotiation" => Ok(OpportunityStage::Negotiation),
-            "closed_won"  => Ok(OpportunityStage::ClosedWon),
+            "closed_won" => Ok(OpportunityStage::ClosedWon),
             "closed_lost" => Ok(OpportunityStage::ClosedLost),
-            "on_hold"     => Ok(OpportunityStage::OnHold),
-            other         => Err(format!("unknown OpportunityStage: {other}")),
+            "on_hold" => Ok(OpportunityStage::OnHold),
+            other => Err(format!("unknown OpportunityStage: {other}")),
         }
     }
 }
@@ -2465,10 +2489,10 @@ impl fmt::Display for OpportunityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             OpportunityType::NewBusiness => write!(f, "new_business"),
-            OpportunityType::Upsell      => write!(f, "upsell"),
-            OpportunityType::CrossSell   => write!(f, "cross_sell"),
-            OpportunityType::Renewal     => write!(f, "renewal"),
-            OpportunityType::Winback     => write!(f, "winback"),
+            OpportunityType::Upsell => write!(f, "upsell"),
+            OpportunityType::CrossSell => write!(f, "cross_sell"),
+            OpportunityType::Renewal => write!(f, "renewal"),
+            OpportunityType::Winback => write!(f, "winback"),
         }
     }
 }
@@ -2478,11 +2502,11 @@ impl TryFrom<String> for OpportunityType {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
             "new_business" => Ok(OpportunityType::NewBusiness),
-            "upsell"       => Ok(OpportunityType::Upsell),
-            "cross_sell"   => Ok(OpportunityType::CrossSell),
-            "renewal"      => Ok(OpportunityType::Renewal),
-            "winback"      => Ok(OpportunityType::Winback),
-            other          => Err(format!("unknown OpportunityType: {other}")),
+            "upsell" => Ok(OpportunityType::Upsell),
+            "cross_sell" => Ok(OpportunityType::CrossSell),
+            "renewal" => Ok(OpportunityType::Renewal),
+            "winback" => Ok(OpportunityType::Winback),
+            other => Err(format!("unknown OpportunityType: {other}")),
         }
     }
 }
@@ -2515,11 +2539,11 @@ pub enum CommissionBasis {
 impl fmt::Display for CommissionBasis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CommissionBasis::FlatFee              => write!(f, "flat_fee"),
-            CommissionBasis::GrossPercentage      => write!(f, "gross_percentage"),
-            CommissionBasis::NetPercentage        => write!(f, "net_percentage"),
-            CommissionBasis::Tiered               => write!(f, "tiered"),
-            CommissionBasis::SplitAboveThreshold  => write!(f, "split_above_threshold"),
+            CommissionBasis::FlatFee => write!(f, "flat_fee"),
+            CommissionBasis::GrossPercentage => write!(f, "gross_percentage"),
+            CommissionBasis::NetPercentage => write!(f, "net_percentage"),
+            CommissionBasis::Tiered => write!(f, "tiered"),
+            CommissionBasis::SplitAboveThreshold => write!(f, "split_above_threshold"),
         }
     }
 }
@@ -2528,12 +2552,12 @@ impl TryFrom<String> for CommissionBasis {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "flat_fee"             => Ok(CommissionBasis::FlatFee),
-            "gross_percentage"     => Ok(CommissionBasis::GrossPercentage),
-            "net_percentage"       => Ok(CommissionBasis::NetPercentage),
-            "tiered"               => Ok(CommissionBasis::Tiered),
-            "split_above_threshold"=> Ok(CommissionBasis::SplitAboveThreshold),
-            other                  => Err(format!("unknown CommissionBasis: {other}")),
+            "flat_fee" => Ok(CommissionBasis::FlatFee),
+            "gross_percentage" => Ok(CommissionBasis::GrossPercentage),
+            "net_percentage" => Ok(CommissionBasis::NetPercentage),
+            "tiered" => Ok(CommissionBasis::Tiered),
+            "split_above_threshold" => Ok(CommissionBasis::SplitAboveThreshold),
+            other => Err(format!("unknown CommissionBasis: {other}")),
         }
     }
 }
@@ -2562,10 +2586,10 @@ pub enum CommissionCapType {
 impl fmt::Display for CommissionCapType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CommissionCapType::None           => write!(f, "none"),
+            CommissionCapType::None => write!(f, "none"),
             CommissionCapType::PerTransaction => write!(f, "per_transaction"),
-            CommissionCapType::Monthly        => write!(f, "monthly"),
-            CommissionCapType::Annual         => write!(f, "annual"),
+            CommissionCapType::Monthly => write!(f, "monthly"),
+            CommissionCapType::Annual => write!(f, "annual"),
         }
     }
 }
@@ -2574,11 +2598,11 @@ impl TryFrom<String> for CommissionCapType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "none"            => Ok(CommissionCapType::None),
+            "none" => Ok(CommissionCapType::None),
             "per_transaction" => Ok(CommissionCapType::PerTransaction),
-            "monthly"         => Ok(CommissionCapType::Monthly),
-            "annual"          => Ok(CommissionCapType::Annual),
-            other             => Err(format!("unknown CommissionCapType: {other}")),
+            "monthly" => Ok(CommissionCapType::Monthly),
+            "annual" => Ok(CommissionCapType::Annual),
+            other => Err(format!("unknown CommissionCapType: {other}")),
         }
     }
 }
@@ -2606,12 +2630,12 @@ pub enum ProgramKind {
 impl fmt::Display for ProgramKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::NetworkInvite  => "network_invite",
-            Self::Referral       => "referral",
-            Self::ReviewRequest  => "review_request",
+            Self::NetworkInvite => "network_invite",
+            Self::Referral => "referral",
+            Self::ReviewRequest => "review_request",
             Self::WaitlistAccess => "waitlist_access",
-            Self::LeadCapture    => "lead_capture",
-            Self::PartnerShare   => "partner_share",
+            Self::LeadCapture => "lead_capture",
+            Self::PartnerShare => "partner_share",
         })
     }
 }
@@ -2620,12 +2644,12 @@ impl TryFrom<&str> for ProgramKind {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "network_invite"  => Ok(Self::NetworkInvite),
-            "referral"        => Ok(Self::Referral),
-            "review_request"  => Ok(Self::ReviewRequest),
+            "network_invite" => Ok(Self::NetworkInvite),
+            "referral" => Ok(Self::Referral),
+            "review_request" => Ok(Self::ReviewRequest),
             "waitlist_access" => Ok(Self::WaitlistAccess),
-            "lead_capture"    => Ok(Self::LeadCapture),
-            "partner_share"   => Ok(Self::PartnerShare),
+            "lead_capture" => Ok(Self::LeadCapture),
+            "partner_share" => Ok(Self::PartnerShare),
             other => Err(format!("unknown ProgramKind: {other}")),
         }
     }
@@ -2645,12 +2669,12 @@ pub enum ProgramOutcomeType {
 impl fmt::Display for ProgramOutcomeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Signup                 => "signup",
-            Self::WizardComplete         => "wizard_complete",
-            Self::FormSubmit             => "form_submit",
-            Self::ReviewSubmitted        => "review_submitted",
-            Self::FirstJobLogged         => "first_job_logged",
-            Self::SubscriptionActivated  => "subscription_activated",
+            Self::Signup => "signup",
+            Self::WizardComplete => "wizard_complete",
+            Self::FormSubmit => "form_submit",
+            Self::ReviewSubmitted => "review_submitted",
+            Self::FirstJobLogged => "first_job_logged",
+            Self::SubscriptionActivated => "subscription_activated",
         })
     }
 }
@@ -2659,12 +2683,12 @@ impl TryFrom<&str> for ProgramOutcomeType {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "signup"                  => Ok(Self::Signup),
-            "wizard_complete"         => Ok(Self::WizardComplete),
-            "form_submit"             => Ok(Self::FormSubmit),
-            "review_submitted"        => Ok(Self::ReviewSubmitted),
-            "first_job_logged"        => Ok(Self::FirstJobLogged),
-            "subscription_activated"  => Ok(Self::SubscriptionActivated),
+            "signup" => Ok(Self::Signup),
+            "wizard_complete" => Ok(Self::WizardComplete),
+            "form_submit" => Ok(Self::FormSubmit),
+            "review_submitted" => Ok(Self::ReviewSubmitted),
+            "first_job_logged" => Ok(Self::FirstJobLogged),
+            "subscription_activated" => Ok(Self::SubscriptionActivated),
             other => Err(format!("unknown ProgramOutcomeType: {other}")),
         }
     }
@@ -2685,13 +2709,13 @@ pub enum ProgramActionStatus {
 impl fmt::Display for ProgramActionStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Created         => "created",
-            Self::Sent            => "sent",
-            Self::Opened          => "opened",
-            Self::Accepted        => "accepted",
+            Self::Created => "created",
+            Self::Sent => "sent",
+            Self::Opened => "opened",
+            Self::Accepted => "accepted",
             Self::OutcomeComplete => "outcome_complete",
-            Self::Expired         => "expired",
-            Self::Revoked         => "revoked",
+            Self::Expired => "expired",
+            Self::Revoked => "revoked",
         })
     }
 }
@@ -2706,7 +2730,7 @@ pub enum ProgramRewardBeneficiary {
 impl fmt::Display for ProgramRewardBeneficiary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Actor  => "actor",
+            Self::Actor => "actor",
             Self::Target => "target",
         })
     }
@@ -2724,8 +2748,8 @@ impl fmt::Display for ProgramRewardType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::SubscriptionCreditDays => "subscription_credit_days",
-            Self::FeatureUnlock          => "feature_unlock",
-            Self::None                   => "none",
+            Self::FeatureUnlock => "feature_unlock",
+            Self::None => "none",
         })
     }
 }
@@ -2761,9 +2785,9 @@ pub enum ProgramOutcomeStatus {
 impl fmt::Display for ProgramOutcomeStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Pending   => "pending",
+            Self::Pending => "pending",
             Self::Completed => "completed",
-            Self::Failed    => "failed",
+            Self::Failed => "failed",
         })
     }
 }

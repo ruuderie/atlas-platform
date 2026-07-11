@@ -20,22 +20,22 @@ use crate::components::nav::{FolioRoute, NavIcon};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VendorSummary {
-    pub id:                   uuid::Uuid,
-    pub business_name:        String,
-    pub trade_type:           Option<String>,
-    pub status:               String,
+    pub id: uuid::Uuid,
+    pub business_name: String,
+    pub trade_type: Option<String>,
+    pub status: String,
     pub is_emergency_available: bool,
-    pub rating_avg:           Option<f64>,
-    pub created_at:           chrono::DateTime<chrono::Utc>,
+    pub rating_avg: Option<f64>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Minimal asset list item for the asset picker.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssetPickerItem {
-    pub id:         uuid::Uuid,
-    pub name:       String,
+    pub id: uuid::Uuid,
+    pub name: String,
     pub asset_type: String,
-    pub status:     String,
+    pub status: String,
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -53,31 +53,31 @@ pub enum VendorStatus {
 impl VendorStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "active"    => Self::Active,
-            "inactive"  => Self::Inactive,
+            "active" => Self::Active,
+            "inactive" => Self::Inactive,
             "suspended" => Self::Suspended,
-            "pending"   => Self::Pending,
-            _           => Self::Unknown,
+            "pending" => Self::Pending,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Active    => "Active",
-            Self::Inactive  => "Inactive",
+            Self::Active => "Active",
+            Self::Inactive => "Inactive",
             Self::Suspended => "Suspended",
-            Self::Pending   => "Pending",
-            Self::Unknown   => "Unknown",
+            Self::Pending => "Pending",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Active    => "vendor-status-pill--active",
-            Self::Inactive  => "vendor-status-pill--inactive",
+            Self::Active => "vendor-status-pill--active",
+            Self::Inactive => "vendor-status-pill--inactive",
             Self::Suspended => "vendor-status-pill--suspended",
-            Self::Pending   => "vendor-status-pill--pending",
-            Self::Unknown   => "vendor-status-pill--unknown",
+            Self::Pending => "vendor-status-pill--pending",
+            Self::Unknown => "vendor-status-pill--unknown",
         }
     }
 }
@@ -117,52 +117,52 @@ impl TradeFilter {
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::All        => "all",
-            Self::Plumbing   => "plumbing",
+            Self::All => "all",
+            Self::Plumbing => "plumbing",
             Self::Electrical => "electrical",
-            Self::Hvac       => "hvac",
-            Self::Roofing    => "roofing",
-            Self::Carpentry  => "carpentry",
-            Self::Painting   => "painting",
-            Self::Flooring   => "flooring",
+            Self::Hvac => "hvac",
+            Self::Roofing => "roofing",
+            Self::Carpentry => "carpentry",
+            Self::Painting => "painting",
+            Self::Flooring => "flooring",
             Self::Landscaping => "landscaping",
-            Self::Cleaning   => "cleaning",
+            Self::Cleaning => "cleaning",
             Self::Inspection => "inspection",
-            Self::General    => "general",
+            Self::General => "general",
         }
     }
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::All        => "All Trades",
-            Self::Plumbing   => "Plumbing",
+            Self::All => "All Trades",
+            Self::Plumbing => "Plumbing",
             Self::Electrical => "Electrical",
-            Self::Hvac       => "HVAC",
-            Self::Roofing    => "Roofing",
-            Self::Carpentry  => "Carpentry",
-            Self::Painting   => "Painting",
-            Self::Flooring   => "Flooring",
+            Self::Hvac => "HVAC",
+            Self::Roofing => "Roofing",
+            Self::Carpentry => "Carpentry",
+            Self::Painting => "Painting",
+            Self::Flooring => "Flooring",
             Self::Landscaping => "Landscaping",
-            Self::Cleaning   => "Cleaning",
+            Self::Cleaning => "Cleaning",
             Self::Inspection => "Inspection",
-            Self::General    => "General",
+            Self::General => "General",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::All        => "handyman",
-            Self::Plumbing   => "plumbing",
+            Self::All => "handyman",
+            Self::Plumbing => "plumbing",
             Self::Electrical => "electric_bolt",
-            Self::Hvac       => "thermostat",
-            Self::Roofing    => "roofing",
-            Self::Carpentry  => "carpenter",
-            Self::Painting   => "format_paint",
-            Self::Flooring   => "layers",
+            Self::Hvac => "thermostat",
+            Self::Roofing => "roofing",
+            Self::Carpentry => "carpenter",
+            Self::Painting => "format_paint",
+            Self::Flooring => "layers",
             Self::Landscaping => "grass",
-            Self::Cleaning   => "cleaning_services",
+            Self::Cleaning => "cleaning_services",
             Self::Inspection => "fact_check",
-            Self::General    => "build",
+            Self::General => "build",
         }
     }
 }
@@ -174,10 +174,7 @@ pub fn Vendors() -> impl IntoView {
     let (trade_filter, set_trade_filter) = signal(TradeFilter::All);
     let (search_query, set_search_query) = signal(String::new());
 
-    let vendors = Resource::new(
-        || (),
-        |_| async move { list_vendors().await },
-    );
+    let vendors = Resource::new(|| (), |_| async move { list_vendors().await });
 
     view! {
         <div class="vendors-page">
@@ -301,16 +298,22 @@ fn VendorCard(vendor: VendorSummary) -> impl IntoView {
     let (assign_error, set_assign_error) = signal::<Option<String>>(None);
     let (assign_success, set_assign_success) = signal::<Option<String>>(None);
 
-    let status   = VendorStatus::from_str(&vendor.status);
-    let initial  = vendor.business_name.chars().next().unwrap_or('?').to_uppercase().to_string();
-    let name     = vendor.business_name.clone();
-    let trade    = vendor.trade_type.clone();
+    let status = VendorStatus::from_str(&vendor.status);
+    let initial = vendor
+        .business_name
+        .chars()
+        .next()
+        .unwrap_or('?')
+        .to_uppercase()
+        .to_string();
+    let name = vendor.business_name.clone();
+    let trade = vendor.trade_type.clone();
     let vendor_id_stored = StoredValue::new(vendor.id.to_string());
 
     let rating_stars = vendor.rating_avg.map(|r| {
-        let full  = r.floor() as usize;
-        let frac  = r - r.floor();
-        let half  = frac >= 0.25 && frac < 0.75;
+        let full = r.floor() as usize;
+        let frac = r - r.floor();
+        let half = frac >= 0.25 && frac < 0.75;
         let empty = 5_usize.saturating_sub(full + if half { 1 } else { 0 });
         (full, half, empty, r)
     });
@@ -318,7 +321,9 @@ fn VendorCard(vendor: VendorSummary) -> impl IntoView {
     let assets = Resource::new(
         move || picker_open.get(),
         |open| async move {
-            if !open { return Ok(vec![]); }
+            if !open {
+                return Ok(vec![]);
+            }
             list_assets_for_picker().await
         },
     );
@@ -530,37 +535,42 @@ pub async fn list_vendors() -> Result<Vec<VendorSummary>, server_fn::error::Serv
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token_from_headers(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
-    crate::atlas_client::authenticated_get::<Vec<VendorSummary>>(
-        "/api/folio/vendors", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Vendor list failed: {e}")))
+    crate::atlas_client::authenticated_get::<Vec<VendorSummary>>("/api/folio/vendors", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Vendor list failed: {e}")))
 }
 
 /// GET /api/folio/assets — minimal list for the asset picker.
 #[server(ListAssetsForPicker, "/api")]
-pub async fn list_assets_for_picker() -> Result<Vec<AssetPickerItem>, server_fn::error::ServerFnError> {
+pub async fn list_assets_for_picker(
+) -> Result<Vec<AssetPickerItem>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
 
     #[derive(serde::Deserialize)]
     struct RawAsset {
-        id:         uuid::Uuid,
-        name:       String,
+        id: uuid::Uuid,
+        name: String,
         asset_type: String,
-        status:     String,
+        status: String,
     }
 
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token_from_headers(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
-    let raw = crate::atlas_client::authenticated_get::<Vec<RawAsset>>(
-        "/api/folio/assets", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Asset list failed: {e}")))?;
-    Ok(raw.into_iter().map(|a| AssetPickerItem {
-        id: a.id,
-        name: a.name,
-        asset_type: a.asset_type,
-        status: a.status,
-    }).collect())
+    let raw =
+        crate::atlas_client::authenticated_get::<Vec<RawAsset>>("/api/folio/assets", &token, None)
+            .await
+            .map_err(|e| server_fn::error::ServerFnError::new(format!("Asset list failed: {e}")))?;
+    Ok(raw
+        .into_iter()
+        .map(|a| AssetPickerItem {
+            id: a.id,
+            name: a.name,
+            asset_type: a.asset_type,
+            status: a.status,
+        })
+        .collect())
 }
 
 /// Assigns this vendor as default contractor for an asset.
@@ -569,7 +579,7 @@ pub async fn list_assets_for_picker() -> Result<Vec<AssetPickerItem>, server_fn:
 #[server(AssignVendorToAsset, "/api")]
 pub async fn assign_vendor_to_asset(
     vendor_id: String,
-    asset_id:  String,
+    asset_id: String,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -592,8 +602,12 @@ pub async fn assign_vendor_to_asset(
     });
 
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/folio/relationships", &token, None, &payload,
-    ).await
+        "/api/folio/relationships",
+        &token,
+        None,
+        &payload,
+    )
+    .await
     .map(|_| ())
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Assign failed: {e}")))
 }

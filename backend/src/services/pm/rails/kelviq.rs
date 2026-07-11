@@ -25,7 +25,7 @@
 //! Kelviq signs webhooks with a shared secret in the `X-Kelviq-Secret` header.
 //! Constant-time comparison is used to prevent timing attacks.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use sea_orm::DatabaseConnection;
 use serde_json::json;
@@ -38,8 +38,7 @@ const KELVIQ_API_BASE: &str = "https://api.kelviq.com/v1";
 /// Base URL for the Folio app's Kelviq webhook endpoint.
 /// In production this should be set via `ATLAS_PUBLIC_URL` environment variable.
 fn webhook_base_url() -> String {
-    std::env::var("ATLAS_PUBLIC_URL")
-        .unwrap_or_else(|_| "https://atlas.app".to_string())
+    std::env::var("ATLAS_PUBLIC_URL").unwrap_or_else(|_| "https://atlas.app".to_string())
 }
 
 pub struct KelviqRail {
@@ -185,8 +184,8 @@ impl KelviqWebhookHandler {
             tracing::warn!("KelviqWebhook: KELVIQ_WEBHOOK_SECRET not set — skipping verification");
         }
 
-        let event: serde_json::Value = serde_json::from_str(raw_body)
-            .context("KelviqWebhook: failed to parse event body")?;
+        let event: serde_json::Value =
+            serde_json::from_str(raw_body).context("KelviqWebhook: failed to parse event body")?;
 
         let event_type = event
             .get("event")
@@ -212,7 +211,10 @@ impl KelviqWebhookHandler {
         if a.len() != b.len() {
             return false;
         }
-        a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+        a.iter()
+            .zip(b.iter())
+            .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+            == 0
     }
 
     fn extract_ledger_id(event: &serde_json::Value) -> Result<Uuid> {
@@ -237,13 +239,9 @@ impl KelviqWebhookHandler {
         let ledger_entry_id = Self::extract_ledger_id(event)?;
         let charge_id = Self::extract_charge_id(event);
 
-        crate::services::pm::ledger::PmLedgerService::mark_paid(
-            db,
-            ledger_entry_id,
-            charge_id,
-        )
-        .await
-        .context("KelviqWebhook: mark_paid failed")?;
+        crate::services::pm::ledger::PmLedgerService::mark_paid(db, ledger_entry_id, charge_id)
+            .await
+            .context("KelviqWebhook: mark_paid failed")?;
 
         Ok(())
     }

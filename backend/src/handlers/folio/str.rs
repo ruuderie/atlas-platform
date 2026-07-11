@@ -22,11 +22,11 @@
 //! an immediate scan without waiting for the next scheduled run.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,10 @@ use crate::types::pm::StrPermitCategory;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/str/permits", get(list_str_permits).post(register_str_permit))
+        .route(
+            "/api/folio/str/permits",
+            get(list_str_permits).post(register_str_permit),
+        )
         .route("/api/folio/str/permits/{id}", get(get_str_permit))
         .route("/api/folio/str/scan", post(trigger_expiry_scan))
 }
@@ -137,16 +140,12 @@ async fn list_str_permits(
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
     let permits = crate::entities::atlas_regulatory_registration::Entity::find()
-        .filter(
-            crate::entities::atlas_regulatory_registration::Column::TenantId.eq(tenant_id),
-        )
+        .filter(crate::entities::atlas_regulatory_registration::Column::TenantId.eq(tenant_id))
         .filter(
             crate::entities::atlas_regulatory_registration::Column::RegistrationType
                 .eq(PmRegistrationType::StrPermit.to_string()),
         )
-        .order_by_desc(
-            crate::entities::atlas_regulatory_registration::Column::CreatedAt,
-        )
+        .order_by_desc(crate::entities::atlas_regulatory_registration::Column::CreatedAt)
         .all(&db)
         .await
         .map_err(|e| {
@@ -163,7 +162,8 @@ async fn list_str_permits(
             jurisdiction_code: p.jurisdiction_code,
             status: p.status,
             expires_at: p.expires_at,
-            permit_category: p.jurisdiction_metadata
+            permit_category: p
+                .jurisdiction_metadata
                 .as_ref()
                 .and_then(|m| m.get("permit_category"))
                 .and_then(|v| v.as_str())
@@ -203,7 +203,8 @@ async fn get_str_permit(
         jurisdiction_code: permit.jurisdiction_code,
         status: permit.status,
         expires_at: permit.expires_at,
-        permit_category: permit.jurisdiction_metadata
+        permit_category: permit
+            .jurisdiction_metadata
             .as_ref()
             .and_then(|m| m.get("permit_category"))
             .and_then(|v| v.as_str())

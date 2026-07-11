@@ -23,12 +23,12 @@
 //!   6. Returns `201 { "ledger_entry_id", "payment_instructions" }`.
 
 use axum::{
+    Router,
     body::Bytes,
     extract::{Extension, Json},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -41,10 +41,7 @@ use crate::types::pm::Currency;
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-async fn resolve_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     use sea_orm::QueryFilter;
 
     let user_accounts = crate::entities::user_account::Entity::find()
@@ -71,7 +68,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/folio/billing/invoice/btc", post(submit_btc_txid))
         .route("/api/folio/billing/invoice/btc/audit", get(btc_audit))
         .route("/api/folio/billing/invoice/fiat", post(create_fiat_invoice))
-        .route("/api/folio/billing/invoice/verify", post(verify_receipt_stub))
+        .route(
+            "/api/folio/billing/invoice/verify",
+            post(verify_receipt_stub),
+        )
         // ── Ledger routes (G-03 read + ad-hoc charge write) ─────────────────
         .route("/api/folio/ledger", get(list_ledger_entries))
         .route("/api/folio/ledger/charge", post(create_ad_hoc_charge))
@@ -82,7 +82,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/billing/webhook/stripe", post(stripe_webhook))
-        .route("/api/folio/billing/webhook/infinitepay", post(infinitepay_webhook))
+        .route(
+            "/api/folio/billing/webhook/infinitepay",
+            post(infinitepay_webhook),
+        )
         .route("/api/folio/billing/webhook/kelviq", post(kelviq_webhook))
 }
 
@@ -145,26 +148,21 @@ async fn submit_btc_txid(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    PmLedgerService::record_tx_id(
-        &db,
-        input.ledger_entry_id,
-        tenant_id,
-        &input.txid,
-    )
-    .await
-    .map_err(|e| {
-        tracing::warn!(
-            ledger_entry_id = %input.ledger_entry_id, %tenant_id,
-            txid = %input.txid,
-            "submit_btc_txid: failed to record txid: {e:#}"
-        );
-        // 422 for invalid txid format, 404 for missing ledger entry
-        if e.to_string().contains("invalid txid") {
-            StatusCode::UNPROCESSABLE_ENTITY
-        } else {
-            StatusCode::NOT_FOUND
-        }
-    })?;
+    PmLedgerService::record_tx_id(&db, input.ledger_entry_id, tenant_id, &input.txid)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                ledger_entry_id = %input.ledger_entry_id, %tenant_id,
+                txid = %input.txid,
+                "submit_btc_txid: failed to record txid: {e:#}"
+            );
+            // 422 for invalid txid format, 404 for missing ledger entry
+            if e.to_string().contains("invalid txid") {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } else {
+                StatusCode::NOT_FOUND
+            }
+        })?;
 
     Ok((
         StatusCode::ACCEPTED,
@@ -447,21 +445,21 @@ async fn kelviq_webhook(
 /// Phase 4 will promote `description` and `charge_type` to first-class columns.
 #[derive(Debug, Serialize)]
 struct LedgerEntrySummary {
-    pub id:                   Uuid,
+    pub id: Uuid,
     pub billable_entity_type: String,
-    pub billable_entity_id:   Uuid,
-    pub description:          Option<String>,
-    pub gross_amount_cents:   i64,
-    pub fee_amount_cents:     i64,
-    pub net_amount_cents:     i64,
-    pub currency:             String,
-    pub payment_rail:         Option<String>,
-    pub status:               String,
-    pub due_date:             Option<chrono::NaiveDate>,
-    pub paid_at:              Option<chrono::DateTime<chrono::Utc>>,
-    pub reconciled_at:        Option<chrono::DateTime<chrono::Utc>>,
-    pub reconciliation_note:  Option<String>,
-    pub created_at:           chrono::DateTime<chrono::Utc>,
+    pub billable_entity_id: Uuid,
+    pub description: Option<String>,
+    pub gross_amount_cents: i64,
+    pub fee_amount_cents: i64,
+    pub net_amount_cents: i64,
+    pub currency: String,
+    pub payment_rail: Option<String>,
+    pub status: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub paid_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub reconciled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub reconciliation_note: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// GET /api/folio/ledger
@@ -490,22 +488,22 @@ async fn list_ledger_entries(
     let summaries: Vec<LedgerEntrySummary> = entries
         .into_iter()
         .map(|e| LedgerEntrySummary {
-            id:                   e.id,
+            id: e.id,
             billable_entity_type: e.billable_entity_type,
-            billable_entity_id:   e.billable_entity_id,
+            billable_entity_id: e.billable_entity_id,
             // description is surfaced from reconciliation_note pending Phase 4 migration
-            description:          e.reconciliation_note.clone(),
-            gross_amount_cents:   e.gross_amount_cents,
-            fee_amount_cents:     e.fee_amount_cents,
-            net_amount_cents:     e.net_amount_cents,
-            currency:             e.currency,
-            payment_rail:         e.payment_rail,
-            status:               e.status,
-            due_date:             e.due_date,
-            paid_at:              e.paid_at,
-            reconciled_at:        e.reconciled_at,
-            reconciliation_note:  e.reconciliation_note,
-            created_at:           e.created_at,
+            description: e.reconciliation_note.clone(),
+            gross_amount_cents: e.gross_amount_cents,
+            fee_amount_cents: e.fee_amount_cents,
+            net_amount_cents: e.net_amount_cents,
+            currency: e.currency,
+            payment_rail: e.payment_rail,
+            status: e.status,
+            due_date: e.due_date,
+            paid_at: e.paid_at,
+            reconciled_at: e.reconciled_at,
+            reconciliation_note: e.reconciliation_note,
+            created_at: e.created_at,
         })
         .collect();
 
@@ -531,21 +529,21 @@ async fn list_ledger_entries(
 #[derive(Debug, Deserialize)]
 struct CreateAdHocChargeInput {
     pub billable_entity_type: String,
-    pub billable_entity_id:   Uuid,
+    pub billable_entity_id: Uuid,
     /// Human-readable line item, e.g. "Payment received 7 days past due".
-    pub description:          String,
+    pub description: String,
     /// "late_fee" | "maintenance_reimbursement" | "incidental"
     /// | "security_deposit_deduction" | "utility_chargeback" | "other"
-    pub charge_type:          String,
-    pub gross_amount_cents:   i64,
-    pub currency:             String,
-    pub due_date:             Option<chrono::NaiveDate>,
+    pub charge_type: String,
+    pub gross_amount_cents: i64,
+    pub currency: String,
+    pub due_date: Option<chrono::NaiveDate>,
 }
 
 #[derive(Debug, Serialize)]
 struct CreateAdHocChargeResponse {
     pub ledger_entry_id: Uuid,
-    pub status:          &'static str,
+    pub status: &'static str,
 }
 
 /// POST /api/folio/ledger/charge
@@ -593,7 +591,7 @@ async fn create_ad_hoc_charge(
         tenant_id,
         &input.billable_entity_type,
         input.billable_entity_id,
-        None,  // payer_user_id — unknown until tenant resolves
+        None, // payer_user_id — unknown until tenant resolves
         input.gross_amount_cents,
         currency,
         "", // no payment rail yet

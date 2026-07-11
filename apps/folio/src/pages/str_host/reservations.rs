@@ -7,43 +7,53 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrReservation {
-    pub id:                Uuid,
-    pub status:            String,
-    pub check_in:          String,
-    pub check_out:         String,
+    pub id: Uuid,
+    pub status: String,
+    pub check_in: String,
+    pub check_out: String,
     pub total_price_cents: i64,
-    pub currency:          String,
-    pub hold_expires_at:   Option<String>,
+    pub currency: String,
+    pub hold_expires_at: Option<String>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchStrReservationsList, "/api")]
-pub async fn fetch_str_reservations_list() -> Result<Vec<StrReservation>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_reservations_list(
+) -> Result<Vec<StrReservation>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<StrReservation>>(
-        "/api/folio/reservations", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/reservations",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -55,10 +65,10 @@ fn fmt_usd(cents: i64) -> String {
 
 fn status_chip_cls(s: &str) -> &'static str {
     match s {
-        "confirmed"  | "checked_in"         => "ph-badge--paid",
-        "pending"    | "hold"               => "ph-badge--pending",
-        "cancelled"  | "no_show"            => "ph-badge--overdue",
-        _                                   => "ph-badge--default",
+        "confirmed" | "checked_in" => "ph-badge--paid",
+        "pending" | "hold" => "ph-badge--pending",
+        "cancelled" | "no_show" => "ph-badge--overdue",
+        _ => "ph-badge--default",
     }
 }
 
@@ -66,13 +76,10 @@ fn status_chip_cls(s: &str) -> &'static str {
 
 #[component]
 pub fn StrReservationManifest() -> impl IntoView {
-    let refresh       = RwSignal::new(0u32);
+    let refresh = RwSignal::new(0u32);
     let status_filter = RwSignal::new("all".to_string());
 
-    let res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_str_reservations_list(),
-    );
+    let res = Resource::new(move || refresh.get(), |_| fetch_str_reservations_list());
 
     view! {
         <div class="main-area">

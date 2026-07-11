@@ -17,17 +17,17 @@
 //!   `financial_inputs`  → JSONB: ARV, repairs, motivation, multiplier
 //!   `computed_outputs`  → JSONB: MAO, is_viable
 
-use anyhow::{anyhow, Result};
-use sea_orm::DatabaseConnection;
-use uuid::Uuid;
-use serde::{Deserialize, Serialize};
+use anyhow::{Result, anyhow};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use sea_orm::DatabaseConnection;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use uuid::Uuid;
 
-use crate::types::pm::{WholesaleStage, SellerMotivation, PmOpportunityType};
 use crate::services::pm::scorecard_provisioner::get_pm_template;
 use crate::services::scorecard_service::ScorecardService;
+use crate::types::pm::{PmOpportunityType, SellerMotivation, WholesaleStage};
 
 // ── MAO result type ───────────────────────────────────────────────────────────
 
@@ -89,8 +89,8 @@ impl WholesaleService {
         motivation: SellerMotivation,
         owner_user_id: Option<Uuid>,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         let id = Uuid::new_v4();
         let now = Utc::now();
@@ -146,7 +146,9 @@ impl WholesaleService {
                     template.id,
                     "atlas_opportunity",
                     id,
-                ).await {
+                )
+                .await
+                {
                     Ok(scorecard_id) => {
                         tracing::info!(
                             opportunity_id = %id, %tenant_id,
@@ -191,7 +193,7 @@ impl WholesaleService {
         opportunity_id: Uuid,
         new_stage: WholesaleStage,
     ) -> Result<()> {
-        use sea_orm::{EntityTrait, ActiveModelTrait, Set, IntoActiveModel};
+        use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, Set};
 
         let opp = crate::entities::atlas_opportunity::Entity::find_by_id(opportunity_id)
             .one(db)
@@ -199,7 +201,9 @@ impl WholesaleService {
             .ok_or_else(|| anyhow!("Opportunity {opportunity_id} not found"))?;
 
         if opp.tenant_id != tenant_id {
-            return Err(anyhow!("Opportunity {opportunity_id} not found for tenant {tenant_id}"));
+            return Err(anyhow!(
+                "Opportunity {opportunity_id} not found for tenant {tenant_id}"
+            ));
         }
 
         // `status` holds the stage string — parse via the WholesaleStage enum
@@ -245,7 +249,9 @@ mod tests {
     #[test]
     fn test_mao_custom_multiplier() {
         let r = WholesaleService::calculate_mao(
-            200_000_00, 15_000_00, 7_500_00,
+            200_000_00,
+            15_000_00,
+            7_500_00,
             Some(Decimal::from_str("0.65").unwrap()),
             Some("USD".to_string()),
         );

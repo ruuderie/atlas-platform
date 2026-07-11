@@ -15,17 +15,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenterApplicationInput {
-    pub property_id:      String,
-    pub first_name:       String,
-    pub last_name:        String,
-    pub email:            String,
-    pub phone:            String,
-    pub employment_type:  String,
-    pub employer:         String,
-    pub monthly_income:   String,
-    pub reference_name:   String,
-    pub reference_phone:  String,
-    pub consented:        bool,
+    pub property_id: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: String,
+    pub employment_type: String,
+    pub employer: String,
+    pub monthly_income: String,
+    pub reference_name: String,
+    pub reference_phone: String,
+    pub consented: bool,
 }
 
 #[server(SubmitRenterApplication, "/api")]
@@ -39,45 +39,53 @@ pub async fn submit_renter_application(
 
 #[component]
 pub fn RenterApplication() -> impl IntoView {
-    let params      = use_params_map();
+    let params = use_params_map();
     let property_id = params.get().get("property_id").unwrap_or_default();
 
-    let step          = RwSignal::new(1u8);
-    let first_name    = RwSignal::new(String::new());
-    let last_name     = RwSignal::new(String::new());
-    let email         = RwSignal::new(String::new());
-    let phone         = RwSignal::new(String::new());
-    let emp_type      = RwSignal::new("employed".to_string());
-    let employer      = RwSignal::new(String::new());
-    let income        = RwSignal::new(String::new());
-    let ref_name      = RwSignal::new(String::new());
-    let ref_phone     = RwSignal::new(String::new());
-    let consented     = RwSignal::new(false);
-    let submitting    = RwSignal::new(false);
-    let submitted     = RwSignal::new(false);
-    let error         = RwSignal::new(None::<String>);
+    let step = RwSignal::new(1u8);
+    let first_name = RwSignal::new(String::new());
+    let last_name = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let emp_type = RwSignal::new("employed".to_string());
+    let employer = RwSignal::new(String::new());
+    let income = RwSignal::new(String::new());
+    let ref_name = RwSignal::new(String::new());
+    let ref_phone = RwSignal::new(String::new());
+    let consented = RwSignal::new(false);
+    let submitting = RwSignal::new(false);
+    let submitted = RwSignal::new(false);
+    let error = RwSignal::new(None::<String>);
 
     let property_id_sv = StoredValue::new(property_id.clone());
     let handle_submit = move |_| {
-        if !consented.get() { return; }
+        if !consented.get() {
+            return;
+        }
         submitting.set(true);
         let app = RenterApplicationInput {
-            property_id:     property_id_sv.get_value(),
-            first_name:      first_name.get(),
-            last_name:       last_name.get(),
-            email:           email.get(),
-            phone:           phone.get(),
+            property_id: property_id_sv.get_value(),
+            first_name: first_name.get(),
+            last_name: last_name.get(),
+            email: email.get(),
+            phone: phone.get(),
             employment_type: emp_type.get(),
-            employer:        employer.get(),
-            monthly_income:  income.get(),
-            reference_name:  ref_name.get(),
+            employer: employer.get(),
+            monthly_income: income.get(),
+            reference_name: ref_name.get(),
             reference_phone: ref_phone.get(),
-            consented:       consented.get(),
+            consented: consented.get(),
         };
         leptos::task::spawn_local(async move {
             match submit_renter_application(app).await {
-                Ok(_)  => { submitted.set(true); submitting.set(false); }
-                Err(e) => { error.set(Some(e.to_string())); submitting.set(false); }
+                Ok(_) => {
+                    submitted.set(true);
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

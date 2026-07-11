@@ -23,11 +23,10 @@
 //!
 //! Both are indexed — O(log n) in both directions.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
 use uuid::Uuid;
 
@@ -82,8 +81,10 @@ impl RecordRelationshipService {
                 anyhow!(
                     "Relationship '{}' between {}:{} and {}:{} already exists",
                     payload.relationship_type,
-                    payload.source_entity_type, payload.source_entity_id,
-                    payload.target_entity_type, payload.target_entity_id,
+                    payload.source_entity_type,
+                    payload.source_entity_id,
+                    payload.target_entity_type,
+                    payload.target_entity_id,
                 )
             } else {
                 anyhow!("create relationship failed: {e:#}")
@@ -192,12 +193,16 @@ impl RecordRelationshipService {
                 Condition::any()
                     .add(
                         Condition::all()
-                            .add(atlas_record_relationship::Column::SourceEntityType.eq(entity_type))
+                            .add(
+                                atlas_record_relationship::Column::SourceEntityType.eq(entity_type),
+                            )
                             .add(atlas_record_relationship::Column::SourceEntityId.eq(entity_id)),
                     )
                     .add(
                         Condition::all()
-                            .add(atlas_record_relationship::Column::TargetEntityType.eq(entity_type))
+                            .add(
+                                atlas_record_relationship::Column::TargetEntityType.eq(entity_type),
+                            )
                             .add(atlas_record_relationship::Column::TargetEntityId.eq(entity_id)),
                     ),
             )

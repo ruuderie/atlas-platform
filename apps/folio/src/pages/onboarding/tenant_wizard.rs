@@ -15,20 +15,20 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::wizard_shell::{
-    ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code,
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TenantApplicationInput {
-    pub first_name:   String,
-    pub last_name:    String,
-    pub email:        String,
-    pub phone:        String,
-    pub dob:          String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: String,
+    pub dob: String,
     pub monthly_income: String,
-    pub employer:     String,
-    pub invite_code:  Option<String>,
+    pub employer: String,
+    pub invite_code: Option<String>,
 }
 
 #[server(SubmitTenantApplication, "/api")]
@@ -43,64 +43,92 @@ pub async fn submit_tenant_application(
     let payload = serde_json::to_value(&input)
         .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/folio/applications/submit", &token, None, &payload,
-    ).await.map(|_| ()).map_err(server_fn::error::ServerFnError::new)
+        "/api/folio/applications/submit",
+        &token,
+        None,
+        &payload,
+    )
+    .await
+    .map(|_| ())
+    .map_err(server_fn::error::ServerFnError::new)
 }
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "profile",   label: "Complete Profile",       skippable: false },
-    WizardStepDesc { id: "lease",     label: "Lease Review & Sign",    skippable: false },
-    WizardStepDesc { id: "movein",    label: "Move-In Checklist",      skippable: false },
-    WizardStepDesc { id: "portal",    label: "Portal Setup",           skippable: false },
+    WizardStepDesc {
+        id: "profile",
+        label: "Complete Profile",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "lease",
+        label: "Lease Review & Sign",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "movein",
+        label: "Move-In Checklist",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "portal",
+        label: "Portal Setup",
+        skippable: false,
+    },
 ];
 
 #[component]
 pub fn TenantApplicantWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
     let code_resource = Resource::new(code_key, |code| resolve_invite_code(code));
     Effect::new(move |_| {
-        if let Some(Ok(resolved)) = code_resource.get() { invite_sig.set(resolved); }
+        if let Some(Ok(resolved)) = code_resource.get() {
+            invite_sig.set(resolved);
+        }
     });
 
     let current_idx = RwSignal::new(0usize);
-    let total       = STEPS.len();
-    let is_last     = Signal::derive(move || current_idx.get() == total - 1);
-    let next_label  = Signal::derive(move || {
-        if is_last.get() { "Go to My Portal" } else { "Continue" }
+    let total = STEPS.len();
+    let is_last = Signal::derive(move || current_idx.get() == total - 1);
+    let next_label = Signal::derive(move || {
+        if is_last.get() {
+            "Go to My Portal"
+        } else {
+            "Continue"
+        }
     });
 
     // Profile
     let first_name = RwSignal::new(String::new());
-    let last_name  = RwSignal::new(String::new());
-    let phone      = RwSignal::new(String::new());
-    let dob        = RwSignal::new(String::new());
+    let last_name = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let dob = RwSignal::new(String::new());
     let emerg_name = RwSignal::new(String::new());
-    let emerg_rel  = RwSignal::new(String::new());
-    let occupant   = RwSignal::new(String::new());
+    let emerg_rel = RwSignal::new(String::new());
+    let occupant = RwSignal::new(String::new());
 
     // Lease
     let lease_signed = RwSignal::new(false);
 
     // Checklist
-    let chk_rent     = RwSignal::new(false);
-    let chk_deposit  = RwSignal::new(false);
+    let chk_rent = RwSignal::new(false);
+    let chk_deposit = RwSignal::new(false);
     let chk_electric = RwSignal::new(false);
     let chk_internet = RwSignal::new(false);
     let chk_insurance = RwSignal::new(false);
-    let chk_keys     = RwSignal::new(false);
+    let chk_keys = RwSignal::new(false);
     let chk_condition = RwSignal::new(false);
-    let chk_super    = RwSignal::new(false);
+    let chk_super = RwSignal::new(false);
 
     // Portal
     let pay_method = RwSignal::new("ach".to_string());
     let notify_rent = RwSignal::new(true);
     let notify_maint = RwSignal::new(true);
     let notify_lease = RwSignal::new(true);
-    let notify_msg  = RwSignal::new(true);
+    let notify_msg = RwSignal::new(true);
 
-    let saving:     RwSignal<bool>          = RwSignal::new(false);
+    let saving: RwSignal<bool> = RwSignal::new(false);
     let save_error: RwSignal<Option<String>> = RwSignal::new(None);
 
     let invite_code_val = move || invite_sig.get().map(|c| c.code.clone());
@@ -120,13 +148,14 @@ pub fn TenantApplicantWizard() -> impl IntoView {
                 invite_code: invite_code_val(),
             };
             let invite_id = invite_sig.get().map(|c| c.code.clone()).unwrap_or_default();
-            saving.set(true); save_error.set(None);
+            saving.set(true);
+            save_error.set(None);
             leptos::task::spawn_local(async move {
                 let _ = submit_tenant_application(input).await;
                 saving.set(false);
                 let redirect = match accept_invite_code(invite_id, "/t".to_string()).await {
                     Ok(resp) => resp.redirect,
-                    Err(_)   => "/t".to_string(),
+                    Err(_) => "/t".to_string(),
                 };
                 let nav = leptos_router::hooks::use_navigate();
                 nav(&redirect, Default::default());
@@ -137,18 +166,22 @@ pub fn TenantApplicantWizard() -> impl IntoView {
     });
     let on_prev = Callback::new(move |_| {
         let idx = current_idx.get();
-        if idx > 0 { current_idx.set(idx - 1); }
+        if idx > 0 {
+            current_idx.set(idx - 1);
+        }
     });
 
-    let ctx_body = ViewFn::from(|| view! {
-        <p class="wiz-ctx-p">
-            "Complete these 4 steps to get your tenant portal ready and confirm your move-in."
-        </p>
-        <ul class="wiz-ctx-list">
-            <li><span class="ms msf">"check_circle"</span>"E-sign your lease"</li>
-            <li><span class="ms msf">"check_circle"</span>"Track move-in checklist items"</li>
-            <li><span class="ms msf">"check_circle"</span>"Set rent payment and alerts"</li>
-        </ul>
+    let ctx_body = ViewFn::from(|| {
+        view! {
+            <p class="wiz-ctx-p">
+                "Complete these 4 steps to get your tenant portal ready and confirm your move-in."
+            </p>
+            <ul class="wiz-ctx-list">
+                <li><span class="ms msf">"check_circle"</span>"E-sign your lease"</li>
+                <li><span class="ms msf">"check_circle"</span>"Track move-in checklist items"</li>
+                <li><span class="ms msf">"check_circle"</span>"Set rent payment and alerts"</li>
+            </ul>
+        }
     });
 
     view! {

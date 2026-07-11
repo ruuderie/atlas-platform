@@ -25,15 +25,15 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
-    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter, QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -45,9 +45,12 @@ use crate::extractors::folio_role::VendorOnly;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/vendor/work-orders",              get(list_work_orders))
-        .route("/api/folio/vendor/work-orders/{id}",          get(get_work_order))
-        .route("/api/folio/vendor/work-orders/{id}/complete", post(complete_work_order))
+        .route("/api/folio/vendor/work-orders", get(list_work_orders))
+        .route("/api/folio/vendor/work-orders/{id}", get(get_work_order))
+        .route(
+            "/api/folio/vendor/work-orders/{id}/complete",
+            post(complete_work_order),
+        )
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -57,40 +60,42 @@ pub struct ListWorkOrdersQuery {
     #[serde(default = "default_status_filter")]
     pub status: String,
 }
-fn default_status_filter() -> String { "active".to_string() }
+fn default_status_filter() -> String {
+    "active".to_string()
+}
 
 #[derive(Debug, Serialize)]
 pub struct WorkOrderSummary {
-    pub id:             Uuid,
-    pub subject:        String,
-    pub priority:       String,
-    pub status:         String,
-    pub scheduled_at:   Option<chrono::DateTime<chrono::Utc>>,
+    pub id: Uuid,
+    pub subject: String,
+    pub priority: String,
+    pub status: String,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
     pub estimated_cost: Option<i64>,
-    pub asset_id:       Option<Uuid>,
+    pub asset_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct WorkOrderDetail {
-    pub id:                   Uuid,
-    pub subject:              String,
-    pub description:          Option<String>,
-    pub priority:             String,
-    pub status:               String,
-    pub scheduled_at:         Option<chrono::DateTime<chrono::Utc>>,
-    pub completed_at:         Option<chrono::DateTime<chrono::Utc>>,
+    pub id: Uuid,
+    pub subject: String,
+    pub description: Option<String>,
+    pub priority: String,
+    pub status: String,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub estimated_cost_cents: Option<i64>,
-    pub actual_cost_cents:    Option<i64>,
-    pub asset_id:             Option<Uuid>,
-    pub contract_id:          Option<Uuid>,
-    pub ledger_entry_id:      Option<Uuid>,
-    pub metadata:             Option<serde_json::Value>,
+    pub actual_cost_cents: Option<i64>,
+    pub asset_id: Option<Uuid>,
+    pub contract_id: Option<Uuid>,
+    pub ledger_entry_id: Option<Uuid>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CompleteWorkOrderInput {
     pub actual_cost_cents: Option<i64>,
-    pub completion_note:   Option<String>,
+    pub completion_note: Option<String>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -98,7 +103,7 @@ pub struct CompleteWorkOrderInput {
 /// GET /api/folio/vendor/work-orders
 /// `VendorOnly` extractor enforces role — handler only runs for verified vendors.
 async fn list_work_orders(
-    _guard: VendorOnly,                                // ← declarative role gate
+    _guard: VendorOnly, // ← declarative role gate
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Query(params): Query<ListWorkOrdersQuery>,
@@ -111,15 +116,21 @@ async fn list_work_orders(
         .filter(atlas_case::Column::AssignedServiceProviderId.eq(sp.id));
 
     match params.status.as_str() {
-        "open"        => { query = query.filter(atlas_case::Column::Status.eq("open")); }
-        "in_progress" => { query = query.filter(atlas_case::Column::Status.eq("in_progress")); }
-        "completed"   => { query = query.filter(atlas_case::Column::Status.eq("completed")); }
-        "all"         => {}
+        "open" => {
+            query = query.filter(atlas_case::Column::Status.eq("open"));
+        }
+        "in_progress" => {
+            query = query.filter(atlas_case::Column::Status.eq("in_progress"));
+        }
+        "completed" => {
+            query = query.filter(atlas_case::Column::Status.eq("completed"));
+        }
+        "all" => {}
         _ => {
             query = query.filter(
                 sea_orm::Condition::any()
                     .add(atlas_case::Column::Status.eq("open"))
-                    .add(atlas_case::Column::Status.eq("in_progress"))
+                    .add(atlas_case::Column::Status.eq("in_progress")),
             );
         }
     }
@@ -133,13 +144,13 @@ async fn list_work_orders(
     let summaries: Vec<WorkOrderSummary> = cases
         .into_iter()
         .map(|c| WorkOrderSummary {
-            id:             c.id,
-            subject:        c.subject,
-            priority:       c.priority,
-            status:         c.status,
-            scheduled_at:   c.scheduled_at,
+            id: c.id,
+            subject: c.subject,
+            priority: c.priority,
+            status: c.status,
+            scheduled_at: c.scheduled_at,
             estimated_cost: c.estimated_cost_cents,
-            asset_id:       c.asset_id,
+            asset_id: c.asset_id,
         })
         .collect();
 
@@ -164,19 +175,19 @@ async fn get_work_order(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(Json(WorkOrderDetail {
-        id:                   case.id,
-        subject:              case.subject,
-        description:          case.description,
-        priority:             case.priority,
-        status:               case.status,
-        scheduled_at:         case.scheduled_at,
-        completed_at:         case.completed_at,
+        id: case.id,
+        subject: case.subject,
+        description: case.description,
+        priority: case.priority,
+        status: case.status,
+        scheduled_at: case.scheduled_at,
+        completed_at: case.completed_at,
         estimated_cost_cents: case.estimated_cost_cents,
-        actual_cost_cents:    case.actual_cost_cents,
-        asset_id:             case.asset_id,
-        contract_id:          case.contract_id,
-        ledger_entry_id:      case.ledger_entry_id,
-        metadata:             case.case_metadata,
+        actual_cost_cents: case.actual_cost_cents,
+        asset_id: case.asset_id,
+        contract_id: case.contract_id,
+        ledger_entry_id: case.ledger_entry_id,
+        metadata: case.case_metadata,
     }))
 }
 
@@ -199,13 +210,16 @@ async fn complete_work_order(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     if case.status == "completed" {
-        return Ok((StatusCode::OK, Json(serde_json::json!({
-            "id": case.id, "status": "completed", "note": "already completed"
-        }))));
+        return Ok((
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "id": case.id, "status": "completed", "note": "already completed"
+            })),
+        ));
     }
 
     let mut active: atlas_case::ActiveModel = case.into();
-    active.status       = Set("completed".to_string());
+    active.status = Set("completed".to_string());
     active.completed_at = Set(Some(chrono::Utc::now()));
 
     if let Some(cost) = input.actual_cost_cents {
@@ -215,7 +229,10 @@ async fn complete_work_order(
         active.case_metadata = Set(Some(serde_json::json!({ "completion_note": note })));
     }
 
-    let updated = active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Best-effort G-27 case_resolved sessions for the landlord to rate the contractor.
     if let Err(e) = trigger_case_resolved_sessions(&db, &updated).await {
@@ -234,14 +251,15 @@ async fn complete_work_order(
         .await
         .unwrap_or(0);
     if completed_count == 1 {
-        if let Err(e) = crate::services::program_service::ProgramService::complete_outcomes_for_target_user(
-            &db,
-            current_user.id,
-            crate::types::pm::ProgramOutcomeType::FirstJobLogged,
-            Some("atlas_cases"),
-            Some(updated.id),
-        )
-        .await
+        if let Err(e) =
+            crate::services::program_service::ProgramService::complete_outcomes_for_target_user(
+                &db,
+                current_user.id,
+                crate::types::pm::ProgramOutcomeType::FirstJobLogged,
+                Some("atlas_cases"),
+                Some(updated.id),
+            )
+            .await
         {
             tracing::warn!(
                 case_id = %updated.id,
@@ -250,11 +268,14 @@ async fn complete_work_order(
         }
     }
 
-    Ok((StatusCode::OK, Json(serde_json::json!({
-        "id": updated.id,
-        "status": updated.status,
-        "completed_at": updated.completed_at,
-    }))))
+    Ok((
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "id": updated.id,
+            "status": updated.status,
+            "completed_at": updated.completed_at,
+        })),
+    ))
 }
 
 /// Best-effort G-27 `case_resolved` session open after vendor work-order complete.
@@ -310,7 +331,7 @@ async fn trigger_case_resolved_sessions(
 /// Resolve (tenant_id, service_provider) for the current vendor user.
 /// Returns 403 if no active service_provider record is found.
 pub async fn resolve_vendor_context(
-    db:      &DatabaseConnection,
+    db: &DatabaseConnection,
     user_id: Uuid,
 ) -> Result<(Uuid, atlas_service_provider::Model), StatusCode> {
     let user_accounts = crate::entities::user_account::Entity::find()

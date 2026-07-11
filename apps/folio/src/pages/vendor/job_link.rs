@@ -15,36 +15,41 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobLinkData {
-    pub work_order_id:  String,
-    pub subject:        String,
-    pub category:       String,
-    pub priority:       String,
-    pub description:    Option<String>,
-    pub asset_address:  String,
-    pub unit:           Option<String>,
+    pub work_order_id: String,
+    pub subject: String,
+    pub category: String,
+    pub priority: String,
+    pub description: Option<String>,
+    pub asset_address: String,
+    pub unit: Option<String>,
     pub scheduled_date: Option<String>,
-    pub budget_cents:   Option<i64>,
-    pub property_manager:Option<String>,
-    pub pm_phone:       Option<String>,
-    pub status:         String,  // "pending_acceptance" | "accepted" | "declined" | "expired"
+    pub budget_cents: Option<i64>,
+    pub property_manager: Option<String>,
+    pub pm_phone: Option<String>,
+    pub status: String, // "pending_acceptance" | "accepted" | "declined" | "expired"
 }
 
 #[server(FetchJobLink, "/api")]
-pub async fn fetch_job_link(token: String) -> Result<Option<JobLinkData>, server_fn::error::ServerFnError> {
+pub async fn fetch_job_link(
+    token: String,
+) -> Result<Option<JobLinkData>, server_fn::error::ServerFnError> {
     let url = format!("/api/folio/maintenance/job-link?token={token}");
     crate::atlas_client::authenticated_get::<Option<JobLinkData>>(&url, "", None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobResponseInput {
-    pub token:    String,
-    pub decision: String,  // "accept" | "decline"
-    pub note:     Option<String>,
+    pub token: String,
+    pub decision: String, // "accept" | "decline"
+    pub note: Option<String>,
 }
 
 #[server(RespondJobLink, "/api")]
-pub async fn respond_job_link(input: JobResponseInput) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn respond_job_link(
+    input: JobResponseInput,
+) -> Result<(), server_fn::error::ServerFnError> {
     Ok(())
 }
 
@@ -53,9 +58,9 @@ pub async fn respond_job_link(input: JobResponseInput) -> Result<(), server_fn::
 fn priority_color(p: &str) -> &'static str {
     match p.to_lowercase().as_str() {
         "urgent" | "emergency" => "#f87171",
-        "high"                 => "#fb923c",
-        "medium"               => "#fbbf24",
-        _                      => "#94a3b8",
+        "high" => "#fb923c",
+        "medium" => "#fbbf24",
+        _ => "#94a3b8",
     }
 }
 
@@ -67,37 +72,44 @@ fn fmt_budget(cents: i64) -> String {
 
 #[component]
 pub fn VendorJobLink() -> impl IntoView {
-    let params  = use_params_map();
-    let token   = params.get().get("token").unwrap_or_default();
+    let params = use_params_map();
+    let token = params.get().get("token").unwrap_or_default();
 
-    let decision   = RwSignal::new(None::<String>);
-    let note       = RwSignal::new(String::new());
+    let decision = RwSignal::new(None::<String>);
+    let note = RwSignal::new(String::new());
     let submitting = RwSignal::new(false);
-    let responded  = RwSignal::new(None::<String>);
-    let error      = RwSignal::new(None::<String>);
+    let responded = RwSignal::new(None::<String>);
+    let error = RwSignal::new(None::<String>);
 
     let token2 = token.clone();
-    let res = Resource::new(
-        move || token.clone(),
-        |t| fetch_job_link(t),
-    );
+    let res = Resource::new(move || token.clone(), |t| fetch_job_link(t));
 
     let handle_respond = move |d: String| {
         decision.set(Some(d.clone()));
         submitting.set(true);
         let input = JobResponseInput {
-            token:    token2.clone(),
+            token: token2.clone(),
             decision: d.clone(),
-            note:     if note.get().is_empty() { None } else { Some(note.get()) },
+            note: if note.get().is_empty() {
+                None
+            } else {
+                Some(note.get())
+            },
         };
         leptos::task::spawn_local(async move {
             match respond_job_link(input).await {
-                Ok(_)  => { responded.set(Some(d)); submitting.set(false); }
-                Err(e) => { error.set(Some(e.to_string())); submitting.set(false); }
+                Ok(_) => {
+                    responded.set(Some(d));
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };
-    let handle_accept  = StoredValue::new({
+    let handle_accept = StoredValue::new({
         let h = handle_respond.clone();
         move |_: web_sys::MouseEvent| h("accept".to_string())
     });

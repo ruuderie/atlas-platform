@@ -9,42 +9,45 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientDetail {
-    pub account_id:    Uuid,
-    pub display_name:  String,
+    pub account_id: Uuid,
+    pub display_name: String,
     pub portfolio_ids: Vec<Uuid>,
     pub active_leases: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientSummary {
-    pub account_id:         Uuid,
-    pub display_name:       String,
-    pub contact_name:       Option<String>,
-    pub contact_email:      Option<String>,
-    pub property_count:     Option<i64>,
-    pub unit_count:         Option<i64>,
+    pub account_id: Uuid,
+    pub display_name: String,
+    pub contact_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub property_count: Option<i64>,
+    pub unit_count: Option<i64>,
     pub active_lease_count: Option<i64>,
-    pub occupancy_pct:      Option<f64>,
+    pub occupancy_pct: Option<f64>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchPmcClientDetail, "/api")]
-pub async fn fetch_pmc_client_detail(account_id: String) -> Result<ClientDetail, server_fn::error::ServerFnError> {
+pub async fn fetch_pmc_client_detail(
+    account_id: String,
+) -> Result<ClientDetail, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let url = format!("/api/folio/pm/clients/{account_id}");
     crate::atlas_client::authenticated_get::<ClientDetail>(&url, &token, None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchPmcClients, "/api")]
@@ -54,18 +57,27 @@ pub async fn fetch_pmc_clients() -> Result<Vec<ClientSummary>, server_fn::error:
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<ClientSummary>>(
-        "/api/folio/pm/clients", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/pm/clients",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -73,15 +85,12 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 #[component]
 pub fn PmcClientDetail() -> impl IntoView {
-    let params     = use_params_map();
+    let params = use_params_map();
     let account_id = params.get().get("id").unwrap_or_default();
-    let aid2       = account_id.clone();
-    let aid3       = account_id.clone();
+    let aid2 = account_id.clone();
+    let aid3 = account_id.clone();
 
-    let detail_res  = Resource::new(
-        move || account_id.clone(),
-        |id| fetch_pmc_client_detail(id),
-    );
+    let detail_res = Resource::new(move || account_id.clone(), |id| fetch_pmc_client_detail(id));
     let clients_res = Resource::new(|| (), |_| fetch_pmc_clients());
 
     view! {

@@ -16,22 +16,21 @@
 //! Auth: injected via Folio session middleware (Extension<user::Model>).
 //!       Listed in FolioApp::authenticated_router → shared_router.
 
-use axum::{Extension, Json, Router, http::StatusCode};
 use axum::routing::get;
 use axum::routing::post;
+use axum::{Extension, Json, Router, http::StatusCode};
+use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection,
-    DbBackend, EntityTrait, QueryFilter, Set, Statement,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
+    QueryFilter, Set, Statement,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::Utc;
 
 use crate::entities::{onboarding_progress, tenant_setting, user};
 use crate::services::pm::asset::{AssetService, CreateUnitInput};
 use crate::services::portfolio_service::PortfolioService;
 use crate::types::pm::PropertyType;
-
 
 // ── Input ─────────────────────────────────────────────────────────────────────
 
@@ -85,9 +84,9 @@ pub struct OnboardingDraftResponse {
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/onboarding/submit",  post(submit_onboarding))
+        .route("/api/folio/onboarding/submit", post(submit_onboarding))
         .route("/api/folio/onboarding/dismiss", post(dismiss_onboarding))
-        .route("/api/folio/onboarding/draft",   get(get_onboarding_draft))
+        .route("/api/folio/onboarding/draft", get(get_onboarding_draft))
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -124,18 +123,20 @@ pub async fn submit_onboarding(
             am.last_name = Set(last.to_string());
         }
         am.updated_at = Set(Utc::now());
-        am.update(&db)
-            .await
-            .map_err(|e| {
-                tracing::error!("onboarding/submit: user update failed: {e:#}");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+        am.update(&db).await.map_err(|e| {
+            tracing::error!("onboarding/submit: user update failed: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
         applied.push("profile".to_string());
         write_progress(&db, tenant_id, app_instance_id, "profile").await;
     }
 
     // ── 3. Save jurisdiction setting ──────────────────────────────────────────
-    let jcode = input.jurisdiction_code.as_deref().map(str::trim).unwrap_or("");
+    let jcode = input
+        .jurisdiction_code
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or("");
     if !jcode.is_empty() {
         upsert_setting(&db, tenant_id, "folio_jurisdiction_code", jcode).await?;
         applied.push("jurisdiction".to_string());
@@ -147,7 +148,11 @@ pub async fn submit_onboarding(
     let mut asset_id: Option<Uuid> = None;
 
     let prop_name = input.property_name.as_deref().map(str::trim).unwrap_or("");
-    let prop_addr = input.property_address.as_deref().map(str::trim).unwrap_or("");
+    let prop_addr = input
+        .property_address
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or("");
     let prop_city = input.property_city.as_deref().map(str::trim).unwrap_or("");
 
     if !prop_name.is_empty() && !prop_addr.is_empty() {
@@ -280,7 +285,7 @@ pub async fn dismiss_onboarding(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
 ) -> Result<StatusCode, StatusCode> {
-    let user_id   = current_user.id;
+    let user_id = current_user.id;
     let tenant_id = resolve_tenant_id(&db, user_id).await?;
     let app_instance_id = resolve_app_instance_id(&db, tenant_id).await;
 
@@ -295,21 +300,23 @@ pub async fn dismiss_onboarding(
     if let Some(row) = existing {
         let mut am: onboarding_progress::ActiveModel = row.into();
         am.dismissed_at = Set(Some(Utc::now()));
-        am.updated_at   = Set(Utc::now());
-        am.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        am.updated_at = Set(Utc::now());
+        am.update(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     } else {
         let ai = app_instance_id.unwrap_or_else(Uuid::new_v4);
         onboarding_progress::ActiveModel {
-            id:              Set(Uuid::new_v4()),
-            tenant_id:       Set(tenant_id),
+            id: Set(Uuid::new_v4()),
+            tenant_id: Set(tenant_id),
             app_instance_id: Set(ai),
-            step_id:         Set("wizard_dismissed".to_string()),
-            completed_at:    Set(None),
-            skipped:         Set(false),
-            dismissed_at:    Set(Some(Utc::now())),
-            metadata:        Set(None),
-            created_at:      Set(Utc::now()),
-            updated_at:      Set(Utc::now()),
+            step_id: Set("wizard_dismissed".to_string()),
+            completed_at: Set(None),
+            skipped: Set(false),
+            dismissed_at: Set(Some(Utc::now())),
+            metadata: Set(None),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
         }
         .insert(&db)
         .await
@@ -379,20 +386,20 @@ async fn write_progress(
     if let Some(row) = existing {
         let mut am: onboarding_progress::ActiveModel = row.into();
         am.completed_at = Set(Some(Utc::now()));
-        am.updated_at   = Set(Utc::now());
+        am.updated_at = Set(Utc::now());
         let _ = am.update(db).await;
     } else {
         let _ = onboarding_progress::ActiveModel {
-            id:              Set(Uuid::new_v4()),
-            tenant_id:       Set(tenant_id),
+            id: Set(Uuid::new_v4()),
+            tenant_id: Set(tenant_id),
             app_instance_id: Set(ai),
-            step_id:         Set(step_id.to_string()),
-            completed_at:    Set(Some(Utc::now())),
-            skipped:         Set(false),
-            dismissed_at:    Set(None),
-            metadata:        Set(None),
-            created_at:      Set(Utc::now()),
-            updated_at:      Set(Utc::now()),
+            step_id: Set(step_id.to_string()),
+            completed_at: Set(Some(Utc::now())),
+            skipped: Set(false),
+            dismissed_at: Set(None),
+            metadata: Set(None),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
         }
         .insert(db)
         .await;

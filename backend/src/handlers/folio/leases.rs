@@ -23,11 +23,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -163,7 +163,10 @@ async fn create_lease(
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
     let guarantee_type = GuaranteeType::try_from(input.guarantee_type.clone()).map_err(|_| {
-        tracing::warn!("create_lease: invalid guarantee_type '{}'", input.guarantee_type);
+        tracing::warn!(
+            "create_lease: invalid guarantee_type '{}'",
+            input.guarantee_type
+        );
         StatusCode::UNPROCESSABLE_ENTITY
     })?;
 
@@ -192,7 +195,10 @@ async fn create_lease(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok((StatusCode::CREATED, axum::response::Json(CreateLeaseResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateLeaseResponse { id }),
+    ))
 }
 
 /// GET /api/folio/leases/:id
@@ -226,7 +232,8 @@ async fn get_lease(
         currency: lease.currency,
         billing_interval: lease.billing_interval,
         status: lease.status,
-        guarantee_type: lease.terms_metadata
+        guarantee_type: lease
+            .terms_metadata
             .as_ref()
             .and_then(|m| m.get("guarantee_type"))
             .and_then(|v| v.as_str())
@@ -268,7 +275,9 @@ async fn list_lease_invoices(
 
     let entries = crate::entities::atlas_ledger_entry::Entity::find()
         .filter(crate::entities::atlas_ledger_entry::Column::TenantId.eq(tenant_id))
-        .filter(crate::entities::atlas_ledger_entry::Column::BillableEntityType.eq("atlas_contract"))
+        .filter(
+            crate::entities::atlas_ledger_entry::Column::BillableEntityType.eq("atlas_contract"),
+        )
         .filter(crate::entities::atlas_ledger_entry::Column::BillableEntityId.eq(lease_id))
         .order_by_desc(crate::entities::atlas_ledger_entry::Column::CreatedAt)
         .all(&db)

@@ -18,11 +18,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -47,7 +47,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         // Event/inspection history is served by:
         //   GET /api/folio/assets/{id}/inspections  (maintenance.rs — G-13 cases)
         //   GET /api/folio/events?subject_entity_type=atlas_asset&subject_entity_id={id}  (events.rs — G-21)
-        .route("/api/folio/assets/{id}/contractor", get(get_asset_contractor))
+        .route(
+            "/api/folio/assets/{id}/contractor",
+            get(get_asset_contractor),
+        )
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -167,7 +170,10 @@ async fn create_asset(
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
     let property_type = PropertyType::try_from(input.property_type.clone()).map_err(|_| {
-        tracing::warn!("create_asset: invalid property_type '{}'", input.property_type);
+        tracing::warn!(
+            "create_asset: invalid property_type '{}'",
+            input.property_type
+        );
         StatusCode::UNPROCESSABLE_ENTITY
     })?;
 
@@ -196,7 +202,10 @@ async fn create_asset(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok((StatusCode::CREATED, axum::response::Json(CreateAssetResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateAssetResponse { id }),
+    ))
 }
 
 /// GET /api/folio/assets/:id
@@ -237,7 +246,6 @@ async fn get_asset(
         created_at: asset.created_at,
     }))
 }
-
 
 /// GET /api/folio/assets/:id/contractor
 ///
@@ -313,7 +321,9 @@ async fn get_asset_contractor(
 
     let summary = AssetContractorSummary {
         vendor_id: vendor.id,
-        business_name: vendor.business_name.unwrap_or_else(|| "Unknown Vendor".to_string()),
+        business_name: vendor
+            .business_name
+            .unwrap_or_else(|| "Unknown Vendor".to_string()),
         primary_trade: vendor.marketplace_trade_types.into_iter().next(),
         relationship_type: rel.relationship_type,
     };
@@ -348,16 +358,16 @@ async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uui
 
 #[derive(serde::Serialize)]
 struct MapPin {
-    pub id:             uuid::Uuid,
-    pub name:           String,
-    pub asset_type:     String,
-    pub status:         String,
-    pub latitude:       f64,
-    pub longitude:      f64,
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub asset_type: String,
+    pub status: String,
+    pub latitude: f64,
+    pub longitude: f64,
     pub address_line_1: Option<String>,
-    pub city:           Option<String>,
+    pub city: Option<String>,
     pub state_province: Option<String>,
-    pub postal_code:    Option<String>,
+    pub postal_code: Option<String>,
 }
 
 async fn list_assets_map(
@@ -385,18 +395,20 @@ async fn list_assets_map(
             let lat = coords.get("lat").and_then(|v| v.as_f64())?;
             let lng = coords.get("lng").and_then(|v| v.as_f64())?;
             // Skip zero-zero pins (unset)
-            if lat == 0.0 && lng == 0.0 { return None; }
+            if lat == 0.0 && lng == 0.0 {
+                return None;
+            }
             Some(MapPin {
-                id:             a.id,
-                name:           a.name,
-                asset_type:     a.asset_type,
-                status:         a.status,
-                latitude:       lat,
-                longitude:      lng,
+                id: a.id,
+                name: a.name,
+                asset_type: a.asset_type,
+                status: a.status,
+                latitude: lat,
+                longitude: lng,
                 address_line_1: a.address_line_1,
-                city:           a.city,
+                city: a.city,
                 state_province: a.state_province,
-                postal_code:    a.postal_code,
+                postal_code: a.postal_code,
             })
         })
         .collect();

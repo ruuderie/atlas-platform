@@ -322,9 +322,7 @@ impl BuildingSystemService {
             .into_iter()
             .map(|a| {
                 let earliest = earliest_date(a.scheduled_service_date, a.expiry_date);
-                let days_until = earliest
-                    .map(|d| (d - today).num_days())
-                    .unwrap_or(i64::MAX);
+                let days_until = earliest.map(|d| (d - today).num_days()).unwrap_or(i64::MAX);
                 LifecycleAlert {
                     id: a.id,
                     name: a.name,

@@ -2,15 +2,15 @@
 //!
 //! Covers: São Paulo, Rio de Janeiro, Fortaleza, and any other BR property.
 
+use crate::services::pm::market::market_config::{
+    AntiDiscriminationLaw, CreditBureau, MarketConfig, StrRegulation, TaxEngine, TenancyLaw,
+};
+use crate::types::pm::{
+    ConominioExpenseCategory, CreditIdField, Currency, GuaranteeType, Jurisdiction, StatuteRef,
+    TaxRate,
+};
 use rust_decimal::Decimal;
 use std::str::FromStr;
-use crate::types::pm::{
-    Jurisdiction, Currency, CreditIdField, TaxRate, StatuteRef,
-    GuaranteeType, ConominioExpenseCategory,
-};
-use crate::services::pm::market::market_config::{
-    MarketConfig, TenancyLaw, AntiDiscriminationLaw, StrRegulation, TaxEngine, CreditBureau,
-};
 
 // ── Expense classification rules ──────────────────────────────────────────────
 
@@ -49,44 +49,187 @@ pub struct KeywordRule {
 /// Evaluated in order — first match wins.
 static EXPENSE_RULES: &[KeywordRule] = &[
     // ── Art. 23: Despesas Ordinárias (tenant) ──────────────────────────────
-    KeywordRule { keyword: "condomínio",         legal_basis: "Art. 23, §único",   category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "agua",               legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "água",               legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "gas",                legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "gás",                legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "luz",                legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "energia",            legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "limpeza",            legal_basis: "Art. 23, §único-a", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "zeladoria",          legal_basis: "Art. 23, §único-a", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "porteiro",           legal_basis: "Art. 23, §único-a", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "faxineiro",          legal_basis: "Art. 23, §único-a", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "segurança",          legal_basis: "Art. 23, §único-b", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "piscina",            legal_basis: "Art. 23, §único-c", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "academia",           legal_basis: "Art. 23, §único-c", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "elevador operação",  legal_basis: "Art. 23, §único-d", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "manutenção rotina",  legal_basis: "Art. 23, §único-e", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "jardinagem",         legal_basis: "Art. 23, §único-f", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "dedetização",        legal_basis: "Art. 23, §único-g", category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "lixo",               legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "coleta",             legal_basis: "Art. 23, III",      category: ConominioExpenseCategory::DespesasOrdinarias },
-    KeywordRule { keyword: "reparo pequeno",     legal_basis: "Art. 23, §único-e", category: ConominioExpenseCategory::DespesasOrdinarias },
-
+    KeywordRule {
+        keyword: "condomínio",
+        legal_basis: "Art. 23, §único",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "agua",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "água",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "gas",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "gás",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "luz",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "energia",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "limpeza",
+        legal_basis: "Art. 23, §único-a",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "zeladoria",
+        legal_basis: "Art. 23, §único-a",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "porteiro",
+        legal_basis: "Art. 23, §único-a",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "faxineiro",
+        legal_basis: "Art. 23, §único-a",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "segurança",
+        legal_basis: "Art. 23, §único-b",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "piscina",
+        legal_basis: "Art. 23, §único-c",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "academia",
+        legal_basis: "Art. 23, §único-c",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "elevador operação",
+        legal_basis: "Art. 23, §único-d",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "manutenção rotina",
+        legal_basis: "Art. 23, §único-e",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "jardinagem",
+        legal_basis: "Art. 23, §único-f",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "dedetização",
+        legal_basis: "Art. 23, §único-g",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "lixo",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "coleta",
+        legal_basis: "Art. 23, III",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
+    KeywordRule {
+        keyword: "reparo pequeno",
+        legal_basis: "Art. 23, §único-e",
+        category: ConominioExpenseCategory::DespesasOrdinarias,
+    },
     // ── Art. 22: Despesas Extraordinárias (landlord) ───────────────────────
-    KeywordRule { keyword: "fundo reserva",           legal_basis: "Art. 22, X",    category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "fundo de reserva",        legal_basis: "Art. 22, X",    category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "obras estruturais",       legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "reforma fachada",         legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "pintura fachada",         legal_basis: "Art. 22, IX",   category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "pintura áreas comuns",    legal_basis: "Art. 22, IX",   category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "elevador substituição",   legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "elevador reforma",        legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "impermeabilização",       legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "retrofitting",            legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "ampliação",               legal_basis: "Art. 22, VII",  category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "construção",              legal_basis: "Art. 22, VII",  category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "instalação",              legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "substituição equipamento",legal_basis: "Art. 22, VIII", category: ConominioExpenseCategory::DespesasExtraordinarias },
-    KeywordRule { keyword: "modernização",            legal_basis: "Art. 22, VII",  category: ConominioExpenseCategory::DespesasExtraordinarias },
+    KeywordRule {
+        keyword: "fundo reserva",
+        legal_basis: "Art. 22, X",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "fundo de reserva",
+        legal_basis: "Art. 22, X",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "obras estruturais",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "reforma fachada",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "pintura fachada",
+        legal_basis: "Art. 22, IX",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "pintura áreas comuns",
+        legal_basis: "Art. 22, IX",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "elevador substituição",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "elevador reforma",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "impermeabilização",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "retrofitting",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "ampliação",
+        legal_basis: "Art. 22, VII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "construção",
+        legal_basis: "Art. 22, VII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "instalação",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "substituição equipamento",
+        legal_basis: "Art. 22, VIII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
+    KeywordRule {
+        keyword: "modernização",
+        legal_basis: "Art. 22, VII",
+        category: ConominioExpenseCategory::DespesasExtraordinarias,
+    },
 ];
 
 // ── Law: Lei do Inquilinato ───────────────────────────────────────────────────
@@ -119,7 +262,8 @@ impl TenancyLaw for LeiDoInquilinato {
     ///
     /// To inspect *why* a description was classified, use `classify_with_rule()`.
     fn classify_expense(&self, description: &str) -> Option<ConominioExpenseCategory> {
-        self.classify_with_rule(description).map(|r| r.category.clone())
+        self.classify_with_rule(description)
+            .map(|r| r.category.clone())
     }
 
     /// Conservative default: unclassified expenses fall on the tenant.
@@ -128,9 +272,15 @@ impl TenancyLaw for LeiDoInquilinato {
         Some(ConominioExpenseCategory::DespesasOrdinarias)
     }
 
-    fn max_deposit_months(&self) -> Option<u8> { Some(3) }    // Art. 38
-    fn landlord_termination_notice_days(&self) -> u32 { 30 }  // Art. 46
-    fn tenant_vacate_notice_days(&self) -> u32 { 30 }         // Art. 6
+    fn max_deposit_months(&self) -> Option<u8> {
+        Some(3)
+    } // Art. 38
+    fn landlord_termination_notice_days(&self) -> u32 {
+        30
+    } // Art. 46
+    fn tenant_vacate_notice_days(&self) -> u32 {
+        30
+    } // Art. 6
 
     fn allowed_guarantee_types(&self) -> &'static [GuaranteeType] {
         BR_GUARANTEES
@@ -144,12 +294,11 @@ impl LeiDoInquilinato {
     ///   - Audit logging (`rule.legal_basis` explains the classification)
     ///   - UI tooltips ("Classified as ordinária per Art. 23, III")
     ///   - Per-rule unit testing
-    pub fn classify_with_rule<'a>(
-        &self,
-        description: &str,
-    ) -> Option<&'a KeywordRule> {
+    pub fn classify_with_rule<'a>(&self, description: &str) -> Option<&'a KeywordRule> {
         let lower = description.to_lowercase();
-        EXPENSE_RULES.iter().find(|rule| lower.contains(rule.keyword))
+        EXPENSE_RULES
+            .iter()
+            .find(|rule| lower.contains(rule.keyword))
     }
 }
 
@@ -171,7 +320,9 @@ impl TaxEngine for BrazilIrrf {
         })
     }
 
-    fn remittance_currency(&self) -> Currency { Currency::Brl }
+    fn remittance_currency(&self) -> Currency {
+        Currency::Brl
+    }
 }
 
 // ── Credit: Serasa Experian ───────────────────────────────────────────────────
@@ -179,9 +330,15 @@ impl TaxEngine for BrazilIrrf {
 pub struct SerasaBureau;
 
 impl CreditBureau for SerasaBureau {
-    fn name(&self) -> &'static str { "Serasa Experian" }
-    fn applicant_id_field(&self) -> CreditIdField { CreditIdField::Cpf }
-    fn minimum_score_auto_approve(&self) -> Option<i32> { Some(700) }
+    fn name(&self) -> &'static str {
+        "Serasa Experian"
+    }
+    fn applicant_id_field(&self) -> CreditIdField {
+        CreditIdField::Cpf
+    }
+    fn minimum_score_auto_approve(&self) -> Option<i32> {
+        Some(700)
+    }
 }
 
 // ── Root: BrazilMarket ────────────────────────────────────────────────────────
@@ -189,16 +346,32 @@ impl CreditBureau for SerasaBureau {
 pub struct BrazilMarket;
 
 impl MarketConfig for BrazilMarket {
-    fn jurisdiction(&self) -> Jurisdiction { Jurisdiction::Br }
-    fn default_currency(&self) -> Currency { Currency::Brl }
-    fn display_name(&self) -> &'static str { "Brazil" }
+    fn jurisdiction(&self) -> Jurisdiction {
+        Jurisdiction::Br
+    }
+    fn default_currency(&self) -> Currency {
+        Currency::Brl
+    }
+    fn display_name(&self) -> &'static str {
+        "Brazil"
+    }
 
-    fn tenancy_law(&self) -> Option<&dyn TenancyLaw> { Some(&LeiDoInquilinato) }
-    fn anti_discrimination_law(&self) -> Option<&dyn AntiDiscriminationLaw> { None }
-    fn str_regulation(&self) -> Option<&dyn StrRegulation> { None }
+    fn tenancy_law(&self) -> Option<&dyn TenancyLaw> {
+        Some(&LeiDoInquilinato)
+    }
+    fn anti_discrimination_law(&self) -> Option<&dyn AntiDiscriminationLaw> {
+        None
+    }
+    fn str_regulation(&self) -> Option<&dyn StrRegulation> {
+        None
+    }
 
-    fn tax_engine(&self) -> &dyn TaxEngine { &BrazilIrrf }
-    fn credit_bureau(&self) -> &dyn CreditBureau { &SerasaBureau }
+    fn tax_engine(&self) -> &dyn TaxEngine {
+        &BrazilIrrf
+    }
+    fn credit_bureau(&self) -> &dyn CreditBureau {
+        &SerasaBureau
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -218,8 +391,13 @@ mod tests {
     #[test]
     fn test_fundo_reserva_is_extraordinaria() {
         let law = LeiDoInquilinato;
-        let rule = law.classify_with_rule("Fundo de Reserva — Dezembro").unwrap();
-        assert_eq!(rule.category, ConominioExpenseCategory::DespesasExtraordinarias);
+        let rule = law
+            .classify_with_rule("Fundo de Reserva — Dezembro")
+            .unwrap();
+        assert_eq!(
+            rule.category,
+            ConominioExpenseCategory::DespesasExtraordinarias
+        );
         assert_eq!(rule.legal_basis, "Art. 22, X");
     }
 

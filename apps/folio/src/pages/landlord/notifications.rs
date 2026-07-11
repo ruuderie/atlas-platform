@@ -19,33 +19,33 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationRow {
-    pub id:                 String,
-    pub notification_type:  String,
-    pub title:              String,
-    pub body:               String,
-    pub priority:           String,
-    pub entity_type:        Option<String>,
-    pub metadata:           Option<serde_json::Value>,
+    pub id: String,
+    pub notification_type: String,
+    pub title: String,
+    pub body: String,
+    pub priority: String,
+    pub entity_type: Option<String>,
+    pub metadata: Option<serde_json::Value>,
     pub channels_attempted: serde_json::Value,
-    pub read_at:            Option<String>,
-    pub created_at:         String,
+    pub read_at: Option<String>,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrefRow {
-    pub id:         String,
-    pub channel:    String,
-    pub config:     serde_json::Value,
-    pub enabled:    bool,
+    pub id: String,
+    pub channel: String,
+    pub config: serde_json::Value,
+    pub enabled: bool,
     pub applies_to: Vec<String>,
     pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelSettingRow {
-    pub key:       String,
-    pub value:     String,
-    pub is_set:    bool,
+    pub key: String,
+    pub value: String,
+    pub is_set: bool,
     pub is_masked: bool,
 }
 
@@ -57,7 +57,9 @@ struct UnreadCountResponse {
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
     headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -75,11 +77,10 @@ pub async fn fetch_notifications(
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    let limit  = 30u64;
+    let limit = 30u64;
     let offset = page * limit;
-    let url = format!(
-        "/api/folio/notifications?limit={limit}&offset={offset}&unread={unread_only}"
-    );
+    let url =
+        format!("/api/folio/notifications?limit={limit}&offset={offset}&unread={unread_only}");
     crate::atlas_client::authenticated_get::<Vec<NotificationRow>>(&url, &token, None)
         .await
         .map_err(|e| server_fn::error::ServerFnError::new(e))
@@ -92,8 +93,12 @@ pub async fn fetch_unread_count() -> Result<u64, server_fn::error::ServerFnError
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let resp = crate::atlas_client::authenticated_get::<UnreadCountResponse>(
-        "/api/folio/notifications/unread-count", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))?;
+        "/api/folio/notifications/unread-count",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))?;
     Ok(resp.count)
 }
 
@@ -105,9 +110,12 @@ pub async fn mark_read(id: String) -> Result<(), server_fn::error::ServerFnError
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_post::<serde_json::Value, serde_json::Value>(
         &format!("/api/folio/notifications/{id}/read"),
-        &token, None,
+        &token,
+        None,
         &serde_json::json!({}),
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))?;
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))?;
     Ok(())
 }
 
@@ -119,9 +127,12 @@ pub async fn mark_all_read() -> Result<(), server_fn::error::ServerFnError> {
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_post::<serde_json::Value, serde_json::Value>(
         "/api/folio/notifications/read-all",
-        &token, None,
+        &token,
+        None,
         &serde_json::json!({}),
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))?;
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))?;
     Ok(())
 }
 
@@ -135,7 +146,9 @@ pub async fn dismiss_notification(id: String) -> Result<(), server_fn::error::Se
         &format!("/api/folio/notifications/{id}"),
         &token,
         None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))?;
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))?;
     Ok(())
 }
 
@@ -146,28 +159,35 @@ pub async fn fetch_prefs() -> Result<Vec<PrefRow>, server_fn::error::ServerFnErr
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<PrefRow>>(
-        "/api/folio/notification-prefs", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))
+        "/api/folio/notification-prefs",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))
 }
 
 #[server(UpsertPref, "/api")]
 pub async fn upsert_pref(
-    channel:    String,
-    config:     String,
-    enabled:    bool,
+    channel: String,
+    config: String,
+    enabled: bool,
     applies_to: Vec<String>,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    let config_val: serde_json::Value = serde_json::from_str(&config)
-        .unwrap_or_else(|_| serde_json::json!({}));
+    let config_val: serde_json::Value =
+        serde_json::from_str(&config).unwrap_or_else(|_| serde_json::json!({}));
     crate::atlas_client::authenticated_put::<serde_json::Value, ()>(
         &format!("/api/folio/notification-prefs/{channel}"),
-        &token, None,
+        &token,
+        None,
         &serde_json::json!({ "config": config_val, "enabled": enabled, "applies_to": applies_to }),
-    ).await.ok();
+    )
+    .await
+    .ok();
     Ok(())
 }
 
@@ -181,24 +201,31 @@ pub async fn delete_pref(channel: String) -> Result<(), server_fn::error::Server
         &format!("/api/folio/notification-prefs/{channel}"),
         &token,
         None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))?;
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))?;
     Ok(())
 }
 
 #[server(FetchChannelSettings, "/api")]
-pub async fn fetch_channel_settings() -> Result<Vec<ChannelSettingRow>, server_fn::error::ServerFnError> {
+pub async fn fetch_channel_settings(
+) -> Result<Vec<ChannelSettingRow>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<ChannelSettingRow>>(
-        "/api/folio/notification-channel-settings", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e))
+        "/api/folio/notification-channel-settings",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e))
 }
 
 #[server(UpsertChannelSetting, "/api")]
 pub async fn upsert_channel_setting(
-    key:   String,
+    key: String,
     value: String,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
@@ -207,9 +234,12 @@ pub async fn upsert_channel_setting(
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_put::<serde_json::Value, ()>(
         "/api/folio/notification-channel-settings",
-        &token, None,
+        &token,
+        None,
         &serde_json::json!({ "key": key, "value": value }),
-    ).await.ok();
+    )
+    .await
+    .ok();
     Ok(())
 }
 
@@ -217,49 +247,49 @@ pub async fn upsert_channel_setting(
 
 fn notif_icon(ntype: &str) -> &'static str {
     match ntype {
-        "rent_due"             => "payments",
-        "lease_expiring"       => "calendar_today",
-        "maintenance_request"  => "build",
-        "message_received"     => "chat_bubble",
-        "violation_filed"      => "gavel",
+        "rent_due" => "payments",
+        "lease_expiring" => "calendar_today",
+        "maintenance_request" => "build",
+        "message_received" => "chat_bubble",
+        "violation_filed" => "gavel",
         "inspection_scheduled" => "fact_check",
-        "payment_received"     => "price_check",
-        "lead_assigned"        => "person_add",
-        "scorecard_nudge"      => "insights",
-        "announcement"         => "campaign",
-        "system"               => "notifications",
-        _                      => "circle_notifications",
+        "payment_received" => "price_check",
+        "lead_assigned" => "person_add",
+        "scorecard_nudge" => "insights",
+        "announcement" => "campaign",
+        "system" => "notifications",
+        _ => "circle_notifications",
     }
 }
 
 fn priority_badge(p: &str) -> (&'static str, &'static str) {
     match p {
         "urgent" => ("notif-badge notif-badge--urgent", "Urgent"),
-        "high"   => ("notif-badge notif-badge--high",   "High"),
-        "low"    => ("notif-badge notif-badge--low",    "Low"),
-        _        => ("", ""),
+        "high" => ("notif-badge notif-badge--high", "High"),
+        "low" => ("notif-badge notif-badge--low", "Low"),
+        _ => ("", ""),
     }
 }
 
 fn channel_icon(ch: &str) -> &'static str {
     match ch {
-        "telegram"  => "send",
-        "whatsapp"  => "chat",
-        "sms"       => "sms",
-        "email"     => "mail",
-        "in_app"    => "notifications",
-        _           => "device_unknown",
+        "telegram" => "send",
+        "whatsapp" => "chat",
+        "sms" => "sms",
+        "email" => "mail",
+        "in_app" => "notifications",
+        _ => "device_unknown",
     }
 }
 
 fn channel_label(ch: &str) -> &'static str {
     match ch {
-        "telegram"  => "Telegram",
-        "whatsapp"  => "WhatsApp",
-        "sms"       => "SMS",
-        "email"     => "Email",
-        "in_app"    => "In-App",
-        _           => "Unknown",
+        "telegram" => "Telegram",
+        "whatsapp" => "WhatsApp",
+        "sms" => "SMS",
+        "email" => "Email",
+        "in_app" => "In-App",
+        _ => "Unknown",
     }
 }
 
@@ -267,8 +297,8 @@ fn channel_label(ch: &str) -> &'static str {
 
 #[component]
 pub fn NotificationsPage() -> impl IntoView {
-    let active_tab    = RwSignal::new(0usize); // 0 = Inbox, 1 = Channels
-    let unread_only   = RwSignal::new(false);
+    let active_tab = RwSignal::new(0usize); // 0 = Inbox, 1 = Channels
+    let unread_only = RwSignal::new(false);
     let refetch_inbox = RwSignal::new(0u32);
 
     let notifications = Resource::new(
@@ -276,10 +306,7 @@ pub fn NotificationsPage() -> impl IntoView {
         move |(_, unread)| fetch_notifications(0, unread),
     );
 
-    let unread_count = Resource::new(
-        move || refetch_inbox.get(),
-        |_| fetch_unread_count(),
-    );
+    let unread_count = Resource::new(move || refetch_inbox.get(), |_| fetch_unread_count());
 
     let handle_mark_all = {
         let refetch_inbox = refetch_inbox;
@@ -361,8 +388,8 @@ pub fn NotificationsPage() -> impl IntoView {
 #[component]
 fn InboxTab(
     notifications: Resource<Result<Vec<NotificationRow>, server_fn::error::ServerFnError>>,
-    unread_only:   RwSignal<bool>,
-    refetch:       RwSignal<u32>,
+    unread_only: RwSignal<bool>,
+    refetch: RwSignal<u32>,
 ) -> impl IntoView {
     view! {
         <div class="notif-inbox">
@@ -419,20 +446,27 @@ fn InboxTab(
 
 #[component]
 fn NotifCard(notif: NotificationRow, refetch: RwSignal<u32>) -> impl IntoView {
-    let id         = notif.id.clone();
-    let id2        = id.clone();
-    let is_unread  = notif.read_at.is_none();
-    let icon       = notif_icon(&notif.notification_type).to_string();
+    let id = notif.id.clone();
+    let id2 = id.clone();
+    let is_unread = notif.read_at.is_none();
+    let icon = notif_icon(&notif.notification_type).to_string();
     let (badge_cls, badge_label) = priority_badge(&notif.priority);
-    let badge_cls  = badge_cls.to_string();
+    let badge_cls = badge_cls.to_string();
     let badge_label = badge_label.to_string();
 
     // Delivery channel chips
-    let channels: Vec<String> = notif.channels_attempted
+    let channels: Vec<String> = notif
+        .channels_attempted
         .as_array()
-        .map(|arr| arr.iter()
-            .filter_map(|v| v.get("channel").and_then(|c| c.as_str()).map(|s| s.to_string()))
-            .collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| {
+                    v.get("channel")
+                        .and_then(|c| c.as_str())
+                        .map(|s| s.to_string())
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
     let handle_read = move |_| {
@@ -499,47 +533,45 @@ fn NotifCard(notif: NotificationRow, refetch: RwSignal<u32>) -> impl IntoView {
 
 #[component]
 fn ChannelsTab() -> impl IntoView {
-    let refetch_prefs    = RwSignal::new(0u32);
+    let refetch_prefs = RwSignal::new(0u32);
     let refetch_settings = RwSignal::new(0u32);
 
-    let prefs = Resource::new(
-        move || refetch_prefs.get(),
-        |_| fetch_prefs(),
-    );
-    let settings = Resource::new(
-        move || refetch_settings.get(),
-        |_| fetch_channel_settings(),
-    );
+    let prefs = Resource::new(move || refetch_prefs.get(), |_| fetch_prefs());
+    let settings = Resource::new(move || refetch_settings.get(), |_| fetch_channel_settings());
 
     // New pref form state
-    let new_channel  = RwSignal::new("telegram".to_string());
-    let new_config   = RwSignal::new("{}".to_string());
-    let new_enabled  = RwSignal::new(true);
-    let saving_pref  = RwSignal::new(false);
-    let pref_err     = RwSignal::<Option<String>>::new(None);
+    let new_channel = RwSignal::new("telegram".to_string());
+    let new_config = RwSignal::new("{}".to_string());
+    let new_enabled = RwSignal::new(true);
+    let saving_pref = RwSignal::new(false);
+    let pref_err = RwSignal::<Option<String>>::new(None);
 
     // Setting form state
-    let setting_key   = RwSignal::new("notify_channel_telegram_bot_token".to_string());
+    let setting_key = RwSignal::new("notify_channel_telegram_bot_token".to_string());
     let setting_value = RwSignal::new(String::new());
     let saving_setting = RwSignal::new(false);
 
     let save_pref = move |_| {
-        let channel   = new_channel.get_untracked();
-        let config    = new_config.get_untracked();
-        let enabled   = new_enabled.get_untracked();
+        let channel = new_channel.get_untracked();
+        let config = new_config.get_untracked();
+        let enabled = new_enabled.get_untracked();
         pref_err.set(None);
         saving_pref.set(true);
         spawn_local(async move {
             match upsert_pref(channel, config, enabled, vec![]).await {
-                Ok(()) => { refetch_prefs.update(|n| *n += 1); }
-                Err(e) => { pref_err.set(Some(e.to_string())); }
+                Ok(()) => {
+                    refetch_prefs.update(|n| *n += 1);
+                }
+                Err(e) => {
+                    pref_err.set(Some(e.to_string()));
+                }
             }
             saving_pref.set(false);
         });
     };
 
     let save_setting = move |_| {
-        let key   = setting_key.get_untracked();
+        let key = setting_key.get_untracked();
         let value = setting_value.get_untracked();
         saving_setting.set(true);
         spawn_local(async move {
@@ -710,11 +742,11 @@ fn ChannelsTab() -> impl IntoView {
 fn PrefCard(pref: PrefRow, refetch: RwSignal<u32>) -> impl IntoView {
     let channel = pref.channel.clone();
     let channel2 = channel.clone();
-    let icon    = channel_icon(&channel).to_string();
-    let label   = channel_label(&channel).to_string();
+    let icon = channel_icon(&channel).to_string();
+    let label = channel_label(&channel).to_string();
 
-    let config_str = serde_json::to_string_pretty(&pref.config)
-        .unwrap_or_else(|_| "{}".to_string());
+    let config_str =
+        serde_json::to_string_pretty(&pref.config).unwrap_or_else(|_| "{}".to_string());
 
     let handle_delete = move |_| {
         let ch = channel2.clone();
@@ -761,7 +793,8 @@ fn PrefCard(pref: PrefRow, refetch: RwSignal<u32>) -> impl IntoView {
 #[component]
 fn SettingRow(row: ChannelSettingRow, refetch: RwSignal<u32>) -> impl IntoView {
     // Pretty-print the key
-    let label = row.key
+    let label = row
+        .key
         .trim_start_matches("notify_channel_")
         .replace('_', " ")
         .split_whitespace()

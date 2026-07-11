@@ -8,20 +8,20 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VendorSummary {
-    pub id:                    Uuid,
-    pub business_name:         String,
-    pub trade_type:            Option<String>,
-    pub status:                String,
-    pub is_emergency_available:bool,
-    pub rating_avg:            Option<f64>,
-    pub created_at:            String,
+    pub id: Uuid,
+    pub business_name: String,
+    pub trade_type: Option<String>,
+    pub status: String,
+    pub is_emergency_available: bool,
+    pub rating_avg: Option<f64>,
+    pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -32,19 +32,24 @@ pub async fn fetch_vendors() -> Result<Vec<VendorSummary>, server_fn::error::Ser
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<Vec<VendorSummary>>(
-        "/api/folio/vendors", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<VendorSummary>>("/api/folio/vendors", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -52,22 +57,22 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 fn trade_icon(trade: Option<&str>) -> &'static str {
     match trade {
-        Some(t) if t.contains("plumb")    => "🔧",
+        Some(t) if t.contains("plumb") => "🔧",
         Some(t) if t.contains("electric") => "⚡",
-        Some(t) if t.contains("hvac")     => "❄️",
-        Some(t) if t.contains("paint")    => "🎨",
-        Some(t) if t.contains("roof")     => "🏠",
-        Some(t) if t.contains("landscape")=> "🌿",
-        Some(t) if t.contains("pest")     => "🐜",
-        Some(t) if t.contains("locksmith")=> "🔑",
-        Some(t) if t.contains("clean")    => "🧹",
-        Some(t) if t.contains("general")  => "🛠",
-        _                                  => "🏗",
+        Some(t) if t.contains("hvac") => "❄️",
+        Some(t) if t.contains("paint") => "🎨",
+        Some(t) if t.contains("roof") => "🏠",
+        Some(t) if t.contains("landscape") => "🌿",
+        Some(t) if t.contains("pest") => "🐜",
+        Some(t) if t.contains("locksmith") => "🔑",
+        Some(t) if t.contains("clean") => "🧹",
+        Some(t) if t.contains("general") => "🛠",
+        _ => "🏗",
     }
 }
 
 fn stars(rating: f64) -> String {
-    let full  = rating.floor() as usize;
+    let full = rating.floor() as usize;
     let empty = 5 - full.min(5);
     "★".repeat(full) + &"☆".repeat(empty)
 }
@@ -76,21 +81,18 @@ fn stars(rating: f64) -> String {
 
 #[component]
 pub fn ContractorMarketplace() -> impl IntoView {
-    let refresh    = RwSignal::new(0u32);
-    let trade_filter= RwSignal::new("all".to_string());
-    let search_q   = RwSignal::new(String::new());
-    let show_add   = RwSignal::new(false);
+    let refresh = RwSignal::new(0u32);
+    let trade_filter = RwSignal::new("all".to_string());
+    let search_q = RwSignal::new(String::new());
+    let show_add = RwSignal::new(false);
 
     // Add vendor form state
-    let new_biz    = RwSignal::new(String::new());
-    let new_trade  = RwSignal::new("general_contractor".to_string());
-    let new_emerg  = RwSignal::new(false);
-    let adding     = RwSignal::new(false);
+    let new_biz = RwSignal::new(String::new());
+    let new_trade = RwSignal::new("general_contractor".to_string());
+    let new_emerg = RwSignal::new(false);
+    let adding = RwSignal::new(false);
 
-    let vendors_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_vendors(),
-    );
+    let vendors_res = Resource::new(move || refresh.get(), |_| fetch_vendors());
 
     view! {
         <div class="main-area">

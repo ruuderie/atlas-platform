@@ -26,25 +26,88 @@ use serde::{Deserialize, Serialize};
 // ── Static channel definitions (STR-focused) ──────────────────────────────────
 
 struct StrChannel {
-    id:       &'static str,
-    name:     &'static str,
-    icon:     &'static str,
+    id: &'static str,
+    name: &'static str,
+    icon: &'static str,
     category: &'static str,
-    desc:     &'static str,
-    fee_pct:  Option<f64>,   // platform fee percentage
+    desc: &'static str,
+    fee_pct: Option<f64>, // platform fee percentage
 }
 
 fn str_channels() -> Vec<StrChannel> {
     vec![
-        StrChannel { id: "airbnb",          name: "Airbnb",          icon: "🏖",  category: "OTA",           desc: "100M+ active guests worldwide",                          fee_pct: Some(3.0) },
-        StrChannel { id: "vrbo",            name: "Vrbo",            icon: "🏕",  category: "OTA",           desc: "Expedia Group — strong family/group bookings",            fee_pct: Some(5.0) },
-        StrChannel { id: "bookingdotcom",   name: "Booking.com",     icon: "🌍",  category: "OTA",           desc: "EU market leader, 500M+ annual visitors",                fee_pct: Some(15.0) },
-        StrChannel { id: "tripadvisor",     name: "TripAdvisor",     icon: "🦉",  category: "OTA",           desc: "Review-driven discovery, global reach",                  fee_pct: Some(3.0) },
-        StrChannel { id: "atlas_network",   name: "Atlas Direct",    icon: "⚡",  category: "Platform",      desc: "Atlas native direct-booking — zero commission",          fee_pct: Some(0.0) },
-        StrChannel { id: "google_vacation", name: "Google Vacation",  icon: "🔍", category: "Search",        desc: "Free OTA-surface listing via Google Travel",             fee_pct: None },
-        StrChannel { id: "facebook",        name: "Facebook",        icon: "👥",  category: "Social",        desc: "Facebook Marketplace + Vacation Rental groups",          fee_pct: Some(0.0) },
-        StrChannel { id: "hipcamp",         name: "Hipcamp",         icon: "🌲",  category: "Niche",         desc: "Outdoor + unique stays — cabins, glamping, farms",       fee_pct: Some(10.0) },
-        StrChannel { id: "whimstay",        name: "Whimstay",        icon: "🎒",  category: "Niche",         desc: "Last-minute deals platform — high discount bookings",    fee_pct: Some(5.0) },
+        StrChannel {
+            id: "airbnb",
+            name: "Airbnb",
+            icon: "🏖",
+            category: "OTA",
+            desc: "100M+ active guests worldwide",
+            fee_pct: Some(3.0),
+        },
+        StrChannel {
+            id: "vrbo",
+            name: "Vrbo",
+            icon: "🏕",
+            category: "OTA",
+            desc: "Expedia Group — strong family/group bookings",
+            fee_pct: Some(5.0),
+        },
+        StrChannel {
+            id: "bookingdotcom",
+            name: "Booking.com",
+            icon: "🌍",
+            category: "OTA",
+            desc: "EU market leader, 500M+ annual visitors",
+            fee_pct: Some(15.0),
+        },
+        StrChannel {
+            id: "tripadvisor",
+            name: "TripAdvisor",
+            icon: "🦉",
+            category: "OTA",
+            desc: "Review-driven discovery, global reach",
+            fee_pct: Some(3.0),
+        },
+        StrChannel {
+            id: "atlas_network",
+            name: "Atlas Direct",
+            icon: "⚡",
+            category: "Platform",
+            desc: "Atlas native direct-booking — zero commission",
+            fee_pct: Some(0.0),
+        },
+        StrChannel {
+            id: "google_vacation",
+            name: "Google Vacation",
+            icon: "🔍",
+            category: "Search",
+            desc: "Free OTA-surface listing via Google Travel",
+            fee_pct: None,
+        },
+        StrChannel {
+            id: "facebook",
+            name: "Facebook",
+            icon: "👥",
+            category: "Social",
+            desc: "Facebook Marketplace + Vacation Rental groups",
+            fee_pct: Some(0.0),
+        },
+        StrChannel {
+            id: "hipcamp",
+            name: "Hipcamp",
+            icon: "🌲",
+            category: "Niche",
+            desc: "Outdoor + unique stays — cabins, glamping, farms",
+            fee_pct: Some(10.0),
+        },
+        StrChannel {
+            id: "whimstay",
+            name: "Whimstay",
+            icon: "🎒",
+            category: "Niche",
+            desc: "Last-minute deals platform — high discount bookings",
+            fee_pct: Some(5.0),
+        },
     ]
 }
 
@@ -52,24 +115,25 @@ fn str_channels() -> Vec<StrChannel> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrListingStub {
-    pub id:   String,
+    pub id: String,
     pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelStatus {
-    pub channel_id:     String,
-    pub is_live:        bool,
+    pub channel_id: String,
+    pub is_live: bool,
     pub last_synced_at: Option<String>,
-    pub sync_errors:    Option<String>,
-    pub rate_override:  Option<i64>,    // cents override; None = use base rate
-    pub external_url:   Option<String>,
+    pub sync_errors: Option<String>,
+    pub rate_override: Option<i64>, // cents override; None = use base rate
+    pub external_url: Option<String>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchStrListingStubs, "/api")]
-pub async fn fetch_str_listing_stubs() -> Result<Vec<StrListingStub>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_listing_stubs(
+) -> Result<Vec<StrListingStub>, server_fn::error::ServerFnError> {
     #[cfg(feature = "ssr")]
     {
         use axum::http::HeaderMap;
@@ -78,21 +142,31 @@ pub async fn fetch_str_listing_stubs() -> Result<Vec<StrListingStub>, server_fn:
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         crate::atlas_client::authenticated_get::<Vec<StrListingStub>>(
-            "/api/folio/str/listings?stub=1", &token, None,
-        ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            "/api/folio/str/listings?stub=1",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 #[server(FetchStrChannelStatus, "/api")]
-pub async fn fetch_str_channel_status(listing_id: String) -> Result<Vec<ChannelStatus>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_channel_status(
+    listing_id: String,
+) -> Result<Vec<ChannelStatus>, server_fn::error::ServerFnError> {
     #[cfg(feature = "ssr")]
     {
         use axum::http::HeaderMap;
@@ -101,17 +175,22 @@ pub async fn fetch_str_channel_status(listing_id: String) -> Result<Vec<ChannelS
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         let url = format!("/api/folio/str/listings/{listing_id}/channels");
         crate::atlas_client::authenticated_get::<Vec<ChannelStatus>>(&url, &token, None)
-            .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            .await
+            .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 #[server(SyncStrChannels, "/api")]
@@ -124,7 +203,7 @@ pub async fn sync_str_channels(listing_id: String) -> Result<(), server_fn::erro
 
 fn sync_age_label(last_synced: Option<&str>) -> String {
     match last_synced {
-        None    => "Never synced".to_string(),
+        None => "Never synced".to_string(),
         Some(s) => {
             let date = s.chars().take(10).collect::<String>();
             format!("Synced {date}")
@@ -149,7 +228,10 @@ mod tests {
 
     #[test]
     fn sync_age_label_iso_timestamp_truncates_to_date() {
-        assert_eq!(sync_age_label(Some("2026-06-27T18:30:00Z")), "Synced 2026-06-27");
+        assert_eq!(
+            sync_age_label(Some("2026-06-27T18:30:00Z")),
+            "Synced 2026-06-27"
+        );
     }
 
     #[test]
@@ -195,15 +277,23 @@ mod tests {
         let channels = str_channels();
         let atlas = channels.iter().find(|c| c.id == "atlas_network");
         assert!(atlas.is_some(), "atlas_network channel must always exist");
-        assert_eq!(atlas.unwrap().fee_pct, Some(0.0), "atlas_network must be zero-commission");
+        assert_eq!(
+            atlas.unwrap().fee_pct,
+            Some(0.0),
+            "atlas_network must be zero-commission"
+        );
     }
 
     #[test]
     fn str_channels_all_have_non_empty_name_and_icon() {
         for ch in str_channels() {
-            assert!(!ch.name.is_empty(),     "channel {:?} has empty name",     ch.id);
-            assert!(!ch.icon.is_empty(),     "channel {:?} has empty icon",     ch.id);
-            assert!(!ch.category.is_empty(), "channel {:?} has empty category", ch.id);
+            assert!(!ch.name.is_empty(), "channel {:?} has empty name", ch.id);
+            assert!(!ch.icon.is_empty(), "channel {:?} has empty icon", ch.id);
+            assert!(
+                !ch.category.is_empty(),
+                "channel {:?} has empty category",
+                ch.id
+            );
         }
     }
 
@@ -223,8 +313,8 @@ mod tests {
 #[component]
 pub fn StrSyndication() -> impl IntoView {
     let active_listing = RwSignal::new(None::<StrListingStub>);
-    let syncing        = RwSignal::new(false);
-    let synced_toast   = RwSignal::new(false);
+    let syncing = RwSignal::new(false);
+    let synced_toast = RwSignal::new(false);
 
     let stubs_res = Resource::new(|| (), |_| fetch_str_listing_stubs());
 
@@ -240,7 +330,7 @@ pub fn StrSyndication() -> impl IntoView {
         |lid| async move {
             match lid {
                 Some(id) => fetch_str_channel_status(id).await.ok(),
-                None     => None,
+                None => None,
             }
         },
     );

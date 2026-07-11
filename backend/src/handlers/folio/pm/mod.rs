@@ -7,9 +7,9 @@
 //!   3. Folio app-specific config has `"pmc_enabled": true` (enforced by
 //!      `PropertyManagerOnly` extractor — checked inside require_property_manager)
 
-pub mod clients;
-pub mod client_detail;
 pub mod analytics;
 pub mod app_config;
-pub mod invite;   // POST /api/folio/pm/clients/:account_id/invite
-pub mod onboard;  // POST /api/folio/pm/onboard  (public, token-gated)
+pub mod client_detail;
+pub mod clients;
+pub mod invite; // POST /api/folio/pm/clients/:account_id/invite
+pub mod onboard; // POST /api/folio/pm/onboard  (public, token-gated)

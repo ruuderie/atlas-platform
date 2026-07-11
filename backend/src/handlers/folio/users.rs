@@ -17,11 +17,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Serialize;
@@ -32,8 +32,7 @@ use crate::entities::user;
 // ── Route registration ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/users/{id}", get(get_counterparty_user))
+    Router::new().route("/api/folio/users/{id}", get(get_counterparty_user))
 }
 
 // ── Response types ────────────────────────────────────────────────────────────
@@ -41,31 +40,25 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 /// Non-sensitive identity fields safe to expose to the landlord.
 #[derive(Debug, Serialize)]
 pub struct CounterpartyUser {
-    pub id:         Uuid,
+    pub id: Uuid,
     pub first_name: String,
-    pub last_name:  String,
-    pub email:      String,
-    pub phone:      String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Resolve the caller's tenant_id from user_account → account.
-async fn resolve_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     let user_accounts = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user_id))
         .all(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let account_ids: Vec<Uuid> = user_accounts
-        .into_iter()
-        .map(|ua| ua.account_id)
-        .collect();
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
 
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
@@ -122,11 +115,11 @@ async fn get_counterparty_user(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(axum::response::Json(CounterpartyUser {
-        id:         target.id,
+        id: target.id,
         first_name: target.first_name,
-        last_name:  target.last_name,
-        email:      target.email,
-        phone:      target.phone,
+        last_name: target.last_name,
+        email: target.email,
+        phone: target.phone,
         created_at: target.created_at,
     }))
 }

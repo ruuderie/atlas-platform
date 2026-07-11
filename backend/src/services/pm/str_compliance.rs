@@ -23,11 +23,11 @@
 //! (checked via `case_metadata->>'permit_id'` in `atlas_cases`).
 
 use anyhow::Result;
+use chrono::NaiveDate;
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
-use chrono::NaiveDate;
 
-use crate::types::pm::{StrPermitCategory, PmRegistrationType};
+use crate::types::pm::{PmRegistrationType, StrPermitCategory};
 
 pub struct StrComplianceService;
 
@@ -42,8 +42,8 @@ impl StrComplianceService {
         expires_at: NaiveDate,
         jurisdiction_code: &str,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         let id = Uuid::new_v4();
         let now = Utc::now();
@@ -91,9 +91,9 @@ impl StrComplianceService {
         tenant_id: Uuid,
         warning_days: u32,
     ) -> Result<u32> {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, ConnectionTrait, Statement};
-        use chrono::{Utc, Duration};
-        use sea_orm::{Set, ActiveModelTrait};
+        use chrono::{Duration, Utc};
+        use sea_orm::{ActiveModelTrait, Set};
+        use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Statement};
 
         let today = Utc::now().date_naive();
         let cutoff = today + Duration::try_days(warning_days as i64).unwrap_or_default();
@@ -102,7 +102,10 @@ impl StrComplianceService {
         // Filter: expires_at IS NOT NULL AND expires_at BETWEEN today AND cutoff AND status = 'active'
         let permits = crate::entities::atlas_regulatory_registration::Entity::find()
             .filter(crate::entities::atlas_regulatory_registration::Column::TenantId.eq(tenant_id))
-            .filter(crate::entities::atlas_regulatory_registration::Column::RegistrationType.eq(PmRegistrationType::StrPermit.to_string()))
+            .filter(
+                crate::entities::atlas_regulatory_registration::Column::RegistrationType
+                    .eq(PmRegistrationType::StrPermit.to_string()),
+            )
             .filter(crate::entities::atlas_regulatory_registration::Column::Status.eq("active"))
             .all(db)
             .await?
@@ -132,9 +135,10 @@ impl StrComplianceService {
         for permit in &permits {
             // Idempotency guard: skip if an open compliance_violation case already exists for this permit.
             // Uses raw SQL because sea-orm JSONB containment is not ergonomic.
-            let already_open: bool = db.query_one(Statement::from_sql_and_values(
-                sea_orm::DatabaseBackend::Postgres,
-                r#"
+            let already_open: bool = db
+                .query_one(Statement::from_sql_and_values(
+                    sea_orm::DatabaseBackend::Postgres,
+                    r#"
                 SELECT 1
                 FROM atlas_cases
                 WHERE tenant_id = $1
@@ -143,11 +147,11 @@ impl StrComplianceService {
                   AND case_metadata->>'permit_id' = $2
                 LIMIT 1
                 "#,
-                vec![
-                    tenant_id.into(),
-                    permit.id.to_string().into(),
-                ],
-            )).await.unwrap_or(None).is_some();
+                    vec![tenant_id.into(), permit.id.to_string().into()],
+                ))
+                .await
+                .unwrap_or(None)
+                .is_some();
 
             if already_open {
                 tracing::debug!(
@@ -160,7 +164,12 @@ impl StrComplianceService {
 
             let expires_at = permit.expires_at.unwrap(); // safe: filtered above
             let days_until_expiry = (expires_at - today).num_days();
-            let priority = if days_until_expiry <= 7 { "high" } else { "medium" }.to_string();
+            let priority = if days_until_expiry <= 7 {
+                "high"
+            } else {
+                "medium"
+            }
+            .to_string();
 
             let subject = format!(
                 "STR permit expiring in {} day{}: {}",
@@ -172,9 +181,7 @@ impl StrComplianceService {
             let description = format!(
                 "STR permit {} (jurisdiction: {}) expires on {}. \
                 Renew before expiry to avoid fines under Miami-Dade STR Ordinance 2023-89.",
-                permit.registration_number,
-                permit.jurisdiction_code,
-                expires_at,
+                permit.registration_number, permit.jurisdiction_code, expires_at,
             );
 
             let case_metadata = serde_json::json!({

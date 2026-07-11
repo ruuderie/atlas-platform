@@ -15,27 +15,27 @@
 //  Complete modal   : form to POST /api/folio/inspections/{id}/complete
 // ─────────────────────────────────────────────────────────────────────────────
 
-use leptos::prelude::*;
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types (mirrors InspectionDetail from maintenance.rs handler) ──────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InspectionDetail {
-    pub id:                    Uuid,
-    pub asset_id:              Option<Uuid>,
-    pub subject:               String,
-    pub status:                String,            // "scheduled" | "completed" | "cancelled"
-    pub scheduled_at:          Option<DateTime<Utc>>,
-    pub completed_at:          Option<DateTime<Utc>>,
-    pub service_provider_id:   Option<Uuid>,
-    pub assigned_user_id:      Option<Uuid>,
-    pub estimated_cost_cents:  Option<i64>,
-    pub actual_cost_cents:     Option<i64>,
-    pub metadata:              Option<serde_json::Value>,
-    pub created_at:            DateTime<Utc>,
+    pub id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub subject: String,
+    pub status: String, // "scheduled" | "completed" | "cancelled"
+    pub scheduled_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub service_provider_id: Option<Uuid>,
+    pub assigned_user_id: Option<Uuid>,
+    pub estimated_cost_cents: Option<i64>,
+    pub actual_cost_cents: Option<i64>,
+    pub metadata: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
 }
 
 // ── Local enums ───────────────────────────────────────────────────────────────
@@ -51,11 +51,13 @@ enum InspStatus {
 impl InspStatus {
     fn from_insp(insp: &InspectionDetail) -> Self {
         match insp.status.as_str() {
-            "completed"  => InspStatus::Completed,
-            "cancelled"  => InspStatus::Cancelled,
+            "completed" => InspStatus::Completed,
+            "cancelled" => InspStatus::Cancelled,
             _ => {
                 if let Some(dt) = &insp.scheduled_at {
-                    if *dt < Utc::now() { return InspStatus::Overdue; }
+                    if *dt < Utc::now() {
+                        return InspStatus::Overdue;
+                    }
                 }
                 InspStatus::Scheduled
             }
@@ -64,19 +66,19 @@ impl InspStatus {
 
     fn label(self) -> &'static str {
         match self {
-            InspStatus::Scheduled  => "Scheduled",
-            InspStatus::Overdue    => "Overdue",
-            InspStatus::Completed  => "Completed",
-            InspStatus::Cancelled  => "Cancelled",
+            InspStatus::Scheduled => "Scheduled",
+            InspStatus::Overdue => "Overdue",
+            InspStatus::Completed => "Completed",
+            InspStatus::Cancelled => "Cancelled",
         }
     }
 
     fn css_class(self) -> &'static str {
         match self {
-            InspStatus::Scheduled  => "insp-badge insp-badge--scheduled",
-            InspStatus::Overdue    => "insp-badge insp-badge--overdue",
-            InspStatus::Completed  => "insp-badge insp-badge--completed",
-            InspStatus::Cancelled  => "insp-badge insp-badge--cancelled",
+            InspStatus::Scheduled => "insp-badge insp-badge--scheduled",
+            InspStatus::Overdue => "insp-badge insp-badge--overdue",
+            InspStatus::Completed => "insp-badge insp-badge--completed",
+            InspStatus::Cancelled => "insp-badge insp-badge--cancelled",
         }
     }
 }
@@ -92,18 +94,18 @@ enum StatusFilter {
 impl StatusFilter {
     fn label(self) -> &'static str {
         match self {
-            StatusFilter::All       => "All",
+            StatusFilter::All => "All",
             StatusFilter::Scheduled => "Scheduled",
-            StatusFilter::Overdue   => "Overdue",
+            StatusFilter::Overdue => "Overdue",
             StatusFilter::Completed => "Completed",
         }
     }
 
     fn matches(self, s: InspStatus) -> bool {
         match self {
-            StatusFilter::All       => true,
+            StatusFilter::All => true,
             StatusFilter::Scheduled => s == InspStatus::Scheduled,
-            StatusFilter::Overdue   => s == InspStatus::Overdue,
+            StatusFilter::Overdue => s == InspStatus::Overdue,
             StatusFilter::Completed => s == InspStatus::Completed,
         }
     }
@@ -114,33 +116,41 @@ impl StatusFilter {
 fn fmt_date(dt: Option<&DateTime<Utc>>) -> String {
     match dt {
         Some(d) => d.format("%b %d, %Y").to_string(),
-        None    => "—".to_string(),
+        None => "—".to_string(),
     }
 }
 
 fn fmt_cost(cents: Option<i64>) -> String {
     match cents {
         Some(c) => format!("${:.0}", c as f64 / 100.0),
-        None    => "—".to_string(),
+        None => "—".to_string(),
     }
 }
 
 fn days_label(dt: Option<&DateTime<Utc>>) -> String {
     match dt {
-        None    => "—".to_string(),
+        None => "—".to_string(),
         Some(d) => {
             let diff = (*d - Utc::now()).num_days();
-            if diff < 0       { format!("{} days ago", diff.abs()) }
-            else if diff == 0 { "Today".to_string() }
-            else              { format!("in {} days", diff) }
+            if diff < 0 {
+                format!("{} days ago", diff.abs())
+            } else if diff == 0 {
+                "Today".to_string()
+            } else {
+                format!("in {} days", diff)
+            }
         }
     }
 }
 
 fn asset_label(insp: &InspectionDetail) -> String {
     if let Some(meta) = &insp.metadata {
-        if let Some(n) = meta.get("asset_name").and_then(|v| v.as_str()) { return n.to_string(); }
-        if let Some(k) = meta.get("asset_type").and_then(|v| v.as_str()) { return k.to_string(); }
+        if let Some(n) = meta.get("asset_name").and_then(|v| v.as_str()) {
+            return n.to_string();
+        }
+        if let Some(k) = meta.get("asset_type").and_then(|v| v.as_str()) {
+            return k.to_string();
+        }
     }
     insp.asset_id
         .map(|id| format!("…{}", &id.to_string()[32..]))
@@ -151,7 +161,8 @@ fn asset_label(insp: &InspectionDetail) -> String {
 
 #[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
-    headers.get("cookie")
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| {
             s.split(';').find_map(|p| {
@@ -181,10 +192,10 @@ pub async fn fetch_inspections() -> Result<Vec<InspectionDetail>, server_fn::err
 
 #[server(ScheduleInspection, "/api")]
 pub async fn schedule_inspection(
-    asset_id:             String,
-    subject:              String,
-    notes:                Option<String>,
-    scheduled_at:         String,
+    asset_id: String,
+    subject: String,
+    notes: Option<String>,
+    scheduled_at: String,
     estimated_cost_cents: Option<i64>,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
@@ -200,7 +211,10 @@ pub async fn schedule_inspection(
         "estimated_cost_cents": estimated_cost_cents,
     });
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/folio/inspections", &token, None, &body,
+        "/api/folio/inspections",
+        &token,
+        None,
+        &body,
     )
     .await
     .map(|_| ())
@@ -209,11 +223,11 @@ pub async fn schedule_inspection(
 
 #[server(CompleteInspection, "/api")]
 pub async fn complete_inspection(
-    case_id:              String,
-    findings:             String,
-    condition_after:      Option<String>,
+    case_id: String,
+    findings: String,
+    condition_after: Option<String>,
     next_inspection_date: Option<String>,
-    actual_cost_cents:    Option<i64>,
+    actual_cost_cents: Option<i64>,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -229,26 +243,42 @@ pub async fn complete_inspection(
         "actual_cost_cents":     actual_cost_cents,
         "attachment_r2_keys":    [],
     });
-    crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        &url, &token, None, &body,
-    )
-    .await
-    .map(|_| ())
-    .map_err(|e| server_fn::error::ServerFnError::new(format!("Complete inspection failed: {e}")))
+    crate::atlas_client::authenticated_post::<_, serde_json::Value>(&url, &token, None, &body)
+        .await
+        .map(|_| ())
+        .map_err(|e| {
+            server_fn::error::ServerFnError::new(format!("Complete inspection failed: {e}"))
+        })
 }
 
 // ── KPI strip ─────────────────────────────────────────────────────────────────
 
 #[component]
 fn InspKpiStrip(inspections: Vec<InspectionDetail>) -> impl IntoView {
-    let scheduled  = inspections.iter().filter(|i| InspStatus::from_insp(i) == InspStatus::Scheduled).count();
-    let overdue    = inspections.iter().filter(|i| InspStatus::from_insp(i) == InspStatus::Overdue).count();
-    let completed  = inspections.iter().filter(|i| i.status == "completed").count();
-    let costs: Vec<i64> = inspections.iter()
+    let scheduled = inspections
+        .iter()
+        .filter(|i| InspStatus::from_insp(i) == InspStatus::Scheduled)
+        .count();
+    let overdue = inspections
+        .iter()
+        .filter(|i| InspStatus::from_insp(i) == InspStatus::Overdue)
+        .count();
+    let completed = inspections
+        .iter()
+        .filter(|i| i.status == "completed")
+        .count();
+    let costs: Vec<i64> = inspections
+        .iter()
         .filter_map(|i| i.actual_cost_cents.or(i.estimated_cost_cents))
         .collect();
-    let avg_cost_str = if costs.is_empty() { "—".to_string() }
-    else { format!("${:.0}", costs.iter().sum::<i64>() as f64 / costs.len() as f64 / 100.0) };
+    let avg_cost_str = if costs.is_empty() {
+        "—".to_string()
+    } else {
+        format!(
+            "${:.0}",
+            costs.iter().sum::<i64>() as f64 / costs.len() as f64 / 100.0
+        )
+    };
 
     view! {
         <div class="insp-kpi-strip">
@@ -287,40 +317,48 @@ fn InspKpiStrip(inspections: Vec<InspectionDetail>) -> impl IntoView {
 // ── Schedule modal ────────────────────────────────────────────────────────────
 
 #[component]
-fn ScheduleModal(
-    show:           RwSignal<bool>,
-    refetch_count:  RwSignal<u32>,
-) -> impl IntoView {
-    let subject    = RwSignal::new(String::new());
-    let asset_id   = RwSignal::new(String::new());
-    let sched_at   = RwSignal::new(String::new());
-    let est_cost   = RwSignal::new(String::new());
-    let notes      = RwSignal::new(String::new());
+fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl IntoView {
+    let subject = RwSignal::new(String::new());
+    let asset_id = RwSignal::new(String::new());
+    let sched_at = RwSignal::new(String::new());
+    let est_cost = RwSignal::new(String::new());
+    let notes = RwSignal::new(String::new());
     let submitting = RwSignal::new(false);
-    let error      = RwSignal::new(Option::<String>::None);
+    let error = RwSignal::new(Option::<String>::None);
 
-    let close = move || { show.set(false); };
+    let close = move || {
+        show.set(false);
+    };
 
     let submit = move |_| {
         let subj = subject.get();
-        let aid  = asset_id.get();
-        let sat  = sched_at.get();
+        let aid = asset_id.get();
+        let sat = sched_at.get();
         if subj.trim().is_empty() || aid.trim().is_empty() || sat.trim().is_empty() {
             error.set(Some("Subject, Asset ID, and Date are required.".into()));
             return;
         }
         submitting.set(true);
         error.set(None);
-        let cost: Option<i64> = est_cost.get().trim().parse::<f64>().ok().map(|v| (v * 100.0) as i64);
+        let cost: Option<i64> = est_cost
+            .get()
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .map(|v| (v * 100.0) as i64);
         let n = notes.get();
         let notes_opt = if n.trim().is_empty() { None } else { Some(n) };
         leptos::task::spawn_local(async move {
-            match schedule_inspection(aid, subj, notes_opt, format!("{}T09:00:00Z", sat), cost).await {
-                Ok(_)  => {
+            match schedule_inspection(aid, subj, notes_opt, format!("{}T09:00:00Z", sat), cost)
+                .await
+            {
+                Ok(_) => {
                     refetch_count.update(|c| *c += 1);
                     show.set(false);
                 }
-                Err(e) => { error.set(Some(e.to_string())); }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                }
             }
             submitting.set(false);
         });
@@ -383,39 +421,66 @@ fn ScheduleModal(
 
 #[component]
 fn CompleteModal(
-    show:          RwSignal<bool>,
-    case_id:       RwSignal<Option<Uuid>>,
+    show: RwSignal<bool>,
+    case_id: RwSignal<Option<Uuid>>,
     refetch_count: RwSignal<u32>,
 ) -> impl IntoView {
-    let findings    = RwSignal::new(String::new());
-    let condition   = RwSignal::new(String::new());
-    let next_date   = RwSignal::new(String::new());
+    let findings = RwSignal::new(String::new());
+    let condition = RwSignal::new(String::new());
+    let next_date = RwSignal::new(String::new());
     let actual_cost = RwSignal::new(String::new());
-    let submitting  = RwSignal::new(false);
-    let error       = RwSignal::new(Option::<String>::None);
+    let submitting = RwSignal::new(false);
+    let error = RwSignal::new(Option::<String>::None);
 
-    let close = move || { show.set(false); case_id.set(None); };
+    let close = move || {
+        show.set(false);
+        case_id.set(None);
+    };
 
     let submit = move |_| {
-        let cid = match case_id.get() { Some(id) => id.to_string(), None => return };
-        let f   = findings.get();
+        let cid = match case_id.get() {
+            Some(id) => id.to_string(),
+            None => return,
+        };
+        let f = findings.get();
         if f.trim().is_empty() {
             error.set(Some("Findings are required.".into()));
             return;
         }
         submitting.set(true);
         error.set(None);
-        let cost: Option<i64> = actual_cost.get().trim().parse::<f64>().ok().map(|v| (v * 100.0) as i64);
-        let next = { let n = next_date.get(); if n.trim().is_empty() { None } else { Some(n) } };
-        let cond = { let c = condition.get(); if c.trim().is_empty() { None } else { Some(c) } };
+        let cost: Option<i64> = actual_cost
+            .get()
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .map(|v| (v * 100.0) as i64);
+        let next = {
+            let n = next_date.get();
+            if n.trim().is_empty() {
+                None
+            } else {
+                Some(n)
+            }
+        };
+        let cond = {
+            let c = condition.get();
+            if c.trim().is_empty() {
+                None
+            } else {
+                Some(c)
+            }
+        };
         leptos::task::spawn_local(async move {
             match complete_inspection(cid, f, cond, next, cost).await {
-                Ok(_)  => {
+                Ok(_) => {
                     refetch_count.update(|c| *c += 1);
                     show.set(false);
                     case_id.set(None);
                 }
-                Err(e) => { error.set(Some(e.to_string())); }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                }
             }
             submitting.set(false);
         });
@@ -473,18 +538,15 @@ fn CompleteModal(
 // ── Table row ─────────────────────────────────────────────────────────────────
 
 #[component]
-fn InspTableRow(
-    insp:        InspectionDetail,
-    on_complete: impl Fn(Uuid) + 'static,
-) -> impl IntoView {
-    let status      = InspStatus::from_insp(&insp);
-    let al          = asset_label(&insp);
-    let dl          = days_label(insp.scheduled_at.as_ref());
-    let cost_disp   = insp.actual_cost_cents.or(insp.estimated_cost_cents);
-    let id_copy     = insp.id;
+fn InspTableRow(insp: InspectionDetail, on_complete: impl Fn(Uuid) + 'static) -> impl IntoView {
+    let status = InspStatus::from_insp(&insp);
+    let al = asset_label(&insp);
+    let dl = days_label(insp.scheduled_at.as_ref());
+    let cost_disp = insp.actual_cost_cents.or(insp.estimated_cost_cents);
+    let id_copy = insp.id;
     let can_complete = insp.status == "scheduled";
-    let sched_date  = fmt_date(insp.scheduled_at.as_ref());
-    let done_date   = fmt_date(insp.completed_at.as_ref());
+    let sched_date = fmt_date(insp.scheduled_at.as_ref());
+    let done_date = fmt_date(insp.completed_at.as_ref());
 
     view! {
         <tr class="insp-table-row">
@@ -551,13 +613,13 @@ fn InspTableSkeleton() -> impl IntoView {
 
 #[component]
 pub fn Inspections() -> impl IntoView {
-    let refetch_count  = RwSignal::new(0u32);
-    let inspections    = Resource::new(move || refetch_count.get(), |_| fetch_inspections());
-    let search         = RwSignal::new(String::new());
-    let status_filter  = RwSignal::new(StatusFilter::All);
-    let show_schedule  = RwSignal::new(false);
-    let show_complete  = RwSignal::new(false);
-    let complete_id    = RwSignal::new(Option::<Uuid>::None);
+    let refetch_count = RwSignal::new(0u32);
+    let inspections = Resource::new(move || refetch_count.get(), |_| fetch_inspections());
+    let search = RwSignal::new(String::new());
+    let status_filter = RwSignal::new(StatusFilter::All);
+    let show_schedule = RwSignal::new(false);
+    let show_complete = RwSignal::new(false);
+    let complete_id = RwSignal::new(Option::<Uuid>::None);
 
     let open_complete = move |id: Uuid| {
         complete_id.set(Some(id));

@@ -58,7 +58,9 @@ pub struct SubmitEntryBody {
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
     headers
         .get("cookie")
         .and_then(|v| v.to_str().ok())
@@ -72,7 +74,8 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 }
 
 #[server(FetchPendingRatings, "/api")]
-pub async fn fetch_pending_ratings() -> Result<Vec<PendingSession>, server_fn::error::ServerFnError> {
+pub async fn fetch_pending_ratings() -> Result<Vec<PendingSession>, server_fn::error::ServerFnError>
+{
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();

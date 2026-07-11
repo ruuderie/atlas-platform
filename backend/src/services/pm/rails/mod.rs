@@ -11,8 +11,8 @@
 //! | `lightning`       | btc_lightning_node       | Global              |
 //! | `kelviq`          | kelviq                   | Caribbean / USVI    |
 
-pub mod stripe_connect;
-pub mod infinitepay;
 pub mod bitcoin_onchain;
-pub mod lightning;
+pub mod infinitepay;
 pub mod kelviq;
+pub mod lightning;
+pub mod stripe_connect;

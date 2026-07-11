@@ -41,9 +41,7 @@ struct InviteRow {
 }
 
 #[server(ListNetworkPrograms, "/api")]
-pub async fn list_network_programs(
-    actor_role: String,
-) -> Result<Vec<ProgramDto>, ServerFnError> {
+pub async fn list_network_programs(actor_role: String) -> Result<Vec<ProgramDto>, ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -176,7 +174,11 @@ fn outcome_label(outcome_type: &Option<String>, outcome_status: &Option<String>)
     }
 }
 
-fn pick_program<'a>(programs: &'a [ProgramDto], preferred_slug: &str, role: &str) -> Option<&'a ProgramDto> {
+fn pick_program<'a>(
+    programs: &'a [ProgramDto],
+    preferred_slug: &str,
+    role: &str,
+) -> Option<&'a ProgramDto> {
     programs
         .iter()
         .find(|p| p.target_roles.iter().any(|r| r == role))
@@ -199,25 +201,16 @@ fn union_target_roles(programs: &[ProgramDto]) -> Vec<String> {
 /// Shared NetworkInvite panel.
 #[component]
 pub fn NetworkInvitePanel(
-    #[prop(into)]
-    actor_role: String,
-    #[prop(into)]
-    preferred_slug: String,
+    #[prop(into)] actor_role: String,
+    #[prop(into)] preferred_slug: String,
     angles: Vec<AngleCard>,
-    #[prop(optional)]
-    show_history: bool,
-    #[prop(optional)]
-    show_stats: bool,
-    #[prop(optional)]
-    show_note: bool,
-    #[prop(default = true)]
-    allow_multi: bool,
-    #[prop(optional, into)]
-    section_title: Option<String>,
-    #[prop(optional, into)]
-    footnote: Option<String>,
-    #[prop(optional, into)]
-    send_label: Option<String>,
+    #[prop(optional)] show_history: bool,
+    #[prop(optional)] show_stats: bool,
+    #[prop(optional)] show_note: bool,
+    #[prop(default = true)] allow_multi: bool,
+    #[prop(optional, into)] section_title: Option<String>,
+    #[prop(optional, into)] footnote: Option<String>,
+    #[prop(optional, into)] send_label: Option<String>,
 ) -> impl IntoView {
     let actor_role_c = actor_role.clone();
     let preferred_slug_send = RwSignal::new(preferred_slug);
@@ -274,9 +267,8 @@ pub fn NetworkInvitePanel(
 
     let title = section_title.unwrap_or_else(|| "Send an invite".into());
     let send_btn = send_label.unwrap_or_else(|| "Send invites".into());
-    let footnote_text = footnote.unwrap_or_else(|| {
-        "Optional. You can invite people anytime from your dashboard.".into()
-    });
+    let footnote_text = footnote
+        .unwrap_or_else(|| "Optional. You can invite people anytime from your dashboard.".into());
 
     let on_send = move |_| {
         let pending: Vec<(String, String)> = rows

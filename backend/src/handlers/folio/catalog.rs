@@ -12,11 +12,11 @@
 //! | POST   | /api/folio/catalog/{id}/block           | Block a date range (operator hold) |
 
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use chrono::NaiveDate;
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter};
@@ -49,10 +49,7 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 // ── Shared tenant resolution ──────────────────────────────────────────────────
 
 /// Resolve the tenant_id for a user. Same pattern as other Folio handlers.
-async fn resolve_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     let user_accounts = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user_id))
         .all(db)
@@ -269,7 +266,8 @@ async fn create_rate_rule(
                 min_duration: rule.min_duration,
                 channel: rule.channel,
                 price_override_cents: rule.price_override_cents,
-                price_modifier_pct: rule.price_modifier_pct
+                price_modifier_pct: rule
+                    .price_modifier_pct
                     .map(|d| f64::try_from(d).unwrap_or(0.0)),
                 priority: rule.priority,
                 is_active: rule.is_active,

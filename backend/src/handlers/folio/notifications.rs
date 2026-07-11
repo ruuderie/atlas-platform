@@ -17,11 +17,11 @@
 //! All routes require authentication via Bearer session token.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post, put},
-    Router,
 };
 use chrono::Utc;
 use sea_orm::{
@@ -38,10 +38,7 @@ use crate::{
 
 // ── Local helper: resolve caller's tenant_id ──────────────────────────────────
 
-async fn resolve_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     let user_accounts = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user_id))
         .all(db)
@@ -65,16 +62,25 @@ async fn resolve_tenant_id(
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Inbox
-        .route("/api/folio/notifications",                get(list_notifications))
-        .route("/api/folio/notifications/unread-count",   get(get_unread_count))
-        .route("/api/folio/notifications/read-all",       post(mark_all_read))
-        .route("/api/folio/notifications/{id}/read",      post(mark_read))
-        .route("/api/folio/notifications/{id}",           delete(dismiss))
+        .route("/api/folio/notifications", get(list_notifications))
+        .route(
+            "/api/folio/notifications/unread-count",
+            get(get_unread_count),
+        )
+        .route("/api/folio/notifications/read-all", post(mark_all_read))
+        .route("/api/folio/notifications/{id}/read", post(mark_read))
+        .route("/api/folio/notifications/{id}", delete(dismiss))
         // User channel prefs
-        .route("/api/folio/notification-prefs",           get(list_prefs))
-        .route("/api/folio/notification-prefs/{channel}", put(upsert_pref).delete(delete_pref))
+        .route("/api/folio/notification-prefs", get(list_prefs))
+        .route(
+            "/api/folio/notification-prefs/{channel}",
+            put(upsert_pref).delete(delete_pref),
+        )
         // Tenant channel settings (operator/admin)
-        .route("/api/folio/notification-channel-settings", get(get_channel_settings).put(upsert_channel_setting))
+        .route(
+            "/api/folio/notification-channel-settings",
+            get(get_channel_settings).put(upsert_channel_setting),
+        )
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -92,26 +98,26 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, StatusCode> 
 
 #[derive(Deserialize)]
 struct ListQuery {
-    limit:  Option<u64>,
+    limit: Option<u64>,
     offset: Option<u64>,
     unread: Option<bool>,
     #[serde(rename = "type")]
-    ntype:  Option<String>,
+    ntype: Option<String>,
 }
 
 #[derive(Serialize)]
 struct NotificationRow {
-    pub id:                 Uuid,
-    pub notification_type:  String,
-    pub title:              String,
-    pub body:               String,
-    pub priority:           String,
-    pub entity_type:        Option<String>,
-    pub entity_id:          Option<Uuid>,
-    pub metadata:           Option<serde_json::Value>,
+    pub id: Uuid,
+    pub notification_type: String,
+    pub title: String,
+    pub body: String,
+    pub priority: String,
+    pub entity_type: Option<String>,
+    pub entity_id: Option<Uuid>,
+    pub metadata: Option<serde_json::Value>,
     pub channels_attempted: serde_json::Value,
-    pub read_at:            Option<String>,
-    pub created_at:         String,
+    pub read_at: Option<String>,
+    pub created_at: String,
 }
 
 async fn list_notifications(
@@ -120,8 +126,8 @@ async fn list_notifications(
     Query(q): Query<ListQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    let limit     = q.limit.unwrap_or(50).min(200);
-    let offset    = q.offset.unwrap_or(0);
+    let limit = q.limit.unwrap_or(50).min(200);
+    let offset = q.offset.unwrap_or(0);
 
     let mut query = atlas_notification::Entity::find()
         .filter(atlas_notification::Column::UserId.eq(current_user.id))
@@ -154,19 +160,22 @@ async fn list_notifications(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let items: Vec<NotificationRow> = rows.into_iter().map(|n| NotificationRow {
-        id:                 n.id,
-        notification_type:  n.notification_type,
-        title:              n.title,
-        body:               n.body,
-        priority:           n.priority,
-        entity_type:        n.entity_type,
-        entity_id:          n.entity_id,
-        metadata:           n.metadata,
-        channels_attempted: n.channels_attempted,
-        read_at:            n.read_at.map(|t| t.to_rfc3339()),
-        created_at:         n.created_at.to_rfc3339(),
-    }).collect();
+    let items: Vec<NotificationRow> = rows
+        .into_iter()
+        .map(|n| NotificationRow {
+            id: n.id,
+            notification_type: n.notification_type,
+            title: n.title,
+            body: n.body,
+            priority: n.priority,
+            entity_type: n.entity_type,
+            entity_id: n.entity_id,
+            metadata: n.metadata,
+            channels_attempted: n.channels_attempted,
+            read_at: n.read_at.map(|t| t.to_rfc3339()),
+            created_at: n.created_at.to_rfc3339(),
+        })
+        .collect();
 
     Ok(axum::response::Json(items))
 }
@@ -221,7 +230,9 @@ async fn mark_all_read(
             tracing::error!("mark_all_read: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    Ok(axum::response::Json(serde_json::json!({ "marked_read": count })))
+    Ok(axum::response::Json(
+        serde_json::json!({ "marked_read": count }),
+    ))
 }
 
 // ── DELETE /api/folio/notifications/:id ──────────────────────────────────────
@@ -244,10 +255,10 @@ async fn dismiss(
 
 #[derive(Serialize)]
 struct PrefRow {
-    pub id:         Uuid,
-    pub channel:    String,
-    pub config:     serde_json::Value,
-    pub enabled:    bool,
+    pub id: Uuid,
+    pub channel: String,
+    pub config: serde_json::Value,
+    pub enabled: bool,
     pub applies_to: Vec<String>,
     pub updated_at: String,
 }
@@ -268,14 +279,17 @@ async fn list_prefs(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let items: Vec<PrefRow> = rows.into_iter().map(|p| PrefRow {
-        id:         p.id,
-        channel:    p.channel,
-        config:     p.config,
-        enabled:    p.enabled,
-        applies_to: p.applies_to,
-        updated_at: p.updated_at.to_rfc3339(),
-    }).collect();
+    let items: Vec<PrefRow> = rows
+        .into_iter()
+        .map(|p| PrefRow {
+            id: p.id,
+            channel: p.channel,
+            config: p.config,
+            enabled: p.enabled,
+            applies_to: p.applies_to,
+            updated_at: p.updated_at.to_rfc3339(),
+        })
+        .collect();
 
     Ok(axum::response::Json(items))
 }
@@ -284,8 +298,8 @@ async fn list_prefs(
 
 #[derive(Deserialize)]
 struct UpsertPrefInput {
-    config:     serde_json::Value,
-    enabled:    Option<bool>,
+    config: serde_json::Value,
+    enabled: Option<bool>,
     applies_to: Option<Vec<String>>,
 }
 
@@ -315,23 +329,29 @@ async fn upsert_pref(
     match existing {
         Some(p) => {
             let mut active: atlas_user_notification_pref::ActiveModel = p.into();
-            active.config     = Set(input.config);
-            active.enabled    = Set(input.enabled.unwrap_or(true));
+            active.config = Set(input.config);
+            active.enabled = Set(input.enabled.unwrap_or(true));
             active.applies_to = Set(input.applies_to.unwrap_or_default());
-            active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            active
+                .update(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
         None => {
             atlas_user_notification_pref::ActiveModel {
-                id:         Set(Uuid::new_v4()),
-                user_id:    Set(current_user.id),
-                tenant_id:  Set(tenant_id),
-                channel:    Set(channel),
-                config:     Set(input.config),
-                enabled:    Set(input.enabled.unwrap_or(true)),
+                id: Set(Uuid::new_v4()),
+                user_id: Set(current_user.id),
+                tenant_id: Set(tenant_id),
+                channel: Set(channel),
+                config: Set(input.config),
+                enabled: Set(input.enabled.unwrap_or(true)),
                 applies_to: Set(input.applies_to.unwrap_or_default()),
                 created_at: Set(Utc::now()),
                 updated_at: Set(Utc::now()),
-            }.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            }
+            .insert(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
     }
 
@@ -376,15 +396,13 @@ const CHANNEL_SETTING_KEYS: &[&str] = &[
     "notify_channel_email_enabled",
 ];
 
-const MASKED_KEYS: &[&str] = &[
-    "notify_channel_telegram_bot_token",
-];
+const MASKED_KEYS: &[&str] = &["notify_channel_telegram_bot_token"];
 
 #[derive(Serialize)]
 struct ChannelSettingRow {
-    key:      String,
-    value:    String,
-    is_set:   bool,
+    key: String,
+    value: String,
+    is_set: bool,
     is_masked: bool,
 }
 
@@ -403,17 +421,24 @@ async fn get_channel_settings(
         .map(|s| (s.key, s.value))
         .collect();
 
-    let rows: Vec<ChannelSettingRow> = CHANNEL_SETTING_KEYS.iter().map(|&key| {
-        let value   = settings.get(key).cloned().unwrap_or_default();
-        let is_set  = !value.is_empty();
-        let is_masked = MASKED_KEYS.contains(&key);
-        ChannelSettingRow {
-            key:       key.to_string(),
-            value:     if is_masked && is_set { "••••••••".to_string() } else { value },
-            is_set,
-            is_masked,
-        }
-    }).collect();
+    let rows: Vec<ChannelSettingRow> = CHANNEL_SETTING_KEYS
+        .iter()
+        .map(|&key| {
+            let value = settings.get(key).cloned().unwrap_or_default();
+            let is_set = !value.is_empty();
+            let is_masked = MASKED_KEYS.contains(&key);
+            ChannelSettingRow {
+                key: key.to_string(),
+                value: if is_masked && is_set {
+                    "••••••••".to_string()
+                } else {
+                    value
+                },
+                is_set,
+                is_masked,
+            }
+        })
+        .collect();
 
     Ok(axum::response::Json(rows))
 }
@@ -422,7 +447,7 @@ async fn get_channel_settings(
 
 #[derive(Deserialize)]
 struct UpsertSettingInput {
-    key:   String,
+    key: String,
     value: String,
 }
 
@@ -450,18 +475,24 @@ async fn upsert_channel_setting(
         Some(s) => {
             let mut active: tenant_setting::ActiveModel = s.into();
             active.value = Set(input.value);
-            active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            active
+                .update(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
         None => {
             tenant_setting::ActiveModel {
-                id:           Set(Uuid::new_v4()),
-                tenant_id:    Set(tenant_id),
-                key:          Set(input.key),
-                value:        Set(input.value),
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(tenant_id),
+                key: Set(input.key),
+                value: Set(input.value),
                 is_encrypted: Set(false),
-                updated_at:   Set(Utc::now()),
-                created_at:   Set(Utc::now()),
-            }.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                updated_at: Set(Utc::now()),
+                created_at: Set(Utc::now()),
+            }
+            .insert(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
     }
 

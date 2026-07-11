@@ -16,65 +16,66 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrListingSummary {
-    pub asset_id:        String,
-    pub token:           String,
-    pub name:            String,
-    pub address:         String,
-    pub city:            String,
-    pub state:           String,
-    pub listing_type:    String,    // "cabin" | "apartment" | "villa" | "house" | "boat" | "other"
-    pub max_guests:      u32,
-    pub bedrooms:        u32,
-    pub bathrooms:       f64,
+    pub asset_id: String,
+    pub token: String,
+    pub name: String,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub listing_type: String, // "cabin" | "apartment" | "villa" | "house" | "boat" | "other"
+    pub max_guests: u32,
+    pub bedrooms: u32,
+    pub bathrooms: f64,
     pub base_rate_cents: i64,
-    pub rating:          Option<f64>,
-    pub review_count:    Option<u32>,
-    pub amenities:       Vec<String>,
-    pub photo_url:       Option<String>,
-    pub is_available:    bool,
-    pub platform_tags:   Vec<String>,  // "pet_friendly", "pool", "beachfront" etc
+    pub rating: Option<f64>,
+    pub review_count: Option<u32>,
+    pub amenities: Vec<String>,
+    pub photo_url: Option<String>,
+    pub is_available: bool,
+    pub platform_tags: Vec<String>, // "pet_friendly", "pool", "beachfront" etc
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrSearchResult {
-    pub listings:   Vec<StrListingSummary>,
+    pub listings: Vec<StrListingSummary>,
     pub total_count: i64,
-    pub page:        i64,
-    pub per_page:    i64,
+    pub page: i64,
+    pub per_page: i64,
 }
 
 #[server(SearchStrListings, "/api")]
 pub async fn search_str_listings(
-    city:       String,
-    check_in:   String,
-    check_out:  String,
-    guests:     u32,
+    city: String,
+    check_in: String,
+    check_out: String,
+    guests: u32,
     listing_type: String,
-    page:       i64,
+    page: i64,
 ) -> Result<StrSearchResult, server_fn::error::ServerFnError> {
     let q = format!(
         "/api/pub/listings/str?city={city}&check_in={check_in}&check_out={check_out}&guests={guests}&listing_type={listing_type}&page={page}&per_page=12"
     );
     crate::atlas_client::authenticated_get::<StrSearchResult>(&q, "", None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn str_type_icon(t: &str) -> &'static str {
     match t {
-        "cabin"     => "🌲",
-        "villa"     => "🏰",
-        "boat"      => "⛵",
+        "cabin" => "🌲",
+        "villa" => "🏰",
+        "boat" => "⛵",
         "apartment" => "🏢",
-        "house"     => "🏡",
-        _           => "🏠",
+        "house" => "🏡",
+        _ => "🏠",
     }
 }
 
 fn render_stars(rating: f64) -> String {
-    let full  = rating.floor() as usize;
-    let half  = if rating - rating.floor() >= 0.5 { 1 } else { 0 };
+    let full = rating.floor() as usize;
+    let half = if rating - rating.floor() >= 0.5 { 1 } else { 0 };
     let empty = 5usize.saturating_sub(full + half);
     "★".repeat(full) + &"½".repeat(half) + &"☆".repeat(empty)
 }
@@ -89,17 +90,26 @@ fn fmt_nightly(cents: i64) -> String {
 pub fn StrListings() -> impl IntoView {
     let query = use_query_map();
     let q = query.get();
-    let is_embed  = q.get("embed").map(|v| v == "1").unwrap_or(false);
+    let is_embed = q.get("embed").map(|v| v == "1").unwrap_or(false);
 
     let city = RwSignal::new(q.get("city").unwrap_or_default());
     let check_in = RwSignal::new(q.get("check_in").unwrap_or_default());
     let check_out = RwSignal::new(q.get("check_out").unwrap_or_default());
-    let guests        = RwSignal::new(2u32);
-    let listing_type  = RwSignal::new("".to_string());
-    let page          = RwSignal::new(1i64);
+    let guests = RwSignal::new(2u32);
+    let listing_type = RwSignal::new("".to_string());
+    let page = RwSignal::new(1i64);
 
     let res = Resource::new(
-        move || (city.get(), check_in.get(), check_out.get(), guests.get(), listing_type.get(), page.get()),
+        move || {
+            (
+                city.get(),
+                check_in.get(),
+                check_out.get(),
+                guests.get(),
+                listing_type.get(),
+                page.get(),
+            )
+        },
         |(c, ci, co, g, lt, p)| search_str_listings(c, ci, co, g, lt, p),
     );
 

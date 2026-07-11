@@ -38,10 +38,11 @@
 //! `confirm()` calls `PmTaxService::record_ota_revenue_full()` with the booking's
 //! gross amount to record the Tourist Development Tax obligation.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    Set,
 };
 use serde_json::json;
 use uuid::Uuid;
@@ -94,10 +95,21 @@ pub struct ReservationSummary {
 /// Typed reservation errors returned from service methods.
 #[derive(Debug)]
 pub enum ReservationError {
-    Conflict { asset_id: Uuid },
-    TerminalState { id: Uuid, status: String },
-    NotFound { id: Uuid, tenant_id: Uuid },
-    InvalidWindow { check_in: DateTime<Utc>, check_out: DateTime<Utc> },
+    Conflict {
+        asset_id: Uuid,
+    },
+    TerminalState {
+        id: Uuid,
+        status: String,
+    },
+    NotFound {
+        id: Uuid,
+        tenant_id: Uuid,
+    },
+    InvalidWindow {
+        check_in: DateTime<Utc>,
+        check_out: DateTime<Utc>,
+    },
     Db(sea_orm::DbErr),
     Other(anyhow::Error),
 }
@@ -114,8 +126,14 @@ impl std::fmt::Display for ReservationError {
             ReservationError::NotFound { id, tenant_id } => {
                 write!(f, "Reservation {id} not found for tenant {tenant_id}")
             }
-            ReservationError::InvalidWindow { check_in, check_out } => {
-                write!(f, "Invalid window: check_in {check_in} >= check_out {check_out}")
+            ReservationError::InvalidWindow {
+                check_in,
+                check_out,
+            } => {
+                write!(
+                    f,
+                    "Invalid window: check_in {check_in} >= check_out {check_out}"
+                )
             }
             ReservationError::Db(e) => write!(f, "DB error: {e}"),
             ReservationError::Other(e) => write!(f, "{e:#}"),
@@ -162,13 +180,16 @@ impl ReservationService {
         }
 
         // Conflict detection — overlapping active reservations on the same asset.
-        let conflict_exists = Self::has_conflict(db, input.asset_id, input.check_in, input.check_out).await?;
+        let conflict_exists =
+            Self::has_conflict(db, input.asset_id, input.check_in, input.check_out).await?;
         if conflict_exists {
             tracing::warn!(
                 %tenant_id, asset_id = %input.asset_id,
                 "create_hold: time slot conflict detected"
             );
-            return Err(ReservationError::Conflict { asset_id: input.asset_id });
+            return Err(ReservationError::Conflict {
+                asset_id: input.asset_id,
+            });
         }
 
         // Compute derived fields.
@@ -230,7 +251,7 @@ impl ReservationService {
         let reservation = Self::fetch_owned(db, tenant_id, reservation_id).await?;
 
         match reservation.status.as_str() {
-            "hold" => {},
+            "hold" => {}
             "confirmed" => {
                 // Idempotent — already confirmed.
                 return Ok(to_summary(reservation));
@@ -253,7 +274,8 @@ impl ReservationService {
         // Record TDT / Tourist Development Tax obligation.
         // This is best-effort — a failure here does not roll back the confirmation.
         if let Some(total_cents) = updated.total_price_cents {
-            let jurisdiction_code = updated.reservation_metadata
+            let jurisdiction_code = updated
+                .reservation_metadata
                 .get("jurisdiction_code")
                 .and_then(|v| v.as_str())
                 .unwrap_or("UNKNOWN")
@@ -266,7 +288,9 @@ impl ReservationService {
                 total_cents,
                 updated.currency.as_deref().unwrap_or("USD"),
                 &jurisdiction_code,
-            ).await {
+            )
+            .await
+            {
                 tracing::error!(
                     %tenant_id, %reservation_id,
                     "confirm: TDT record failed (non-fatal): {e:#}"
@@ -334,7 +358,7 @@ impl ReservationService {
         let reservation = Self::fetch_owned(db, tenant_id, reservation_id).await?;
 
         match reservation.status.as_str() {
-            "hold" | "confirmed" => {},
+            "hold" | "confirmed" => {}
             "cancelled" => return Ok(to_summary(reservation)), // Idempotent.
             s => {
                 return Err(ReservationError::TerminalState {
@@ -369,10 +393,7 @@ impl ReservationService {
                 atlas_reservation::Column::Status,
                 Expr::val("hold_expired").into(),
             )
-            .col_expr(
-                atlas_reservation::Column::UpdatedAt,
-                Expr::val(now).into(),
-            )
+            .col_expr(atlas_reservation::Column::UpdatedAt, Expr::val(now).into())
             .filter(atlas_reservation::Column::Status.eq("hold"))
             .filter(atlas_reservation::Column::HoldExpiresAt.lt(now))
             .exec(db)
@@ -402,7 +423,9 @@ impl ReservationService {
             query = query.filter(atlas_reservation::Column::ReservedAssetId.eq(aid));
         }
 
-        let rows = query.all(db).await
+        let rows = query
+            .all(db)
+            .await
             .map_err(|e| anyhow!("list reservations DB error: {e:#}"))?;
         Ok(rows)
     }
@@ -441,7 +464,6 @@ impl ReservationService {
             .await?;
 
         Ok(conflicts > 0)
-
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

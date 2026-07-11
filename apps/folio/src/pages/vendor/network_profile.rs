@@ -15,28 +15,28 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VendorProfileDetail {
-    pub id:                      uuid::Uuid,
-    pub business_name:           Option<String>,
-    pub preferred_payment_rail:  Option<String>,
-    pub btc_wallet_address:      Option<String>,
-    pub stripe_connect_id:       Option<String>,
-    pub is_insured:              bool,
-    pub is_bonded:               bool,
-    pub is_marketplace_visible:  bool,
-    pub marketplace_bio:         Option<String>,
+    pub id: uuid::Uuid,
+    pub business_name: Option<String>,
+    pub preferred_payment_rail: Option<String>,
+    pub btc_wallet_address: Option<String>,
+    pub stripe_connect_id: Option<String>,
+    pub is_insured: bool,
+    pub is_bonded: bool,
+    pub is_marketplace_visible: bool,
+    pub marketplace_bio: Option<String>,
     pub marketplace_trade_types: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateProfileInput {
-    pub business_name:           Option<String>,
-    pub preferred_payment_rail:  Option<String>,
-    pub btc_wallet_address:      Option<String>,
-    pub stripe_connect_id:       Option<String>,
-    pub is_insured:              Option<bool>,
-    pub is_bonded:               Option<bool>,
-    pub is_marketplace_visible:  Option<bool>,
-    pub marketplace_bio:         Option<String>,
+    pub business_name: Option<String>,
+    pub preferred_payment_rail: Option<String>,
+    pub btc_wallet_address: Option<String>,
+    pub stripe_connect_id: Option<String>,
+    pub is_insured: Option<bool>,
+    pub is_bonded: Option<bool>,
+    pub is_marketplace_visible: Option<bool>,
+    pub marketplace_bio: Option<String>,
     pub marketplace_trade_types: Option<Vec<String>>,
 }
 
@@ -81,7 +81,10 @@ pub fn VendorNetworkProfile() -> impl IntoView {
             set_is_insured.set(p.is_insured);
             set_is_bonded.set(p.is_bonded);
             set_is_visible.set(p.is_marketplace_visible);
-            set_payment_rail.set(p.preferred_payment_rail.unwrap_or_else(|| "stripe".to_string()));
+            set_payment_rail.set(
+                p.preferred_payment_rail
+                    .unwrap_or_else(|| "stripe".to_string()),
+            );
             set_btc_address.set(p.btc_wallet_address.unwrap_or_default());
             set_stripe_id.set(p.stripe_connect_id.unwrap_or_default());
             set_selected_trades.set(p.marketplace_trade_types);
@@ -96,14 +99,14 @@ pub fn VendorNetworkProfile() -> impl IntoView {
         set_error_msg.set(None);
 
         let input = UpdateProfileInput {
-            business_name:           Some(business_name.get()),
-            preferred_payment_rail:  Some(payment_rail.get()),
-            btc_wallet_address:      Some(btc_address.get()),
-            stripe_connect_id:       Some(stripe_id.get()),
-            is_insured:              Some(is_insured.get()),
-            is_bonded:               Some(is_bonded.get()),
-            is_marketplace_visible:  Some(is_visible.get()),
-            marketplace_bio:         Some(bio.get()),
+            business_name: Some(business_name.get()),
+            preferred_payment_rail: Some(payment_rail.get()),
+            btc_wallet_address: Some(btc_address.get()),
+            stripe_connect_id: Some(stripe_id.get()),
+            is_insured: Some(is_insured.get()),
+            is_bonded: Some(is_bonded.get()),
+            is_marketplace_visible: Some(is_visible.get()),
+            marketplace_bio: Some(bio.get()),
             marketplace_trade_types: Some(selected_trades.get()),
         };
 

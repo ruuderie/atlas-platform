@@ -28,7 +28,7 @@
 //! The `ReservationService` calls `reserve_slots()` inside `create_hold()`
 //! and `release_slots()` inside `cancel()`.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{Datelike, NaiveDate};
 use rust_decimal::Decimal;
 use sea_orm::{
@@ -299,7 +299,8 @@ impl CatalogService {
             }
             if let Some(modifier_pct) = rule.price_modifier_pct {
                 let modifier_f64 = f64::try_from(modifier_pct).unwrap_or(0.0);
-                let price = (entry.base_price_cents as f64 * (1.0 + modifier_f64 / 100.0)).round() as i64;
+                let price =
+                    (entry.base_price_cents as f64 * (1.0 + modifier_f64 / 100.0)).round() as i64;
                 return Ok(price);
             }
         }

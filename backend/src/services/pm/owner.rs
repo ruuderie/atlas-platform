@@ -24,14 +24,13 @@
 
 use anyhow::Result;
 use chrono::{Datelike, NaiveDate, Utc};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::entities::{atlas_asset, atlas_case, atlas_contract, atlas_ledger_entry,
-                       atlas_record_relationship};
+use crate::entities::{
+    atlas_asset, atlas_case, atlas_contract, atlas_ledger_entry, atlas_record_relationship,
+};
 use crate::types::pm::PmCaseType;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -125,7 +124,9 @@ impl OwnerService {
             .filter(atlas_record_relationship::Column::SourceEntityType.eq("atlas_user"))
             .filter(atlas_record_relationship::Column::SourceEntityId.eq(owner_user_id))
             .filter(atlas_record_relationship::Column::TargetEntityType.eq("atlas_asset"))
-            .filter(atlas_record_relationship::Column::RelationshipType.eq(OWNER_ASSET_RELATIONSHIP))
+            .filter(
+                atlas_record_relationship::Column::RelationshipType.eq(OWNER_ASSET_RELATIONSHIP),
+            )
             .all(db)
             .await?;
 
@@ -142,10 +143,8 @@ impl OwnerService {
     ) -> Result<OwnerPortfolioSummary> {
         let now = Utc::now();
         let today = now.date_naive();
-        let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)
-            .unwrap_or(today);
-        let year_start = NaiveDate::from_ymd_opt(today.year(), 1, 1)
-            .unwrap_or(today);
+        let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
+        let year_start = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
 
         let asset_ids = Self::owned_asset_ids(db, tenant_id, owner_user_id).await?;
         let total_properties = asset_ids.len();
@@ -179,7 +178,8 @@ impl OwnerService {
             .await?;
 
         let active_leases = leases.len();
-        let occupied_units = leases.iter()
+        let occupied_units = leases
+            .iter()
             .filter_map(|c| c.asset_id)
             .collect::<std::collections::HashSet<_>>()
             .len();
@@ -202,33 +202,46 @@ impl OwnerService {
                 .await?
         };
 
-        let revenue_this_month_cents: i64 = entries.iter()
+        let revenue_this_month_cents: i64 = entries
+            .iter()
             .filter(|e| e.status == "paid")
-            .filter(|e| e.paid_at.map(|p| p.date_naive() >= month_start).unwrap_or(false))
+            .filter(|e| {
+                e.paid_at
+                    .map(|p| p.date_naive() >= month_start)
+                    .unwrap_or(false)
+            })
             .map(|e| e.net_amount_cents)
             .sum();
 
-        let revenue_ytd_cents: i64 = entries.iter()
+        let revenue_ytd_cents: i64 = entries
+            .iter()
             .filter(|e| e.status == "paid")
-            .filter(|e| e.paid_at.map(|p| p.date_naive() >= year_start).unwrap_or(false))
+            .filter(|e| {
+                e.paid_at
+                    .map(|p| p.date_naive() >= year_start)
+                    .unwrap_or(false)
+            })
             .map(|e| e.net_amount_cents)
             .sum();
 
-        let outstanding: Vec<_> = entries.iter()
+        let outstanding: Vec<_> = entries
+            .iter()
             .filter(|e| e.status == "pending" || e.status == "overdue")
             .collect();
         let outstanding_payments = outstanding.len();
         let outstanding_balance_cents: i64 = outstanding.iter().map(|e| e.gross_amount_cents).sum();
 
-        let paid_with_due: Vec<_> = entries.iter()
+        let paid_with_due: Vec<_> = entries
+            .iter()
             .filter(|e| e.status == "paid" && e.due_date.is_some() && e.paid_at.is_some())
             .collect();
         let on_time_payment_rate_pct = if paid_with_due.is_empty() {
             100.0
         } else {
-            let on_time = paid_with_due.iter().filter(|e| {
-                e.paid_at.unwrap().date_naive() <= e.due_date.unwrap()
-            }).count();
+            let on_time = paid_with_due
+                .iter()
+                .filter(|e| e.paid_at.unwrap().date_naive() <= e.due_date.unwrap())
+                .count();
             (on_time as f64 / paid_with_due.len() as f64) * 100.0
         };
 
@@ -240,10 +253,12 @@ impl OwnerService {
             .all(db)
             .await?;
 
-        let open_maintenance_cases = cases.iter()
+        let open_maintenance_cases = cases
+            .iter()
             .filter(|c| c.case_type == PmCaseType::Maintenance.to_string())
             .count();
-        let open_violations = cases.iter()
+        let open_violations = cases
+            .iter()
             .filter(|c| c.case_type == PmCaseType::ComplianceViolation.to_string())
             .count();
 
@@ -285,8 +300,7 @@ impl OwnerService {
             .await?;
 
         let today = Utc::now().date_naive();
-        let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)
-            .unwrap_or(today);
+        let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
 
         let mut summaries = Vec::with_capacity(assets.len());
 
@@ -301,27 +315,32 @@ impl OwnerService {
 
             let contract_ids: Vec<Uuid> = asset_leases.iter().map(|c| c.id).collect();
 
-            let (revenue_this_month_cents, outstanding_balance_cents) =
-                if contract_ids.is_empty() {
-                    (0i64, 0i64)
-                } else {
-                    let entries = atlas_ledger_entry::Entity::find()
-                        .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
-                        .filter(atlas_ledger_entry::Column::BillableEntityId.is_in(contract_ids))
-                        .all(db)
-                        .await?;
+            let (revenue_this_month_cents, outstanding_balance_cents) = if contract_ids.is_empty() {
+                (0i64, 0i64)
+            } else {
+                let entries = atlas_ledger_entry::Entity::find()
+                    .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
+                    .filter(atlas_ledger_entry::Column::BillableEntityId.is_in(contract_ids))
+                    .all(db)
+                    .await?;
 
-                    let rev: i64 = entries.iter()
-                        .filter(|e| e.status == "paid")
-                        .filter(|e| e.paid_at.map(|p| p.date_naive() >= month_start).unwrap_or(false))
-                        .map(|e| e.net_amount_cents)
-                        .sum();
-                    let outstanding: i64 = entries.iter()
-                        .filter(|e| e.status == "pending" || e.status == "overdue")
-                        .map(|e| e.gross_amount_cents)
-                        .sum();
-                    (rev, outstanding)
-                };
+                let rev: i64 = entries
+                    .iter()
+                    .filter(|e| e.status == "paid")
+                    .filter(|e| {
+                        e.paid_at
+                            .map(|p| p.date_naive() >= month_start)
+                            .unwrap_or(false)
+                    })
+                    .map(|e| e.net_amount_cents)
+                    .sum();
+                let outstanding: i64 = entries
+                    .iter()
+                    .filter(|e| e.status == "pending" || e.status == "overdue")
+                    .map(|e| e.gross_amount_cents)
+                    .sum();
+                (rev, outstanding)
+            };
 
             let cases = atlas_case::Entity::find()
                 .filter(atlas_case::Column::TenantId.eq(tenant_id))
@@ -336,10 +355,12 @@ impl OwnerService {
                 asset_type: asset.asset_type,
                 address_line_1: asset.address_line_1,
                 active_leases: asset_leases.len(),
-                open_maintenance: cases.iter()
+                open_maintenance: cases
+                    .iter()
                     .filter(|c| c.case_type == PmCaseType::Maintenance.to_string())
                     .count(),
-                open_violations: cases.iter()
+                open_violations: cases
+                    .iter()
                     .filter(|c| c.case_type == PmCaseType::ComplianceViolation.to_string())
                     .count(),
                 revenue_this_month_cents,
@@ -369,15 +390,18 @@ impl OwnerService {
             .all(db)
             .await?;
 
-        Ok(leases.into_iter().map(|c| OwnerLeaseEntry {
-            contract_id: c.id,
-            asset_id: c.asset_id,
-            start_date: c.start_date,
-            end_date: c.end_date,
-            status: c.status,
-            monthly_rent_cents: c.recurring_amount_cents,
-            currency: c.currency,
-        }).collect())
+        Ok(leases
+            .into_iter()
+            .map(|c| OwnerLeaseEntry {
+                contract_id: c.id,
+                asset_id: c.asset_id,
+                start_date: c.start_date,
+                end_date: c.end_date,
+                status: c.status,
+                monthly_rent_cents: c.recurring_amount_cents,
+                currency: c.currency,
+            })
+            .collect())
     }
 
     /// Open maintenance cases on owned assets.
@@ -399,15 +423,18 @@ impl OwnerService {
             .all(db)
             .await?;
 
-        Ok(cases.into_iter().map(|c| OwnerMaintenanceSummary {
-            case_id: c.id,
-            asset_id: c.asset_id,
-            subject: c.subject,
-            priority: c.priority,
-            status: c.status,
-            created_at: c.created_at,
-            completed_at: c.completed_at,
-        }).collect())
+        Ok(cases
+            .into_iter()
+            .map(|c| OwnerMaintenanceSummary {
+                case_id: c.id,
+                asset_id: c.asset_id,
+                subject: c.subject,
+                priority: c.priority,
+                status: c.status,
+                created_at: c.created_at,
+                completed_at: c.completed_at,
+            })
+            .collect())
     }
 
     /// Scheduled and completed inspections on owned assets.
@@ -429,19 +456,24 @@ impl OwnerService {
             .all(db)
             .await?;
 
-        Ok(cases.into_iter().map(|c| {
-            let scheduled_at = c.case_metadata.as_ref()
-                .and_then(|m| m["scheduled_date"].as_str())
-                .and_then(|s| s.parse().ok());
-            OwnerInspectionEntry {
-                case_id: c.id,
-                asset_id: c.asset_id,
-                subject: c.subject,
-                status: c.status,
-                scheduled_at,
-                completed_at: c.completed_at,
-            }
-        }).collect())
+        Ok(cases
+            .into_iter()
+            .map(|c| {
+                let scheduled_at = c
+                    .case_metadata
+                    .as_ref()
+                    .and_then(|m| m["scheduled_date"].as_str())
+                    .and_then(|s| s.parse().ok());
+                OwnerInspectionEntry {
+                    case_id: c.id,
+                    asset_id: c.asset_id,
+                    subject: c.subject,
+                    status: c.status,
+                    scheduled_at,
+                    completed_at: c.completed_at,
+                }
+            })
+            .collect())
     }
 
     // ── Owner-asset link management (PMC-only write operation) ────────────────

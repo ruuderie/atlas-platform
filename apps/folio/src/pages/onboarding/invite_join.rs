@@ -12,12 +12,12 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
-use crate::components::wizard_shell::{ResolvedInviteCode, resolve_invite_code};
+use crate::components::wizard_shell::{resolve_invite_code, ResolvedInviteCode};
 
 #[component]
 pub fn InviteJoin() -> impl IntoView {
-    let params  = use_params_map();
-    let code    = move || params.with(|p| p.get("code").map(|s| s.to_string()).unwrap_or_default());
+    let params = use_params_map();
+    let code = move || params.with(|p| p.get("code").map(|s| s.to_string()).unwrap_or_default());
 
     let resolved: Resource<Result<Option<ResolvedInviteCode>, _>> =
         Resource::new(code, |c| resolve_invite_code(c));
@@ -165,73 +165,75 @@ pub fn InviteJoin() -> impl IntoView {
 
 fn role_to_path(role: &str) -> &'static str {
     match role {
-        "landlord"          => "landlord",
-        "tenant"            => "tenant",
-        "str_guest"         => "str-guest",
-        "vendor"            => "vendor",      // → /onboard/vendor (VendorWizard)
-        "cohost"            => "cohost",
-        "owner"             => "owner",
+        "landlord" => "landlord",
+        "tenant" => "tenant",
+        "str_guest" => "str-guest",
+        "vendor" => "vendor", // → /onboard/vendor (VendorWizard)
+        "cohost" => "cohost",
+        "owner" => "owner",
         "property_owner" | "property_owner_lite" => "property-owner",
-        "agent"             => "agent",
-        "broker"            => "broker",
-        "property_manager"  => "pmc",         // → /onboard/pmc (PmcWizard)
-        _                   => "landlord",
+        "agent" => "agent",
+        "broker" => "broker",
+        "property_manager" => "pmc", // → /onboard/pmc (PmcWizard)
+        _ => "landlord",
     }
 }
 
 fn role_label(role: &str) -> &'static str {
     match role {
-        "landlord"          => "Landlord",
-        "tenant"            => "Tenant",
-        "str_guest"         => "STR Guest",
-        "vendor"            => "Vendor",
-        "cohost"            => "Co-host",
-        "owner"             => "Owner",
+        "landlord" => "Landlord",
+        "tenant" => "Tenant",
+        "str_guest" => "STR Guest",
+        "vendor" => "Vendor",
+        "cohost" => "Co-host",
+        "owner" => "Owner",
         "property_owner" | "property_owner_lite" => "Property Owner",
-        "agent"             => "Agent",
-        "broker"            => "Broker",
-        "property_manager"  => "Property Manager",
-        _                   => "User",
+        "agent" => "Agent",
+        "broker" => "Broker",
+        "property_manager" => "Property Manager",
+        _ => "User",
     }
 }
 
 fn role_icon(role: &str) -> &'static str {
     match role {
-        "landlord"          => "apartment",
-        "tenant"            => "door_front",
-        "str_guest"         => "beach_access",
-        "vendor"            => "handyman",
-        "cohost"            => "supervisor_account",
-        "owner"             => "account_balance",
+        "landlord" => "apartment",
+        "tenant" => "door_front",
+        "str_guest" => "beach_access",
+        "vendor" => "handyman",
+        "cohost" => "supervisor_account",
+        "owner" => "account_balance",
         "property_owner" | "property_owner_lite" => "home",
-        "agent"             => "real_estate_agent",
-        "broker"            => "gavel",
-        "property_manager"  => "corporate_fare",
-        _                   => "person",
+        "agent" => "real_estate_agent",
+        "broker" => "gavel",
+        "property_manager" => "corporate_fare",
+        _ => "person",
     }
 }
 
 fn role_description(role: &str) -> &'static str {
     match role {
-        "tenant"            => "Complete your profile, sign your lease, and set up your portal.",
-        "str_guest"         => "Book your stay directly and skip platform fees.",
-        "vendor"            => "Accept your work order and connect your vendor profile.",
-        "cohost"            => "Accept your co-host invitation and set up your STR workspace.",
-        "owner"             => "Activate your owner portal and view your portfolio.",
+        "tenant" => "Complete your profile, sign your lease, and set up your portal.",
+        "str_guest" => "Book your stay directly and skip platform fees.",
+        "vendor" => "Accept your work order and connect your vendor profile.",
+        "cohost" => "Accept your co-host invitation and set up your STR workspace.",
+        "owner" => "Activate your owner portal and view your portfolio.",
         "property_owner" | "property_owner_lite" => "Set up your free property tracking account.",
-        "agent"             => "Join your broker\u{2019}s workspace to manage listings and clients.",
-        "broker"            => "Set up your brokerage and invite your agent team.",
-        "property_manager"  => "Connect your PMC workspace to manage client portfolios.",
-        _                   => "Complete your profile and get started.",
+        "agent" => "Join your broker\u{2019}s workspace to manage listings and clients.",
+        "broker" => "Set up your brokerage and invite your agent team.",
+        "property_manager" => "Connect your PMC workspace to manage client portfolios.",
+        _ => "Complete your profile and get started.",
     }
 }
 
 // Minimal URL encoding for the `next` redirect param
 mod urlencoding {
     pub fn encode(s: &str) -> String {
-        s.chars().map(|c| match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
-            _ => format!("%{:02X}", c as u32),
-        }).collect()
+        s.chars()
+            .map(|c| match c {
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+                _ => format!("%{:02X}", c as u32),
+            })
+            .collect()
     }
 }

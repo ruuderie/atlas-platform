@@ -12,43 +12,53 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceCase {
-    pub id:         Uuid,
-    pub asset_id:   Option<Uuid>,
-    pub case_type:  String,
-    pub subject:    String,
-    pub status:     String,
-    pub priority:   String,
+    pub id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub case_type: String,
+    pub subject: String,
+    pub status: String,
+    pub priority: String,
     pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchMaintenanceCases, "/api")]
-pub async fn fetch_maintenance_cases() -> Result<Vec<MaintenanceCase>, server_fn::error::ServerFnError> {
+pub async fn fetch_maintenance_cases(
+) -> Result<Vec<MaintenanceCase>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<MaintenanceCase>>(
-        "/api/folio/maintenance", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/maintenance",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -56,31 +66,31 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 fn status_color(status: &str) -> &'static str {
     match status.to_lowercase().as_str() {
-        "open" | "submitted"     => "#fbbf24",
+        "open" | "submitted" => "#fbbf24",
         "in_progress" | "active" => "#60a5fa",
-        "resolved" | "closed"    => "#4ade80",
-        "cancelled"              => "#94a3b8",
-        _                        => "#94a3b8",
+        "resolved" | "closed" => "#4ade80",
+        "cancelled" => "#94a3b8",
+        _ => "#94a3b8",
     }
 }
 
 fn priority_icon(priority: &str) -> &'static str {
     match priority.to_lowercase().as_str() {
         "urgent" | "emergency" => "🚨",
-        "high"                 => "🔴",
-        "medium" | "normal"    => "🟡",
-        "low"                  => "🟢",
-        _                      => "⚪",
+        "high" => "🔴",
+        "medium" | "normal" => "🟡",
+        "low" => "🟢",
+        _ => "⚪",
     }
 }
 
 fn case_type_icon(ct: &str) -> &'static str {
     match ct.to_lowercase().as_str() {
         t if t.contains("inspection") => "🔍",
-        t if t.contains("plumb")      => "🔧",
-        t if t.contains("electric")   => "⚡",
-        t if t.contains("hvac")       => "❄️",
-        _                             => "🛠",
+        t if t.contains("plumb") => "🔧",
+        t if t.contains("electric") => "⚡",
+        t if t.contains("hvac") => "❄️",
+        _ => "🛠",
     }
 }
 
@@ -92,10 +102,7 @@ pub fn TenantMaintenanceDetail() -> impl IntoView {
     let id_str = params.get().get("id").unwrap_or_default();
     let case_id = Uuid::parse_str(&id_str).ok();
 
-    let cases_res = Resource::new(
-        || (),
-        |_| fetch_maintenance_cases(),
-    );
+    let cases_res = Resource::new(|| (), |_| fetch_maintenance_cases());
 
     view! {
         <div class="main-area">

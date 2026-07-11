@@ -31,11 +31,10 @@ impl VisitorGeo {
     /// Falls through to the US-English default for any unrecognised country.
     pub fn variant_slug(&self) -> &'static str {
         match self.country_code.as_str() {
-            "BR"                   => "folio-home-br-pt",
-            "CA"                   => "folio-home-ca-en",
-            "MX" | "CO" | "AR"
-            | "CL" | "PE" | "EC"  => "folio-home-latam-es",
-            _                      => "folio-home-us-en",
+            "BR" => "folio-home-br-pt",
+            "CA" => "folio-home-ca-en",
+            "MX" | "CO" | "AR" | "CL" | "PE" | "EC" => "folio-home-latam-es",
+            _ => "folio-home-us-en",
         }
     }
 }
@@ -74,15 +73,27 @@ pub async fn get_visitor_geo() -> Result<VisitorGeo, leptos::server_fn::error::S
 
     let continent = {
         let raw = get_header("CF-IPContinent");
-        if raw.is_empty() { "NA".to_string() } else { raw }
+        if raw.is_empty() {
+            "NA".to_string()
+        } else {
+            raw
+        }
     };
 
     let city = {
         let raw = get_header("CF-IPCity");
-        if raw.is_empty() { None } else { Some(raw) }
+        if raw.is_empty() {
+            None
+        } else {
+            Some(raw)
+        }
     };
 
-    Ok(VisitorGeo { country_code, continent, city })
+    Ok(VisitorGeo {
+        country_code,
+        continent,
+        city,
+    })
 }
 
 /// Client-side stub (used when the server function is not available).
@@ -91,8 +102,8 @@ pub async fn get_visitor_geo() -> Result<VisitorGeo, leptos::server_fn::error::S
 pub async fn get_visitor_geo() -> Result<VisitorGeo, leptos::server_fn::error::ServerFnError> {
     Ok(VisitorGeo {
         country_code: "US".to_string(),
-        continent:    "NA".to_string(),
-        city:         None,
+        continent: "NA".to_string(),
+        city: None,
     })
 }
 
@@ -105,8 +116,8 @@ mod tests {
     fn geo(country: &str) -> VisitorGeo {
         VisitorGeo {
             country_code: country.to_string(),
-            continent:    "NA".to_string(),
-            city:         None,
+            continent: "NA".to_string(),
+            city: None,
         }
     }
 
@@ -126,7 +137,8 @@ mod tests {
     fn latam_countries_map_to_es_variant() {
         for code in &["MX", "CO", "AR", "CL", "PE", "EC"] {
             assert_eq!(
-                geo(code).variant_slug(), "folio-home-latam-es",
+                geo(code).variant_slug(),
+                "folio-home-latam-es",
                 "expected latam-es for {code}"
             );
         }
@@ -141,7 +153,8 @@ mod tests {
     fn unknown_country_falls_back_to_us_default() {
         for code in &["GB", "AU", "DE", "FR", "JP", "ZZ", "XX", ""] {
             assert_eq!(
-                geo(code).variant_slug(), "folio-home-us-en",
+                geo(code).variant_slug(),
+                "folio-home-us-en",
                 "expected us-en fallback for unknown code {code:?}"
             );
         }
@@ -153,7 +166,7 @@ mod tests {
     fn default_is_us_na() {
         let d = VisitorGeo::default();
         assert_eq!(d.country_code, "");
-        assert_eq!(d.continent,    "");
+        assert_eq!(d.continent, "");
         assert!(d.city.is_none());
         // Default falls through to the US-English variant
         assert_eq!(d.variant_slug(), "folio-home-us-en");

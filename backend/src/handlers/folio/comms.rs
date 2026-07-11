@@ -30,11 +30,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use chrono::{DateTime, Utc};
 use sea_orm::{
@@ -52,7 +52,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/rooms", get(list_rooms).post(create_room))
         .route("/api/folio/rooms/support", get(get_or_create_support_room))
-        .route("/api/folio/rooms/{id}/messages", get(list_messages).post(send_message))
+        .route(
+            "/api/folio/rooms/{id}/messages",
+            get(list_messages).post(send_message),
+        )
 }
 
 // ── Input / output types ──────────────────────────────────────────────────────
@@ -76,7 +79,9 @@ struct SendMessageInput {
     #[serde(default = "default_msg_type")]
     pub message_type: String,
 }
-fn default_msg_type() -> String { "text".to_string() }
+fn default_msg_type() -> String {
+    "text".to_string()
+}
 
 #[derive(Debug, Deserialize)]
 struct MsgQuery {
@@ -85,24 +90,24 @@ struct MsgQuery {
 
 #[derive(Debug, Serialize)]
 pub struct RoomSummary {
-    pub id:           Uuid,
-    pub room_type:    String,
-    pub entity_type:  String,
-    pub entity_id:    Uuid,
-    pub is_active:    bool,
-    pub created_at:   DateTime<Utc>,
+    pub id: Uuid,
+    pub room_type: String,
+    pub entity_type: String,
+    pub entity_id: Uuid,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
     pub last_message: Option<String>,
-    pub last_at:      Option<DateTime<Utc>>,
+    pub last_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct MessageRow {
-    pub id:             Uuid,
-    pub room_id:        Uuid,
+    pub id: Uuid,
+    pub room_id: Uuid,
     pub sender_user_id: Option<Uuid>,
-    pub message_type:   String,
-    pub content:        String,
-    pub created_at:     DateTime<Utc>,
+    pub message_type: String,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -139,14 +144,14 @@ async fn list_rooms(
             .unwrap_or(None);
 
         summaries.push(RoomSummary {
-            id:           room.id,
-            room_type:    room.room_type,
-            entity_type:  room.entity_type,
-            entity_id:    room.entity_id,
-            is_active:    room.is_active,
-            created_at:   room.created_at,
+            id: room.id,
+            room_type: room.room_type,
+            entity_type: room.entity_type,
+            entity_id: room.entity_id,
+            is_active: room.is_active,
+            created_at: room.created_at,
             last_message: last.as_ref().map(|m| truncate(&m.content, 80)),
-            last_at:      last.as_ref().map(|m| m.created_at),
+            last_at: last.as_ref().map(|m| m.created_at),
         });
     }
 
@@ -164,17 +169,17 @@ async fn create_room(
 ) -> impl IntoResponse {
     let tenant_id = resolve_tenant_id(&db, user.id).await?;
 
-    let entity_id   = body.entity_id.unwrap_or(user.id);
+    let entity_id = body.entity_id.unwrap_or(user.id);
     let entity_type = body.entity_type.unwrap_or_else(|| "user".to_string());
 
     let room = atlas_ws_room::ActiveModel {
-        id:          Set(Uuid::new_v4()),
-        tenant_id:   Set(tenant_id),
-        room_type:   Set(body.room_type.clone()),
+        id: Set(Uuid::new_v4()),
+        tenant_id: Set(tenant_id),
+        room_type: Set(body.room_type.clone()),
         entity_type: Set(entity_type),
-        entity_id:   Set(entity_id),
-        is_active:   Set(true),
-        created_at:  Set(Utc::now()),
+        entity_id: Set(entity_id),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
         ..Default::default()
     };
     let created = room.insert(&db).await.map_err(|e| {
@@ -212,22 +217,27 @@ async fn get_or_create_support_room(
         room.id
     } else {
         let room = atlas_ws_room::ActiveModel {
-            id:          Set(Uuid::new_v4()),
-            tenant_id:   Set(tenant_id),
-            room_type:   Set("platform_support".to_string()),
+            id: Set(Uuid::new_v4()),
+            tenant_id: Set(tenant_id),
+            room_type: Set("platform_support".to_string()),
             entity_type: Set("user".to_string()),
-            entity_id:   Set(user.id),
-            is_active:   Set(true),
-            created_at:  Set(Utc::now()),
+            entity_id: Set(user.id),
+            is_active: Set(true),
+            created_at: Set(Utc::now()),
             ..Default::default()
         };
-        room.insert(&db).await.map_err(|e| {
-            tracing::error!(%tenant_id, "create_support_room error: {e:#}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?.id
+        room.insert(&db)
+            .await
+            .map_err(|e| {
+                tracing::error!(%tenant_id, "create_support_room error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .id
     };
 
-    Ok::<_, StatusCode>(axum::response::Json(serde_json::json!({ "room_id": room_id })))
+    Ok::<_, StatusCode>(axum::response::Json(
+        serde_json::json!({ "room_id": room_id }),
+    ))
 }
 
 /// GET /api/folio/rooms/{id}/messages
@@ -261,14 +271,17 @@ async fn list_messages(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let rows: Vec<MessageRow> = msgs.into_iter().map(|m| MessageRow {
-        id:             m.id,
-        room_id:        m.room_id,
-        sender_user_id: m.sender_user_id,
-        message_type:   m.message_type,
-        content:        m.content,
-        created_at:     m.created_at,
-    }).collect();
+    let rows: Vec<MessageRow> = msgs
+        .into_iter()
+        .map(|m| MessageRow {
+            id: m.id,
+            room_id: m.room_id,
+            sender_user_id: m.sender_user_id,
+            message_type: m.message_type,
+            content: m.content,
+            created_at: m.created_at,
+        })
+        .collect();
 
     Ok::<_, StatusCode>(axum::response::Json(rows))
 }
@@ -296,12 +309,12 @@ async fn send_message(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     let msg = atlas_ws_message::ActiveModel {
-        id:             Set(Uuid::new_v4()),
-        room_id:        Set(room_id),
+        id: Set(Uuid::new_v4()),
+        room_id: Set(room_id),
         sender_user_id: Set(Some(user.id)),
-        message_type:   Set(body.message_type),
-        content:        Set(body.content.trim().to_string()),
-        created_at:     Set(Utc::now()),
+        message_type: Set(body.message_type),
+        content: Set(body.content.trim().to_string()),
+        created_at: Set(Utc::now()),
         ..Default::default()
     };
     let created = msg.insert(&db).await.map_err(|e| {
@@ -325,10 +338,7 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
-async fn resolve_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     let user_accounts = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user_id))

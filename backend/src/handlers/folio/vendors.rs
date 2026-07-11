@@ -19,11 +19,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -114,9 +114,9 @@ async fn list_vendors(
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
 
-            let rating_avg = v.rating_avg.map(|r| {
-                r.to_string().parse::<f64>().unwrap_or(0.0)
-            });
+            let rating_avg = v
+                .rating_avg
+                .map(|r| r.to_string().parse::<f64>().unwrap_or(0.0));
 
             VendorSummary {
                 id: v.id,
@@ -167,7 +167,10 @@ async fn create_vendor(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok((StatusCode::CREATED, axum::response::Json(CreateVendorResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateVendorResponse { id }),
+    ))
 }
 
 /// PATCH /api/folio/vendors/:id/emergency

@@ -39,8 +39,8 @@
 //! | `&'static str`     | `StatuteRef`           | Typed for audit logging + URL    |
 
 use crate::types::pm::{
-    Jurisdiction, Currency, CreditIdField, SubJurisdiction, TaxRate, StatuteRef,
-    GuaranteeType, StrPermitCategory, ConominioExpenseCategory,
+    ConominioExpenseCategory, CreditIdField, Currency, GuaranteeType, Jurisdiction, StatuteRef,
+    StrPermitCategory, SubJurisdiction, TaxRate,
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -270,9 +270,15 @@ pub trait MarketConfig: Send + Sync {
     fn default_currency(&self) -> Currency;
     fn display_name(&self) -> &'static str;
 
-    fn tenancy_law(&self) -> Option<&dyn TenancyLaw> { None }
-    fn anti_discrimination_law(&self) -> Option<&dyn AntiDiscriminationLaw> { None }
-    fn str_regulation(&self) -> Option<&dyn StrRegulation> { None }
+    fn tenancy_law(&self) -> Option<&dyn TenancyLaw> {
+        None
+    }
+    fn anti_discrimination_law(&self) -> Option<&dyn AntiDiscriminationLaw> {
+        None
+    }
+    fn str_regulation(&self) -> Option<&dyn StrRegulation> {
+        None
+    }
 
     fn tax_engine(&self) -> &dyn TaxEngine;
     fn credit_bureau(&self) -> &dyn CreditBureau;
@@ -288,7 +294,9 @@ pub struct MarketRegistry {
 
 impl MarketRegistry {
     pub fn build() -> Self {
-        use crate::services::pm::market::{brazil::BrazilMarket, miami::MiamiDadeMarket, usvi::UsViMarket};
+        use crate::services::pm::market::{
+            brazil::BrazilMarket, miami::MiamiDadeMarket, usvi::UsViMarket,
+        };
         Self {
             markets: vec![
                 Box::new(BrazilMarket),
@@ -303,10 +311,12 @@ impl MarketRegistry {
             .iter()
             .find(|m| &m.jurisdiction() == jurisdiction)
             .map(|m| m.as_ref())
-            .ok_or_else(|| anyhow::anyhow!(
-                "No MarketConfig registered for {:?}. Add it to MarketRegistry::build().",
-                jurisdiction
-            ))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No MarketConfig registered for {:?}. Add it to MarketRegistry::build().",
+                    jurisdiction
+                )
+            })
     }
 }
 

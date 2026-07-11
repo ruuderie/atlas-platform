@@ -29,10 +29,10 @@
 //! | `remitted_by`          | `"operator"` (landlord remits TDT monthly)   |
 //! | `event_date`           | period_start (booking check-in date)         |
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
+use chrono::NaiveDate;
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
-use chrono::NaiveDate;
 
 pub struct PmTaxService;
 
@@ -93,9 +93,11 @@ impl PmTaxService {
             created_at: Set(Utc::now()),
         };
 
-        active.insert(db).await.map_err(|e| anyhow::anyhow!(
-            "record_ota_revenue_simple: DB insert failed for reservation {reservation_id}: {e}"
-        ))?;
+        active.insert(db).await.map_err(|e| {
+            anyhow::anyhow!(
+                "record_ota_revenue_simple: DB insert failed for reservation {reservation_id}: {e}"
+            )
+        })?;
 
         tracing::info!(
             %tenant_id, %reservation_id,
@@ -115,10 +117,16 @@ impl PmTaxService {
         period_start: NaiveDate,
     ) -> Result<Uuid> {
         Self::record_ota_revenue_full(
-            db, tenant_id, asset_id, gross_revenue_cents, currency_code, period_start,
-            0, // ota_fee_cents defaults to 0 for backward compat
+            db,
+            tenant_id,
+            asset_id,
+            gross_revenue_cents,
+            currency_code,
+            period_start,
+            0,    // ota_fee_cents defaults to 0 for backward compat
             None, // no integration ID
-        ).await
+        )
+        .await
     }
 
     /// Full OTA revenue recording with OTA fee deduction and integration source tracking.
@@ -132,8 +140,8 @@ impl PmTaxService {
         ota_fee_cents: i64,
         source_integration_id: Option<Uuid>,
     ) -> Result<Uuid> {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set, ActiveModelTrait};
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
         // ── 1. Resolve jurisdiction code for this tenant ──────────────────────
         let jurisdiction_code = {
@@ -143,9 +151,7 @@ impl PmTaxService {
                 .one(db)
                 .await?;
 
-            setting
-                .map(|s| s.value)
-                .unwrap_or_else(|| "US".to_string())
+            setting.map(|s| s.value).unwrap_or_else(|| "US".to_string())
         };
 
         // ── 2. Resolve TDT rate from market registry ──────────────────────────
@@ -233,13 +239,11 @@ impl PmTaxService {
         };
 
         match registry.resolve(&jurisdiction) {
-            Ok(market) => {
-                market
-                    .tax_engine()
-                    .str_tax_rate()
-                    .map(|r| r.rate.to_f64().unwrap_or(0.0))
-                    .unwrap_or(0.0)
-            }
+            Ok(market) => market
+                .tax_engine()
+                .str_tax_rate()
+                .map(|r| r.rate.to_f64().unwrap_or(0.0))
+                .unwrap_or(0.0),
             Err(e) => {
                 tracing::warn!(
                     jurisdiction_code,

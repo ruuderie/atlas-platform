@@ -15,15 +15,8 @@
 //! Only the fields explicitly sent in the PATCH body are updated.
 //! Internal fields (notes, btc_wallet, stripe_connect_id) are never touched here.
 
-use axum::{
-    Extension, Json, Router,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::patch,
-};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use axum::{Extension, Json, Router, http::StatusCode, response::IntoResponse, routing::patch};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -31,11 +24,10 @@ use crate::extractors::folio_role::LandlordOnly;
 use crate::extractors::tenant::TenantContext;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route(
-            "/api/folio/marketplace/my-listing",
-            patch(update_my_listing),
-        )
+    Router::new().route(
+        "/api/folio/marketplace/my-listing",
+        patch(update_my_listing),
+    )
 }
 
 #[derive(Deserialize)]
@@ -43,23 +35,23 @@ pub struct ListingUpdateRequest {
     /// The service provider ID to update (must belong to this tenant)
     pub service_provider_id: Uuid,
     /// Set to true to make the vendor discoverable in the marketplace
-    pub is_visible:          Option<bool>,
+    pub is_visible: Option<bool>,
     /// Short public bio (max 500 chars)
-    pub bio:                 Option<String>,
+    pub bio: Option<String>,
     /// Trade type slugs to advertise (e.g. ["plumber", "hvac"])
-    pub trade_types:         Option<Vec<String>>,
+    pub trade_types: Option<Vec<String>>,
     /// Public latitude (decimal degrees, WGS84). Required if lng is set.
-    pub lat:                 Option<f64>,
+    pub lat: Option<f64>,
     /// Public longitude. Required if lat is set.
-    pub lng:                 Option<f64>,
+    pub lng: Option<f64>,
 }
 
 #[derive(Serialize)]
 pub struct ListingResponse {
-    pub service_provider_id:      Uuid,
-    pub is_marketplace_visible:   bool,
-    pub marketplace_bio:          Option<String>,
-    pub marketplace_trade_types:  Vec<String>,
+    pub service_provider_id: Uuid,
+    pub is_marketplace_visible: bool,
+    pub marketplace_bio: Option<String>,
+    pub marketplace_trade_types: Vec<String>,
 }
 
 async fn update_my_listing(
@@ -69,18 +61,19 @@ async fn update_my_listing(
     Json(body): Json<ListingUpdateRequest>,
 ) -> impl IntoResponse {
     // ── Verify SP belongs to this tenant ────────────────────────────────────
-    let sp = match crate::entities::atlas_service_provider::Entity::find_by_id(body.service_provider_id)
-        .one(&db)
-        .await
-    {
-        Ok(Some(sp)) if sp.tenant_id == ctx.tenant_id => sp,
-        Ok(Some(_)) => return StatusCode::FORBIDDEN.into_response(),
-        Ok(None)    => return StatusCode::NOT_FOUND.into_response(),
-        Err(e) => {
-            tracing::error!(error = %e, "marketplace/listing: DB error");
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
+    let sp =
+        match crate::entities::atlas_service_provider::Entity::find_by_id(body.service_provider_id)
+            .one(&db)
+            .await
+        {
+            Ok(Some(sp)) if sp.tenant_id == ctx.tenant_id => sp,
+            Ok(Some(_)) => return StatusCode::FORBIDDEN.into_response(),
+            Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+            Err(e) => {
+                tracing::error!(error = %e, "marketplace/listing: DB error");
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        };
 
     // ── Validate bio length ──────────────────────────────────────────────────
     if let Some(bio) = &body.bio {
@@ -116,9 +109,9 @@ async fn update_my_listing(
 
     match active.update(&db).await {
         Ok(updated) => Json(ListingResponse {
-            service_provider_id:     updated.id,
-            is_marketplace_visible:  updated.is_marketplace_visible,
-            marketplace_bio:         updated.marketplace_bio,
+            service_provider_id: updated.id,
+            is_marketplace_visible: updated.is_marketplace_visible,
+            marketplace_bio: updated.marketplace_bio,
             marketplace_trade_types: updated.marketplace_trade_types,
         })
         .into_response(),

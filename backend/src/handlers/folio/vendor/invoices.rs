@@ -22,15 +22,15 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
-    EntityTrait, QueryFilter, QueryOrder,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -42,7 +42,10 @@ use crate::extractors::folio_role::VendorOnly;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/vendor/invoices",     get(list_invoices).post(submit_invoice))
+        .route(
+            "/api/folio/vendor/invoices",
+            get(list_invoices).post(submit_invoice),
+        )
         .route("/api/folio/vendor/invoices/{id}", get(get_invoice))
 }
 
@@ -53,42 +56,44 @@ pub struct ListInvoicesQuery {
     #[serde(default = "default_invoice_status")]
     pub status: String,
 }
-fn default_invoice_status() -> String { "pending".to_string() }
+fn default_invoice_status() -> String {
+    "pending".to_string()
+}
 
 #[derive(Debug, Serialize)]
 pub struct VendorInvoiceSummary {
-    pub id:                 Uuid,
+    pub id: Uuid,
     pub gross_amount_cents: i64,
-    pub currency:           String,
-    pub status:             String,
-    pub due_date:           Option<chrono::NaiveDate>,
-    pub paid_at:            Option<chrono::DateTime<chrono::Utc>>,
-    pub created_at:         chrono::DateTime<chrono::Utc>,
+    pub currency: String,
+    pub status: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub paid_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct VendorInvoiceDetail {
-    pub id:                 Uuid,
+    pub id: Uuid,
     pub gross_amount_cents: i64,
-    pub fee_amount_cents:   i64,
-    pub net_amount_cents:   i64,
-    pub currency:           String,
-    pub payment_rail:       Option<String>,
-    pub external_tx_id:     Option<String>,
-    pub status:             String,
-    pub due_date:           Option<chrono::NaiveDate>,
-    pub paid_at:            Option<chrono::DateTime<chrono::Utc>>,
+    pub fee_amount_cents: i64,
+    pub net_amount_cents: i64,
+    pub currency: String,
+    pub payment_rail: Option<String>,
+    pub external_tx_id: Option<String>,
+    pub status: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub paid_at: Option<chrono::DateTime<chrono::Utc>>,
     pub billable_entity_id: Uuid,
-    pub created_at:         chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SubmitInvoiceInput {
-    pub work_order_id:      Uuid,
+    pub work_order_id: Uuid,
     pub gross_amount_cents: i64,
-    pub currency:           String,
-    pub payment_rail:       Option<String>,
-    pub due_date:           Option<chrono::NaiveDate>,
+    pub currency: String,
+    pub payment_rail: Option<String>,
+    pub due_date: Option<chrono::NaiveDate>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -108,9 +113,13 @@ async fn list_invoices(
         .filter(atlas_ledger_entry::Column::BillableEntityId.eq(sp.id));
 
     match params.status.as_str() {
-        "paid" => { query = query.filter(atlas_ledger_entry::Column::Status.eq("paid")); }
-        "all"  => {}
-        _      => { query = query.filter(atlas_ledger_entry::Column::Status.ne("paid")); }
+        "paid" => {
+            query = query.filter(atlas_ledger_entry::Column::Status.eq("paid"));
+        }
+        "all" => {}
+        _ => {
+            query = query.filter(atlas_ledger_entry::Column::Status.ne("paid"));
+        }
     }
 
     let entries = query
@@ -122,13 +131,13 @@ async fn list_invoices(
     let summaries: Vec<VendorInvoiceSummary> = entries
         .into_iter()
         .map(|e| VendorInvoiceSummary {
-            id:                 e.id,
+            id: e.id,
             gross_amount_cents: e.gross_amount_cents,
-            currency:           e.currency,
-            status:             e.status,
-            due_date:           e.due_date,
-            paid_at:            e.paid_at,
-            created_at:         e.created_at,
+            currency: e.currency,
+            status: e.status,
+            due_date: e.due_date,
+            paid_at: e.paid_at,
+            created_at: e.created_at,
         })
         .collect();
 
@@ -154,18 +163,18 @@ async fn get_invoice(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(Json(VendorInvoiceDetail {
-        id:                 entry.id,
+        id: entry.id,
         gross_amount_cents: entry.gross_amount_cents,
-        fee_amount_cents:   entry.fee_amount_cents,
-        net_amount_cents:   entry.net_amount_cents,
-        currency:           entry.currency,
-        payment_rail:       entry.payment_rail,
-        external_tx_id:     entry.external_tx_id,
-        status:             entry.status,
-        due_date:           entry.due_date,
-        paid_at:            entry.paid_at,
+        fee_amount_cents: entry.fee_amount_cents,
+        net_amount_cents: entry.net_amount_cents,
+        currency: entry.currency,
+        payment_rail: entry.payment_rail,
+        external_tx_id: entry.external_tx_id,
+        status: entry.status,
+        due_date: entry.due_date,
+        paid_at: entry.paid_at,
         billable_entity_id: entry.billable_entity_id,
-        created_at:         entry.created_at,
+        created_at: entry.created_at,
     }))
 }
 
@@ -181,27 +190,27 @@ async fn submit_invoice(
     // Platform takes 0% fee on vendor invoices — net = gross.
     // Billing admin may add adjustments via ledger splits in a later reconciliation pass.
     let new_entry = atlas_ledger_entry::ActiveModel {
-        id:                    Set(Uuid::new_v4()),
-        tenant_id:             Set(tenant_id),
-        billable_entity_type:  Set("service_provider".to_string()),
-        billable_entity_id:    Set(sp.id),
-        payer_user_id:         Set(None),
-        payer_email:           Set(None),
-        gross_amount_cents:    Set(input.gross_amount_cents),
-        fee_amount_cents:      Set(0),
-        net_amount_cents:      Set(input.gross_amount_cents),
-        currency:              Set(input.currency),
-        payment_rail:          Set(input.payment_rail),
-        external_tx_id:        Set(None),
+        id: Set(Uuid::new_v4()),
+        tenant_id: Set(tenant_id),
+        billable_entity_type: Set("service_provider".to_string()),
+        billable_entity_id: Set(sp.id),
+        payer_user_id: Set(None),
+        payer_email: Set(None),
+        gross_amount_cents: Set(input.gross_amount_cents),
+        fee_amount_cents: Set(0),
+        net_amount_cents: Set(input.gross_amount_cents),
+        currency: Set(input.currency),
+        payment_rail: Set(input.payment_rail),
+        external_tx_id: Set(None),
         receipt_attachment_id: Set(None),
-        status:                Set("pending".to_string()),
-        due_date:              Set(input.due_date),
-        paid_at:               Set(None),
-        verified_by_user_id:   Set(None),
-        verified_at:           Set(None),
-        reconciled_at:         Set(None),
-        reconciliation_note:   Set(None),
-        created_at:            Set(chrono::Utc::now()),
+        status: Set("pending".to_string()),
+        due_date: Set(input.due_date),
+        paid_at: Set(None),
+        verified_by_user_id: Set(None),
+        verified_at: Set(None),
+        reconciled_at: Set(None),
+        reconciliation_note: Set(None),
+        created_at: Set(chrono::Utc::now()),
     };
 
     let saved = new_entry.insert(&db).await.map_err(|e| {
@@ -209,13 +218,16 @@ async fn submit_invoice(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok((StatusCode::CREATED, Json(serde_json::json!({ "id": saved.id }))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({ "id": saved.id })),
+    ))
 }
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
 
 async fn resolve_vendor_context(
-    db:      &DatabaseConnection,
+    db: &DatabaseConnection,
     user_id: Uuid,
 ) -> Result<(Uuid, atlas_service_provider::Model), StatusCode> {
     let user_accounts = crate::entities::user_account::Entity::find()

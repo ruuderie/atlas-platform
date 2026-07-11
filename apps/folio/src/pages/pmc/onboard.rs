@@ -17,28 +17,30 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PmcOnboardInput {
-    pub invite_token:    String,
-    pub company_name:    String,
-    pub company_type:    String,
-    pub website:         Option<String>,
-    pub primary_name:    String,
-    pub primary_email:   String,
-    pub primary_phone:   String,
-    pub billing_email:   Option<String>,
+    pub invite_token: String,
+    pub company_name: String,
+    pub company_type: String,
+    pub website: Option<String>,
+    pub primary_name: String,
+    pub primary_email: String,
+    pub primary_phone: String,
+    pub billing_email: Option<String>,
     pub portfolio_types: Vec<String>,
-    pub unit_count:      String,
-    pub markets:         Vec<String>,
-    pub consented:       bool,
+    pub unit_count: String,
+    pub markets: Vec<String>,
+    pub consented: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PmcOnboardResponse {
-    account_id:     String,
+    account_id: String,
     magic_link_url: String,
 }
 
 #[server(SubmitPmcOnboard, "/api")]
-pub async fn submit_pmc_onboard(input: PmcOnboardInput) -> Result<PmcOnboardResponse, server_fn::error::ServerFnError> {
+pub async fn submit_pmc_onboard(
+    input: PmcOnboardInput,
+) -> Result<PmcOnboardResponse, server_fn::error::ServerFnError> {
     use uuid::Uuid;
 
     // The token in the URL is the invite UUID
@@ -47,31 +49,31 @@ pub async fn submit_pmc_onboard(input: PmcOnboardInput) -> Result<PmcOnboardResp
 
     #[derive(serde::Serialize)]
     struct OnboardBody {
-        invite_id:       Uuid,
-        company_name:    String,
-        company_type:    String,
-        website:         Option<String>,
-        primary_name:    String,
-        primary_email:   String,
-        primary_phone:   String,
-        billing_email:   Option<String>,
+        invite_id: Uuid,
+        company_name: String,
+        company_type: String,
+        website: Option<String>,
+        primary_name: String,
+        primary_email: String,
+        primary_phone: String,
+        billing_email: Option<String>,
         portfolio_types: Vec<String>,
-        unit_count:      String,
-        markets:         Vec<String>,
+        unit_count: String,
+        markets: Vec<String>,
     }
 
     let body = OnboardBody {
         invite_id,
-        company_name:    input.company_name,
-        company_type:    input.company_type,
-        website:         input.website,
-        primary_name:    input.primary_name,
-        primary_email:   input.primary_email,
-        primary_phone:   input.primary_phone,
-        billing_email:   input.billing_email,
+        company_name: input.company_name,
+        company_type: input.company_type,
+        website: input.website,
+        primary_name: input.primary_name,
+        primary_email: input.primary_email,
+        primary_phone: input.primary_phone,
+        billing_email: input.billing_email,
         portfolio_types: input.portfolio_types,
-        unit_count:      input.unit_count,
-        markets:         input.markets,
+        unit_count: input.unit_count,
+        markets: input.markets,
     };
 
     crate::atlas_client::post::<OnboardBody, PmcOnboardResponse>("/api/folio/pm/onboard", &body)
@@ -84,59 +86,80 @@ pub async fn submit_pmc_onboard(input: PmcOnboardInput) -> Result<PmcOnboardResp
 const PORTFOLIO_TYPES: &[(&str, &str)] = &[
     ("residential_ltr", "🏘 Residential LTR"),
     ("residential_str", "🏖 Residential STR"),
-    ("commercial",      "🏢 Commercial"),
-    ("mixed_use",       "🏙 Mixed Use"),
-    ("multifamily",     "🏗 Multifamily"),
-    ("vacation",        "⛵ Vacation Rentals"),
+    ("commercial", "🏢 Commercial"),
+    ("mixed_use", "🏙 Mixed Use"),
+    ("multifamily", "🏗 Multifamily"),
+    ("vacation", "⛵ Vacation Rentals"),
 ];
 
 const US_MARKETS: &[&str] = &[
-    "Miami, FL", "New York, NY", "Los Angeles, CA", "Austin, TX",
-    "Atlanta, GA", "Chicago, IL", "Dallas, TX", "Phoenix, AZ",
-    "Orlando, FL", "Seattle, WA", "Denver, CO", "Other",
+    "Miami, FL",
+    "New York, NY",
+    "Los Angeles, CA",
+    "Austin, TX",
+    "Atlanta, GA",
+    "Chicago, IL",
+    "Dallas, TX",
+    "Phoenix, AZ",
+    "Orlando, FL",
+    "Seattle, WA",
+    "Denver, CO",
+    "Other",
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn PmcOnboard() -> impl IntoView {
-    let query        = use_query_map();
-    let token        = query.get().get("token").unwrap_or_default();
+    let query = use_query_map();
+    let token = query.get().get("token").unwrap_or_default();
 
-    let step         = RwSignal::new(1u8);
+    let step = RwSignal::new(1u8);
     let company_name = RwSignal::new(String::new());
     let company_type = RwSignal::new("property_management".to_string());
-    let website      = RwSignal::new(String::new());
+    let website = RwSignal::new(String::new());
     let primary_name = RwSignal::new(String::new());
-    let primary_email= RwSignal::new(String::new());
-    let primary_phone= RwSignal::new(String::new());
-    let billing_email= RwSignal::new(String::new());
-    let port_types: RwSignal<std::collections::HashSet<&'static str>> = RwSignal::new(std::collections::HashSet::new());
-    let unit_count   = RwSignal::new("50_200".to_string());
-    let markets: RwSignal<std::collections::HashSet<&'static str>>    = RwSignal::new(std::collections::HashSet::new());
-    let consented    = RwSignal::new(false);
-    let submitting   = RwSignal::new(false);
-    let submitted    = RwSignal::new(false);
-    let error        = RwSignal::new(None::<String>);
+    let primary_email = RwSignal::new(String::new());
+    let primary_phone = RwSignal::new(String::new());
+    let billing_email = RwSignal::new(String::new());
+    let port_types: RwSignal<std::collections::HashSet<&'static str>> =
+        RwSignal::new(std::collections::HashSet::new());
+    let unit_count = RwSignal::new("50_200".to_string());
+    let markets: RwSignal<std::collections::HashSet<&'static str>> =
+        RwSignal::new(std::collections::HashSet::new());
+    let consented = RwSignal::new(false);
+    let submitting = RwSignal::new(false);
+    let submitted = RwSignal::new(false);
+    let error = RwSignal::new(None::<String>);
     let redirect_url = RwSignal::new(String::new());
 
     let token_sv = StoredValue::new(token.clone());
     let handle_submit = move |_| {
-        if !consented.get() { return; }
+        if !consented.get() {
+            return;
+        }
         submitting.set(true);
         let input = PmcOnboardInput {
-            invite_token:    token_sv.get_value(),
-            company_name:    company_name.get(),
-            company_type:    company_type.get(),
-            website:         if website.get().is_empty() { None } else { Some(website.get()) },
-            primary_name:    primary_name.get(),
-            primary_email:   primary_email.get(),
-            primary_phone:   primary_phone.get(),
-            billing_email:   if billing_email.get().is_empty() { None } else { Some(billing_email.get()) },
+            invite_token: token_sv.get_value(),
+            company_name: company_name.get(),
+            company_type: company_type.get(),
+            website: if website.get().is_empty() {
+                None
+            } else {
+                Some(website.get())
+            },
+            primary_name: primary_name.get(),
+            primary_email: primary_email.get(),
+            primary_phone: primary_phone.get(),
+            billing_email: if billing_email.get().is_empty() {
+                None
+            } else {
+                Some(billing_email.get())
+            },
             portfolio_types: port_types.get().iter().map(|s| s.to_string()).collect(),
-            unit_count:      unit_count.get(),
-            markets:         markets.get().iter().map(|s| s.to_string()).collect(),
-            consented:       true,
+            unit_count: unit_count.get(),
+            markets: markets.get().iter().map(|s| s.to_string()).collect(),
+            consented: true,
         };
         leptos::task::spawn_local(async move {
             match submit_pmc_onboard(input).await {
@@ -145,7 +168,10 @@ pub fn PmcOnboard() -> impl IntoView {
                     submitted.set(true);
                     submitting.set(false);
                 }
-                Err(e) => { error.set(Some(e.to_string())); submitting.set(false); }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

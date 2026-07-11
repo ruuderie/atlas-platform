@@ -17,33 +17,33 @@ use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 
 use crate::components::nav::{FolioRoute, NavIcon};
-use crate::pages::landlord::leases::{LeaseSummary, LeaseStatus};
+use crate::pages::landlord::leases::{LeaseStatus, LeaseSummary};
 
 // ── Response types ────────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CounterpartyUser {
-    pub id:         uuid::Uuid,
+    pub id: uuid::Uuid,
     pub first_name: String,
-    pub last_name:  String,
-    pub email:      String,
-    pub phone:      String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ApplicationRecord {
-    pub id:                   uuid::Uuid,
-    pub applicant_user_id:    uuid::Uuid,
-    pub target_asset_id:      Option<uuid::Uuid>,
-    pub status:               String,
-    pub screening_status:     String,
-    pub screening_passed:     Option<bool>,
+    pub id: uuid::Uuid,
+    pub applicant_user_id: uuid::Uuid,
+    pub target_asset_id: Option<uuid::Uuid>,
+    pub status: String,
+    pub screening_status: String,
+    pub screening_passed: Option<bool>,
     pub monthly_income_cents: Option<i64>,
-    pub submitted_at:         Option<chrono::DateTime<chrono::Utc>>,
-    pub decided_at:           Option<chrono::DateTime<chrono::Utc>>,
-    pub decision_reason:      Option<String>,
-    pub created_at:           chrono::DateTime<chrono::Utc>,
+    pub submitted_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub decided_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub decision_reason: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -62,45 +62,45 @@ pub enum ApplicationStatus {
 impl ApplicationStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "submitted"  => Self::Submitted,
-            "approved"   => Self::Approved,
-            "denied"     => Self::Denied,
-            "withdrawn"  => Self::Withdrawn,
-            "pending"    => Self::Pending,
-            _            => Self::Unknown,
+            "submitted" => Self::Submitted,
+            "approved" => Self::Approved,
+            "denied" => Self::Denied,
+            "withdrawn" => Self::Withdrawn,
+            "pending" => Self::Pending,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Submitted  => "Submitted",
-            Self::Approved   => "Approved",
-            Self::Denied     => "Denied",
-            Self::Withdrawn  => "Withdrawn",
-            Self::Pending    => "Pending",
-            Self::Unknown    => "Unknown",
+            Self::Submitted => "Submitted",
+            Self::Approved => "Approved",
+            Self::Denied => "Denied",
+            Self::Withdrawn => "Withdrawn",
+            Self::Pending => "Pending",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Approved   => "app-status--approved",
-            Self::Submitted  => "app-status--submitted",
-            Self::Pending    => "app-status--pending",
-            Self::Denied     => "app-status--denied",
-            Self::Withdrawn  => "app-status--withdrawn",
-            Self::Unknown    => "app-status--unknown",
+            Self::Approved => "app-status--approved",
+            Self::Submitted => "app-status--submitted",
+            Self::Pending => "app-status--pending",
+            Self::Denied => "app-status--denied",
+            Self::Withdrawn => "app-status--withdrawn",
+            Self::Unknown => "app-status--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Approved  => "check_circle",
+            Self::Approved => "check_circle",
             Self::Submitted => "send",
-            Self::Pending   => "schedule",
-            Self::Denied    => "cancel",
+            Self::Pending => "schedule",
+            Self::Denied => "cancel",
             Self::Withdrawn => "undo",
-            Self::Unknown   => "help",
+            Self::Unknown => "help",
         }
     }
 }
@@ -123,28 +123,28 @@ pub enum ScreeningResult {
 impl ScreeningResult {
     pub fn from_parts(passed: Option<bool>, status: &str) -> Self {
         match (passed, status) {
-            (Some(true), _)  => Self::Passed,
+            (Some(true), _) => Self::Passed,
             (Some(false), _) => Self::Failed,
             (None, "pending") => Self::Pending,
-            _                => Self::NotRun,
+            _ => Self::NotRun,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Passed  => "Passed",
-            Self::Failed  => "Failed",
+            Self::Passed => "Passed",
+            Self::Failed => "Failed",
             Self::Pending => "Pending",
-            Self::NotRun  => "N/A",
+            Self::NotRun => "N/A",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Passed  => "screening--passed",
-            Self::Failed  => "screening--failed",
+            Self::Passed => "screening--passed",
+            Self::Failed => "screening--failed",
             Self::Pending => "screening--pending",
-            Self::NotRun  => "screening--na",
+            Self::NotRun => "screening--na",
         }
     }
 }
@@ -158,10 +158,7 @@ pub fn TenantProfile() -> impl IntoView {
     let params = use_params_map();
     let user_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
-    let profile = Resource::new(
-        user_id,
-        |id| async move { get_counterparty_user(id).await },
-    );
+    let profile = Resource::new(user_id, |id| async move { get_counterparty_user(id).await });
 
     // All leases — we filter client-side for those matching this counterparty.
     let all_leases = Resource::new(
@@ -169,10 +166,7 @@ pub fn TenantProfile() -> impl IntoView {
         |_| async move { crate::pages::landlord::leases::list_leases().await },
     );
 
-    let applications = Resource::new(
-        || (),
-        |_| async move { list_applications().await },
-    );
+    let applications = Resource::new(|| (), |_| async move { list_applications().await });
 
     view! {
         <div class="tp-page">
@@ -499,8 +493,8 @@ pub async fn get_counterparty_user(
 
 /// GET /api/folio/applications — landlord view of all applications.
 #[server(ListApplications, "/api")]
-pub async fn list_applications(
-) -> Result<Vec<ApplicationRecord>, server_fn::error::ServerFnError> {
+pub async fn list_applications() -> Result<Vec<ApplicationRecord>, server_fn::error::ServerFnError>
+{
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();

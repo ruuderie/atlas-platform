@@ -9,65 +9,95 @@
 //   4. Agent Roster
 //   5. Commission Plans
 
-use leptos::prelude::*;
 use crate::components::wizard_shell::{
-    ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code,
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
+use leptos::prelude::*;
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "profile",     label: "Broker Profile & License", skippable: false },
-    WizardStepDesc { id: "brokerage",   label: "Brokerage Details",        skippable: false },
-    WizardStepDesc { id: "compliance",  label: "Compliance Docs",          skippable: true  },
-    WizardStepDesc { id: "roster",      label: "Agent Roster",             skippable: true  },
-    WizardStepDesc { id: "commission",  label: "Commission Plans",         skippable: false },
+    WizardStepDesc {
+        id: "profile",
+        label: "Broker Profile & License",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "brokerage",
+        label: "Brokerage Details",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "compliance",
+        label: "Compliance Docs",
+        skippable: true,
+    },
+    WizardStepDesc {
+        id: "roster",
+        label: "Agent Roster",
+        skippable: true,
+    },
+    WizardStepDesc {
+        id: "commission",
+        label: "Commission Plans",
+        skippable: false,
+    },
 ];
 
 #[component]
 pub fn BrokerWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
     let code_resource = Resource::new(code_key, |code| resolve_invite_code(code));
-    Effect::new(move |_| { if let Some(Ok(r)) = code_resource.get() { invite_sig.set(r); } });
+    Effect::new(move |_| {
+        if let Some(Ok(r)) = code_resource.get() {
+            invite_sig.set(r);
+        }
+    });
 
     let current_idx = RwSignal::new(0usize);
-    let total       = STEPS.len();
-    let is_last     = Signal::derive(move || current_idx.get() == total - 1);
-    let next_label  = Signal::derive(move || if is_last.get() { "Launch Brokerage" } else { "Continue" });
+    let total = STEPS.len();
+    let is_last = Signal::derive(move || current_idx.get() == total - 1);
+    let next_label = Signal::derive(move || {
+        if is_last.get() {
+            "Launch Brokerage"
+        } else {
+            "Continue"
+        }
+    });
 
     // Broker profile
-    let first  = RwSignal::new(String::new());
-    let last   = RwSignal::new(String::new());
-    let email  = RwSignal::new(String::new());
-    let phone  = RwSignal::new(String::new());
+    let first = RwSignal::new(String::new());
+    let last = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
     let broker_license = RwSignal::new(String::new());
-    let state  = RwSignal::new("FL".to_string());
+    let state = RwSignal::new("FL".to_string());
     let issued = RwSignal::new(String::new());
     let expiry = RwSignal::new(String::new());
     let addl_states = RwSignal::new(String::new());
 
     // Brokerage details
     let legal_name = RwSignal::new(String::new());
-    let dba        = RwSignal::new(String::new());
-    let ein        = RwSignal::new(String::new());
-    let website    = RwSignal::new(String::new());
+    let dba = RwSignal::new(String::new());
+    let ein = RwSignal::new(String::new());
+    let website = RwSignal::new(String::new());
     let office_street = RwSignal::new(String::new());
-    let office_city   = RwSignal::new(String::new());
-    let office_zip    = RwSignal::new(String::new());
-    let office_phone  = RwSignal::new(String::new());
-    let mls_name   = RwSignal::new(String::new());
-    let mls_id     = RwSignal::new(String::new());
+    let office_city = RwSignal::new(String::new());
+    let office_zip = RwSignal::new(String::new());
+    let office_phone = RwSignal::new(String::new());
+    let mls_name = RwSignal::new(String::new());
+    let mls_id = RwSignal::new(String::new());
 
     // Roster
     let agent_email = RwSignal::new(String::new());
 
     // Commission
-    let new_agent_split    = RwSignal::new("60".to_string());
-    let associate_split    = RwSignal::new("70".to_string());
-    let senior_split       = RwSignal::new("80".to_string());
+    let new_agent_split = RwSignal::new("60".to_string());
+    let associate_split = RwSignal::new("70".to_string());
+    let senior_split = RwSignal::new("80".to_string());
     let top_producer_split = RwSignal::new("90".to_string());
-    let txn_fee            = RwSignal::new("295".to_string());
+    let txn_fee = RwSignal::new("295".to_string());
 
     let on_next = Callback::new(move |_| {
         let idx = current_idx.get();
@@ -77,21 +107,30 @@ pub fn BrokerWizard() -> impl IntoView {
                 let nav = leptos_router::hooks::use_navigate();
                 match accept_invite_code(invite_id, "/l".to_string()).await {
                     Ok(resp) => nav(&resp.redirect, Default::default()),
-                    Err(_)   => nav("/l", Default::default()),
+                    Err(_) => nav("/l", Default::default()),
                 }
             });
-        } else { current_idx.set(idx + 1); }
+        } else {
+            current_idx.set(idx + 1);
+        }
     });
-    let on_prev = Callback::new(move |_| { let i = current_idx.get(); if i > 0 { current_idx.set(i - 1); } });
+    let on_prev = Callback::new(move |_| {
+        let i = current_idx.get();
+        if i > 0 {
+            current_idx.set(i - 1);
+        }
+    });
 
-    let ctx_body = ViewFn::from(|| view! {
-        <p class="wiz-ctx-p">"Configure your brokerage workspace to manage agents, listings, and commission structures from one platform."</p>
-        <ul class="wiz-ctx-list">
-            <li><span class="ms msf">"check_circle"</span>"Agent roster & invite management"</li>
-            <li><span class="ms msf">"check_circle"</span>"Customizable commission plans"</li>
-            <li><span class="ms msf">"check_circle"</span>"MLS & listing network integration"</li>
-            <li><span class="ms msf">"check_circle"</span>"Deal pipeline & analytics"</li>
-        </ul>
+    let ctx_body = ViewFn::from(|| {
+        view! {
+            <p class="wiz-ctx-p">"Configure your brokerage workspace to manage agents, listings, and commission structures from one platform."</p>
+            <ul class="wiz-ctx-list">
+                <li><span class="ms msf">"check_circle"</span>"Agent roster & invite management"</li>
+                <li><span class="ms msf">"check_circle"</span>"Customizable commission plans"</li>
+                <li><span class="ms msf">"check_circle"</span>"MLS & listing network integration"</li>
+                <li><span class="ms msf">"check_circle"</span>"Deal pipeline & analytics"</li>
+            </ul>
+        }
     });
 
     view! {

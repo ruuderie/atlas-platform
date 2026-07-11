@@ -57,7 +57,10 @@ pub fn OnboardingBanner(
         SetupStatus::WizardInProgress { completed, total } => (
             "\u{1F6A7}",
             "Finish setting up your workspace",
-            format!("{} of {} setup steps complete \u{2014} takes about 2 minutes.", completed, total),
+            format!(
+                "{} of {} setup steps complete \u{2014} takes about 2 minutes.",
+                completed, total
+            ),
             "Continue setup \u{2192}",
             "/onboarding",
         ),

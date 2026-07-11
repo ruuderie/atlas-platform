@@ -11,9 +11,9 @@
 //! Called from `FolioApp::provision()`.
 
 use anyhow::Result;
-use sea_orm::{DatabaseConnection, ConnectionTrait, Statement};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ConnectionTrait, DatabaseConnection, Statement};
+use uuid::Uuid;
 
 use crate::types::pm::{ScorecardEntityType, TemplateScope};
 use crate::types::scorecard::{DeploymentTriggerEvent, ScoringMethod};
@@ -66,10 +66,7 @@ const PM_TEMPLATES: &[PmTemplateSpec] = &[
 ///
 /// Idempotent: uses ON CONFLICT DO NOTHING on the template name + tenant_id.
 /// Safe to call multiple times — repeated calls are no-ops.
-pub async fn seed_pm_templates(
-    db: &DatabaseConnection,
-    tenant_id: Uuid,
-) -> Result<()> {
+pub async fn seed_pm_templates(db: &DatabaseConnection, tenant_id: Uuid) -> Result<()> {
     let now = Utc::now();
 
     for spec in PM_TEMPLATES {
@@ -110,10 +107,13 @@ pub async fn seed_pm_templates(
             ],
         ))
         .await
-        .map_err(|e| anyhow::anyhow!(
-            "seed_pm_templates: failed to seed '{}' for tenant {}: {e}",
-            spec.name, tenant_id
-        ))?;
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "seed_pm_templates: failed to seed '{}' for tenant {}: {e}",
+                spec.name,
+                tenant_id
+            )
+        })?;
 
         tracing::debug!(
             %tenant_id,
@@ -140,9 +140,9 @@ pub async fn deploy_templates_for_instance(
     tenant_id: Uuid,
     app_instance_id: Uuid,
 ) -> Result<u32> {
-    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
     use crate::entities::atlas_scorecard_template as templates;
     use crate::entities::atlas_scorecard_template_deployment as deployments;
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
     let names: Vec<&str> = PM_TEMPLATES.iter().map(|s| s.name).collect();
     let seeded = templates::Entity::find()
@@ -191,10 +191,13 @@ pub async fn deploy_templates_for_instance(
         }
         .insert(db)
         .await
-        .map_err(|e| anyhow::anyhow!(
-            "deploy_templates_for_instance: insert failed for template {} on instance {}: {e}",
-            t.id, app_instance_id
-        ))?;
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "deploy_templates_for_instance: insert failed for template {} on instance {}: {e}",
+                t.id,
+                app_instance_id
+            )
+        })?;
         touched += 1;
     }
 
@@ -211,10 +214,7 @@ pub async fn deploy_templates_for_instance(
 ///
 /// Looks up the tenant's `property_management` app_instance. If none exists yet,
 /// templates are still seeded (deployments can be created later).
-pub async fn seed_and_deploy_for_folio(
-    db: &DatabaseConnection,
-    tenant_id: Uuid,
-) -> Result<()> {
+pub async fn seed_and_deploy_for_folio(db: &DatabaseConnection, tenant_id: Uuid) -> Result<()> {
     seed_pm_templates(db, tenant_id).await?;
 
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
@@ -252,8 +252,10 @@ pub async fn get_pm_template(
         .filter(crate::entities::atlas_scorecard_template::Column::Name.eq(template_name))
         .one(db)
         .await?
-        .ok_or_else(|| anyhow::anyhow!(
-            "PM template '{template_name}' not found for tenant {tenant_id}. \
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "PM template '{template_name}' not found for tenant {tenant_id}. \
              Was FolioApp::provision() called?"
-        ))
+            )
+        })
 }

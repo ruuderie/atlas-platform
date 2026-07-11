@@ -3,8 +3,8 @@
 //! Classifies building expenses into despesas ordinárias (tenant obligation)
 //! vs. extraordinárias (landlord obligation) per Law 8.245/91, Art. 22–23.
 
-use serde::{Deserialize, Serialize};
 use crate::types::pm::ConominioExpenseCategory;
+use serde::{Deserialize, Serialize};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,12 +27,14 @@ pub struct ConominioSplit {
 
 impl ConominioSplit {
     pub fn from_expenses(expenses: Vec<ConominioExpense>) -> Self {
-        let ordinarias: i64 = expenses.iter()
+        let ordinarias: i64 = expenses
+            .iter()
             .filter(|e| e.category == ConominioExpenseCategory::DespesasOrdinarias)
             .map(|e| e.amount_cents)
             .sum();
 
-        let extraordinarias: i64 = expenses.iter()
+        let extraordinarias: i64 = expenses
+            .iter()
             .filter(|e| e.category == ConominioExpenseCategory::DespesasExtraordinarias)
             .map(|e| e.amount_cents)
             .sum();
@@ -50,19 +52,46 @@ impl ConominioSplit {
 
 /// Day-to-day operating expenses — tenant obligation (Art. 23).
 const ORDINARIAS_KEYWORDS: &[&str] = &[
-    "condomínio", "agua", "água", "gas", "gás", "luz", "energia",
-    "limpeza", "zeladoria", "porteiro", "faxineiro", "segurança",
-    "piscina", "academia", "elevador operação", "manutenção rotina",
-    "jardinagem", "dedetização", "lixo", "coleta", "reparo pequeno",
+    "condomínio",
+    "agua",
+    "água",
+    "gas",
+    "gás",
+    "luz",
+    "energia",
+    "limpeza",
+    "zeladoria",
+    "porteiro",
+    "faxineiro",
+    "segurança",
+    "piscina",
+    "academia",
+    "elevador operação",
+    "manutenção rotina",
+    "jardinagem",
+    "dedetização",
+    "lixo",
+    "coleta",
+    "reparo pequeno",
 ];
 
 /// Capital / structural expenses — landlord obligation (Art. 22).
 const EXTRAORDINARIAS_KEYWORDS: &[&str] = &[
-    "fundo reserva", "fundo de reserva", "obras estruturais",
-    "reforma fachada", "pintura fachada", "pintura áreas comuns",
-    "elevador substituição", "elevador reforma", "impermeabilização",
-    "retrofitting", "ampliação", "construção", "instalação",
-    "substituição equipamento", "modernização",
+    "fundo reserva",
+    "fundo de reserva",
+    "obras estruturais",
+    "reforma fachada",
+    "pintura fachada",
+    "pintura áreas comuns",
+    "elevador substituição",
+    "elevador reforma",
+    "impermeabilização",
+    "retrofitting",
+    "ampliação",
+    "construção",
+    "instalação",
+    "substituição equipamento",
+    "modernização",
 ];
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -94,15 +123,18 @@ impl ConominioService {
     /// Classify and compute a monthly condomínio split.
     ///
     /// Unclassified expenses default to `DespesasOrdinarias` (conservative).
-    pub fn classify_and_split(
-        raw_expenses: Vec<(String, i64, Option<String>)>,
-    ) -> ConominioSplit {
+    pub fn classify_and_split(raw_expenses: Vec<(String, i64, Option<String>)>) -> ConominioSplit {
         let expenses = raw_expenses
             .into_iter()
             .map(|(description, amount_cents, reference)| {
                 let category = Self::auto_classify(&description)
                     .unwrap_or(ConominioExpenseCategory::DespesasOrdinarias);
-                ConominioExpense { description, amount_cents, category, reference }
+                ConominioExpense {
+                    description,
+                    amount_cents,
+                    category,
+                    reference,
+                }
             })
             .collect();
 

@@ -28,11 +28,11 @@
 //!            (manual verify)
 //! ```
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
-    EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    QueryOrder, QuerySelect,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -109,9 +109,7 @@ impl PmLedgerService {
         };
 
         model.insert(db).await.map_err(|e| {
-            anyhow!(
-                "PmLedgerService::create_pending failed for tenant {tenant_id}: {e}"
-            )
+            anyhow!("PmLedgerService::create_pending failed for tenant {tenant_id}: {e}")
         })?;
 
         tracing::info!(
@@ -140,9 +138,9 @@ impl PmLedgerService {
             .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
             .one(db)
             .await?
-            .ok_or_else(|| anyhow!(
-                "ledger entry {ledger_entry_id} not found for tenant {tenant_id}"
-            ))?;
+            .ok_or_else(|| {
+                anyhow!("ledger entry {ledger_entry_id} not found for tenant {tenant_id}")
+            })?;
 
         if entry.status == "paid" {
             tracing::debug!(
@@ -193,18 +191,15 @@ impl PmLedgerService {
         if let Some(pid) = provider_invoice_id {
             am.external_tx_id = Set(Some(pid));
         }
-        am.update(db).await.map_err(|e| {
-            anyhow!("mark_paid failed for {ledger_entry_id}: {e}")
-        })?;
+        am.update(db)
+            .await
+            .map_err(|e| anyhow!("mark_paid failed for {ledger_entry_id}: {e}"))?;
         tracing::info!(%ledger_entry_id, "ledger entry marked paid");
         Ok(())
     }
 
     /// Mark a ledger entry as `failed` (payment rejected by the provider).
-    pub async fn mark_failed(
-        db: &DatabaseConnection,
-        ledger_entry_id: Uuid,
-    ) -> Result<()> {
+    pub async fn mark_failed(db: &DatabaseConnection, ledger_entry_id: Uuid) -> Result<()> {
         let entry = atlas_ledger_entry::Entity::find_by_id(ledger_entry_id)
             .one(db)
             .await?
@@ -217,7 +212,9 @@ impl PmLedgerService {
 
         let mut am: atlas_ledger_entry::ActiveModel = entry.into();
         am.status = Set("failed".to_owned());
-        am.update(db).await.map_err(|e| anyhow!("mark_failed failed for {ledger_entry_id}: {e}"))?;
+        am.update(db)
+            .await
+            .map_err(|e| anyhow!("mark_failed failed for {ledger_entry_id}: {e}"))?;
         tracing::warn!(%ledger_entry_id, "ledger entry marked failed");
         Ok(())
     }
@@ -247,7 +244,9 @@ impl PmLedgerService {
         if let Some(note) = reconciliation_note {
             am.reconciliation_note = Set(Some(note));
         }
-        am.update(db).await.map_err(|e| anyhow!("mark_refunded failed for {ledger_entry_id}: {e}"))?;
+        am.update(db)
+            .await
+            .map_err(|e| anyhow!("mark_refunded failed for {ledger_entry_id}: {e}"))?;
         tracing::info!(%ledger_entry_id, "ledger entry marked refunded");
         Ok(())
     }
@@ -278,9 +277,9 @@ impl PmLedgerService {
             .filter(atlas_ledger_entry::Column::PaymentRail.eq("btc_onchain"))
             .one(db)
             .await?
-            .ok_or_else(|| anyhow!(
-                "BTC ledger entry {ledger_entry_id} not found for tenant {tenant_id}"
-            ))?;
+            .ok_or_else(|| {
+                anyhow!("BTC ledger entry {ledger_entry_id} not found for tenant {tenant_id}")
+            })?;
 
         let mut am: atlas_ledger_entry::ActiveModel = entry.into();
         am.external_tx_id = Set(Some(txid.to_owned()));

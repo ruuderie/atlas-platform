@@ -27,44 +27,44 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserProfileSettings {
     pub display_name: String,
-    pub email:        String,
-    pub phone:        Option<String>,
-    pub timezone:     String,
-    pub language:     String,
-    pub initials:     Option<String>,
+    pub email: String,
+    pub phone: Option<String>,
+    pub timezone: String,
+    pub language: String,
+    pub initials: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NotificationPrefs {
     // Maintenance events
-    pub maint_email:   bool,
-    pub maint_sms:     bool,
-    pub maint_in_app:  bool,
+    pub maint_email: bool,
+    pub maint_sms: bool,
+    pub maint_in_app: bool,
     // Lease events
-    pub lease_email:   bool,
-    pub lease_sms:     bool,
-    pub lease_in_app:  bool,
+    pub lease_email: bool,
+    pub lease_sms: bool,
+    pub lease_in_app: bool,
     // Payment events
     pub payment_email: bool,
-    pub payment_sms:   bool,
-    pub payment_in_app:bool,
+    pub payment_sms: bool,
+    pub payment_in_app: bool,
     // Message events
-    pub msg_email:     bool,
-    pub msg_sms:       bool,
-    pub msg_in_app:    bool,
+    pub msg_email: bool,
+    pub msg_sms: bool,
+    pub msg_in_app: bool,
     // System alerts
-    pub system_email:  bool,
+    pub system_email: bool,
     pub system_in_app: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionInfo {
-    pub id:          String,
-    pub device:      String,
-    pub ip:          Option<String>,
-    pub location:    Option<String>,
-    pub created_at:  String,
-    pub is_current:  bool,
+    pub id: String,
+    pub device: String,
+    pub ip: Option<String>,
+    pub location: Option<String>,
+    pub created_at: String,
+    pub is_current: bool,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -79,21 +79,31 @@ pub async fn fetch_user_profile() -> Result<UserProfileSettings, server_fn::erro
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         crate::atlas_client::authenticated_get::<UserProfileSettings>(
-            "/api/folio/settings/profile", &token, None,
-        ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            "/api/folio/settings/profile",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 #[server(SaveUserProfile, "/api")]
-pub async fn save_user_profile(profile: UserProfileSettings) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn save_user_profile(
+    profile: UserProfileSettings,
+) -> Result<(), server_fn::error::ServerFnError> {
     let _ = profile;
     Ok(())
 }
@@ -108,21 +118,31 @@ pub async fn fetch_notif_prefs() -> Result<NotificationPrefs, server_fn::error::
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         crate::atlas_client::authenticated_get::<NotificationPrefs>(
-            "/api/folio/settings/notifications", &token, None,
-        ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            "/api/folio/settings/notifications",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 #[server(SaveNotifPrefs, "/api")]
-pub async fn save_notif_prefs(prefs: NotificationPrefs) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn save_notif_prefs(
+    prefs: NotificationPrefs,
+) -> Result<(), server_fn::error::ServerFnError> {
     let _ = prefs;
     Ok(())
 }
@@ -137,21 +157,32 @@ pub async fn fetch_sessions() -> Result<Vec<SessionInfo>, server_fn::error::Serv
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         crate::atlas_client::authenticated_get::<Vec<SessionInfo>>(
-            "/api/folio/auth/sessions", &token, None,
-        ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            "/api/folio/auth/sessions",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 #[server(ChangePassword, "/api")]
-pub async fn change_password(current: String, new_pass: String) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn change_password(
+    current: String,
+    new_pass: String,
+) -> Result<(), server_fn::error::ServerFnError> {
     let _ = (current, new_pass);
     Ok(())
 }
@@ -161,15 +192,26 @@ pub async fn change_password(current: String, new_pass: String) -> Result<(), se
 #[component]
 fn ProfileTab() -> impl IntoView {
     let profile_res = Resource::new(|| (), |_| fetch_user_profile());
-    let profile     = RwSignal::new(UserProfileSettings::default());
-    let saved       = RwSignal::new(false);
-    let saving      = RwSignal::new(false);
+    let profile = RwSignal::new(UserProfileSettings::default());
+    let saved = RwSignal::new(false);
+    let saving = RwSignal::new(false);
 
     let TIMEZONES: &[&str] = &[
-        "America/New_York","America/Chicago","America/Denver","America/Los_Angeles",
-        "America/Anchorage","Pacific/Honolulu","America/Puerto_Rico",
-        "Europe/London","Europe/Paris","Europe/Berlin","Europe/Amsterdam",
-        "Asia/Tokyo","Asia/Singapore","Australia/Sydney","Pacific/Auckland",
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Los_Angeles",
+        "America/Anchorage",
+        "Pacific/Honolulu",
+        "America/Puerto_Rico",
+        "Europe/London",
+        "Europe/Paris",
+        "Europe/Berlin",
+        "Europe/Amsterdam",
+        "Asia/Tokyo",
+        "Asia/Singapore",
+        "Australia/Sydney",
+        "Pacific/Auckland",
     ];
 
     view! {
@@ -274,11 +316,11 @@ fn ProfileTab() -> impl IntoView {
 #[component]
 fn SecurityTab() -> impl IntoView {
     let current_pass = RwSignal::new(String::new());
-    let new_pass     = RwSignal::new(String::new());
+    let new_pass = RwSignal::new(String::new());
     let confirm_pass = RwSignal::new(String::new());
-    let pw_saving    = RwSignal::new(false);
-    let pw_saved     = RwSignal::new(false);
-    let pw_error     = RwSignal::new(None::<String>);
+    let pw_saving = RwSignal::new(false);
+    let pw_saved = RwSignal::new(false);
+    let pw_error = RwSignal::new(None::<String>);
 
     let sessions_res = Resource::new(|| (), |_| fetch_sessions());
 
@@ -387,15 +429,31 @@ fn SecurityTab() -> impl IntoView {
 #[component]
 fn NotificationsTab() -> impl IntoView {
     let prefs_res = Resource::new(|| (), |_| fetch_notif_prefs());
-    let prefs     = RwSignal::new(NotificationPrefs::default());
-    let saved     = RwSignal::new(false);
+    let prefs = RwSignal::new(NotificationPrefs::default());
+    let saved = RwSignal::new(false);
 
     // (key, label, description)
     let event_groups: &[(&str, &str, &str)] = &[
-        ("maint",   "Maintenance",        "Work order updates, completion notices, emergency alerts"),
-        ("lease",   "Lease Events",       "Renewal reminders, move-in/out notifications, expirations"),
-        ("payment", "Payments",           "Rent receipts, late payment notices, refunds"),
-        ("msg",     "Messages",           "New inbox messages from tenants, vendors, or your team"),
+        (
+            "maint",
+            "Maintenance",
+            "Work order updates, completion notices, emergency alerts",
+        ),
+        (
+            "lease",
+            "Lease Events",
+            "Renewal reminders, move-in/out notifications, expirations",
+        ),
+        (
+            "payment",
+            "Payments",
+            "Rent receipts, late payment notices, refunds",
+        ),
+        (
+            "msg",
+            "Messages",
+            "New inbox messages from tenants, vendors, or your team",
+        ),
     ];
 
     view! {
@@ -526,9 +584,9 @@ fn NotificationsTab() -> impl IntoView {
 
 #[component]
 fn AppearanceTab() -> impl IntoView {
-    let theme   = RwSignal::new("system".to_string());
+    let theme = RwSignal::new("system".to_string());
     let density = RwSignal::new("default".to_string());
-    let saved   = RwSignal::new(false);
+    let saved = RwSignal::new(false);
 
     view! {
         <div class="settings-section">

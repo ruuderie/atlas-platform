@@ -14,13 +14,13 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 struct ReviewEntry {
-    id:           &'static str,
-    guest_name:   &'static str,
-    rating:       u8,
-    comment:      &'static str,
-    date:         &'static str,
-    responded:    bool,
-    response:     Option<&'static str>,
+    id: &'static str,
+    guest_name: &'static str,
+    rating: u8,
+    comment: &'static str,
+    date: &'static str,
+    responded: bool,
+    response: Option<&'static str>,
 }
 
 fn sample_reviews() -> Vec<ReviewEntry> {
@@ -56,11 +56,11 @@ fn stars(rating: u8) -> String {
 
 fn star_color(rating: u8) -> &'static str {
     match rating {
-        5    => "#fbbf24",
-        4    => "#fbbf24",
-        3    => "#f97316",
-        1|2  => "#f87171",
-        _    => "#94a3b8",
+        5 => "#fbbf24",
+        4 => "#fbbf24",
+        3 => "#f97316",
+        1 | 2 => "#f87171",
+        _ => "#94a3b8",
     }
 }
 
@@ -68,7 +68,7 @@ fn star_color(rating: u8) -> &'static str {
 
 #[component]
 pub fn StrReviews() -> impl IntoView {
-    let reviews  = sample_reviews();
+    let reviews = sample_reviews();
     let respond_to = RwSignal::new(None::<&'static str>);
     let response_text = RwSignal::new(String::new());
     let submitted = RwSignal::new(false);
@@ -78,7 +78,7 @@ pub fn StrReviews() -> impl IntoView {
         total / reviews.len() as f64
     };
     let five_star = reviews.iter().filter(|r| r.rating == 5).count();
-    let pending   = reviews.iter().filter(|r| !r.responded).count();
+    let pending = reviews.iter().filter(|r| !r.responded).count();
 
     view! {
         <div class="main-area">

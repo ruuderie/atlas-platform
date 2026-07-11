@@ -31,11 +31,11 @@ pub struct OnboardingSubmitResponse {
 /// Used to pre-populate form fields and resume at the correct step.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OnboardingDraft {
-    pub first_name:        Option<String>,
-    pub last_name:         Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub jurisdiction_code: Option<String>,
     /// Backend step IDs that have a completed_at: "profile", "jurisdiction", "first_property"
-    pub completed_steps:   Vec<String>,
+    pub completed_steps: Vec<String>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ pub async fn get_onboarding_draft() -> Result<OnboardingDraft, server_fn::error:
         None,
     )
     .await
-    .or_else(|_| Ok(OnboardingDraft::default()))   // non-fatal: start fresh on network error
+    .or_else(|_| Ok(OnboardingDraft::default())) // non-fatal: start fresh on network error
 }
 
 /// POST /api/folio/onboarding/submit via Leptos server function.
@@ -135,13 +135,13 @@ impl WizardStep {
 
     fn label(&self) -> &'static str {
         match self {
-            WizardStep::Welcome       => "Welcome",
-            WizardStep::Profile       => "Your Profile",
-            WizardStep::Jurisdiction  => "Jurisdiction",
+            WizardStep::Welcome => "Welcome",
+            WizardStep::Profile => "Your Profile",
+            WizardStep::Jurisdiction => "Jurisdiction",
             WizardStep::FirstProperty => "First Property",
-            WizardStep::PaymentRails  => "Payments",
-            WizardStep::InviteTeam    => "Invite Team",
-            WizardStep::GoLive        => "Go Live",
+            WizardStep::PaymentRails => "Payments",
+            WizardStep::InviteTeam => "Invite Team",
+            WizardStep::GoLive => "Go Live",
         }
     }
 
@@ -173,13 +173,13 @@ impl WizardStep {
 pub fn resume_step_idx(completed: &[String]) -> usize {
     let done = |id: &str| completed.iter().any(|s| s == id);
     if !done("profile") {
-        0  // Welcome — first visit or profile never saved
+        0 // Welcome — first visit or profile never saved
     } else if !done("jurisdiction") {
-        2  // Jump past Welcome + Profile, land on Jurisdiction
+        2 // Jump past Welcome + Profile, land on Jurisdiction
     } else if !done("first_property") {
-        3  // Land on FirstProperty
+        3 // Land on FirstProperty
     } else {
-        4  // Land on PaymentRails (skippable — user can click through to GoLive)
+        4 // Land on PaymentRails (skippable — user can click through to GoLive)
     }
 }
 
@@ -192,26 +192,26 @@ pub fn OnboardingWizard() -> impl IntoView {
     // Steps shown in the pill bar = all except Welcome (step 0) and GoLive (last)
     let pill_count = total.saturating_sub(2); // interior steps only
 
-    let current_idx    = RwSignal::new(0usize);
+    let current_idx = RwSignal::new(0usize);
     let completed_steps = RwSignal::new(std::collections::HashSet::<usize>::new());
 
     // ── Form state ────────────────────────────────────────────────────────────
     let profile_first = RwSignal::new(String::new());
-    let profile_last  = RwSignal::new(String::new());
+    let profile_last = RwSignal::new(String::new());
 
-    let jurisdiction  = RwSignal::new("US".to_string());
+    let jurisdiction = RwSignal::new("US".to_string());
 
-    let prop_name     = RwSignal::new(String::new());
-    let prop_address  = RwSignal::new(String::new());
-    let prop_city     = RwSignal::new(String::new());
-    let prop_type     = RwSignal::new("single_family".to_string());
+    let prop_name = RwSignal::new(String::new());
+    let prop_address = RwSignal::new(String::new());
+    let prop_city = RwSignal::new(String::new());
+    let prop_type = RwSignal::new("single_family".to_string());
 
     let invite_emails = RwSignal::new(String::new());
-    let invite_role   = RwSignal::new("tenant".to_string());
-    let invite_sent   = RwSignal::new(false);
+    let invite_role = RwSignal::new("tenant".to_string());
+    let invite_sent = RwSignal::new(false);
 
     // ── API state ─────────────────────────────────────────────────────────────
-    let saving: RwSignal<bool>         = RwSignal::new(false);
+    let saving: RwSignal<bool> = RwSignal::new(false);
     let save_error: RwSignal<Option<String>> = RwSignal::new(None);
 
     // ── Draft fetch — resume on mount ─────────────────────────────────────────
@@ -223,18 +223,30 @@ pub fn OnboardingWizard() -> impl IntoView {
     // When the draft arrives, apply saved values and set the resume step.
     Effect::new(move |_| {
         if let Some(Ok(draft)) = draft_resource.get() {
-            if let Some(v) = draft.first_name        { profile_first.set(v); }
-            if let Some(v) = draft.last_name         { profile_last.set(v);  }
-            if let Some(v) = draft.jurisdiction_code { jurisdiction.set(v);  }
+            if let Some(v) = draft.first_name {
+                profile_first.set(v);
+            }
+            if let Some(v) = draft.last_name {
+                profile_last.set(v);
+            }
+            if let Some(v) = draft.jurisdiction_code {
+                jurisdiction.set(v);
+            }
 
             // Mark backend-completed steps in the local completed_steps set.
             // Backend step IDs map to indices: profile=1, jurisdiction=2, first_property=3
             completed_steps.update(|set| {
                 for id in &draft.completed_steps {
                     match id.as_str() {
-                        "profile"        => { set.insert(1); }
-                        "jurisdiction"   => { set.insert(2); }
-                        "first_property" => { set.insert(3); }
+                        "profile" => {
+                            set.insert(1);
+                        }
+                        "jurisdiction" => {
+                            set.insert(2);
+                        }
+                        "first_property" => {
+                            set.insert(3);
+                        }
                         _ => {}
                     }
                 }
@@ -247,11 +259,12 @@ pub fn OnboardingWizard() -> impl IntoView {
         }
     });
 
-
     // ── Navigation ────────────────────────────────────────────────────────────
     let go_next = move || {
         let idx = current_idx.get();
-        completed_steps.update(|s| { s.insert(idx); });
+        completed_steps.update(|s| {
+            s.insert(idx);
+        });
         if idx + 1 < total {
             current_idx.set(idx + 1);
         }
@@ -268,7 +281,9 @@ pub fn OnboardingWizard() -> impl IntoView {
 
         move || {
             let step = steps.with_value(|s| {
-                s.get(current_idx.get()).copied().unwrap_or(WizardStep::GoLive)
+                s.get(current_idx.get())
+                    .copied()
+                    .unwrap_or(WizardStep::GoLive)
             });
 
             if !step.needs_save() {
@@ -280,7 +295,7 @@ pub fn OnboardingWizard() -> impl IntoView {
             save_error.set(None);
 
             let first = pf.get();
-            let last  = pl.get();
+            let last = pl.get();
             let jcode = jc.get();
             let pname = pn.get();
             let paddr = pa.get();
@@ -289,8 +304,14 @@ pub fn OnboardingWizard() -> impl IntoView {
 
             leptos::task::spawn_local(async move {
                 match submit_onboarding(first, last, jcode, pname, paddr, pcity, ptype).await {
-                    Ok(_)  => { saving.set(false); go_next(); }
-                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
+                    Ok(_) => {
+                        saving.set(false);
+                        go_next();
+                    }
+                    Err(e) => {
+                        saving.set(false);
+                        save_error.set(Some(e.to_string()));
+                    }
                 }
             });
         }
@@ -298,11 +319,17 @@ pub fn OnboardingWizard() -> impl IntoView {
 
     let go_prev = move || {
         let idx = current_idx.get();
-        if idx > 0 { current_idx.set(idx - 1); }
+        if idx > 0 {
+            current_idx.set(idx - 1);
+        }
     };
 
     let current_step = move || {
-        steps.with_value(|s| s.get(current_idx.get()).copied().unwrap_or(WizardStep::GoLive))
+        steps.with_value(|s| {
+            s.get(current_idx.get())
+                .copied()
+                .unwrap_or(WizardStep::GoLive)
+        })
     };
 
     // Pill index: 0-based among interior steps (skip Welcome=idx0, GoLive=last)

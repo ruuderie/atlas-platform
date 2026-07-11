@@ -14,35 +14,37 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VendorOnboardInput {
-    pub invite_token:  String,
+    pub invite_token: String,
     pub business_name: String,
-    pub contact_name:  String,
-    pub email:         String,
-    pub phone:         String,
-    pub trades:        Vec<String>,
+    pub contact_name: String,
+    pub email: String,
+    pub phone: String,
+    pub trades: Vec<String>,
     pub coverage_area: String,
-    pub license_number:Option<String>,
-    pub insured:       bool,
+    pub license_number: Option<String>,
+    pub insured: bool,
 }
 
 #[server(SubmitVendorOnboard, "/api")]
-pub async fn submit_vendor_onboard(input: VendorOnboardInput) -> Result<String, server_fn::error::ServerFnError> {
+pub async fn submit_vendor_onboard(
+    input: VendorOnboardInput,
+) -> Result<String, server_fn::error::ServerFnError> {
     Ok("vendor_stub".to_string())
 }
 
 // ── Trade options ─────────────────────────────────────────────────────────────
 
 const TRADES: &[(&str, &str)] = &[
-    ("plumbing",      "🚰 Plumbing"),
-    ("electrical",    "⚡ Electrical"),
-    ("hvac",          "❄️ HVAC"),
-    ("roofing",       "🏠 Roofing"),
-    ("painting",      "🎨 Painting"),
-    ("landscaping",   "🌿 Landscaping"),
-    ("cleaning",      "🧹 Cleaning"),
-    ("locksmith",     "🔑 Locksmith"),
-    ("pest_control",  "🐛 Pest Control"),
-    ("general",       "🔧 General"),
+    ("plumbing", "🚰 Plumbing"),
+    ("electrical", "⚡ Electrical"),
+    ("hvac", "❄️ HVAC"),
+    ("roofing", "🏠 Roofing"),
+    ("painting", "🎨 Painting"),
+    ("landscaping", "🌿 Landscaping"),
+    ("cleaning", "🧹 Cleaning"),
+    ("locksmith", "🔑 Locksmith"),
+    ("pest_control", "🐛 Pest Control"),
+    ("general", "🔧 General"),
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -52,38 +54,49 @@ pub fn VendorOnboard() -> impl IntoView {
     let query = use_query_map();
     let token = query.get().get("token").unwrap_or_default();
 
-    let step          = RwSignal::new(1u8);
-    let biz_name      = RwSignal::new(String::new());
-    let contact_name  = RwSignal::new(String::new());
-    let email         = RwSignal::new(String::new());
-    let phone         = RwSignal::new(String::new());
-    let trades_sel: RwSignal<std::collections::HashSet<&'static str>> = RwSignal::new(std::collections::HashSet::new());
-    let coverage      = RwSignal::new(String::new());
-    let license       = RwSignal::new(String::new());
-    let insured       = RwSignal::new(false);
-    let submitting    = RwSignal::new(false);
-    let submitted     = RwSignal::new(false);
-    let error         = RwSignal::new(None::<String>);
+    let step = RwSignal::new(1u8);
+    let biz_name = RwSignal::new(String::new());
+    let contact_name = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let trades_sel: RwSignal<std::collections::HashSet<&'static str>> =
+        RwSignal::new(std::collections::HashSet::new());
+    let coverage = RwSignal::new(String::new());
+    let license = RwSignal::new(String::new());
+    let insured = RwSignal::new(false);
+    let submitting = RwSignal::new(false);
+    let submitted = RwSignal::new(false);
+    let error = RwSignal::new(None::<String>);
 
     let token_sv = StoredValue::new(token.clone());
     let handle_submit = move |_| {
         submitting.set(true);
         let trades_vec: Vec<String> = trades_sel.get().iter().map(|s| s.to_string()).collect();
         let input = VendorOnboardInput {
-            invite_token:   token_sv.get_value(),
-            business_name:  biz_name.get(),
-            contact_name:   contact_name.get(),
-            email:          email.get(),
-            phone:          phone.get(),
-            trades:         trades_vec,
-            coverage_area:  coverage.get(),
-            license_number: if license.get().is_empty() { None } else { Some(license.get()) },
-            insured:        insured.get(),
+            invite_token: token_sv.get_value(),
+            business_name: biz_name.get(),
+            contact_name: contact_name.get(),
+            email: email.get(),
+            phone: phone.get(),
+            trades: trades_vec,
+            coverage_area: coverage.get(),
+            license_number: if license.get().is_empty() {
+                None
+            } else {
+                Some(license.get())
+            },
+            insured: insured.get(),
         };
         leptos::task::spawn_local(async move {
             match submit_vendor_onboard(input).await {
-                Ok(_)  => { submitted.set(true); submitting.set(false); }
-                Err(e) => { error.set(Some(e.to_string())); submitting.set(false); }
+                Ok(_) => {
+                    submitted.set(true);
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

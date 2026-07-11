@@ -9,28 +9,28 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LedgerEntry {
-    pub id:                    Uuid,
-    pub billable_entity_type:  String,
-    pub billable_entity_id:    Uuid,
-    pub description:           Option<String>,
-    pub gross_amount_cents:    i64,
-    pub fee_amount_cents:      i64,
-    pub net_amount_cents:      i64,
-    pub currency:              String,
-    pub payment_rail:          Option<String>,
-    pub status:                String,
-    pub due_date:              Option<String>,
-    pub paid_at:               Option<String>,
-    pub reconciled_at:         Option<String>,
-    pub reconciliation_note:   Option<String>,
-    pub created_at:            String,
+    pub id: Uuid,
+    pub billable_entity_type: String,
+    pub billable_entity_id: Uuid,
+    pub description: Option<String>,
+    pub gross_amount_cents: i64,
+    pub fee_amount_cents: i64,
+    pub net_amount_cents: i64,
+    pub currency: String,
+    pub payment_rail: Option<String>,
+    pub status: String,
+    pub due_date: Option<String>,
+    pub paid_at: Option<String>,
+    pub reconciled_at: Option<String>,
+    pub reconciliation_note: Option<String>,
+    pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -41,19 +41,24 @@ pub async fn fetch_ledger() -> Result<Vec<LedgerEntry>, server_fn::error::Server
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<Vec<LedgerEntry>>(
-        "/api/folio/ledger", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<LedgerEntry>>("/api/folio/ledger", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -62,8 +67,12 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 fn cents_fmt(cents: i64, currency: &str) -> String {
     let upper = currency.to_uppercase();
     let symbol = match upper.as_str() {
-        "USD" => "$", "EUR" => "€", "GBP" => "£", "CAD" => "CA$",
-        "BTC" => "₿", _ => currency,
+        "USD" => "$",
+        "EUR" => "€",
+        "GBP" => "£",
+        "CAD" => "CA$",
+        "BTC" => "₿",
+        _ => currency,
     };
     if currency.to_uppercase() == "BTC" {
         // BTC stored in satoshis (cents = satoshis)
@@ -76,21 +85,21 @@ fn cents_fmt(cents: i64, currency: &str) -> String {
 fn status_style(status: &str) -> &'static str {
     match status.to_lowercase().as_str() {
         "paid" | "settled" | "reconciled" => "ph-badge--paid",
-        "pending" | "processing"          => "ph-badge--pending",
-        "overdue" | "failed"              => "ph-badge--overdue",
-        "cancelled" | "voided"            => "ph-badge--cancelled",
-        _                                 => "ph-badge--default",
+        "pending" | "processing" => "ph-badge--pending",
+        "overdue" | "failed" => "ph-badge--overdue",
+        "cancelled" | "voided" => "ph-badge--cancelled",
+        _ => "ph-badge--default",
     }
 }
 
 fn rail_icon(rail: Option<&str>) -> &'static str {
     match rail {
-        Some(r) if r.contains("stripe")         => "💳",
+        Some(r) if r.contains("stripe") => "💳",
         Some(r) if r.contains("btc") || r.contains("bitcoin") => "₿",
-        Some(r) if r.contains("pix")            => "🇧🇷",
+        Some(r) if r.contains("pix") => "🇧🇷",
         Some(r) if r.contains("wire") || r.contains("ach") => "🏦",
-        Some(r) if r.contains("cash")           => "💵",
-        _                                        => "💰",
+        Some(r) if r.contains("cash") => "💵",
+        _ => "💰",
     }
 }
 
@@ -98,13 +107,10 @@ fn rail_icon(rail: Option<&str>) -> &'static str {
 
 #[component]
 pub fn TenantPaymentHistory() -> impl IntoView {
-    let refresh      = RwSignal::new(0u32);
-    let status_filter= RwSignal::new("all".to_string());
+    let refresh = RwSignal::new(0u32);
+    let status_filter = RwSignal::new("all".to_string());
 
-    let ledger_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_ledger(),
-    );
+    let ledger_res = Resource::new(move || refresh.get(), |_| fetch_ledger());
 
     view! {
         <div class="main-area">

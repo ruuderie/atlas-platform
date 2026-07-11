@@ -30,16 +30,15 @@
 //! `enroll_in_campaign()` creates an `atlas_campaign_enrollment` record (G19)
 //! linking this lead into an outbound sequence.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
 use uuid::Uuid;
 
 use crate::{
-    entities::{atlas_lead, atlas_campaign_enrollment},
+    entities::{atlas_campaign_enrollment, atlas_lead},
     types::lead::LeadStatus,
 };
 
@@ -190,8 +189,7 @@ impl LeadService {
         tenant_id: Uuid,
         filter: LeadFilter,
     ) -> Result<Vec<atlas_lead::Model>> {
-        let mut q = atlas_lead::Entity::find()
-            .filter(atlas_lead::Column::TenantId.eq(tenant_id));
+        let mut q = atlas_lead::Entity::find().filter(atlas_lead::Column::TenantId.eq(tenant_id));
 
         if let Some(status) = filter.status {
             q = q.filter(atlas_lead::Column::LeadStatus.eq(status.to_string()));
@@ -209,7 +207,9 @@ impl LeadService {
             q = q.filter(atlas_lead::Column::IsDuplicate.eq(dup));
         }
 
-        Ok(q.order_by_desc(atlas_lead::Column::CreatedAt).all(db).await?)
+        Ok(q.order_by_desc(atlas_lead::Column::CreatedAt)
+            .all(db)
+            .await?)
     }
 
     // ── Status machine ────────────────────────────────────────────────────────
@@ -238,10 +238,14 @@ impl LeadService {
         // Disqualify and Convert have dedicated methods that stamp extra fields.
         match new_status {
             LeadStatus::Converted => {
-                return Err(anyhow!("Use LeadService::convert() to mark a lead as converted"))
+                return Err(anyhow!(
+                    "Use LeadService::convert() to mark a lead as converted"
+                ));
             }
             LeadStatus::Disqualified => {
-                return Err(anyhow!("Use LeadService::disqualify() to disqualify a lead"))
+                return Err(anyhow!(
+                    "Use LeadService::disqualify() to disqualify a lead"
+                ));
             }
             _ => {}
         }

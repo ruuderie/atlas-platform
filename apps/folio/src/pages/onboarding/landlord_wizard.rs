@@ -18,7 +18,7 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::wizard_shell::{
-    ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code,
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
 
@@ -26,12 +26,12 @@ use crate::pages::onboarding::invite_codes_client::accept_invite_code;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LandlordDraft {
-    pub first_name:        Option<String>,
-    pub last_name:         Option<String>,
-    pub phone:             Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub phone: Option<String>,
     pub jurisdiction_code: Option<String>,
-    pub license_number:    Option<String>,
-    pub completed_steps:   Vec<String>,
+    pub license_number: Option<String>,
+    pub completed_steps: Vec<String>,
 }
 
 #[server(GetLandlordDraft, "/api")]
@@ -42,17 +42,21 @@ pub async fn get_landlord_draft() -> Result<LandlordDraft, server_fn::error::Ser
     let token = crate::auth::extract_bearer_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<LandlordDraft>(
-        "/api/folio/onboarding/draft", &token, None,
-    ).await.or_else(|_| Ok(LandlordDraft::default()))
+        "/api/folio/onboarding/draft",
+        &token,
+        None,
+    )
+    .await
+    .or_else(|_| Ok(LandlordDraft::default()))
 }
 
 #[server(SaveLandlordProfile, "/api")]
 pub async fn save_landlord_profile(
-    first_name:        String,
-    last_name:         String,
-    phone:             String,
+    first_name: String,
+    last_name: String,
+    phone: String,
     jurisdiction_code: String,
-    license_number:    String,
+    license_number: String,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -65,19 +69,25 @@ pub async fn save_landlord_profile(
         "license_number": license_number, "step": "profile",
     });
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/folio/onboarding/submit", &token, None, &payload,
-    ).await.map(|_| ()).map_err(server_fn::error::ServerFnError::new)
+        "/api/folio/onboarding/submit",
+        &token,
+        None,
+        &payload,
+    )
+    .await
+    .map(|_| ())
+    .map_err(server_fn::error::ServerFnError::new)
 }
 
 #[server(SaveLandlordProperty, "/api")]
 pub async fn save_landlord_property(
-    property_name:    String,
+    property_name: String,
     property_address: String,
-    property_city:    String,
-    property_state:   String,
-    property_type:    String,
-    unit_count:       String,
-    str_eligible:     bool,
+    property_city: String,
+    property_state: String,
+    property_type: String,
+    unit_count: String,
+    str_eligible: bool,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -91,8 +101,14 @@ pub async fn save_landlord_property(
         "str_eligible": str_eligible, "step": "first_property",
     });
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/folio/onboarding/submit", &token, None, &payload,
-    ).await.map(|_| ()).map_err(server_fn::error::ServerFnError::new)
+        "/api/folio/onboarding/submit",
+        &token,
+        None,
+        &payload,
+    )
+    .await
+    .map(|_| ())
+    .map_err(server_fn::error::ServerFnError::new)
 }
 
 fn country_to_jurisdiction(country: &str) -> String {
@@ -107,18 +123,38 @@ fn country_to_jurisdiction(country: &str) -> String {
 // ── Steps (labels match wiz_landlord_onboard) ─────────────────────────────────
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "profile",   label: "Your Profile",       skippable: false },
-    WizardStepDesc { id: "portfolio", label: "Portfolio Setup",    skippable: false },
-    WizardStepDesc { id: "property",  label: "First Property",     skippable: false },
-    WizardStepDesc { id: "workspace", label: "Workspace Settings", skippable: true  },
-    WizardStepDesc { id: "launch",    label: "Ready to Launch",    skippable: false },
+    WizardStepDesc {
+        id: "profile",
+        label: "Your Profile",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "portfolio",
+        label: "Portfolio Setup",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "property",
+        label: "First Property",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "workspace",
+        label: "Workspace Settings",
+        skippable: true,
+    },
+    WizardStepDesc {
+        id: "launch",
+        label: "Ready to Launch",
+        skippable: false,
+    },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn LandlordWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
 
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
@@ -131,109 +167,145 @@ pub fn LandlordWizard() -> impl IntoView {
     });
 
     let current_idx = RwSignal::new(0usize);
-    let total       = STEPS.len();
+    let total = STEPS.len();
 
     let is_last = Signal::derive(move || current_idx.get() == total - 1);
     let next_label = Signal::derive(move || {
-        if is_last.get() { "Launch Folio" } else { "Continue" }
+        if is_last.get() {
+            "Launch Folio"
+        } else {
+            "Continue"
+        }
     });
 
     // Profile
-    let first_name     = RwSignal::new(String::new());
-    let last_name      = RwSignal::new(String::new());
-    let display_name   = RwSignal::new(String::new());
-    let phone          = RwSignal::new(String::new());
-    let account_type   = RwSignal::new("individual".to_string()); // individual | company
+    let first_name = RwSignal::new(String::new());
+    let last_name = RwSignal::new(String::new());
+    let display_name = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let account_type = RwSignal::new("individual".to_string()); // individual | company
 
     // Portfolio
-    let business_name  = RwSignal::new(String::new());
-    let country        = RwSignal::new("US".to_string());
-    let currency       = RwSignal::new("USD".to_string());
+    let business_name = RwSignal::new(String::new());
+    let country = RwSignal::new("US".to_string());
+    let currency = RwSignal::new("USD".to_string());
     let portfolio_size = RwSignal::new("1-5".to_string());
-    let type_ltr       = RwSignal::new(true);
-    let type_str       = RwSignal::new(false);
+    let type_ltr = RwSignal::new(true);
+    let type_str = RwSignal::new(false);
     let type_commercial = RwSignal::new(false);
 
     // Property
-    let prop_name      = RwSignal::new(String::new());
-    let prop_address   = RwSignal::new(String::new());
-    let prop_city      = RwSignal::new(String::new());
-    let prop_state     = RwSignal::new("FL".to_string());
-    let prop_postal    = RwSignal::new(String::new());
-    let prop_type      = RwSignal::new("apartment".to_string());
-    let unit_count     = RwSignal::new("1".to_string());
-    let beds           = RwSignal::new("2".to_string());
-    let monthly_rent   = RwSignal::new(String::new());
-    let str_eligible   = RwSignal::new(false);
+    let prop_name = RwSignal::new(String::new());
+    let prop_address = RwSignal::new(String::new());
+    let prop_city = RwSignal::new(String::new());
+    let prop_state = RwSignal::new("FL".to_string());
+    let prop_postal = RwSignal::new(String::new());
+    let prop_type = RwSignal::new("apartment".to_string());
+    let unit_count = RwSignal::new("1".to_string());
+    let beds = RwSignal::new("2".to_string());
+    let monthly_rent = RwSignal::new(String::new());
+    let str_eligible = RwSignal::new(false);
 
     // Workspace
-    let notify_maint   = RwSignal::new(true);
-    let notify_rent    = RwSignal::new(true);
-    let notify_lease   = RwSignal::new(true);
-    let notify_str     = RwSignal::new(false);
-    let enable_str     = RwSignal::new(false);
-    let list_network   = RwSignal::new(false);
+    let notify_maint = RwSignal::new(true);
+    let notify_rent = RwSignal::new(true);
+    let notify_lease = RwSignal::new(true);
+    let notify_str = RwSignal::new(false);
+    let enable_str = RwSignal::new(false);
+    let list_network = RwSignal::new(false);
 
-    let saving:     RwSignal<bool>           = RwSignal::new(false);
+    let saving: RwSignal<bool> = RwSignal::new(false);
     let save_error: RwSignal<Option<String>> = RwSignal::new(None);
 
     let draft = Resource::new(|| (), |_| get_landlord_draft());
     Effect::new(move |_| {
         if let Some(Ok(d)) = draft.get() {
-            if let Some(v) = d.first_name { first_name.set(v.clone()); display_name.update(|dn| if dn.is_empty() { *dn = v; }); }
-            if let Some(v) = d.last_name  { last_name.set(v); }
-            if let Some(v) = d.phone      { phone.set(v); }
+            if let Some(v) = d.first_name {
+                first_name.set(v.clone());
+                display_name.update(|dn| {
+                    if dn.is_empty() {
+                        *dn = v;
+                    }
+                });
+            }
+            if let Some(v) = d.last_name {
+                last_name.set(v);
+            }
+            if let Some(v) = d.phone {
+                phone.set(v);
+            }
         }
     });
 
     let on_next = Callback::new(move |_| {
         let idx = current_idx.get();
         if idx == 0 {
-            let f  = first_name.get();
-            let l  = last_name.get();
+            let f = first_name.get();
+            let l = last_name.get();
             let ph = phone.get();
-            let j  = country_to_jurisdiction(&country.get());
-            saving.set(true); save_error.set(None);
+            let j = country_to_jurisdiction(&country.get());
+            saving.set(true);
+            save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_profile(f, l, ph, j, String::new()).await {
-                    Ok(_)  => { saving.set(false); current_idx.set(idx + 1); }
-                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
+                    Ok(_) => {
+                        saving.set(false);
+                        current_idx.set(idx + 1);
+                    }
+                    Err(e) => {
+                        saving.set(false);
+                        save_error.set(Some(e.to_string()));
+                    }
                 }
             });
             return;
         }
         if idx == 1 {
             // Portfolio is local + jurisdiction refresh from country
-            let f  = first_name.get();
-            let l  = last_name.get();
+            let f = first_name.get();
+            let l = last_name.get();
             let ph = phone.get();
-            let j  = country_to_jurisdiction(&country.get());
-            saving.set(true); save_error.set(None);
+            let j = country_to_jurisdiction(&country.get());
+            saving.set(true);
+            save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_profile(f, l, ph, j, String::new()).await {
-                    Ok(_)  => { saving.set(false); current_idx.set(idx + 1); }
-                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
+                    Ok(_) => {
+                        saving.set(false);
+                        current_idx.set(idx + 1);
+                    }
+                    Err(e) => {
+                        saving.set(false);
+                        save_error.set(Some(e.to_string()));
+                    }
                 }
             });
             return;
         }
         if idx == 2 {
-            let n  = if prop_name.get().trim().is_empty() {
+            let n = if prop_name.get().trim().is_empty() {
                 format!("{} property", prop_city.get())
             } else {
                 prop_name.get()
             };
-            let a  = prop_address.get();
-            let c  = prop_city.get();
-            let s  = prop_state.get();
-            let t  = prop_type.get();
-            let u  = unit_count.get();
+            let a = prop_address.get();
+            let c = prop_city.get();
+            let s = prop_state.get();
+            let t = prop_type.get();
+            let u = unit_count.get();
             let st = str_eligible.get() || type_str.get() || enable_str.get();
-            saving.set(true); save_error.set(None);
+            saving.set(true);
+            save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_property(n, a, c, s, t, u, st).await {
-                    Ok(_)  => { saving.set(false); current_idx.set(idx + 1); }
-                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
+                    Ok(_) => {
+                        saving.set(false);
+                        current_idx.set(idx + 1);
+                    }
+                    Err(e) => {
+                        saving.set(false);
+                        save_error.set(Some(e.to_string()));
+                    }
                 }
             });
             return;
@@ -254,18 +326,22 @@ pub fn LandlordWizard() -> impl IntoView {
 
     let on_prev = Callback::new(move |_| {
         let idx = current_idx.get();
-        if idx > 0 { current_idx.set(idx - 1); }
+        if idx > 0 {
+            current_idx.set(idx - 1);
+        }
     });
 
-    let ctx_body = ViewFn::from(|| view! {
-        <p class="wiz-ctx-p">
-            "Your profile is how tenants, vendors, and your team will recognise you across the platform."
-        </p>
-        <ul class="wiz-ctx-list">
-            <li><span class="ms msf">"check_circle"</span>"Shown on lease documents and communications"</li>
-            <li><span class="ms msf">"check_circle"</span>"Displayed to tenants in their portal"</li>
-            <li><span class="ms msf">"check_circle"</span>"Used for legal signature attribution"</li>
-        </ul>
+    let ctx_body = ViewFn::from(|| {
+        view! {
+            <p class="wiz-ctx-p">
+                "Your profile is how tenants, vendors, and your team will recognise you across the platform."
+            </p>
+            <ul class="wiz-ctx-list">
+                <li><span class="ms msf">"check_circle"</span>"Shown on lease documents and communications"</li>
+                <li><span class="ms msf">"check_circle"</span>"Displayed to tenants in their portal"</li>
+                <li><span class="ms msf">"check_circle"</span>"Used for legal signature attribution"</li>
+            </ul>
+        }
     });
 
     view! {

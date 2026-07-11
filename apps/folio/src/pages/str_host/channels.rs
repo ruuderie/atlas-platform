@@ -12,22 +12,64 @@ use leptos::prelude::*;
 // ── Channel definitions ───────────────────────────────────────────────────────
 
 struct StrChannel {
-    id:       &'static str,
-    name:     &'static str,
-    icon:     &'static str,
-    desc:     &'static str,
-    fee_pct:  &'static str,
-    markets:  &'static str,
+    id: &'static str,
+    name: &'static str,
+    icon: &'static str,
+    desc: &'static str,
+    fee_pct: &'static str,
+    markets: &'static str,
 }
 
 fn all_str_channels() -> Vec<StrChannel> {
     vec![
-        StrChannel { id:"airbnb",       name:"Airbnb",          icon:"🏖", desc:"100M+ guests in 220 countries",           fee_pct:"3%",    markets:"Global" },
-        StrChannel { id:"vrbo",         name:"Vrbo",             icon:"🏕", desc:"Expedia Group — family & whole-home focus", fee_pct:"5%",    markets:"US/EU" },
-        StrChannel { id:"bookingdotcom",name:"Booking.com",      icon:"🌍", desc:"European leader, strong international",    fee_pct:"15–17%",markets:"Global" },
-        StrChannel { id:"hipcamp",      name:"Hipcamp",          icon:"⛺", desc:"Outdoors and unique stays",               fee_pct:"7%",    markets:"US" },
-        StrChannel { id:"tripadvisor",  name:"Tripadvisor Rentals",icon:"✈️",desc:"Formerly FlipKey — high-intent travellers",fee_pct:"3%",    markets:"Global" },
-        StrChannel { id:"atlas_str",    name:"Atlas Network STR",icon:"⚡", desc:"Direct booking — zero channel fee",       fee_pct:"0%",    markets:"Platform" },
+        StrChannel {
+            id: "airbnb",
+            name: "Airbnb",
+            icon: "🏖",
+            desc: "100M+ guests in 220 countries",
+            fee_pct: "3%",
+            markets: "Global",
+        },
+        StrChannel {
+            id: "vrbo",
+            name: "Vrbo",
+            icon: "🏕",
+            desc: "Expedia Group — family & whole-home focus",
+            fee_pct: "5%",
+            markets: "US/EU",
+        },
+        StrChannel {
+            id: "bookingdotcom",
+            name: "Booking.com",
+            icon: "🌍",
+            desc: "European leader, strong international",
+            fee_pct: "15–17%",
+            markets: "Global",
+        },
+        StrChannel {
+            id: "hipcamp",
+            name: "Hipcamp",
+            icon: "⛺",
+            desc: "Outdoors and unique stays",
+            fee_pct: "7%",
+            markets: "US",
+        },
+        StrChannel {
+            id: "tripadvisor",
+            name: "Tripadvisor Rentals",
+            icon: "✈️",
+            desc: "Formerly FlipKey — high-intent travellers",
+            fee_pct: "3%",
+            markets: "Global",
+        },
+        StrChannel {
+            id: "atlas_str",
+            name: "Atlas Network STR",
+            icon: "⚡",
+            desc: "Direct booking — zero channel fee",
+            fee_pct: "0%",
+            markets: "Platform",
+        },
     ]
 }
 
@@ -41,8 +83,8 @@ pub fn StrChannelManager() -> impl IntoView {
         s
     });
 
-    let show_keys = RwSignal::new(None::<&'static str>);  // which channel's keys modal is open
-    let saved     = RwSignal::new(false);
+    let show_keys = RwSignal::new(None::<&'static str>); // which channel's keys modal is open
+    let saved = RwSignal::new(false);
 
     view! {
         <div class="main-area">

@@ -8,14 +8,14 @@
 //!   `attributes` — JSONB for property_type, coordinates, etc.
 //!   `status` — required; defaults to "active"
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use sea_orm::DatabaseConnection;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::types::pm::PropertyType;
 use crate::services::pm::scorecard_provisioner::get_pm_template;
 use crate::services::scorecard_service::ScorecardService;
+use crate::types::pm::PropertyType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateUnitInput {
@@ -52,18 +52,24 @@ impl AssetService {
         tenant_id: Uuid,
         input: CreateUnitInput,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         // Generate asset code for tracking even when a folio number is provided.
         let asset_code = crate::services::pm::portfolio::PortfolioService::next_asset_code(
-            db, tenant_id, &input.country_code, &input.state_province,
+            db,
+            tenant_id,
+            &input.country_code,
+            &input.state_province,
         )
         .await?
         .display();
 
         // serial_or_folio_number: prefer the official county folio, fall back to asset code.
-        let serial_or_folio = input.folio_number.clone().unwrap_or_else(|| asset_code.clone());
+        let serial_or_folio = input
+            .folio_number
+            .clone()
+            .unwrap_or_else(|| asset_code.clone());
 
         let scorecard_entity_type = input.property_type.scorecard_entity_type();
 
@@ -125,13 +131,9 @@ impl AssetService {
 
         match get_pm_template(db, tenant_id, template_name).await {
             Ok(template) => {
-                match ScorecardService::get_or_create(
-                    db,
-                    tenant_id,
-                    template.id,
-                    "atlas_asset",
-                    id,
-                ).await {
+                match ScorecardService::get_or_create(db, tenant_id, template.id, "atlas_asset", id)
+                    .await
+                {
                     Ok(scorecard_id) => {
                         tracing::info!(
                             asset_id = %id, %tenant_id,

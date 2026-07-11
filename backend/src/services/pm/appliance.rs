@@ -15,9 +15,7 @@
 //! See: `docs/architecture/asset_metadata_shapes.md` — "appliance" shape.
 
 use chrono::NaiveDate;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -186,10 +184,8 @@ impl ApplianceService {
         }
 
         // Compute scheduled_service_date from install_date + interval
-        let scheduled_service_date = compute_next_service_date(
-            input.install_date,
-            input.metadata.service_interval_days,
-        );
+        let scheduled_service_date =
+            compute_next_service_date(input.install_date, input.metadata.service_interval_days);
 
         let id = Uuid::new_v4();
         let meta_json = serde_json::to_value(&input.metadata)?;
@@ -323,9 +319,7 @@ impl ApplianceService {
             .into_iter()
             .map(|a| {
                 let earliest = earliest_date(a.scheduled_service_date, a.expiry_date);
-                let days_until = earliest
-                    .map(|d| (d - today).num_days())
-                    .unwrap_or(i64::MAX);
+                let days_until = earliest.map(|d| (d - today).num_days()).unwrap_or(i64::MAX);
                 AssetLifecycleAlert {
                     id: a.id,
                     name: a.name,

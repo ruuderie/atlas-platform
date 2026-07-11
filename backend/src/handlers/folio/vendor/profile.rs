@@ -4,15 +4,9 @@
 //! update their own `atlas_service_providers` record.
 
 use axum::{
-    extract::Extension,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
+    Json, Router, extract::Extension, http::StatusCode, response::IntoResponse, routing::get,
 };
-use sea_orm::{
-    ActiveModelTrait, DatabaseConnection, Set,
-};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -23,36 +17,38 @@ use crate::handlers::folio::vendor::work_orders::resolve_vendor_context;
 // ── Route Constructors ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/vendor/profile", get(get_profile).patch(update_profile))
+    Router::new().route(
+        "/api/folio/vendor/profile",
+        get(get_profile).patch(update_profile),
+    )
 }
 
 // ── Request / Response Types ──────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
 pub struct VendorProfileDetail {
-    pub id:                      Uuid,
-    pub business_name:           Option<String>,
-    pub preferred_payment_rail:  Option<String>,
-    pub btc_wallet_address:      Option<String>,
-    pub stripe_connect_id:       Option<String>,
-    pub is_insured:              bool,
-    pub is_bonded:               bool,
-    pub is_marketplace_visible:  bool,
-    pub marketplace_bio:         Option<String>,
+    pub id: Uuid,
+    pub business_name: Option<String>,
+    pub preferred_payment_rail: Option<String>,
+    pub btc_wallet_address: Option<String>,
+    pub stripe_connect_id: Option<String>,
+    pub is_insured: bool,
+    pub is_bonded: bool,
+    pub is_marketplace_visible: bool,
+    pub marketplace_bio: Option<String>,
     pub marketplace_trade_types: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateProfileInput {
-    pub business_name:           Option<String>,
-    pub preferred_payment_rail:  Option<String>,
-    pub btc_wallet_address:      Option<String>,
-    pub stripe_connect_id:       Option<String>,
-    pub is_insured:              Option<bool>,
-    pub is_bonded:               Option<bool>,
-    pub is_marketplace_visible:  Option<bool>,
-    pub marketplace_bio:         Option<String>,
+    pub business_name: Option<String>,
+    pub preferred_payment_rail: Option<String>,
+    pub btc_wallet_address: Option<String>,
+    pub stripe_connect_id: Option<String>,
+    pub is_insured: Option<bool>,
+    pub is_bonded: Option<bool>,
+    pub is_marketplace_visible: Option<bool>,
+    pub marketplace_bio: Option<String>,
     pub marketplace_trade_types: Option<Vec<String>>,
 }
 
@@ -67,15 +63,15 @@ async fn get_profile(
     let (_tenant_id, sp) = resolve_vendor_context(&db, current_user.id).await?;
 
     Ok(Json(VendorProfileDetail {
-        id:                      sp.id,
-        business_name:           sp.business_name,
-        preferred_payment_rail:  sp.preferred_payment_rail,
-        btc_wallet_address:      sp.btc_wallet_address,
-        stripe_connect_id:       sp.stripe_connect_id,
-        is_insured:              sp.is_insured,
-        is_bonded:               sp.is_bonded,
-        is_marketplace_visible:  sp.is_marketplace_visible,
-        marketplace_bio:         sp.marketplace_bio,
+        id: sp.id,
+        business_name: sp.business_name,
+        preferred_payment_rail: sp.preferred_payment_rail,
+        btc_wallet_address: sp.btc_wallet_address,
+        stripe_connect_id: sp.stripe_connect_id,
+        is_insured: sp.is_insured,
+        is_bonded: sp.is_bonded,
+        is_marketplace_visible: sp.is_marketplace_visible,
+        marketplace_bio: sp.marketplace_bio,
         marketplace_trade_types: sp.marketplace_trade_types,
     }))
 }
@@ -132,15 +128,15 @@ async fn update_profile(
     })?;
 
     Ok(Json(VendorProfileDetail {
-        id:                      updated.id,
-        business_name:           updated.business_name,
-        preferred_payment_rail:  updated.preferred_payment_rail,
-        btc_wallet_address:      updated.btc_wallet_address,
-        stripe_connect_id:       updated.stripe_connect_id,
-        is_insured:              updated.is_insured,
-        is_bonded:               updated.is_bonded,
-        is_marketplace_visible:  updated.is_marketplace_visible,
-        marketplace_bio:         updated.marketplace_bio,
+        id: updated.id,
+        business_name: updated.business_name,
+        preferred_payment_rail: updated.preferred_payment_rail,
+        btc_wallet_address: updated.btc_wallet_address,
+        stripe_connect_id: updated.stripe_connect_id,
+        is_insured: updated.is_insured,
+        is_bonded: updated.is_bonded,
+        is_marketplace_visible: updated.is_marketplace_visible,
+        marketplace_bio: updated.marketplace_bio,
         marketplace_trade_types: updated.marketplace_trade_types,
     }))
 }

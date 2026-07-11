@@ -22,16 +22,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InviteCodeRow {
-    pub id:         String,
-    pub code:       String,
-    pub role:       String,
-    pub label:      Option<String>,
-    pub max_uses:   Option<i32>,
+    pub id: String,
+    pub code: String,
+    pub role: String,
+    pub label: Option<String>,
+    pub max_uses: Option<i32>,
     pub uses_count: i32,
     pub expires_at: Option<String>,
-    pub is_active:  bool,
+    pub is_active: bool,
     pub created_at: String,
-    pub join_url:   String,
+    pub join_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,16 +52,18 @@ pub async fn list_invite_codes() -> Result<InviteCodesResponse, server_fn::error
         "/api/folio/invite-codes",
         &token,
         None,
-    ).await.map_err(server_fn::error::ServerFnError::new)?;
+    )
+    .await
+    .map_err(server_fn::error::ServerFnError::new)?;
     Ok(result)
 }
 
 #[server(CreateTeamInvite, "/api")]
 pub async fn create_team_invite(
-    role:    String,
-    label:   String,
+    role: String,
+    label: String,
     max_uses: Option<i32>,
-    employer_self: bool,       // true = landlord is hiring a PM for themselves (sets employer_user_id)
+    employer_self: bool, // true = landlord is hiring a PM for themselves (sets employer_user_id)
 ) -> Result<String, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -76,11 +78,15 @@ pub async fn create_team_invite(
             "/api/folio/me",
             &token,
             None,
-        ).await {
+        )
+        .await
+        {
             Ok(me) => me["id"].as_str().map(|s| s.to_string()),
             Err(_) => None,
         }
-    } else { None };
+    } else {
+        None
+    };
 
     let mut payload = serde_json::json!({
         "role":      role,
@@ -96,7 +102,9 @@ pub async fn create_team_invite(
         &token,
         None,
         &payload,
-    ).await.map_err(server_fn::error::ServerFnError::new)?;
+    )
+    .await
+    .map_err(server_fn::error::ServerFnError::new)?;
 
     Ok(result["code"].as_str().unwrap_or_default().to_string())
 }
@@ -114,7 +122,10 @@ pub async fn deactivate_invite_code(
         &format!("/api/folio/invite-codes/{}", code_id),
         &token,
         &serde_json::json!({ "is_active": false }),
-    ).await.map(|_| ()).map_err(server_fn::error::ServerFnError::new)
+    )
+    .await
+    .map(|_| ())
+    .map_err(server_fn::error::ServerFnError::new)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -122,33 +133,33 @@ pub async fn deactivate_invite_code(
 fn role_label(r: &str) -> &'static str {
     match r {
         "property_manager" => "Property Manager",
-        "vendor"           => "Vendor",
-        "cohost"           => "Co-host",
-        "tenant"           => "Tenant",
-        "agent"            => "Agent",
-        _                  => "Member",
+        "vendor" => "Vendor",
+        "cohost" => "Co-host",
+        "tenant" => "Tenant",
+        "agent" => "Agent",
+        _ => "Member",
     }
 }
 
 fn role_icon(r: &str) -> &'static str {
     match r {
         "property_manager" => "corporate_fare",
-        "vendor"           => "handyman",
-        "cohost"           => "supervisor_account",
-        "tenant"           => "door_front",
-        "agent"            => "real_estate_agent",
-        _                  => "person",
+        "vendor" => "handyman",
+        "cohost" => "supervisor_account",
+        "tenant" => "door_front",
+        "agent" => "real_estate_agent",
+        _ => "person",
     }
 }
 
 fn role_accent(r: &str) -> &'static str {
     match r {
         "property_manager" => "#0284c7",
-        "vendor"           => "#0891b2",
-        "cohost"           => "#7c3aed",
-        "tenant"           => "#059669",
-        "agent"            => "#d97706",
-        _                  => "#64748b",
+        "vendor" => "#0891b2",
+        "cohost" => "#7c3aed",
+        "tenant" => "#059669",
+        "agent" => "#d97706",
+        _ => "#64748b",
     }
 }
 
@@ -165,18 +176,18 @@ pub fn LandlordTeam() -> impl IntoView {
         Resource::new(move || trigger_reload.get(), |_| list_invite_codes());
 
     // ── Modal state ───────────────────────────────────────────────────────────
-    let modal_open    = RwSignal::new(false);
-    let modal_role    = RwSignal::new("property_manager".to_string());
-    let modal_label   = RwSignal::new(String::new());
-    let modal_uses    = RwSignal::new("1".to_string());     // "unlimited" | "1" | "5" | "10"
-    let modal_saving  = RwSignal::new(false);
+    let modal_open = RwSignal::new(false);
+    let modal_role = RwSignal::new("property_manager".to_string());
+    let modal_label = RwSignal::new(String::new());
+    let modal_uses = RwSignal::new("1".to_string()); // "unlimited" | "1" | "5" | "10"
+    let modal_saving = RwSignal::new(false);
     let modal_err: RwSignal<Option<String>> = RwSignal::new(None);
     let modal_created: RwSignal<Option<String>> = RwSignal::new(None);
 
     let handle_create = move |_| {
         modal_saving.set(true);
         modal_err.set(None);
-        let role  = modal_role.get();
+        let role = modal_role.get();
         let label = modal_label.get();
         let max_uses: Option<i32> = match modal_uses.get().as_str() {
             "unlimited" => None,

@@ -16,11 +16,11 @@
 //! | POST   | /api/folio/events/check-in | QR token check-in (no event ID needed) |
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
@@ -160,7 +160,11 @@ async fn create_event(
     let event_type = match EventType::try_from(req.event_type.as_str()) {
         Ok(t) => t,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
 
@@ -186,7 +190,11 @@ async fn create_event(
     };
 
     match EventService::create(&db, tenant_id, payload).await {
-        Ok(ev) => (StatusCode::CREATED, Json(serde_json::json!({ "event": ev }))).into_response(),
+        Ok(ev) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "event": ev })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -207,14 +215,22 @@ async fn list_events(
 
     let event_type = match q.event_type.as_deref().map(EventType::try_from) {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(t)) => Some(t),
         None => None,
     };
     let status = match q.status.as_deref().map(EventStatus::try_from) {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(s)) => Some(s),
         None => None,
@@ -267,7 +283,11 @@ async fn transition_status(
     let new_status = match EventStatus::try_from(req.status.as_str()) {
         Ok(s) => s,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
     match EventService::transition_status(&db, tenant_id, id, new_status).await {
@@ -299,9 +319,11 @@ async fn create_ticket_type(
         quantity_available: req.quantity_available,
     };
     match EventService::create_ticket_type(&db, tenant_id, payload).await {
-        Ok(tt) => {
-            (StatusCode::CREATED, Json(serde_json::json!({ "ticket_type": tt }))).into_response()
-        }
+        Ok(tt) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "ticket_type": tt })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -320,8 +342,7 @@ async fn list_ticket_types(
         Ok(id) => id,
         Err(e) => return e.into_response(),
     };
-    match EventService::list_ticket_types(&db, tenant_id, id, q.active_only.unwrap_or(true)).await
-    {
+    match EventService::list_ticket_types(&db, tenant_id, id, q.active_only.unwrap_or(true)).await {
         Ok(types) => Json(serde_json::json!({ "ticket_types": types })).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -351,9 +372,11 @@ async fn register_attendee(
         attribution_touchpoint_id: req.attribution_touchpoint_id,
     };
     match EventService::register(&db, tenant_id, payload).await {
-        Ok(reg) => {
-            (StatusCode::CREATED, Json(serde_json::json!({ "registration": reg }))).into_response()
-        }
+        Ok(reg) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "registration": reg })),
+        )
+            .into_response(),
         Err(e) if e.to_string().contains("capacity") || e.to_string().contains("status") => (
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -379,7 +402,11 @@ async fn list_registrations(
     };
     let status_filter = match q.status.as_deref().map(RegistrationStatus::try_from) {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(s)) => Some(s),
         None => None,
@@ -418,9 +445,11 @@ async fn check_in(
             )
                 .into_response()
         }
-        Err(e) if e.to_string().contains("Invalid check-in token") => {
-            (StatusCode::NOT_FOUND, Json(serde_json::json!({ "error": "Invalid token" }))).into_response()
-        }
+        Err(e) if e.to_string().contains("Invalid check-in token") => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "Invalid token" })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),

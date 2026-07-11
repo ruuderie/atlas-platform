@@ -17,36 +17,62 @@
 // The invite code is resolved on mount and shown in the WizardShell context panel
 // (landlord/PMC name, property context).
 
-use leptos::prelude::*;
-use crate::components::wizard_shell::{ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code};
+use crate::components::wizard_shell::{
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
+};
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
+use leptos::prelude::*;
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "business",     label: "Business & Contact",      skippable: false },
-    WizardStepDesc { id: "trades",       label: "Trades & Coverage",       skippable: false },
-    WizardStepDesc { id: "credentials",  label: "Credentials & Insurance", skippable: true  },
-    WizardStepDesc { id: "pricing",      label: "Pricing & Availability",  skippable: false },
-    WizardStepDesc { id: "network",      label: "Grow your network",       skippable: true  },
-    WizardStepDesc { id: "done",         label: "Ready to Go",             skippable: false },
+    WizardStepDesc {
+        id: "business",
+        label: "Business & Contact",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "trades",
+        label: "Trades & Coverage",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "credentials",
+        label: "Credentials & Insurance",
+        skippable: true,
+    },
+    WizardStepDesc {
+        id: "pricing",
+        label: "Pricing & Availability",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "network",
+        label: "Grow your network",
+        skippable: true,
+    },
+    WizardStepDesc {
+        id: "done",
+        label: "Ready to Go",
+        skippable: false,
+    },
 ];
 
 // ── Trade constants ───────────────────────────────────────────────────────────
 
 const TRADES: &[(&str, &str, &str)] = &[
-    ("electrical",   "electrical_services", "Electrical"),
-    ("plumbing",     "water_damage",        "Plumbing"),
-    ("hvac",         "ac_unit",             "HVAC"),
-    ("painting",     "format_paint",        "Painting"),
-    ("roofing",      "roofing",             "Roofing"),
-    ("carpentry",    "door_front",          "Carpentry"),
-    ("cleaning",     "cleaning_services",   "Cleaning"),
-    ("landscaping",  "landscape",           "Landscaping"),
-    ("flooring",     "tile",                "Flooring"),
-    ("pest",         "pest_control",        "Pest Control"),
-    ("security",     "security",            "Security"),
-    ("general",      "build",               "General"),
+    ("electrical", "electrical_services", "Electrical"),
+    ("plumbing", "water_damage", "Plumbing"),
+    ("hvac", "ac_unit", "HVAC"),
+    ("painting", "format_paint", "Painting"),
+    ("roofing", "roofing", "Roofing"),
+    ("carpentry", "door_front", "Carpentry"),
+    ("cleaning", "cleaning_services", "Cleaning"),
+    ("landscaping", "landscape", "Landscaping"),
+    ("flooring", "tile", "Flooring"),
+    ("pest", "pest_control", "Pest Control"),
+    ("security", "security", "Security"),
+    ("general", "build", "General"),
 ];
 
 // ── Server function — submit vendor profile ────────────────────────────────────
@@ -99,7 +125,7 @@ pub async fn submit_vendor_profile(
 
 #[component]
 pub fn VendorWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
 
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
@@ -111,35 +137,39 @@ pub fn VendorWizard() -> impl IntoView {
     });
 
     let current_idx = RwSignal::new(0usize);
-    let total       = STEPS.len();
-    let is_last     = Signal::derive(move || current_idx.get() == total - 1);
-    let next_label  = Signal::derive(move || {
-        if is_last.get() { "Go to Vendor Dashboard" } else { "Continue" }
+    let total = STEPS.len();
+    let is_last = Signal::derive(move || current_idx.get() == total - 1);
+    let next_label = Signal::derive(move || {
+        if is_last.get() {
+            "Go to Vendor Dashboard"
+        } else {
+            "Continue"
+        }
     });
 
     // ── Form state ────────────────────────────────────────────────────────────
-    let biz_name      = RwSignal::new(String::new());
-    let biz_type      = RwSignal::new("llc".to_string());
-    let biz_website   = RwSignal::new(String::new());
+    let biz_name = RwSignal::new(String::new());
+    let biz_type = RwSignal::new("llc".to_string());
+    let biz_website = RwSignal::new(String::new());
     let contact_first = RwSignal::new(String::new());
-    let contact_last  = RwSignal::new(String::new());
-    let contact_role  = RwSignal::new(String::new());
-    let email         = RwSignal::new(String::new());
-    let phone         = RwSignal::new(String::new());
-    let street        = RwSignal::new(String::new());
-    let city          = RwSignal::new(String::new());
-    let state_zip     = RwSignal::new(String::new());
-    let coverage      = RwSignal::new(String::new());
+    let contact_last = RwSignal::new(String::new());
+    let contact_role = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let street = RwSignal::new(String::new());
+    let city = RwSignal::new(String::new());
+    let state_zip = RwSignal::new(String::new());
+    let coverage = RwSignal::new(String::new());
     let coverage_radius = RwSignal::new("25".to_string());
-    let license_num   = RwSignal::new(String::new());
+    let license_num = RwSignal::new(String::new());
     let license_state = RwSignal::new("FL".to_string());
     let license_expiry = RwSignal::new(String::new());
     let billing_model = RwSignal::new("hourly".to_string());
-    let hourly_rate   = RwSignal::new(String::new());
-    let call_fee      = RwSignal::new(String::new());
+    let hourly_rate = RwSignal::new(String::new());
+    let call_fee = RwSignal::new(String::new());
     let response_time = RwSignal::new("same_day".to_string());
-    let emergency     = RwSignal::new("weekends".to_string());
-    let pay_method    = RwSignal::new("ach".to_string());
+    let emergency = RwSignal::new("weekends".to_string());
+    let pay_method = RwSignal::new("ach".to_string());
 
     // Trade selection as a set of string keys
     let trades_sel: RwSignal<std::collections::HashSet<&'static str>> =
@@ -157,7 +187,12 @@ pub fn VendorWizard() -> impl IntoView {
             submitting.set(true);
             submit_err.set(None);
             let code = code_snapshot.get_value();
-            let trades_str = trades_sel.get().iter().cloned().collect::<Vec<_>>().join(",");
+            let trades_str = trades_sel
+                .get()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(",");
             let bn = biz_name.get();
             let cf = contact_first.get();
             let cl = contact_last.get();
@@ -167,7 +202,20 @@ pub fn VendorWizard() -> impl IntoView {
             let ln = license_num.get();
             let hr = hourly_rate.get();
             leptos::task::spawn_local(async move {
-                match submit_vendor_profile(code.clone(), bn, cf, cl, em, ph, trades_str, cv, ln, hr).await {
+                match submit_vendor_profile(
+                    code.clone(),
+                    bn,
+                    cf,
+                    cl,
+                    em,
+                    ph,
+                    trades_str,
+                    cv,
+                    ln,
+                    hr,
+                )
+                .await
+                {
                     Ok(_) => {
                         let _ = accept_invite_code(code, "/v".to_string()).await;
                         let nav = leptos_router::hooks::use_navigate();
@@ -186,12 +234,15 @@ pub fn VendorWizard() -> impl IntoView {
 
     let on_prev = Callback::new(move |_| {
         let i = current_idx.get();
-        if i > 0 { current_idx.set(i - 1); }
+        if i > 0 {
+            current_idx.set(i - 1);
+        }
     });
 
     // Left panel body — shows who invited the vendor if a code is present
     let ctx_body = ViewFn::from(move || {
-        let landlord_name = invite_sig.get()
+        let landlord_name = invite_sig
+            .get()
             .as_ref()
             .and_then(|c| c.context.landlord.as_ref())
             .map(|l| l.name.clone());
@@ -602,5 +653,3 @@ pub fn VendorWizard() -> impl IntoView {
         </WizardShell>
     }
 }
-
-

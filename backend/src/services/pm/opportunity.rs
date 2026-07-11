@@ -4,11 +4,10 @@
 //! Uses the entity's `status` field as the stage discriminator,
 //! and `opportunity_type` for the deal classification.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
 use uuid::Uuid;
 
@@ -125,7 +124,9 @@ impl OpportunityService {
             );
         }
 
-        Ok(q.order_by_desc(atlas_opportunity::Column::CreatedAt).all(db).await?)
+        Ok(q.order_by_desc(atlas_opportunity::Column::CreatedAt)
+            .all(db)
+            .await?)
     }
 
     // ── Stage machine ─────────────────────────────────────────────────────────
@@ -142,7 +143,10 @@ impl OpportunityService {
         let current = OpportunityStage::try_from(opp.status.as_str())
             .map_err(|e| anyhow!("corrupt stage: {e}"))?;
 
-        if matches!(current, OpportunityStage::ClosedWon | OpportunityStage::ClosedLost) {
+        if matches!(
+            current,
+            OpportunityStage::ClosedWon | OpportunityStage::ClosedLost
+        ) {
             return Err(anyhow!(
                 "Opportunity {id} is already closed ({current}) — cannot advance"
             ));

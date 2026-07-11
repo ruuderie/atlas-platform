@@ -40,13 +40,13 @@
 //! before inserting. If at capacity and `waitlist_enabled = true`, status is set to
 //! `Waitlisted`. If `waitlist_enabled = false`, registration is rejected.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use hex;
 use rand::RngCore;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+    TransactionTrait,
 };
 use uuid::Uuid;
 
@@ -186,8 +186,7 @@ impl EventService {
         tenant_id: Uuid,
         filter: EventFilter,
     ) -> Result<Vec<atlas_event::Model>> {
-        let mut q = atlas_event::Entity::find()
-            .filter(atlas_event::Column::TenantId.eq(tenant_id));
+        let mut q = atlas_event::Entity::find().filter(atlas_event::Column::TenantId.eq(tenant_id));
 
         if let Some(et) = filter.event_type {
             q = q.filter(atlas_event::Column::EventType.eq(et.to_string()));
@@ -208,7 +207,9 @@ impl EventService {
             q = q.filter(atlas_event::Column::StartsAt.gte(Utc::now()));
         }
 
-        Ok(q.order_by_asc(atlas_event::Column::StartsAt).all(db).await?)
+        Ok(q.order_by_asc(atlas_event::Column::StartsAt)
+            .all(db)
+            .await?)
     }
 
     /// Transition event status with state machine validation.
@@ -234,13 +235,24 @@ impl EventService {
             .map_err(|e| anyhow!("Invalid stored status: {e}"))?;
 
         let allowed = match &current {
-            EventStatus::Draft              => matches!(new_status, EventStatus::Published | EventStatus::Cancelled),
-            EventStatus::Published          => matches!(new_status, EventStatus::Active | EventStatus::Cancelled),
-            EventStatus::Active             => matches!(new_status, EventStatus::RegistrationClosed | EventStatus::InProgress | EventStatus::Cancelled),
-            EventStatus::RegistrationClosed => matches!(new_status, EventStatus::InProgress | EventStatus::Cancelled),
-            EventStatus::InProgress         => matches!(new_status, EventStatus::Completed | EventStatus::Cancelled),
-            EventStatus::Completed          => false,
-            EventStatus::Cancelled          => false,
+            EventStatus::Draft => {
+                matches!(new_status, EventStatus::Published | EventStatus::Cancelled)
+            }
+            EventStatus::Published => {
+                matches!(new_status, EventStatus::Active | EventStatus::Cancelled)
+            }
+            EventStatus::Active => matches!(
+                new_status,
+                EventStatus::RegistrationClosed | EventStatus::InProgress | EventStatus::Cancelled
+            ),
+            EventStatus::RegistrationClosed => {
+                matches!(new_status, EventStatus::InProgress | EventStatus::Cancelled)
+            }
+            EventStatus::InProgress => {
+                matches!(new_status, EventStatus::Completed | EventStatus::Cancelled)
+            }
+            EventStatus::Completed => false,
+            EventStatus::Cancelled => false,
         };
 
         if !allowed {
@@ -460,11 +472,11 @@ impl EventService {
 
         // Only Confirmed and Waitlisted can check in.
         match &current_status {
-            RegistrationStatus::Confirmed  => {}
+            RegistrationStatus::Confirmed => {}
             RegistrationStatus::Waitlisted => {} // walk-up admission
-            RegistrationStatus::CheckedIn  => return Err(anyhow!("Already checked in")),
-            RegistrationStatus::Cancelled  => return Err(anyhow!("Registration is cancelled")),
-            RegistrationStatus::NoShow     => return Err(anyhow!("Marked as no-show")),
+            RegistrationStatus::CheckedIn => return Err(anyhow!("Already checked in")),
+            RegistrationStatus::Cancelled => return Err(anyhow!("Registration is cancelled")),
+            RegistrationStatus::NoShow => return Err(anyhow!("Marked as no-show")),
             RegistrationStatus::PendingPayment => return Err(anyhow!("Payment not confirmed")),
         }
 

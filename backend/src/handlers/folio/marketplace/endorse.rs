@@ -21,32 +21,29 @@ use axum::{
     response::IntoResponse,
     routing::{delete, post},
 };
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Serialize;
 use uuid::Uuid;
-use chrono::Utc;
 
-use crate::extractors::tenant::TenantContext;
 use crate::entities::atlas_record_relationship;
+use crate::extractors::tenant::TenantContext;
 
 /// Relationship type slug for marketplace endorsements.
 const ENDORSEMENT_TYPE: &str = "marketplace_endorsement";
 const VENDOR_ENTITY_TYPE: &str = "atlas_service_providers";
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route(
-            "/api/folio/marketplace/vendors/{id}/endorse",
-            post(endorse_vendor).delete(retract_endorsement),
-        )
+    Router::new().route(
+        "/api/folio/marketplace/vendors/{id}/endorse",
+        post(endorse_vendor).delete(retract_endorsement),
+    )
 }
 
 #[derive(Serialize)]
 pub struct EndorseResponse {
-    pub endorsement_id:    Uuid,
-    pub vendor_id:         Uuid,
+    pub endorsement_id: Uuid,
+    pub vendor_id: Uuid,
     pub endorsing_account: Uuid,
 }
 
@@ -95,7 +92,7 @@ async fn endorse_vendor(
         Ok(Some(row)) => {
             // Already endorsed — return 200 with existing record (idempotent)
             return Json(EndorseResponse {
-                endorsement_id:    row.id,
+                endorsement_id: row.id,
                 vendor_id,
                 endorsing_account: landlord_account_id,
             })
@@ -106,21 +103,21 @@ async fn endorse_vendor(
 
     // ── Create endorsement ────────────────────────────────────────────────────
     let new_rel = atlas_record_relationship::ActiveModel {
-        id:                    Set(Uuid::new_v4()),
+        id: Set(Uuid::new_v4()),
         // Endorsements live in the endorser's tenant (not vendor's tenant)
-        tenant_id:             Set(ctx.tenant_id),
-        source_entity_type:    Set("atlas_account".to_string()),
-        source_entity_id:      Set(landlord_account_id),
-        target_entity_type:    Set(VENDOR_ENTITY_TYPE.to_string()),
-        target_entity_id:      Set(vendor_id),
-        relationship_type:     Set(ENDORSEMENT_TYPE.to_string()),
-        inverse_label:         Set(Some("endorsed_by".to_string())),
+        tenant_id: Set(ctx.tenant_id),
+        source_entity_type: Set("atlas_account".to_string()),
+        source_entity_id: Set(landlord_account_id),
+        target_entity_type: Set(VENDOR_ENTITY_TYPE.to_string()),
+        target_entity_id: Set(vendor_id),
+        relationship_type: Set(ENDORSEMENT_TYPE.to_string()),
+        inverse_label: Set(Some("endorsed_by".to_string())),
         relationship_metadata: Set(Some(serde_json::json!({
             "endorsed_at": Utc::now().to_rfc3339(),
             "context": "marketplace"
         }))),
-        created_by_user_id:    Set(Some(ctx.user_id)),
-        created_at:            Set(Utc::now()),
+        created_by_user_id: Set(Some(ctx.user_id)),
+        created_at: Set(Utc::now()),
     };
 
     match new_rel.insert(&db).await {
@@ -134,7 +131,7 @@ async fn endorse_vendor(
             (
                 StatusCode::CREATED,
                 Json(EndorseResponse {
-                    endorsement_id:    row.id,
+                    endorsement_id: row.id,
                     vendor_id,
                     endorsing_account: landlord_account_id,
                 }),

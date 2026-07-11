@@ -11,11 +11,11 @@
 //! | GET    | /api/folio/relationships/all/{entity_type}/{entity_id} | All relationships for entity |
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
@@ -120,9 +120,11 @@ async fn create_relationship(
     };
 
     match RecordRelationshipService::upsert(&db, tenant_id, payload).await {
-        Ok(rel) => {
-            (StatusCode::CREATED, Json(serde_json::json!({ "relationship": rel }))).into_response()
-        }
+        Ok(rel) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "relationship": rel })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),

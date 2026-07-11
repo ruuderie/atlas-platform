@@ -8,45 +8,55 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceSummary {
-    pub id:              Uuid,
-    pub subject:         String,
-    pub category:        Option<String>,
-    pub priority:        String,
-    pub status:          String,
-    pub asset_address:   Option<String>,
-    pub vendor_name:     Option<String>,
-    pub created_at:      String,
-    pub updated_at:      String,
+    pub id: Uuid,
+    pub subject: String,
+    pub category: Option<String>,
+    pub priority: String,
+    pub status: String,
+    pub asset_address: Option<String>,
+    pub vendor_name: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchPmcMaintenance, "/api")]
-pub async fn fetch_pmc_maintenance() -> Result<Vec<MaintenanceSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_pmc_maintenance(
+) -> Result<Vec<MaintenanceSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<MaintenanceSummary>>(
-        "/api/folio/maintenance", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/maintenance",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -55,19 +65,19 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 fn priority_badge(p: &str) -> (&'static str, &'static str) {
     match p.to_lowercase().as_str() {
         "urgent" | "emergency" => ("maint-priority--urgent", "🔴 Urgent"),
-        "high"                 => ("maint-priority--high",   "🟠 High"),
-        "medium"               => ("maint-priority--medium", "🟡 Medium"),
-        _                      => ("maint-priority--low",    "⚪ Low"),
+        "high" => ("maint-priority--high", "🟠 High"),
+        "medium" => ("maint-priority--medium", "🟡 Medium"),
+        _ => ("maint-priority--low", "⚪ Low"),
     }
 }
 
 fn status_cls(s: &str) -> &'static str {
     match s.to_lowercase().as_str() {
-        "open" | "submitted"   => "ph-badge--pending",
-        "assigned"             => "ph-badge--pending",
-        "in_progress"          => "ph-badge--pending",
-        "resolved" | "closed"  => "ph-badge--paid",
-        _                      => "ph-badge--default",
+        "open" | "submitted" => "ph-badge--pending",
+        "assigned" => "ph-badge--pending",
+        "in_progress" => "ph-badge--pending",
+        "resolved" | "closed" => "ph-badge--paid",
+        _ => "ph-badge--default",
     }
 }
 
@@ -75,14 +85,11 @@ fn status_cls(s: &str) -> &'static str {
 
 #[component]
 pub fn PmcMaintenanceDispatch() -> impl IntoView {
-    let refresh      = RwSignal::new(0u32);
-    let status_filter= RwSignal::new("open".to_string());
-    let prio_filter  = RwSignal::new("all".to_string());
+    let refresh = RwSignal::new(0u32);
+    let status_filter = RwSignal::new("open".to_string());
+    let prio_filter = RwSignal::new("all".to_string());
 
-    let queue_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_pmc_maintenance(),
-    );
+    let queue_res = Resource::new(move || refresh.get(), |_| fetch_pmc_maintenance());
 
     view! {
         <div class="main-area">

@@ -27,11 +27,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::DatabaseConnection;
 use serde::Deserialize;
@@ -43,7 +43,10 @@ use crate::services::pm::reporting::{ReportType, ReportingService};
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/tenant/reports", get(list_reports).post(request_report))
+        .route(
+            "/api/folio/tenant/reports",
+            get(list_reports).post(request_report),
+        )
         .route("/api/folio/analytics/landlord", get(landlord_overview))
         .route("/api/folio/analytics/vendor/{sp_id}", get(vendor_overview))
 }
@@ -94,12 +97,14 @@ async fn request_report(
     Json(body): Json<RequestReportInput>,
 ) -> impl IntoResponse {
     match ReportingService::request_report(&db, tenant_id, user_id, body.report_type).await {
-        Ok((case_id, report)) => {
-            (StatusCode::CREATED, Json(serde_json::json!({
+        Ok((case_id, report)) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
                 "case_id": case_id,
                 "report":  report,
-            }))).into_response()
-        }
+            })),
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!("request_report: {e:#}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()

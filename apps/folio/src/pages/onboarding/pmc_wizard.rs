@@ -14,30 +14,58 @@
 // Mode is auto-detected from the resolved invite code context.
 // Falls back to Standalone if no code is present (e.g. admin-initiated).
 
+use crate::components::wizard_shell::{
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
+};
 use leptos::prelude::*;
-use crate::components::wizard_shell::{ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code};
 
 // ── Step lists ────────────────────────────────────────────────────────────────
 
 const STANDALONE_STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "company",   label: "Company Profile",     skippable: false },
-    WizardStepDesc { id: "mode",      label: "PM Mode & Billing",   skippable: false },
-    WizardStepDesc { id: "clients",   label: "Client Portfolios",   skippable: true  },
-    WizardStepDesc { id: "modules",   label: "Modules & Features",  skippable: false },
-    WizardStepDesc { id: "codes",     label: "Invite Code Setup",   skippable: false },
+    WizardStepDesc {
+        id: "company",
+        label: "Company Profile",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "mode",
+        label: "PM Mode & Billing",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "clients",
+        label: "Client Portfolios",
+        skippable: true,
+    },
+    WizardStepDesc {
+        id: "modules",
+        label: "Modules & Features",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "codes",
+        label: "Invite Code Setup",
+        skippable: false,
+    },
 ];
 
 const HIRED_STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "profile",  label: "Your Profile",      skippable: false },
-    WizardStepDesc { id: "accept",   label: "Review & Accept",   skippable: false },
+    WizardStepDesc {
+        id: "profile",
+        label: "Your Profile",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "accept",
+        label: "Review & Accept",
+        skippable: false,
+    },
 ];
 
 // ── Server function — accept invite ──────────────────────────────────────────
 
 #[server(AcceptPmcInvite, "/api")]
-pub async fn accept_pmc_invite(
-    invite_code: String,
-) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn accept_pmc_invite(invite_code: String) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
 
@@ -63,7 +91,9 @@ pub async fn accept_pmc_invite(
     };
 
     if code_id.is_empty() {
-        return Err(server_fn::error::ServerFnError::new("Could not resolve invite code id"));
+        return Err(server_fn::error::ServerFnError::new(
+            "Could not resolve invite code id",
+        ));
     }
 
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
@@ -81,7 +111,7 @@ pub async fn accept_pmc_invite(
 
 #[component]
 pub fn PmcWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
 
     // Resolve the invite code to determine mode and pre-fill employer context
@@ -96,7 +126,8 @@ pub fn PmcWizard() -> impl IntoView {
     // Derive mode from invite code: if code has employer context → hired
     // The employer is surfaced via InviteCodeContext.landlord (re-used as the employer entity).
     let is_hired = Signal::derive(move || {
-        invite_sig.get()
+        invite_sig
+            .get()
             .as_ref()
             .map(|c| c.context.landlord.is_some())
             .unwrap_or(false)
@@ -118,44 +149,48 @@ pub fn PmcWizard() -> impl IntoView {
 
     let next_label = Signal::derive(move || {
         if is_last.get() {
-            if is_hired.get() { "Accept & Join" } else { "Launch PM Workspace" }
+            if is_hired.get() {
+                "Accept & Join"
+            } else {
+                "Launch PM Workspace"
+            }
         } else {
             "Continue"
         }
     });
 
     // ── Form state — Standalone ───────────────────────────────────────────────
-    let company_name   = RwSignal::new(String::new());
-    let dba_name       = RwSignal::new(String::new());
-    let license_num    = RwSignal::new(String::new());
-    let license_state  = RwSignal::new("FL".to_string());
-    let contact_first  = RwSignal::new(String::new());
-    let contact_last   = RwSignal::new(String::new());
-    let contact_email  = RwSignal::new(String::new());
-    let contact_phone  = RwSignal::new(String::new());
+    let company_name = RwSignal::new(String::new());
+    let dba_name = RwSignal::new(String::new());
+    let license_num = RwSignal::new(String::new());
+    let license_state = RwSignal::new("FL".to_string());
+    let contact_first = RwSignal::new(String::new());
+    let contact_last = RwSignal::new(String::new());
+    let contact_email = RwSignal::new(String::new());
+    let contact_phone = RwSignal::new(String::new());
     let office_address = RwSignal::new(String::new());
     let portfolio_mode = RwSignal::new("full_pmc".to_string());
-    let fee_model      = RwSignal::new("percent".to_string());
-    let default_rate   = RwSignal::new("8".to_string());
-    let leasing_fee    = RwSignal::new(String::new());
+    let fee_model = RwSignal::new("percent".to_string());
+    let default_rate = RwSignal::new("8".to_string());
+    let leasing_fee = RwSignal::new(String::new());
     let approval_limit = RwSignal::new("1000".to_string());
 
     // Modules
     let mod_statements = RwSignal::new(true);
-    let mod_tenant     = RwSignal::new(true);
-    let mod_vendor     = RwSignal::new(true);
-    let mod_maint      = RwSignal::new(true);
-    let mod_str        = RwSignal::new(false);
-    let mod_ota        = RwSignal::new(false);
-    let mod_crm        = RwSignal::new(false);
+    let mod_tenant = RwSignal::new(true);
+    let mod_vendor = RwSignal::new(true);
+    let mod_maint = RwSignal::new(true);
+    let mod_str = RwSignal::new(false);
+    let mod_ota = RwSignal::new(false);
+    let mod_crm = RwSignal::new(false);
 
     // ── Form state — Hired ────────────────────────────────────────────────────
-    let pm_first  = RwSignal::new(String::new());
-    let pm_last   = RwSignal::new(String::new());
-    let pm_email  = RwSignal::new(String::new());
-    let pm_phone  = RwSignal::new(String::new());
-    let pm_title  = RwSignal::new("On-site Manager".to_string());
-    let terms_ok  = RwSignal::new(false);
+    let pm_first = RwSignal::new(String::new());
+    let pm_last = RwSignal::new(String::new());
+    let pm_email = RwSignal::new(String::new());
+    let pm_phone = RwSignal::new(String::new());
+    let pm_title = RwSignal::new("On-site Manager".to_string());
+    let terms_ok = RwSignal::new(false);
 
     // ── Submit state ──────────────────────────────────────────────────────────
     let submitting = RwSignal::new(false);
@@ -163,8 +198,8 @@ pub fn PmcWizard() -> impl IntoView {
     let code_snapshot = StoredValue::new(code_key());
 
     let on_next = Callback::new(move |_| {
-        let idx  = current_idx.get();
-        let tot  = total.get();
+        let idx = current_idx.get();
+        let tot = total.get();
         if idx + 1 >= tot {
             // Final step — call accept endpoint, then navigate
             let code = code_snapshot.get_value();
@@ -189,18 +224,22 @@ pub fn PmcWizard() -> impl IntoView {
 
     let on_prev = Callback::new(move |_| {
         let i = current_idx.get();
-        if i > 0 { current_idx.set(i - 1); }
+        if i > 0 {
+            current_idx.set(i - 1);
+        }
     });
 
     // ── Left panel body — dynamic based on mode ───────────────────────────────
     let ctx_body = ViewFn::from(move || {
         let hired = is_hired.get();
-        let employer_name = invite_sig.get()
+        let employer_name = invite_sig
+            .get()
             .as_ref()
             .and_then(|c| c.context.landlord.as_ref())
             .map(|l| l.name.clone())
             .unwrap_or_else(|| "Your Landlord".to_string());
-        let asset_count = invite_sig.get()
+        let asset_count = invite_sig
+            .get()
             .as_ref()
             .and_then(|c| c.context.asset_count)
             .unwrap_or(0);

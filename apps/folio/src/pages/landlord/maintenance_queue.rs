@@ -18,27 +18,27 @@ use crate::components::nav::NavIcon;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MaintenanceSummary {
-    pub id:         uuid::Uuid,
-    pub asset_id:   Option<uuid::Uuid>,
-    pub case_type:  String,
-    pub subject:    String,
-    pub status:     String,
-    pub priority:   String,
+    pub id: uuid::Uuid,
+    pub asset_id: Option<uuid::Uuid>,
+    pub case_type: String,
+    pub subject: String,
+    pub status: String,
+    pub priority: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InspectionDetail {
-    pub id:                    uuid::Uuid,
-    pub asset_id:              Option<uuid::Uuid>,
-    pub subject:               String,
-    pub status:                String,
-    pub scheduled_at:          Option<chrono::DateTime<chrono::Utc>>,
-    pub completed_at:          Option<chrono::DateTime<chrono::Utc>>,
-    pub service_provider_id:   Option<uuid::Uuid>,
-    pub estimated_cost_cents:  Option<i64>,
-    pub actual_cost_cents:     Option<i64>,
-    pub created_at:            chrono::DateTime<chrono::Utc>,
+    pub id: uuid::Uuid,
+    pub asset_id: Option<uuid::Uuid>,
+    pub subject: String,
+    pub status: String,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub service_provider_id: Option<uuid::Uuid>,
+    pub estimated_cost_cents: Option<i64>,
+    pub actual_cost_cents: Option<i64>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -53,14 +53,14 @@ pub enum MaintenanceTab {
 impl MaintenanceTab {
     pub const fn label(self) -> &'static str {
         match self {
-            Self::WorkOrders  => "Work Orders",
+            Self::WorkOrders => "Work Orders",
             Self::Inspections => "Inspections",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::WorkOrders  => "handyman",
+            Self::WorkOrders => "handyman",
             Self::Inspections => "fact_check",
         }
     }
@@ -81,49 +81,49 @@ pub enum CaseStatus {
 impl CaseStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "open"        => Self::Open,
+            "open" => Self::Open,
             "in_progress" => Self::InProgress,
-            "resolved"    => Self::Resolved,
-            "closed"      => Self::Closed,
-            "scheduled"   => Self::Scheduled,
-            "completed"   => Self::Completed,
-            _             => Self::Unknown,
+            "resolved" => Self::Resolved,
+            "closed" => Self::Closed,
+            "scheduled" => Self::Scheduled,
+            "completed" => Self::Completed,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Open       => "Open",
+            Self::Open => "Open",
             Self::InProgress => "In Progress",
-            Self::Resolved   => "Resolved",
-            Self::Closed     => "Closed",
-            Self::Scheduled  => "Scheduled",
-            Self::Completed  => "Completed",
-            Self::Unknown    => "Unknown",
+            Self::Resolved => "Resolved",
+            Self::Closed => "Closed",
+            Self::Scheduled => "Scheduled",
+            Self::Completed => "Completed",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Open       => "mq-status--open",
+            Self::Open => "mq-status--open",
             Self::InProgress => "mq-status--in-progress",
-            Self::Resolved   => "mq-status--resolved",
-            Self::Closed     => "mq-status--closed",
-            Self::Scheduled  => "mq-status--scheduled",
-            Self::Completed  => "mq-status--completed",
-            Self::Unknown    => "mq-status--unknown",
+            Self::Resolved => "mq-status--resolved",
+            Self::Closed => "mq-status--closed",
+            Self::Scheduled => "mq-status--scheduled",
+            Self::Completed => "mq-status--completed",
+            Self::Unknown => "mq-status--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Open       => "radio_button_unchecked",
+            Self::Open => "radio_button_unchecked",
             Self::InProgress => "sync",
-            Self::Resolved   => "check_circle",
-            Self::Closed     => "lock",
-            Self::Scheduled  => "event",
-            Self::Completed  => "task_alt",
-            Self::Unknown    => "help",
+            Self::Resolved => "check_circle",
+            Self::Closed => "lock",
+            Self::Scheduled => "event",
+            Self::Completed => "task_alt",
+            Self::Unknown => "help",
         }
     }
 }
@@ -146,32 +146,32 @@ impl CasePriority {
     pub fn from_str(s: &str) -> Self {
         match s {
             "emergency" => Self::Emergency,
-            "routine"   => Self::Routine,
-            _           => Self::Unknown,
+            "routine" => Self::Routine,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Emergency => "Emergency",
-            Self::Routine   => "Routine",
-            Self::Unknown   => "Unknown",
+            Self::Routine => "Routine",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
             Self::Emergency => "mq-priority--emergency",
-            Self::Routine   => "mq-priority--routine",
-            Self::Unknown   => "mq-priority--unknown",
+            Self::Routine => "mq-priority--routine",
+            Self::Unknown => "mq-priority--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
             Self::Emergency => "priority_high",
-            Self::Routine   => "low_priority",
-            Self::Unknown   => "help",
+            Self::Routine => "low_priority",
+            Self::Unknown => "help",
         }
     }
 }
@@ -199,43 +199,43 @@ pub enum TradeCategory {
 impl TradeCategory {
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::All        => "all",
-            Self::Plumbing   => "plumbing",
+            Self::All => "all",
+            Self::Plumbing => "plumbing",
             Self::Electrical => "electrical",
-            Self::Hvac       => "hvac",
+            Self::Hvac => "hvac",
             Self::Structural => "structural",
-            Self::Pest       => "pest",
-            Self::Appliance  => "appliance",
-            Self::Roofing    => "roofing",
-            Self::General    => "general",
+            Self::Pest => "pest",
+            Self::Appliance => "appliance",
+            Self::Roofing => "roofing",
+            Self::General => "general",
         }
     }
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::All        => "All",
-            Self::Plumbing   => "Plumbing",
+            Self::All => "All",
+            Self::Plumbing => "Plumbing",
             Self::Electrical => "Electrical",
-            Self::Hvac       => "HVAC",
+            Self::Hvac => "HVAC",
             Self::Structural => "Structural",
-            Self::Pest       => "Pest",
-            Self::Appliance  => "Appliance",
-            Self::Roofing    => "Roofing",
-            Self::General    => "General",
+            Self::Pest => "Pest",
+            Self::Appliance => "Appliance",
+            Self::Roofing => "Roofing",
+            Self::General => "General",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::All        => "apps",
-            Self::Plumbing   => "water_drop",
+            Self::All => "apps",
+            Self::Plumbing => "water_drop",
             Self::Electrical => "bolt",
-            Self::Hvac       => "ac_unit",
+            Self::Hvac => "ac_unit",
             Self::Structural => "foundation",
-            Self::Pest       => "pest_control",
-            Self::Appliance  => "kitchen",
-            Self::Roofing    => "roofing",
-            Self::General    => "build",
+            Self::Pest => "pest_control",
+            Self::Appliance => "kitchen",
+            Self::Roofing => "roofing",
+            Self::General => "build",
         }
     }
 }
@@ -250,15 +250,9 @@ pub fn MaintenanceQueue() -> impl IntoView {
     let (priority_filter, set_priority) = signal(Option::<CasePriority>::None);
     let (search_query, set_search) = signal(String::new());
 
-    let tickets = Resource::new(
-        || (),
-        |_| async move { list_maintenance_tickets().await },
-    );
+    let tickets = Resource::new(|| (), |_| async move { list_maintenance_tickets().await });
 
-    let inspections = Resource::new(
-        || (),
-        |_| async move { list_inspections().await },
-    );
+    let inspections = Resource::new(|| (), |_| async move { list_inspections().await });
 
     let categories = [
         TradeCategory::All,
@@ -667,8 +661,7 @@ pub async fn list_maintenance_tickets(
 
 /// GET /api/folio/inspections
 #[server(ListInspections, "/api")]
-pub async fn list_inspections(
-) -> Result<Vec<InspectionDetail>, server_fn::error::ServerFnError> {
+pub async fn list_inspections() -> Result<Vec<InspectionDetail>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();

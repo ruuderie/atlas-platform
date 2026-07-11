@@ -13,46 +13,89 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MaintenanceRequest {
-    pub category:    String,
-    pub urgency:     String,
-    pub subject:     String,
+    pub category: String,
+    pub urgency: String,
+    pub subject: String,
     pub description: String,
     pub unit_access: String,
 }
 
 #[server(SubmitMaintenanceRequest, "/api")]
-pub async fn submit_maintenance_request(req: MaintenanceRequest) -> Result<String, server_fn::error::ServerFnError> {
+pub async fn submit_maintenance_request(
+    req: MaintenanceRequest,
+) -> Result<String, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let _token  = session_token(&headers)?;
+    let _token = session_token(&headers)?;
     Ok("case_stub".to_string())
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
 // ── Category data ─────────────────────────────────────────────────────────────
 
-struct Category { id: &'static str, icon: &'static str, label: &'static str }
+struct Category {
+    id: &'static str,
+    icon: &'static str,
+    label: &'static str,
+}
 fn categories() -> Vec<Category> {
     vec![
-        Category { id:"plumbing",      icon:"🚰", label:"Plumbing" },
-        Category { id:"electrical",    icon:"⚡", label:"Electrical" },
-        Category { id:"hvac",          icon:"❄️", label:"HVAC / Heating" },
-        Category { id:"appliance",     icon:"🫙", label:"Appliance" },
-        Category { id:"structural",    icon:"🏗", label:"Structural" },
-        Category { id:"pest",          icon:"🐛", label:"Pest Control" },
-        Category { id:"locksmith",     icon:"🔑", label:"Locksmith" },
-        Category { id:"other",         icon:"🔧", label:"Other" },
+        Category {
+            id: "plumbing",
+            icon: "🚰",
+            label: "Plumbing",
+        },
+        Category {
+            id: "electrical",
+            icon: "⚡",
+            label: "Electrical",
+        },
+        Category {
+            id: "hvac",
+            icon: "❄️",
+            label: "HVAC / Heating",
+        },
+        Category {
+            id: "appliance",
+            icon: "🫙",
+            label: "Appliance",
+        },
+        Category {
+            id: "structural",
+            icon: "🏗",
+            label: "Structural",
+        },
+        Category {
+            id: "pest",
+            icon: "🐛",
+            label: "Pest Control",
+        },
+        Category {
+            id: "locksmith",
+            icon: "🔑",
+            label: "Locksmith",
+        },
+        Category {
+            id: "other",
+            icon: "🔧",
+            label: "Other",
+        },
     ]
 }
 
@@ -60,29 +103,35 @@ fn categories() -> Vec<Category> {
 
 #[component]
 pub fn TenantMaintenanceTriage() -> impl IntoView {
-    let step        = RwSignal::new(1u8);
-    let category    = RwSignal::new(String::new());
-    let urgency     = RwSignal::new("routine".to_string());
-    let subject     = RwSignal::new(String::new());
+    let step = RwSignal::new(1u8);
+    let category = RwSignal::new(String::new());
+    let urgency = RwSignal::new("routine".to_string());
+    let subject = RwSignal::new(String::new());
     let description = RwSignal::new(String::new());
-    let access      = RwSignal::new("yes_with_notice".to_string());
-    let submitting  = RwSignal::new(false);
-    let submitted   = RwSignal::new(false);
-    let error       = RwSignal::new(None::<String>);
+    let access = RwSignal::new("yes_with_notice".to_string());
+    let submitting = RwSignal::new(false);
+    let submitted = RwSignal::new(false);
+    let error = RwSignal::new(None::<String>);
 
     let handle_submit = move |_| {
         submitting.set(true);
         let req = MaintenanceRequest {
-            category:    category.get(),
-            urgency:     urgency.get(),
-            subject:     subject.get(),
+            category: category.get(),
+            urgency: urgency.get(),
+            subject: subject.get(),
             description: description.get(),
             unit_access: access.get(),
         };
         leptos::task::spawn_local(async move {
             match submit_maintenance_request(req).await {
-                Ok(_)  => { submitted.set(true); submitting.set(false); }
-                Err(e) => { error.set(Some(e.to_string())); submitting.set(false); }
+                Ok(_) => {
+                    submitted.set(true);
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

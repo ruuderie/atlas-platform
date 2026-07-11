@@ -11,22 +11,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentSummary {
-    pub id:                      Uuid,
-    pub document_category:       String,
-    pub related_entity_type:     Option<String>,
-    pub related_entity_id:       Option<Uuid>,
+    pub id: Uuid,
+    pub document_category: String,
+    pub related_entity_type: Option<String>,
+    pub related_entity_id: Option<Uuid>,
     pub is_counterparty_visible: bool,
-    pub requires_signature:      bool,
-    pub is_signed:               bool,
-    pub version_number:          i32,
-    pub created_at:              String,
+    pub requires_signature: bool,
+    pub is_signed: bool,
+    pub version_number: i32,
+    pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -38,18 +38,27 @@ pub async fn fetch_tenant_docs() -> Result<Vec<DocumentSummary>, server_fn::erro
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<DocumentSummary>>(
-        "/api/folio/vault/documents", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/vault/documents",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -58,18 +67,19 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 fn doc_icon(category: &str) -> &'static str {
     match category.to_lowercase().as_str() {
         c if c.contains("lease") || c.contains("agreement") => "📋",
-        c if c.contains("id")  || c.contains("passport")   => "🪪",
-        c if c.contains("permit") || c.contains("str")     => "📜",
-        c if c.contains("insurance")                        => "🛡",
-        c if c.contains("notice")                           => "📣",
-        c if c.contains("inspection")                       => "🔍",
-        c if c.contains("receipt") || c.contains("invoice")=> "🧾",
-        _                                                   => "📄",
+        c if c.contains("id") || c.contains("passport") => "🪪",
+        c if c.contains("permit") || c.contains("str") => "📜",
+        c if c.contains("insurance") => "🛡",
+        c if c.contains("notice") => "📣",
+        c if c.contains("inspection") => "🔍",
+        c if c.contains("receipt") || c.contains("invoice") => "🧾",
+        _ => "📄",
     }
 }
 
 fn doc_label(category: &str) -> String {
-    category.replace('_', " ")
+    category
+        .replace('_', " ")
         .split_whitespace()
         .map(|w| {
             let mut c = w.chars();
@@ -90,15 +100,12 @@ fn needs_action(doc: &DocumentSummary) -> bool {
 
 #[component]
 pub fn TenantDocuments() -> impl IntoView {
-    let refresh        = RwSignal::new(0u32);
-    let filter_cat     = RwSignal::new("all".to_string());
-    let selected_doc   = RwSignal::new(None::<DocumentSummary>);
-    let show_detail    = RwSignal::new(false);
+    let refresh = RwSignal::new(0u32);
+    let filter_cat = RwSignal::new("all".to_string());
+    let selected_doc = RwSignal::new(None::<DocumentSummary>);
+    let show_detail = RwSignal::new(false);
 
-    let docs_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_tenant_docs(),
-    );
+    let docs_res = Resource::new(move || refresh.get(), |_| fetch_tenant_docs());
 
     view! {
         <div class="main-area">

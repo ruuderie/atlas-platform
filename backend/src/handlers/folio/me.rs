@@ -1,5 +1,7 @@
 use axum::{Extension, Json, http::StatusCode};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -11,13 +13,13 @@ use crate::types::pm::FolioRole;
 /// Consumed by the Folio Leptos frontend `check_session()` server fn.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FolioMeResponse {
-    pub user_id:            Uuid,
-    pub tenant_id:          Option<Uuid>,
-    pub email:              String,
-    pub display_name:       Option<String>,
-    pub folio_role:         FolioRole,
+    pub user_id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub email: String,
+    pub display_name: Option<String>,
+    pub folio_role: FolioRole,
     /// True if the user has at least one registered passkey.
-    pub has_passkey:        bool,
+    pub has_passkey: bool,
     /// True when all required onboarding steps are complete for this instance.
     pub onboarding_complete: bool,
     /// Number of wizard steps with a `completed_at` timestamp.
@@ -108,7 +110,11 @@ pub async fn get_folio_me(
     let display_name = format!("{} {}", user_row.first_name, user_row.last_name)
         .trim()
         .to_owned();
-    let display_name = if display_name.is_empty() { None } else { Some(display_name) };
+    let display_name = if display_name.is_empty() {
+        None
+    } else {
+        Some(display_name)
+    };
 
     // ── 6. Check passkey registration ────────────────────────────────────────
     let has_passkey = passkey::Entity::find()
@@ -177,7 +183,7 @@ pub async fn get_folio_me(
             .flatten();
         if let Some(r) = row {
             let completed = r.try_get::<i64>("", "completed").unwrap_or(0) as usize;
-            let total     = r.try_get::<i64>("", "total").unwrap_or(0) as usize;
+            let total = r.try_get::<i64>("", "total").unwrap_or(0) as usize;
             (completed, total.max(7)) // floor at 7 (the wizard has 7 steps)
         } else {
             (0, 7)
@@ -202,9 +208,12 @@ pub async fn get_folio_me(
             .ok()
             .flatten();
         // If the row exists and dismissed_at is not null, it's been dismissed.
-        row.and_then(|r| r.try_get::<Option<chrono::DateTime<chrono::Utc>>>("", "dismissed_at").ok())
-            .flatten()
-            .is_some()
+        row.and_then(|r| {
+            r.try_get::<Option<chrono::DateTime<chrono::Utc>>>("", "dismissed_at")
+                .ok()
+        })
+        .flatten()
+        .is_some()
     } else {
         false
     };

@@ -24,9 +24,9 @@
 
 use anyhow::Result;
 use sea_orm::DatabaseConnection;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use uuid::Uuid;
 
 /// PM document categories.
 ///
@@ -59,15 +59,15 @@ pub enum PmDocumentType {
 impl fmt::Display for PmDocumentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::LeaseAgreement        => "lease_agreement",
-            Self::IdDocument            => "id_document",
-            Self::ContractorLicense     => "contractor_license",
-            Self::StrPermit             => "str_permit",
-            Self::InspectionReport      => "inspection_report",
-            Self::InsurancePolicy       => "insurance_policy",
-            Self::TitleDeed             => "title_deed",
-            Self::ConominioStatement    => "condominio_statement",
-            Self::MaintenanceReceipt    => "maintenance_receipt",
+            Self::LeaseAgreement => "lease_agreement",
+            Self::IdDocument => "id_document",
+            Self::ContractorLicense => "contractor_license",
+            Self::StrPermit => "str_permit",
+            Self::InspectionReport => "inspection_report",
+            Self::InsurancePolicy => "insurance_policy",
+            Self::TitleDeed => "title_deed",
+            Self::ConominioStatement => "condominio_statement",
+            Self::MaintenanceReceipt => "maintenance_receipt",
             Self::SecurityDepositReceipt => "security_deposit_receipt",
         })
     }
@@ -77,15 +77,15 @@ impl TryFrom<String> for PmDocumentType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "lease_agreement"          => Ok(Self::LeaseAgreement),
-            "id_document"              => Ok(Self::IdDocument),
-            "contractor_license"       => Ok(Self::ContractorLicense),
-            "str_permit"               => Ok(Self::StrPermit),
-            "inspection_report"        => Ok(Self::InspectionReport),
-            "insurance_policy"         => Ok(Self::InsurancePolicy),
-            "title_deed"               => Ok(Self::TitleDeed),
-            "condominio_statement"     => Ok(Self::ConominioStatement),
-            "maintenance_receipt"      => Ok(Self::MaintenanceReceipt),
+            "lease_agreement" => Ok(Self::LeaseAgreement),
+            "id_document" => Ok(Self::IdDocument),
+            "contractor_license" => Ok(Self::ContractorLicense),
+            "str_permit" => Ok(Self::StrPermit),
+            "inspection_report" => Ok(Self::InspectionReport),
+            "insurance_policy" => Ok(Self::InsurancePolicy),
+            "title_deed" => Ok(Self::TitleDeed),
+            "condominio_statement" => Ok(Self::ConominioStatement),
+            "maintenance_receipt" => Ok(Self::MaintenanceReceipt),
             "security_deposit_receipt" => Ok(Self::SecurityDepositReceipt),
             other => Err(format!("unknown PmDocumentType: '{other}'")),
         }
@@ -115,9 +115,16 @@ impl VaultService {
         r2_key: &str,
     ) -> Result<Uuid> {
         Self::register_document_full(
-            db, tenant_id, entity_type, entity_id, doc_type, r2_key,
-            "application/octet-stream", None,
-        ).await
+            db,
+            tenant_id,
+            entity_type,
+            entity_id,
+            doc_type,
+            r2_key,
+            "application/octet-stream",
+            None,
+        )
+        .await
     }
 
     /// Full document registration with MIME type and size.
@@ -131,9 +138,9 @@ impl VaultService {
         mime_type: &str,
         size_bytes: Option<i64>,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
-        use chrono::Utc;
         use anyhow::anyhow;
+        use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         let now = Utc::now();
 

@@ -23,6 +23,6 @@
 //! DELETE /api/folio/marketplace/vendors/:id/endorse — retract endorsement
 //! PATCH /api/folio/marketplace/my-listing         — publish/update own vendor profile
 
-pub mod vendors;
 pub mod endorse;
 pub mod listing;
+pub mod vendors;

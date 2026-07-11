@@ -23,21 +23,21 @@ use crate::components::nav::NavIcon;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LedgerEntrySummary {
-    pub id:                   uuid::Uuid,
+    pub id: uuid::Uuid,
     pub billable_entity_type: String,
-    pub billable_entity_id:   uuid::Uuid,
-    pub description:          Option<String>,
-    pub gross_amount_cents:   i64,
-    pub fee_amount_cents:     i64,
-    pub net_amount_cents:     i64,
-    pub currency:             String,
-    pub payment_rail:         Option<String>,
-    pub status:               String,
-    pub due_date:             Option<chrono::NaiveDate>,
-    pub paid_at:              Option<chrono::DateTime<chrono::Utc>>,
-    pub reconciled_at:        Option<chrono::DateTime<chrono::Utc>>,
-    pub reconciliation_note:  Option<String>,
-    pub created_at:           chrono::DateTime<chrono::Utc>,
+    pub billable_entity_id: uuid::Uuid,
+    pub description: Option<String>,
+    pub gross_amount_cents: i64,
+    pub fee_amount_cents: i64,
+    pub net_amount_cents: i64,
+    pub currency: String,
+    pub payment_rail: Option<String>,
+    pub status: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub paid_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub reconciled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub reconciliation_note: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -57,49 +57,49 @@ pub enum EntryStatus {
 impl EntryStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "pending"    => Self::Pending,
+            "pending" => Self::Pending,
             "processing" => Self::Processing,
-            "paid"       => Self::Paid,
-            "failed"     => Self::Failed,
-            "refunded"   => Self::Refunded,
-            "waived"     => Self::Waived,
-            _            => Self::Unknown,
+            "paid" => Self::Paid,
+            "failed" => Self::Failed,
+            "refunded" => Self::Refunded,
+            "waived" => Self::Waived,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Pending    => "Pending",
+            Self::Pending => "Pending",
             Self::Processing => "Processing",
-            Self::Paid       => "Paid",
-            Self::Failed     => "Failed",
-            Self::Refunded   => "Refunded",
-            Self::Waived     => "Waived",
-            Self::Unknown    => "Unknown",
+            Self::Paid => "Paid",
+            Self::Failed => "Failed",
+            Self::Refunded => "Refunded",
+            Self::Waived => "Waived",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Pending    => "le-status--pending",
+            Self::Pending => "le-status--pending",
             Self::Processing => "le-status--processing",
-            Self::Paid       => "le-status--paid",
-            Self::Failed     => "le-status--failed",
-            Self::Refunded   => "le-status--refunded",
-            Self::Waived     => "le-status--waived",
-            Self::Unknown    => "le-status--unknown",
+            Self::Paid => "le-status--paid",
+            Self::Failed => "le-status--failed",
+            Self::Refunded => "le-status--refunded",
+            Self::Waived => "le-status--waived",
+            Self::Unknown => "le-status--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Pending    => "schedule",
+            Self::Pending => "schedule",
             Self::Processing => "sync",
-            Self::Paid       => "check_circle",
-            Self::Failed     => "cancel",
-            Self::Refunded   => "undo",
-            Self::Waived     => "remove_circle",
-            Self::Unknown    => "help",
+            Self::Paid => "check_circle",
+            Self::Failed => "cancel",
+            Self::Refunded => "undo",
+            Self::Waived => "remove_circle",
+            Self::Unknown => "help",
         }
     }
 }
@@ -132,8 +132,8 @@ impl ChargeType {
         // Entity type takes priority for non-contract entities.
         match entity_type {
             "atlas_reservation" => return Self::BookingCharge,
-            "atlas_violation"   => return Self::ViolationFine,
-            _                   => {}
+            "atlas_violation" => return Self::ViolationFine,
+            _ => {}
         }
         // For atlas_contract entries, inspect the [prefix] tag.
         let desc = description.unwrap_or("");
@@ -158,46 +158,46 @@ impl ChargeType {
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Rent                       => "Rent",
-            Self::LateFee                    => "Late Fee",
-            Self::MaintenanceReimbursement   => "Maintenance",
-            Self::Incidental                 => "Incidental",
-            Self::SecurityDepositDeduction   => "Deposit Deduction",
-            Self::UtilityChargeback          => "Utility Chargeback",
-            Self::BookingCharge              => "Booking",
-            Self::ViolationFine              => "Violation Fine",
-            Self::Other                      => "Other",
-            Self::Unknown                    => "Charge",
+            Self::Rent => "Rent",
+            Self::LateFee => "Late Fee",
+            Self::MaintenanceReimbursement => "Maintenance",
+            Self::Incidental => "Incidental",
+            Self::SecurityDepositDeduction => "Deposit Deduction",
+            Self::UtilityChargeback => "Utility Chargeback",
+            Self::BookingCharge => "Booking",
+            Self::ViolationFine => "Violation Fine",
+            Self::Other => "Other",
+            Self::Unknown => "Charge",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Rent                       => "ct--rent",
-            Self::LateFee                    => "ct--late-fee",
-            Self::MaintenanceReimbursement   => "ct--maintenance",
-            Self::Incidental                 => "ct--incidental",
-            Self::SecurityDepositDeduction   => "ct--deposit",
-            Self::UtilityChargeback          => "ct--utility",
-            Self::BookingCharge              => "ct--booking",
-            Self::ViolationFine              => "ct--violation",
-            Self::Other                      => "ct--other",
-            Self::Unknown                    => "ct--other",
+            Self::Rent => "ct--rent",
+            Self::LateFee => "ct--late-fee",
+            Self::MaintenanceReimbursement => "ct--maintenance",
+            Self::Incidental => "ct--incidental",
+            Self::SecurityDepositDeduction => "ct--deposit",
+            Self::UtilityChargeback => "ct--utility",
+            Self::BookingCharge => "ct--booking",
+            Self::ViolationFine => "ct--violation",
+            Self::Other => "ct--other",
+            Self::Unknown => "ct--other",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Rent                       => "home",
-            Self::LateFee                    => "pending_actions",
-            Self::MaintenanceReimbursement   => "handyman",
-            Self::Incidental                 => "receipt_long",
-            Self::SecurityDepositDeduction   => "lock_open",
-            Self::UtilityChargeback          => "bolt",
-            Self::BookingCharge              => "hotel",
-            Self::ViolationFine              => "gavel",
-            Self::Other                      => "more_horiz",
-            Self::Unknown                    => "help",
+            Self::Rent => "home",
+            Self::LateFee => "pending_actions",
+            Self::MaintenanceReimbursement => "handyman",
+            Self::Incidental => "receipt_long",
+            Self::SecurityDepositDeduction => "lock_open",
+            Self::UtilityChargeback => "bolt",
+            Self::BookingCharge => "hotel",
+            Self::ViolationFine => "gavel",
+            Self::Other => "more_horiz",
+            Self::Unknown => "help",
         }
     }
 }
@@ -214,19 +214,19 @@ pub enum StatusFilter {
 impl StatusFilter {
     pub const fn label(self) -> &'static str {
         match self {
-            Self::All         => "All",
+            Self::All => "All",
             Self::Outstanding => "Outstanding",
-            Self::Paid        => "Paid",
-            Self::Failed      => "Failed",
+            Self::Paid => "Paid",
+            Self::Failed => "Failed",
         }
     }
 
     pub fn matches(self, status: EntryStatus) -> bool {
         match self {
-            Self::All         => true,
+            Self::All => true,
             Self::Outstanding => matches!(status, EntryStatus::Pending | EntryStatus::Processing),
-            Self::Paid        => status == EntryStatus::Paid,
-            Self::Failed      => matches!(status, EntryStatus::Failed | EntryStatus::Refunded),
+            Self::Paid => status == EntryStatus::Paid,
+            Self::Failed => matches!(status, EntryStatus::Failed | EntryStatus::Refunded),
         }
     }
 }
@@ -261,10 +261,7 @@ pub fn Ledger() -> impl IntoView {
     let (type_filter, set_type) = signal(Option::<ChargeType>::None);
     let (search_query, set_search) = signal(String::new());
 
-    let entries = Resource::new(
-        || (),
-        |_| async move { list_ledger_entries().await },
-    );
+    let entries = Resource::new(|| (), |_| async move { list_ledger_entries().await });
 
     view! {
         <div class="le-page">

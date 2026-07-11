@@ -88,9 +88,7 @@ impl BitcoinOnchainRail {
             0
         };
 
-        let fee_sats = body
-            .get("fee")
-            .and_then(|f| f.as_u64());
+        let fee_sats = body.get("fee").and_then(|f| f.as_u64());
 
         Some(MempoolStatus {
             txid: txid.to_string(),
@@ -146,7 +144,11 @@ impl PaymentRailAdapter for BitcoinOnchainRail {
         Ok(InvoiceResult {
             // For on-chain: the "invoice ID" is the receive address + ledger entry
             // (there's no network-level invoice — confirmation comes by txid).
-            provider_invoice_id: format!("btc_onchain_{}_{}", self.address, ledger_entry_id.simple()),
+            provider_invoice_id: format!(
+                "btc_onchain_{}_{}",
+                self.address,
+                ledger_entry_id.simple()
+            ),
             payment_instructions: json!({
                 "rail": "btc_onchain",
                 "address": self.address,
@@ -173,12 +175,11 @@ impl PaymentRailAdapter for BitcoinOnchainRail {
         if provider_invoice_id.len() == 64
             && provider_invoice_id.chars().all(|c| c.is_ascii_hexdigit())
         {
-            return Ok(
-                self.poll_tx(provider_invoice_id)
-                    .await
-                    .map(|s| s.confirmed)
-                    .unwrap_or(false),
-            );
+            return Ok(self
+                .poll_tx(provider_invoice_id)
+                .await
+                .map(|s| s.confirmed)
+                .unwrap_or(false));
         }
 
         // Not a txid yet — tenant hasn't submitted it.

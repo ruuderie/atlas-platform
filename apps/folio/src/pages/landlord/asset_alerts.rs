@@ -14,29 +14,77 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Static alert type definitions ─────────────────────────────────────────────
 
 struct AlertType {
-    id:       &'static str,
-    title:    &'static str,
-    desc:     &'static str,
-    icon:     &'static str,
+    id: &'static str,
+    title: &'static str,
+    desc: &'static str,
+    icon: &'static str,
     category: &'static str,
 }
 
 fn all_alert_types() -> Vec<AlertType> {
     vec![
-        AlertType { id: "payment_overdue",   title: "Payment Overdue",   icon: "💰", category: "Financial",    desc: "Tenant payment not received by due date" },
-        AlertType { id: "payment_failed",    title: "Payment Failed",    icon: "❌", category: "Financial",    desc: "Payment attempt rejected by payment rail" },
-        AlertType { id: "vacancy",           title: "Unit Vacant",       icon: "🚪", category: "Occupancy",    desc: "Unit is unoccupied for more than N days" },
-        AlertType { id: "lease_expiring",    title: "Lease Expiring",    icon: "📋", category: "Occupancy",    desc: "Active lease expires within 60 days" },
-        AlertType { id: "maintenance_open",  title: "Open Maintenance",  icon: "🔧", category: "Maintenance",  desc: "Maintenance request unresolved for 7+ days" },
-        AlertType { id: "inspection_due",    title: "Inspection Due",    icon: "🔍", category: "Maintenance",  desc: "Scheduled inspection approaching or overdue" },
-        AlertType { id: "str_permit_expiry", title: "STR Permit Expiry", icon: "📜", category: "Compliance",   desc: "Short-term rental permit expiring within 30 days" },
-        AlertType { id: "violation_filed",   title: "Violation Filed",   icon: "⚠️", category: "Compliance",   desc: "New compliance violation filed on this asset" },
+        AlertType {
+            id: "payment_overdue",
+            title: "Payment Overdue",
+            icon: "💰",
+            category: "Financial",
+            desc: "Tenant payment not received by due date",
+        },
+        AlertType {
+            id: "payment_failed",
+            title: "Payment Failed",
+            icon: "❌",
+            category: "Financial",
+            desc: "Payment attempt rejected by payment rail",
+        },
+        AlertType {
+            id: "vacancy",
+            title: "Unit Vacant",
+            icon: "🚪",
+            category: "Occupancy",
+            desc: "Unit is unoccupied for more than N days",
+        },
+        AlertType {
+            id: "lease_expiring",
+            title: "Lease Expiring",
+            icon: "📋",
+            category: "Occupancy",
+            desc: "Active lease expires within 60 days",
+        },
+        AlertType {
+            id: "maintenance_open",
+            title: "Open Maintenance",
+            icon: "🔧",
+            category: "Maintenance",
+            desc: "Maintenance request unresolved for 7+ days",
+        },
+        AlertType {
+            id: "inspection_due",
+            title: "Inspection Due",
+            icon: "🔍",
+            category: "Maintenance",
+            desc: "Scheduled inspection approaching or overdue",
+        },
+        AlertType {
+            id: "str_permit_expiry",
+            title: "STR Permit Expiry",
+            icon: "📜",
+            category: "Compliance",
+            desc: "Short-term rental permit expiring within 30 days",
+        },
+        AlertType {
+            id: "violation_filed",
+            title: "Violation Filed",
+            icon: "⚠️",
+            category: "Compliance",
+            desc: "New compliance violation filed on this asset",
+        },
     ]
 }
 
@@ -44,9 +92,13 @@ fn all_alert_types() -> Vec<AlertType> {
 
 #[component]
 pub fn AssetAlerts() -> impl IntoView {
-    let params   = use_params_map();
+    let params = use_params_map();
     let asset_id = params.get().get("id").unwrap_or_default();
-    let aid_disp = if asset_id.len() > 8 { format!("…{}", &asset_id[asset_id.len()-8..]) } else { asset_id.clone() };
+    let aid_disp = if asset_id.len() > 8 {
+        format!("…{}", &asset_id[asset_id.len() - 8..])
+    } else {
+        asset_id.clone()
+    };
 
     // Alert enabled state (in production persisted to notification preferences)
     let enabled: RwSignal<std::collections::HashSet<&'static str>> = RwSignal::new({
@@ -58,7 +110,7 @@ pub fn AssetAlerts() -> impl IntoView {
     });
 
     let save_pending = RwSignal::new(false);
-    let saved        = RwSignal::new(false);
+    let saved = RwSignal::new(false);
 
     let all_types = all_alert_types();
 

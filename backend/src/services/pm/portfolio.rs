@@ -8,8 +8,8 @@
 
 use anyhow::Result;
 use sea_orm::DatabaseConnection;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Asset code ────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,10 @@ pub struct AssetCode {
 impl AssetCode {
     /// Formats as `BR-SP-001`.
     pub fn display(&self) -> String {
-        format!("{}-{}-{:03}", self.country_code, self.region_code, self.sequence)
+        format!(
+            "{}-{}-{:03}",
+            self.country_code, self.region_code, self.sequence
+        )
     }
 
     /// Parses `BR-SP-001` back to struct. Returns `None` on invalid format.
@@ -68,12 +71,9 @@ impl PortfolioService {
     ///
     /// `owner_user_id` is required by the entity — we use a nil UUID as the
     /// system owner when provisioning without a specific user context.
-    pub async fn get_or_create_default(
-        db: &DatabaseConnection,
-        tenant_id: Uuid,
-    ) -> Result<Uuid> {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set, ActiveModelTrait};
+    pub async fn get_or_create_default(db: &DatabaseConnection, tenant_id: Uuid) -> Result<Uuid> {
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
         let existing = crate::entities::atlas_portfolio::Entity::find()
             .filter(crate::entities::atlas_portfolio::Column::TenantId.eq(tenant_id))
@@ -116,7 +116,7 @@ impl PortfolioService {
         country_code: &str,
         region_code: &str,
     ) -> Result<AssetCode> {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, PaginatorTrait};
+        use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
 
         let prefix = format!(
             "{}-{}-",
@@ -146,7 +146,7 @@ impl PortfolioService {
         tenant_id: Uuid,
         portfolio_id: Uuid,
     ) -> Result<PortfolioNav> {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, PaginatorTrait};
+        use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
 
         let unit_count = crate::entities::atlas_asset::Entity::find()
             .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id))
@@ -189,13 +189,21 @@ mod tests {
 
     #[test]
     fn test_asset_code_display() {
-        let c = AssetCode { country_code: "BR".into(), region_code: "SP".into(), sequence: 1 };
+        let c = AssetCode {
+            country_code: "BR".into(),
+            region_code: "SP".into(),
+            sequence: 1,
+        };
         assert_eq!(c.display(), "BR-SP-001");
     }
 
     #[test]
     fn test_asset_code_display_padding() {
-        let c = AssetCode { country_code: "US".into(), region_code: "FL".into(), sequence: 42 };
+        let c = AssetCode {
+            country_code: "US".into(),
+            region_code: "FL".into(),
+            sequence: 42,
+        };
         assert_eq!(c.display(), "US-FL-042");
     }
 

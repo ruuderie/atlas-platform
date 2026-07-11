@@ -9,10 +9,10 @@
 //! `law.protected_fields()` — the canonical `FhaProtectedField` table in
 //! `miami.rs`. One source of truth, no drift.
 
+use crate::services::pm::market::market_config::AntiDiscriminationLaw;
+use crate::types::pm::Jurisdiction;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::types::pm::Jurisdiction;
-use crate::services::pm::market::market_config::AntiDiscriminationLaw;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

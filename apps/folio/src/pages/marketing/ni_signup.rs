@@ -23,20 +23,22 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NiSignupInput {
-    pub instance_name:   String,
-    pub subdomain:       String,
-    pub use_cases:       Vec<String>,
-    pub primary_market:  String,
-    pub admin_name:      String,
-    pub admin_email:     String,
-    pub admin_password:  String,
-    pub plan:            String,
-    pub billing_email:   Option<String>,
-    pub launch_target:   Option<String>,
+    pub instance_name: String,
+    pub subdomain: String,
+    pub use_cases: Vec<String>,
+    pub primary_market: String,
+    pub admin_name: String,
+    pub admin_email: String,
+    pub admin_password: String,
+    pub plan: String,
+    pub billing_email: Option<String>,
+    pub launch_target: Option<String>,
 }
 
 #[server(SubmitNiSignup, "/api")]
-pub async fn submit_ni_signup(input: NiSignupInput) -> Result<String, server_fn::error::ServerFnError> {
+pub async fn submit_ni_signup(
+    input: NiSignupInput,
+) -> Result<String, server_fn::error::ServerFnError> {
     // Returns the new instance slug on success
     Ok(input.subdomain.clone())
 }
@@ -44,17 +46,32 @@ pub async fn submit_ni_signup(input: NiSignupInput) -> Result<String, server_fn:
 // ── Plan data ─────────────────────────────────────────────────────────────────
 
 const PLANS: &[(&str, &str, &str, &str)] = &[
-    ("starter",     "Starter",     "$99/mo",  "Up to 25 listings · 1 subdomain · Basic support"),
-    ("growth",      "Growth",      "$299/mo", "Up to 200 listings · Custom domain · Priority support"),
-    ("enterprise",  "Enterprise",  "Custom",  "Unlimited · Multi-domain · Dedicated CSM · SLA"),
+    (
+        "starter",
+        "Starter",
+        "$99/mo",
+        "Up to 25 listings · 1 subdomain · Basic support",
+    ),
+    (
+        "growth",
+        "Growth",
+        "$299/mo",
+        "Up to 200 listings · Custom domain · Priority support",
+    ),
+    (
+        "enterprise",
+        "Enterprise",
+        "Custom",
+        "Unlimited · Multi-domain · Dedicated CSM · SLA",
+    ),
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn NiSignup() -> impl IntoView {
-    let step         = RwSignal::new(1u8);
-    let input        = RwSignal::new(NiSignupInput {
+    let step = RwSignal::new(1u8);
+    let input = RwSignal::new(NiSignupInput {
         plan: "growth".to_string(),
         ..Default::default()
     });
@@ -63,22 +80,29 @@ pub fn NiSignup() -> impl IntoView {
     let use_case_str = RwSignal::new(false);
 
     let confirm_pass = RwSignal::new(String::new());
-    let submitting   = RwSignal::new(false);
-    let submitted    = RwSignal::new(None::<String>);
-    let error        = RwSignal::new(None::<String>);
+    let submitting = RwSignal::new(false);
+    let submitted = RwSignal::new(None::<String>);
+    let error = RwSignal::new(None::<String>);
 
     // Live subdomain preview
     let slug_preview = move || {
         let s = input.get().subdomain;
-        if s.is_empty() { "yourslug.atlas.app".to_string() }
-        else { format!("{s}.atlas.app") }
+        if s.is_empty() {
+            "yourslug.atlas.app".to_string()
+        } else {
+            format!("{s}.atlas.app")
+        }
     };
 
     let handle_submit = move |_| {
         let mut inp = input.get();
         let mut use_cases = vec![];
-        if use_case_ltr.get() { use_cases.push("ltr".to_string()); }
-        if use_case_str.get() { use_cases.push("str".to_string()); }
+        if use_case_ltr.get() {
+            use_cases.push("ltr".to_string());
+        }
+        if use_case_str.get() {
+            use_cases.push("str".to_string());
+        }
         inp.use_cases = use_cases;
         if inp.admin_password != confirm_pass.get() {
             error.set(Some("Passwords do not match.".to_string()));
@@ -87,8 +111,14 @@ pub fn NiSignup() -> impl IntoView {
         submitting.set(true);
         leptos::task::spawn_local(async move {
             match submit_ni_signup(inp).await {
-                Ok(slug) => { submitted.set(Some(slug)); submitting.set(false); }
-                Err(e)   => { error.set(Some(e.to_string())); submitting.set(false); }
+                Ok(slug) => {
+                    submitted.set(Some(slug));
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

@@ -9,32 +9,98 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Static channel definitions ─────────────────────────────────────────────
 
 struct Channel {
-    id:       &'static str,
-    name:     &'static str,
-    icon:     &'static str,
+    id: &'static str,
+    name: &'static str,
+    icon: &'static str,
     category: &'static str,
-    desc:     &'static str,
+    desc: &'static str,
 }
 
 fn all_channels() -> Vec<Channel> {
     vec![
-        Channel { id: "zillow",       name: "Zillow",         icon: "🏡", category: "Major Portals",   desc: "Largest US rental marketplace — 35M+ monthly users" },
-        Channel { id: "apartments",   name: "Apartments.com",  icon: "🏢", category: "Major Portals",   desc: "Top apartment search with CoStar backing" },
-        Channel { id: "realtor",      name: "Realtor.com",     icon: "🔑", category: "Major Portals",   desc: "NAR-affiliated portal for LTR and sale listings" },
-        Channel { id: "facebook",     name: "Facebook Marketplace", icon: "👥", category: "Social",    desc: "Largest social real estate marketplace" },
-        Channel { id: "craigslist",   name: "Craigslist",      icon: "📋", category: "Classifieds",    desc: "High-intent free listings — strong local reach" },
-        Channel { id: "hotpads",      name: "HotPads",         icon: "🗺", category: "Map Search",     desc: "Map-first rental search, Zillow Group" },
-        Channel { id: "trulia",       name: "Trulia",          icon: "🌐", category: "Map Search",     desc: "Zillow Group portal — neighborhood-focused search" },
-        Channel { id: "airbnb",       name: "Airbnb",          icon: "🏖", category: "STR Platforms",  desc: "Global STR platform — 100M+ active guests" },
-        Channel { id: "vrbo",         name: "Vrbo",            icon: "🏕", category: "STR Platforms",  desc: "Expedia Group STR platform — family stays" },
-        Channel { id: "bookingdotcom",name: "Booking.com",     icon: "🌍", category: "STR Platforms",  desc: "European leader, strong international demand" },
-        Channel { id: "atlas_network",name: "Atlas Network",   icon: "⚡", category: "Platform",       desc: "Atlas Platform native listing network" },
+        Channel {
+            id: "zillow",
+            name: "Zillow",
+            icon: "🏡",
+            category: "Major Portals",
+            desc: "Largest US rental marketplace — 35M+ monthly users",
+        },
+        Channel {
+            id: "apartments",
+            name: "Apartments.com",
+            icon: "🏢",
+            category: "Major Portals",
+            desc: "Top apartment search with CoStar backing",
+        },
+        Channel {
+            id: "realtor",
+            name: "Realtor.com",
+            icon: "🔑",
+            category: "Major Portals",
+            desc: "NAR-affiliated portal for LTR and sale listings",
+        },
+        Channel {
+            id: "facebook",
+            name: "Facebook Marketplace",
+            icon: "👥",
+            category: "Social",
+            desc: "Largest social real estate marketplace",
+        },
+        Channel {
+            id: "craigslist",
+            name: "Craigslist",
+            icon: "📋",
+            category: "Classifieds",
+            desc: "High-intent free listings — strong local reach",
+        },
+        Channel {
+            id: "hotpads",
+            name: "HotPads",
+            icon: "🗺",
+            category: "Map Search",
+            desc: "Map-first rental search, Zillow Group",
+        },
+        Channel {
+            id: "trulia",
+            name: "Trulia",
+            icon: "🌐",
+            category: "Map Search",
+            desc: "Zillow Group portal — neighborhood-focused search",
+        },
+        Channel {
+            id: "airbnb",
+            name: "Airbnb",
+            icon: "🏖",
+            category: "STR Platforms",
+            desc: "Global STR platform — 100M+ active guests",
+        },
+        Channel {
+            id: "vrbo",
+            name: "Vrbo",
+            icon: "🏕",
+            category: "STR Platforms",
+            desc: "Expedia Group STR platform — family stays",
+        },
+        Channel {
+            id: "bookingdotcom",
+            name: "Booking.com",
+            icon: "🌍",
+            category: "STR Platforms",
+            desc: "European leader, strong international demand",
+        },
+        Channel {
+            id: "atlas_network",
+            name: "Atlas Network",
+            icon: "⚡",
+            category: "Platform",
+            desc: "Atlas Platform native listing network",
+        },
     ]
 }
 
@@ -45,7 +111,7 @@ pub fn LandlordSyndication() -> impl IntoView {
     // Local toggle state for each channel (in production persisted to backend)
     let enabled_channels: RwSignal<std::collections::HashSet<&'static str>> = RwSignal::new({
         let mut s = std::collections::HashSet::new();
-        s.insert("atlas_network");  // Atlas always on
+        s.insert("atlas_network"); // Atlas always on
         s
     });
 

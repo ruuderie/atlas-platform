@@ -26,13 +26,13 @@
 //! 4. Push `Box::new({Market})` in `market_config::MarketRegistry::build()`
 //! 5. Nothing else changes
 
-pub mod market_config;
 pub mod brazil;
+pub mod market_config;
 pub mod miami;
 pub mod usvi;
 
 // Convenience re-exports — service code imports from here, not from sub-modules
 pub use market_config::{
-    MarketConfig, MarketRegistry,
-    TenancyLaw, AntiDiscriminationLaw, StrRegulation, TaxEngine, CreditBureau,
+    AntiDiscriminationLaw, CreditBureau, MarketConfig, MarketRegistry, StrRegulation, TaxEngine,
+    TenancyLaw,
 };

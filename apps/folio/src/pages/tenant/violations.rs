@@ -9,49 +9,59 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ViolationRecord {
-    pub id:               Uuid,
-    pub asset_id:         Uuid,
-    pub contract_id:      Option<Uuid>,
-    pub category:         String,
-    pub subject:          String,
-    pub description:      String,
-    pub cure_days:        Option<u32>,
-    pub cure_deadline:    Option<String>,
-    pub evidence_notes:   Option<String>,
-    pub status:           String,   // "open" | "cured" | "escalated" | "dismissed"
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub contract_id: Option<Uuid>,
+    pub category: String,
+    pub subject: String,
+    pub description: String,
+    pub cure_days: Option<u32>,
+    pub cure_deadline: Option<String>,
+    pub evidence_notes: Option<String>,
+    pub status: String, // "open" | "cured" | "escalated" | "dismissed"
     pub resolution_notes: Option<String>,
-    pub filed_at:         String,
-    pub resolved_at:      Option<String>,
+    pub filed_at: String,
+    pub resolved_at: Option<String>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchTenantViolations, "/api")]
-pub async fn fetch_tenant_violations() -> Result<Vec<ViolationRecord>, server_fn::error::ServerFnError> {
+pub async fn fetch_tenant_violations(
+) -> Result<Vec<ViolationRecord>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<ViolationRecord>>(
-        "/api/folio/tenant/violations", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/tenant/violations",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -59,54 +69,51 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 fn viol_status_style(status: &str) -> (&'static str, &'static str) {
     match status.to_lowercase().as_str() {
-        "open"      => ("viol-badge--open",      "Open"),
-        "cured"     => ("viol-badge--cured",     "✓ Cured"),
+        "open" => ("viol-badge--open", "Open"),
+        "cured" => ("viol-badge--cured", "✓ Cured"),
         "escalated" => ("viol-badge--escalated", "⚠ Escalated"),
         "dismissed" => ("viol-badge--dismissed", "Dismissed"),
-        _           => ("viol-badge--default",   "Unknown"),
+        _ => ("viol-badge--default", "Unknown"),
     }
 }
 
 fn viol_icon(category: &str) -> &'static str {
     match category.to_lowercase().replace('_', " ").as_str() {
-        c if c.contains("noise")       => "🔊",
-        c if c.contains("pet")         => "🐾",
-        c if c.contains("damage")      => "🔨",
-        c if c.contains("unauthorized")=> "🚫",
-        c if c.contains("smoke")       => "🚬",
-        c if c.contains("lease")       => "📋",
-        c if c.contains("parking")     => "🚗",
-        c if c.contains("trash")       => "🗑",
-        _                              => "⚠️",
+        c if c.contains("noise") => "🔊",
+        c if c.contains("pet") => "🐾",
+        c if c.contains("damage") => "🔨",
+        c if c.contains("unauthorized") => "🚫",
+        c if c.contains("smoke") => "🚬",
+        c if c.contains("lease") => "📋",
+        c if c.contains("parking") => "🚗",
+        c if c.contains("trash") => "🗑",
+        _ => "⚠️",
     }
 }
 
 fn category_label(cat: &str) -> String {
     cat.replace('_', " ")
-       .split_whitespace()
-       .map(|w| {
-           let mut c = w.chars();
-           match c.next() {
-               None => String::new(),
-               Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-           }
-       })
-       .collect::<Vec<_>>()
-       .join(" ")
+        .split_whitespace()
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn TenantViolations() -> impl IntoView {
-    let refresh      = RwSignal::new(0u32);
-    let status_filter= RwSignal::new("all".to_string());
-    let selected     = RwSignal::new(None::<ViolationRecord>);
+    let refresh = RwSignal::new(0u32);
+    let status_filter = RwSignal::new("all".to_string());
+    let selected = RwSignal::new(None::<ViolationRecord>);
 
-    let violations_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_tenant_violations(),
-    );
+    let violations_res = Resource::new(move || refresh.get(), |_| fetch_tenant_violations());
 
     view! {
         <div class="main-area">

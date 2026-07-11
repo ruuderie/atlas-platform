@@ -12,34 +12,34 @@
 //   - Visual distinction: tenant messages (right/blue), others (left/slate)
 // ─────────────────────────────────────────────────────────────────────────────
 
+use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomSummary {
-    pub id:           Uuid,
-    pub room_type:    String,
-    pub entity_type:  String,
-    pub entity_id:    Uuid,
-    pub is_active:    bool,
-    pub created_at:   DateTime<Utc>,
+    pub id: Uuid,
+    pub room_type: String,
+    pub entity_type: String,
+    pub entity_id: Uuid,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
     pub last_message: Option<String>,
-    pub last_at:      Option<DateTime<Utc>>,
+    pub last_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageRow {
-    pub id:             Uuid,
-    pub room_id:        Uuid,
+    pub id: Uuid,
+    pub room_id: Uuid,
     pub sender_user_id: Option<Uuid>,
-    pub message_type:   String,
-    pub content:        String,
-    pub created_at:     DateTime<Utc>,
+    pub message_type: String,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -50,21 +50,26 @@ pub async fn tenant_fetch_rooms() -> Result<Vec<RoomSummary>, server_fn::error::
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<Vec<RoomSummary>>(
-        "/api/folio/rooms", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<RoomSummary>>("/api/folio/rooms", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(TenantFetchMessages, "/api")]
-pub async fn tenant_fetch_messages(room_id: Uuid) -> Result<Vec<MessageRow>, server_fn::error::ServerFnError> {
+pub async fn tenant_fetch_messages(
+    room_id: Uuid,
+) -> Result<Vec<MessageRow>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<MessageRow>>(
         &format!("/api/folio/rooms/{room_id}/messages"),
-        &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(TenantGetSupportRoom, "/api")]
@@ -74,8 +79,12 @@ pub async fn tenant_get_support_room() -> Result<Uuid, server_fn::error::ServerF
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let resp = crate::atlas_client::authenticated_get::<serde_json::Value>(
-        "/api/folio/rooms/support", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+        "/api/folio/rooms/support",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     resp.get("room_id")
         .and_then(|v| v.as_str())
         .and_then(|s| Uuid::parse_str(s).ok())
@@ -83,7 +92,10 @@ pub async fn tenant_get_support_room() -> Result<Uuid, server_fn::error::ServerF
 }
 
 #[server(TenantSendMsg, "/api")]
-pub async fn tenant_send_msg(room_id: Uuid, content: String) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn tenant_send_msg(
+    room_id: Uuid,
+    content: String,
+) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -93,28 +105,35 @@ pub async fn tenant_send_msg(room_id: Uuid, content: String) -> Result<(), serve
         &token,
         None,
         &serde_json::json!({ "content": content, "message_type": "text" }),
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     Ok(())
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
 fn room_label(room: &RoomSummary) -> String {
     match room.room_type.as_str() {
         "platform_support" => "⚡ Atlas Support".to_string(),
-        "group"            => "Group Chat".to_string(),
-        _                  => "Message Thread".to_string(),
+        "group" => "Group Chat".to_string(),
+        _ => "Message Thread".to_string(),
     }
 }
 
@@ -123,7 +142,11 @@ fn fmt_time(dt: &DateTime<Utc>) -> String {
 }
 
 fn msg_preview(s: &str) -> String {
-    if s.len() > 60 { format!("{}…", &s[..60]) } else { s.to_string() }
+    if s.len() > 60 {
+        format!("{}…", &s[..60])
+    } else {
+        s.to_string()
+    }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -131,28 +154,22 @@ fn msg_preview(s: &str) -> String {
 #[component]
 pub fn TenantInbox() -> impl IntoView {
     // ── Data ──────────────────────────────────────────────────────────────────
-    let refresh       = RwSignal::new(0u32);
+    let refresh = RwSignal::new(0u32);
     let selected_room = RwSignal::new(None::<Uuid>);
-    let compose_text  = RwSignal::new(String::new());
-    let sending       = RwSignal::new(false);
+    let compose_text = RwSignal::new(String::new());
+    let sending = RwSignal::new(false);
 
-    let rooms_res = Resource::new(
-        move || refresh.get(),
-        |_| tenant_fetch_rooms(),
-    );
+    let rooms_res = Resource::new(move || refresh.get(), |_| tenant_fetch_rooms());
 
     // Auto-create / load the support room on mount so it's always available
-    let support_room_res = Resource::new(
-        || (),
-        |_| tenant_get_support_room(),
-    );
+    let support_room_res = Resource::new(|| (), |_| tenant_get_support_room());
 
     let messages_res = Resource::new(
         move || selected_room.get(),
         |rid| async move {
             match rid {
                 Some(id) => tenant_fetch_messages(id).await.ok(),
-                None     => None,
+                None => None,
             }
         },
     );
@@ -160,8 +177,12 @@ pub fn TenantInbox() -> impl IntoView {
     // ── Send handler ──────────────────────────────────────────────────────────
     let do_send = move || {
         let txt = compose_text.get();
-        let Some(rid) = selected_room.get() else { return; };
-        if txt.trim().is_empty() { return; }
+        let Some(rid) = selected_room.get() else {
+            return;
+        };
+        if txt.trim().is_empty() {
+            return;
+        }
         sending.set(true);
         spawn_local(async move {
             if tenant_send_msg(rid, txt).await.is_ok() {
@@ -172,7 +193,7 @@ pub fn TenantInbox() -> impl IntoView {
         });
     };
     let handle_send_click = move |_: leptos::ev::MouseEvent| do_send();
-    let handle_send = do_send;  // alias for keydown path
+    let handle_send = do_send; // alias for keydown path
 
     view! {
         <div class="main-area">

@@ -100,10 +100,7 @@ pub trait PaymentRailAdapter: Send + Sync {
     /// For BTC: calls mempool.space to check tx confirmation.
     /// For Stripe: this is handled by webhook — returns `Ok(false)` if not confirmed.
     /// For Lightning: checks bolt11 invoice status via the node API.
-    async fn is_payment_confirmed(
-        &self,
-        provider_invoice_id: &str,
-    ) -> Result<bool>;
+    async fn is_payment_confirmed(&self, provider_invoice_id: &str) -> Result<bool>;
 }
 
 // ── Credential encryption placeholder ─────────────────────────────────────────
@@ -118,9 +115,7 @@ pub trait PaymentRailAdapter: Send + Sync {
 /// Real production deployments must rotate `ATLAS_CREDENTIAL_KEY` via the ops
 /// runbook. The encrypt/decrypt functions live here so the blast radius of a
 /// key change is limited to this module.
-pub fn decrypt_credentials(
-    encrypted: &serde_json::Value,
-) -> anyhow::Result<serde_json::Value> {
+pub fn decrypt_credentials(encrypted: &serde_json::Value) -> anyhow::Result<serde_json::Value> {
     // Phase 3 stub: return plaintext for dev/CI.
     // Production: AES-256-GCM decrypt from ATLAS_CREDENTIAL_KEY env var.
     Ok(encrypted.clone())
@@ -159,9 +154,7 @@ pub fn resolve_adapter(
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("infinitepay credential missing 'api_key'"))?;
             Ok(Box::new(
-                crate::services::pm::rails::infinitepay::InfinitePayRail::new(
-                    api_key.to_string(),
-                ),
+                crate::services::pm::rails::infinitepay::InfinitePayRail::new(api_key.to_string()),
             ))
         }
         "btc_onchain_address" => {

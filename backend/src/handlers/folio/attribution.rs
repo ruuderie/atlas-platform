@@ -12,11 +12,11 @@
 //! | GET    | /api/folio/attribution/campaign/{campaign_id} | All touchpoints for a campaign |
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -24,9 +24,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::user,
-    services::pm::attribution::{
-        AttributionService, CapturePayload, ConversionPayload, UtmParams,
-    },
+    services::pm::attribution::{AttributionService, CapturePayload, ConversionPayload, UtmParams},
     types::pm::{AttributionChannel, AttributionModel},
 };
 
@@ -129,7 +127,11 @@ async fn capture_touchpoint(
     let channel = match AttributionChannel::try_from(req.channel.as_str()) {
         Ok(c) => c,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
 
@@ -153,9 +155,11 @@ async fn capture_touchpoint(
     };
 
     match AttributionService::capture_touchpoint(&db, tenant_id, payload).await {
-        Ok(tp) => {
-            (StatusCode::CREATED, Json(serde_json::json!({ "touchpoint": tp }))).into_response()
-        }
+        Ok(tp) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "touchpoint": tp })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -174,8 +178,7 @@ async fn resolve_identity(
         Err(e) => return e.into_response(),
     };
 
-    match AttributionService::resolve_identity(&db, tenant_id, &req.anonymous_id, req.user_id)
-        .await
+    match AttributionService::resolve_identity(&db, tenant_id, &req.anonymous_id, req.user_id).await
     {
         Ok(rows) => Json(serde_json::json!({ "rows_updated": rows })).into_response(),
         Err(e) => (
@@ -204,7 +207,11 @@ async fn record_conversion(
     {
         Ok(m) => m,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
 

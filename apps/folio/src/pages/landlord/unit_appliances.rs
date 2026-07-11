@@ -13,26 +13,26 @@
 //                next service · warranty expiry
 // ─────────────────────────────────────────────────────────────────────────────
 
-use leptos::prelude::*;
-use uuid::Uuid;
 use chrono::{NaiveDate, Utc};
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApplianceDetail {
-    pub id:                     Uuid,
-    pub tenant_id:              Uuid,
-    pub unit_id:                Option<Uuid>,
-    pub name:                   String,
-    pub serial_number:          Option<String>,
-    pub status:                 String,
-    pub condition:              Option<String>,
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub unit_id: Option<Uuid>,
+    pub name: String,
+    pub serial_number: Option<String>,
+    pub status: String,
+    pub condition: Option<String>,
     pub scheduled_service_date: Option<NaiveDate>,
-    pub expiry_date:            Option<NaiveDate>,
-    pub metadata:               Option<serde_json::Value>,
-    pub created_at:             chrono::DateTime<Utc>,
+    pub expiry_date: Option<NaiveDate>,
+    pub metadata: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<Utc>,
 }
 
 // ── Local enums ───────────────────────────────────────────────────────────────
@@ -51,35 +51,31 @@ enum ApplianceCategory {
 impl ApplianceCategory {
     fn label(self) -> &'static str {
         match self {
-            ApplianceCategory::All     => "All",
+            ApplianceCategory::All => "All",
             ApplianceCategory::Kitchen => "Kitchen",
             ApplianceCategory::Laundry => "Laundry",
-            ApplianceCategory::Hvac    => "HVAC",
-            ApplianceCategory::Water   => "Water",
-            ApplianceCategory::Garage  => "Garage",
-            ApplianceCategory::Other   => "Other",
+            ApplianceCategory::Hvac => "HVAC",
+            ApplianceCategory::Water => "Water",
+            ApplianceCategory::Garage => "Garage",
+            ApplianceCategory::Other => "Other",
         }
     }
 
     fn from_type(t: &str) -> Self {
         match t {
-            "refrigerator" | "dishwasher" | "oven_range" | "garbage_disposal"
-                => ApplianceCategory::Kitchen,
-            "washer" | "dryer" | "washer_dryer_combo"
-                => ApplianceCategory::Laundry,
-            "hvac_unit" | "air_handler" | "boiler"
-                => ApplianceCategory::Hvac,
-            "water_heater" | "water_softener" | "pool_pump"
-                => ApplianceCategory::Water,
-            "garage_door_opener"
-                => ApplianceCategory::Garage,
+            "refrigerator" | "dishwasher" | "oven_range" | "garbage_disposal" => {
+                ApplianceCategory::Kitchen
+            }
+            "washer" | "dryer" | "washer_dryer_combo" => ApplianceCategory::Laundry,
+            "hvac_unit" | "air_handler" | "boiler" => ApplianceCategory::Hvac,
+            "water_heater" | "water_softener" | "pool_pump" => ApplianceCategory::Water,
+            "garage_door_opener" => ApplianceCategory::Garage,
             _ => ApplianceCategory::Other,
         }
     }
 
     fn matches(self, appliance_type: &str) -> bool {
-        self == ApplianceCategory::All
-            || self == ApplianceCategory::from_type(appliance_type)
+        self == ApplianceCategory::All || self == ApplianceCategory::from_type(appliance_type)
     }
 }
 
@@ -98,38 +94,44 @@ impl Urgency {
             .into_iter()
             .flatten()
             .collect();
-        if dates.is_empty() { return Urgency::Unknown; }
+        if dates.is_empty() {
+            return Urgency::Unknown;
+        }
         let earliest = dates.iter().cloned().min().unwrap();
         let days = (earliest - today).num_days();
-        if days < 0        { Urgency::Overdue }
-        else if days <= 30 { Urgency::DueSoon }
-        else               { Urgency::Ok }
+        if days < 0 {
+            Urgency::Overdue
+        } else if days <= 30 {
+            Urgency::DueSoon
+        } else {
+            Urgency::Ok
+        }
     }
 
     fn card_class(self) -> &'static str {
         match self {
-            Urgency::Overdue  => "appl-card appl-card--overdue",
-            Urgency::DueSoon  => "appl-card appl-card--due-soon",
-            Urgency::Ok       => "appl-card",
-            Urgency::Unknown  => "appl-card appl-card--unknown",
+            Urgency::Overdue => "appl-card appl-card--overdue",
+            Urgency::DueSoon => "appl-card appl-card--due-soon",
+            Urgency::Ok => "appl-card",
+            Urgency::Unknown => "appl-card appl-card--unknown",
         }
     }
 
     fn badge_class(self) -> &'static str {
         match self {
-            Urgency::Overdue  => "appl-badge appl-badge--overdue",
-            Urgency::DueSoon  => "appl-badge appl-badge--due-soon",
-            Urgency::Ok       => "appl-badge appl-badge--ok",
-            Urgency::Unknown  => "appl-badge appl-badge--unknown",
+            Urgency::Overdue => "appl-badge appl-badge--overdue",
+            Urgency::DueSoon => "appl-badge appl-badge--due-soon",
+            Urgency::Ok => "appl-badge appl-badge--ok",
+            Urgency::Unknown => "appl-badge appl-badge--unknown",
         }
     }
 
     fn badge_label(self) -> &'static str {
         match self {
-            Urgency::Overdue  => "Overdue",
-            Urgency::DueSoon  => "Due Soon",
-            Urgency::Ok       => "OK",
-            Urgency::Unknown  => "No Date",
+            Urgency::Overdue => "Overdue",
+            Urgency::DueSoon => "Due Soon",
+            Urgency::Ok => "OK",
+            Urgency::Unknown => "No Date",
         }
     }
 }
@@ -138,18 +140,22 @@ impl Urgency {
 
 fn fmt_date(d: Option<&NaiveDate>) -> String {
     d.map(|d| d.format("%b %d, %Y").to_string())
-     .unwrap_or_else(|| "—".to_string())
+        .unwrap_or_else(|| "—".to_string())
 }
 
 fn days_label(d: Option<&NaiveDate>) -> String {
     let today = Utc::now().date_naive();
     match d {
-        None    => "—".to_string(),
+        None => "—".to_string(),
         Some(d) => {
             let diff = (*d - today).num_days();
-            if diff < 0       { format!("{} days overdue", diff.abs()) }
-            else if diff == 0 { "Today".to_string() }
-            else              { format!("in {} days", diff) }
+            if diff < 0 {
+                format!("{} days overdue", diff.abs())
+            } else if diff == 0 {
+                "Today".to_string()
+            } else {
+                format!("in {} days", diff)
+            }
         }
     }
 }
@@ -165,49 +171,49 @@ fn appliance_type(a: &ApplianceDetail) -> String {
 
 fn appliance_type_label(t: &str) -> &str {
     match t {
-        "refrigerator"       => "Refrigerator",
-        "washer"             => "Washer",
-        "dryer"              => "Dryer",
+        "refrigerator" => "Refrigerator",
+        "washer" => "Washer",
+        "dryer" => "Dryer",
         "washer_dryer_combo" => "Washer/Dryer",
-        "water_heater"       => "Water Heater",
-        "boiler"             => "Boiler",
-        "hvac_unit"          => "HVAC Unit",
-        "dishwasher"         => "Dishwasher",
-        "oven_range"         => "Oven / Range",
-        "garbage_disposal"   => "Garbage Disposal",
-        "pool_pump"          => "Pool Pump",
+        "water_heater" => "Water Heater",
+        "boiler" => "Boiler",
+        "hvac_unit" => "HVAC Unit",
+        "dishwasher" => "Dishwasher",
+        "oven_range" => "Oven / Range",
+        "garbage_disposal" => "Garbage Disposal",
+        "pool_pump" => "Pool Pump",
         "garage_door_opener" => "Garage Door Opener",
-        "air_handler"        => "Air Handler",
-        "water_softener"     => "Water Softener",
-        _                    => "Appliance",
+        "air_handler" => "Air Handler",
+        "water_softener" => "Water Softener",
+        _ => "Appliance",
     }
 }
 
 fn appliance_icon(t: &str) -> &str {
     match t {
-        "refrigerator"                => "kitchen",
+        "refrigerator" => "kitchen",
         "washer" | "washer_dryer_combo" => "local_laundry_service",
-        "dryer"                       => "dry",
-        "water_heater"                => "water_heater",
-        "boiler"                      => "heat",
-        "hvac_unit" | "air_handler"   => "air",
-        "dishwasher"                  => "dishwasher_gen",
-        "oven_range"                  => "oven_gen",
-        "garbage_disposal"            => "delete_sweep",
-        "pool_pump"                   => "pool",
-        "garage_door_opener"          => "garage_door",
-        "water_softener"              => "water_drop",
-        _                             => "construction",
+        "dryer" => "dry",
+        "water_heater" => "water_heater",
+        "boiler" => "heat",
+        "hvac_unit" | "air_handler" => "air",
+        "dishwasher" => "dishwasher_gen",
+        "oven_range" => "oven_gen",
+        "garbage_disposal" => "delete_sweep",
+        "pool_pump" => "pool",
+        "garage_door_opener" => "garage_door",
+        "water_softener" => "water_drop",
+        _ => "construction",
     }
 }
 
 fn condition_class(c: Option<&str>) -> &'static str {
     match c {
-        Some("Good") | Some("good")         => "appl-cond appl-cond--good",
-        Some("Fair") | Some("fair")         => "appl-cond appl-cond--fair",
-        Some("Poor") | Some("poor")         => "appl-cond appl-cond--poor",
+        Some("Good") | Some("good") => "appl-cond appl-cond--good",
+        Some("Fair") | Some("fair") => "appl-cond appl-cond--fair",
+        Some("Poor") | Some("poor") => "appl-cond appl-cond--poor",
         Some("Critical") | Some("critical") => "appl-cond appl-cond--critical",
-        _                                   => "appl-cond appl-cond--unknown",
+        _ => "appl-cond appl-cond--unknown",
     }
 }
 
@@ -222,12 +228,15 @@ pub async fn fetch_appliances() -> Result<Vec<ApplianceDetail>, server_fn::error
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = headers.get("cookie")
+    let token = headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Vec<ApplianceDetail>>(
         "/api/folio/appliances",
@@ -242,15 +251,27 @@ pub async fn fetch_appliances() -> Result<Vec<ApplianceDetail>, server_fn::error
 
 #[component]
 fn ApplKpiStrip(appliances: Vec<ApplianceDetail>) -> impl IntoView {
-    let today    = Utc::now().date_naive();
-    let total    = appliances.len();
-    let overdue  = appliances.iter().filter(|a| Urgency::from_appliance(a) == Urgency::Overdue).count();
-    let due_soon = appliances.iter().filter(|a| Urgency::from_appliance(a) == Urgency::DueSoon).count();
-    let warranty = appliances.iter().filter(|a| {
-        a.expiry_date
-            .map(|d| { let n = (d - today).num_days(); n >= 0 && n <= 30 })
-            .unwrap_or(false)
-    }).count();
+    let today = Utc::now().date_naive();
+    let total = appliances.len();
+    let overdue = appliances
+        .iter()
+        .filter(|a| Urgency::from_appliance(a) == Urgency::Overdue)
+        .count();
+    let due_soon = appliances
+        .iter()
+        .filter(|a| Urgency::from_appliance(a) == Urgency::DueSoon)
+        .count();
+    let warranty = appliances
+        .iter()
+        .filter(|a| {
+            a.expiry_date
+                .map(|d| {
+                    let n = (d - today).num_days();
+                    n >= 0 && n <= 30
+                })
+                .unwrap_or(false)
+        })
+        .count();
 
     view! {
         <div class="appl-kpi-strip">
@@ -290,28 +311,32 @@ fn ApplKpiStrip(appliances: Vec<ApplianceDetail>) -> impl IntoView {
 
 #[component]
 fn ApplCard(appl: ApplianceDetail) -> impl IntoView {
-    let urgency    = Urgency::from_appliance(&appl);
-    let at         = appliance_type(&appl);
-    let at_label   = appliance_type_label(&at).to_string();
-    let icon       = appliance_icon(&at).to_string();
-    let cond_cls   = condition_class(appl.condition.as_deref());
-    let cond_str   = appl.condition.clone().unwrap_or_else(|| "Unknown".to_string());
-    let svc_date   = fmt_date(appl.scheduled_service_date.as_ref());
-    let svc_lbl    = days_label(appl.scheduled_service_date.as_ref());
-    let war_date   = fmt_date(appl.expiry_date.as_ref());
-    let m          = appl.metadata.as_ref();
-    let make       = meta_str(m, "make");
-    let model      = meta_str(m, "model");
-    let year       = m.and_then(|m| m.get("year_manufactured"))
-                      .and_then(|v| v.as_u64())
-                      .map(|y| y.to_string());
-    let fuel       = meta_str(m, "fuel_type");
+    let urgency = Urgency::from_appliance(&appl);
+    let at = appliance_type(&appl);
+    let at_label = appliance_type_label(&at).to_string();
+    let icon = appliance_icon(&at).to_string();
+    let cond_cls = condition_class(appl.condition.as_deref());
+    let cond_str = appl
+        .condition
+        .clone()
+        .unwrap_or_else(|| "Unknown".to_string());
+    let svc_date = fmt_date(appl.scheduled_service_date.as_ref());
+    let svc_lbl = days_label(appl.scheduled_service_date.as_ref());
+    let war_date = fmt_date(appl.expiry_date.as_ref());
+    let m = appl.metadata.as_ref();
+    let make = meta_str(m, "make");
+    let model = meta_str(m, "model");
+    let year = m
+        .and_then(|m| m.get("year_manufactured"))
+        .and_then(|v| v.as_u64())
+        .map(|y| y.to_string());
+    let fuel = meta_str(m, "fuel_type");
 
     let make_model: Option<String> = match (make, model) {
         (Some(mk), Some(md)) => Some(format!("{mk} {md}")),
-        (Some(mk), None)     => Some(mk),
-        (None, Some(md))     => Some(md),
-        (None, None)         => None,
+        (Some(mk), None) => Some(mk),
+        (None, Some(md)) => Some(md),
+        (None, None) => None,
     };
 
     view! {
@@ -393,11 +418,8 @@ fn ApplGridSkeleton() -> impl IntoView {
 #[component]
 pub fn UnitAppliances() -> impl IntoView {
     let refetch_count = RwSignal::new(0u32);
-    let appliances    = Resource::new(
-        move || refetch_count.get(),
-        |_| fetch_appliances(),
-    );
-    let search     = RwSignal::new(String::new());
+    let appliances = Resource::new(move || refetch_count.get(), |_| fetch_appliances());
+    let search = RwSignal::new(String::new());
     let cat_filter = RwSignal::new(ApplianceCategory::All);
 
     view! {

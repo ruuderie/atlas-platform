@@ -25,7 +25,7 @@
 //! InfinitePay signs webhook payloads with HMAC-SHA256 using the webhook secret.
 //! Signature is in the `X-InfinitePay-Signature` header as `sha256=<hex>`.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use hmac::{Hmac, Mac};
 use sea_orm::DatabaseConnection;
@@ -193,7 +193,9 @@ impl InfinitePayWebhookHandler {
         if !webhook_secret.is_empty() {
             Self::verify_signature(raw_body, signature_header, webhook_secret)?;
         } else {
-            tracing::warn!("InfinitePayWebhook: INFINITEPAY_WEBHOOK_SECRET not set — skipping verification");
+            tracing::warn!(
+                "InfinitePayWebhook: INFINITEPAY_WEBHOOK_SECRET not set — skipping verification"
+            );
         }
 
         let event: serde_json::Value = serde_json::from_str(raw_body)
@@ -211,25 +213,24 @@ impl InfinitePayWebhookHandler {
             "charge.failed" => Self::on_charge_failed(db, &event).await?,
             "charge.refunded" => Self::on_charge_refunded(db, &event).await?,
             other => {
-                tracing::debug!(event_type = other, "InfinitePayWebhook: unhandled event type");
+                tracing::debug!(
+                    event_type = other,
+                    "InfinitePayWebhook: unhandled event type"
+                );
             }
         }
 
         Ok(())
     }
 
-    fn verify_signature(
-        payload: &str,
-        signature_header: &str,
-        secret: &str,
-    ) -> Result<()> {
+    fn verify_signature(payload: &str, signature_header: &str, secret: &str) -> Result<()> {
         // Header format: "sha256=<hex>"
         let hex_sig = signature_header
             .strip_prefix("sha256=")
             .ok_or_else(|| anyhow!("InfinitePayWebhook: malformed signature header"))?;
 
-        let expected = hex::decode(hex_sig)
-            .context("InfinitePayWebhook: signature is not valid hex")?;
+        let expected =
+            hex::decode(hex_sig).context("InfinitePayWebhook: signature is not valid hex")?;
 
         type HmacSha256 = Hmac<Sha256>;
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
@@ -266,13 +267,9 @@ impl InfinitePayWebhookHandler {
         let ledger_entry_id = Self::extract_ledger_id(event)?;
         let charge_id = Self::extract_charge_id(event);
 
-        crate::services::pm::ledger::PmLedgerService::mark_paid(
-            db,
-            ledger_entry_id,
-            charge_id,
-        )
-        .await
-        .context("InfinitePayWebhook: mark_paid failed")?;
+        crate::services::pm::ledger::PmLedgerService::mark_paid(db, ledger_entry_id, charge_id)
+            .await
+            .context("InfinitePayWebhook: mark_paid failed")?;
 
         Ok(())
     }

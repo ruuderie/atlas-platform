@@ -13,33 +13,33 @@
 //   "platform_support" — User ↔ Atlas platform operator
 // ─────────────────────────────────────────────────────────────────────────────
 
-use leptos::prelude::*;
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomSummary {
-    pub id:           Uuid,
-    pub room_type:    String,
-    pub entity_type:  String,
-    pub entity_id:    Uuid,
-    pub is_active:    bool,
-    pub created_at:   DateTime<Utc>,
+    pub id: Uuid,
+    pub room_type: String,
+    pub entity_type: String,
+    pub entity_id: Uuid,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
     pub last_message: Option<String>,
-    pub last_at:      Option<DateTime<Utc>>,
+    pub last_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageRow {
-    pub id:             Uuid,
-    pub room_id:        Uuid,
+    pub id: Uuid,
+    pub room_id: Uuid,
     pub sender_user_id: Option<Uuid>,
-    pub message_type:   String,
-    pub content:        String,
-    pub created_at:     DateTime<Utc>,
+    pub message_type: String,
+    pub content: String,
+    pub created_at: DateTime<Utc>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -50,21 +50,26 @@ pub async fn fetch_rooms() -> Result<Vec<RoomSummary>, server_fn::error::ServerF
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<Vec<RoomSummary>>(
-        "/api/folio/rooms", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<RoomSummary>>("/api/folio/rooms", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchMessages, "/api")]
-pub async fn fetch_messages(room_id: Uuid) -> Result<Vec<MessageRow>, server_fn::error::ServerFnError> {
+pub async fn fetch_messages(
+    room_id: Uuid,
+) -> Result<Vec<MessageRow>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<MessageRow>>(
         &format!("/api/folio/rooms/{room_id}/messages"),
-        &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(GetSupportRoom, "/api")]
@@ -74,8 +79,12 @@ pub async fn get_support_room() -> Result<Uuid, server_fn::error::ServerFnError>
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let resp = crate::atlas_client::authenticated_get::<serde_json::Value>(
-        "/api/folio/rooms/support", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+        "/api/folio/rooms/support",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     resp.get("room_id")
         .and_then(|v| v.as_str())
         .and_then(|s| Uuid::parse_str(s).ok())
@@ -83,7 +92,10 @@ pub async fn get_support_room() -> Result<Uuid, server_fn::error::ServerFnError>
 }
 
 #[server(SendMsg, "/api")]
-pub async fn send_msg(room_id: Uuid, content: String) -> Result<(), server_fn::error::ServerFnError> {
+pub async fn send_msg(
+    room_id: Uuid,
+    content: String,
+) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -93,56 +105,68 @@ pub async fn send_msg(room_id: Uuid, content: String) -> Result<(), server_fn::e
         &token,
         None,
         &serde_json::json!({ "content": content, "message_type": "text" }),
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     Ok(())
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
 fn room_display_name(room: &RoomSummary) -> String {
     match room.room_type.as_str() {
         "platform_support" => "⚡ Atlas Support".to_string(),
-        "direct"           => "Direct Message".to_string(),
-        "group"            => "Group Thread".to_string(),
-        _                  => "Thread".to_string(),
+        "direct" => "Direct Message".to_string(),
+        "group" => "Group Thread".to_string(),
+        _ => "Thread".to_string(),
     }
 }
 
 fn room_icon(room_type: &str) -> &str {
     match room_type {
         "platform_support" => "support_agent",
-        "direct"           => "chat",
-        "group"            => "group",
-        _                  => "forum",
+        "direct" => "chat",
+        "group" => "group",
+        _ => "forum",
     }
 }
 
 fn room_type_chip_class(room_type: &str) -> &str {
     match room_type {
         "platform_support" => "comms-chip comms-chip--support",
-        "direct"           => "comms-chip comms-chip--direct",
-        "group"            => "comms-chip comms-chip--group",
-        _                  => "comms-chip",
+        "direct" => "comms-chip comms-chip--direct",
+        "group" => "comms-chip comms-chip--group",
+        _ => "comms-chip",
     }
 }
 
 fn fmt_relative(dt: &DateTime<Utc>) -> String {
     let secs = (Utc::now() - *dt).num_seconds();
-    if secs < 60       { "just now".to_string() }
-    else if secs < 3600 { format!("{}m ago", secs / 60) }
-    else if secs < 86400 { format!("{}h ago", secs / 3600) }
-    else               { dt.format("%b %d").to_string() }
+    if secs < 60 {
+        "just now".to_string()
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else if secs < 86400 {
+        format!("{}h ago", secs / 3600)
+    } else {
+        dt.format("%b %d").to_string()
+    }
 }
 
 fn fmt_time(dt: &DateTime<Utc>) -> String {
@@ -152,20 +176,19 @@ fn fmt_time(dt: &DateTime<Utc>) -> String {
 // ── Thread list item ──────────────────────────────────────────────────────────
 
 #[component]
-fn ThreadItem(
-    room:       RoomSummary,
-    selected:   Uuid,
-    on_select:  Callback<Uuid>,
-) -> impl IntoView {
+fn ThreadItem(room: RoomSummary, selected: Uuid, on_select: Callback<Uuid>) -> impl IntoView {
     let is_selected = room.id == selected;
-    let icon        = room_icon(&room.room_type).to_string();
-    let name        = room_display_name(&room);
-    let preview     = room.last_message.clone().unwrap_or_else(|| "No messages yet".to_string());
-    let time_str    = room.last_at.as_ref().map(fmt_relative).unwrap_or_default();
-    let chip_cls    = room_type_chip_class(&room.room_type).to_string();
+    let icon = room_icon(&room.room_type).to_string();
+    let name = room_display_name(&room);
+    let preview = room
+        .last_message
+        .clone()
+        .unwrap_or_else(|| "No messages yet".to_string());
+    let time_str = room.last_at.as_ref().map(fmt_relative).unwrap_or_default();
+    let chip_cls = room_type_chip_class(&room.room_type).to_string();
     let room_type_label = room.room_type.replace('_', " ");
-    let room_id     = room.id;
-    let is_support  = room.room_type == "platform_support";
+    let room_id = room.id;
+    let is_support = room.room_type == "platform_support";
 
     view! {
         <button
@@ -191,7 +214,7 @@ fn ThreadItem(
 #[component]
 fn MessageBubble(msg: MessageRow, current_user_id: Option<Uuid>) -> impl IntoView {
     let is_mine = msg.sender_user_id == current_user_id;
-    let time    = fmt_time(&msg.created_at);
+    let time = fmt_time(&msg.created_at);
 
     view! {
         <div class=if is_mine { "comms-msg comms-msg--mine" } else { "comms-msg comms-msg--theirs" }>
@@ -207,17 +230,19 @@ fn MessageBubble(msg: MessageRow, current_user_id: Option<Uuid>) -> impl IntoVie
 
 #[component]
 fn MessagePanel(room_id: Uuid, room_name: String) -> impl IntoView {
-    let refetch       = RwSignal::new(0u32);
-    let draft         = RwSignal::new(String::new());
-    let sending       = RwSignal::new(false);
-    let messages      = Resource::new(
+    let refetch = RwSignal::new(0u32);
+    let draft = RwSignal::new(String::new());
+    let sending = RwSignal::new(false);
+    let messages = Resource::new(
         move || (room_id, refetch.get()),
         move |(id, _)| fetch_messages(id),
     );
 
     let handle_send = move |_| {
         let content = draft.get_untracked();
-        if content.trim().is_empty() { return; }
+        if content.trim().is_empty() {
+            return;
+        }
         sending.set(true);
         draft.set(String::new());
         leptos::task::spawn_local(async move {
@@ -231,7 +256,9 @@ fn MessagePanel(room_id: Uuid, room_name: String) -> impl IntoView {
         if e.key() == "Enter" && !e.shift_key() {
             e.prevent_default();
             let content = draft.get_untracked();
-            if content.trim().is_empty() { return; }
+            if content.trim().is_empty() {
+                return;
+            }
             sending.set(true);
             draft.set(String::new());
             leptos::task::spawn_local(async move {
@@ -321,9 +348,7 @@ fn NoRoomSelected() -> impl IntoView {
 // ── New support thread button ─────────────────────────────────────────────────
 
 #[component]
-fn SupportThreadButton(
-    on_open: Callback<Uuid>,
-) -> impl IntoView {
+fn SupportThreadButton(on_open: Callback<Uuid>) -> impl IntoView {
     let loading = RwSignal::new(false);
 
     view! {
@@ -350,18 +375,15 @@ fn SupportThreadButton(
 
 #[component]
 pub fn Communications() -> impl IntoView {
-    let refetch_rooms  = RwSignal::new(0u32);
-    let rooms          = Resource::new(
-        move || refetch_rooms.get(),
-        |_| fetch_rooms(),
-    );
-    let selected_room  = RwSignal::<Option<Uuid>>::new(None);
-    let selected_name  = RwSignal::<String>::new(String::new());
-
-
+    let refetch_rooms = RwSignal::new(0u32);
+    let rooms = Resource::new(move || refetch_rooms.get(), |_| fetch_rooms());
+    let selected_room = RwSignal::<Option<Uuid>>::new(None);
+    let selected_name = RwSignal::<String>::new(String::new());
 
     let on_support_open = Callback::new(move |room_id: Uuid| {
-        if room_id.is_nil() { return; }
+        if room_id.is_nil() {
+            return;
+        }
         selected_room.set(Some(room_id));
         selected_name.set("⚡ Atlas Support".to_string());
         refetch_rooms.update(|n| *n += 1);

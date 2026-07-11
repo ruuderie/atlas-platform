@@ -26,7 +26,7 @@
 //! `ViolationCategory` and `CureStatus` are enums — the compiler rejects
 //! invalid strings before they reach the DB.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use chrono::{NaiveDate, Utc};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -73,20 +73,20 @@ pub enum ViolationCategory {
 impl std::fmt::Display for ViolationCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::Noise                => "noise",
+            Self::Noise => "noise",
             Self::UnauthorizedOccupant => "unauthorized_occupant",
-            Self::UnauthorizedPet      => "unauthorized_pet",
-            Self::UnauthorizedVehicle  => "unauthorized_vehicle",
-            Self::PropertyDamage       => "property_damage",
-            Self::LeaseBreach          => "lease_breach",
-            Self::Subletting           => "subletting",
-            Self::FailureToMaintain    => "failure_to_maintain",
-            Self::IllegalActivity      => "illegal_activity",
-            Self::Hoarding             => "hoarding",
-            Self::SmokingInUnit        => "smoking_in_unit",
-            Self::Other                => "other",
-            Self::UnauthorizedParty    => "unauthorized_party",
-            Self::OverOccupancy        => "over_occupancy",
+            Self::UnauthorizedPet => "unauthorized_pet",
+            Self::UnauthorizedVehicle => "unauthorized_vehicle",
+            Self::PropertyDamage => "property_damage",
+            Self::LeaseBreach => "lease_breach",
+            Self::Subletting => "subletting",
+            Self::FailureToMaintain => "failure_to_maintain",
+            Self::IllegalActivity => "illegal_activity",
+            Self::Hoarding => "hoarding",
+            Self::SmokingInUnit => "smoking_in_unit",
+            Self::Other => "other",
+            Self::UnauthorizedParty => "unauthorized_party",
+            Self::OverOccupancy => "over_occupancy",
         })
     }
 }
@@ -95,20 +95,20 @@ impl TryFrom<String> for ViolationCategory {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "noise"                 => Ok(Self::Noise),
+            "noise" => Ok(Self::Noise),
             "unauthorized_occupant" => Ok(Self::UnauthorizedOccupant),
-            "unauthorized_pet"      => Ok(Self::UnauthorizedPet),
-            "unauthorized_vehicle"  => Ok(Self::UnauthorizedVehicle),
-            "property_damage"       => Ok(Self::PropertyDamage),
-            "lease_breach"          => Ok(Self::LeaseBreach),
-            "subletting"            => Ok(Self::Subletting),
-            "failure_to_maintain"   => Ok(Self::FailureToMaintain),
-            "illegal_activity"      => Ok(Self::IllegalActivity),
-            "hoarding"              => Ok(Self::Hoarding),
-            "smoking_in_unit"       => Ok(Self::SmokingInUnit),
-            "other"                 => Ok(Self::Other),
-            "unauthorized_party"    => Ok(Self::UnauthorizedParty),
-            "over_occupancy"        => Ok(Self::OverOccupancy),
+            "unauthorized_pet" => Ok(Self::UnauthorizedPet),
+            "unauthorized_vehicle" => Ok(Self::UnauthorizedVehicle),
+            "property_damage" => Ok(Self::PropertyDamage),
+            "lease_breach" => Ok(Self::LeaseBreach),
+            "subletting" => Ok(Self::Subletting),
+            "failure_to_maintain" => Ok(Self::FailureToMaintain),
+            "illegal_activity" => Ok(Self::IllegalActivity),
+            "hoarding" => Ok(Self::Hoarding),
+            "smoking_in_unit" => Ok(Self::SmokingInUnit),
+            "other" => Ok(Self::Other),
+            "unauthorized_party" => Ok(Self::UnauthorizedParty),
+            "over_occupancy" => Ok(Self::OverOccupancy),
             other => Err(format!("unknown ViolationCategory: '{other}'")),
         }
     }
@@ -133,10 +133,10 @@ pub enum CureStatus {
 impl std::fmt::Display for CureStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::Open       => "open",
-            Self::Cured      => "cured",
-            Self::Escalated  => "escalated",
-            Self::Dismissed  => "dismissed",
+            Self::Open => "open",
+            Self::Cured => "cured",
+            Self::Escalated => "escalated",
+            Self::Dismissed => "dismissed",
         })
     }
 }
@@ -145,8 +145,8 @@ impl TryFrom<String> for CureStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "open"      => Ok(Self::Open),
-            "cured"     => Ok(Self::Cured),
+            "open" => Ok(Self::Open),
+            "cured" => Ok(Self::Cured),
             "escalated" => Ok(Self::Escalated),
             "dismissed" => Ok(Self::Dismissed),
             other => Err(format!("unknown CureStatus: '{other}'")),
@@ -219,9 +219,9 @@ impl ViolationService {
         let now = Utc::now();
         let today = now.date_naive();
 
-        let cure_deadline = input.cure_days.map(|days| {
-            today + chrono::Duration::days(days as i64)
-        });
+        let cure_deadline = input
+            .cure_days
+            .map(|days| today + chrono::Duration::days(days as i64));
 
         let metadata = serde_json::json!({
             "category":        input.category.to_string(),
@@ -348,8 +348,7 @@ impl ViolationService {
             .await?
             .ok_or_else(|| anyhow!("violation {violation_id} not found"))?;
 
-        let current = CureStatus::try_from(case.status.clone())
-            .unwrap_or(CureStatus::Open);
+        let current = CureStatus::try_from(case.status.clone()).unwrap_or(CureStatus::Open);
 
         // Validate the transition
         match (&current, &new_status) {
@@ -358,7 +357,8 @@ impl ViolationService {
             | (CureStatus::Open, CureStatus::Dismissed) => {} // valid
             _ => bail!(
                 "cannot transition violation from '{}' to '{}'",
-                current, new_status
+                current,
+                new_status
             ),
         }
 

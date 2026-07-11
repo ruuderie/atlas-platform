@@ -23,53 +23,53 @@ use crate::pages::landlord::leases::LeaseStatus;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LeaseDetail {
-    pub id:                     uuid::Uuid,
-    pub asset_id:               Option<uuid::Uuid>,
-    pub counterparty_user_id:   Option<uuid::Uuid>,
-    pub contract_type:          String,
-    pub recurring_amount_cents:  Option<i64>,
-    pub currency:               String,
-    pub billing_interval:       String,
-    pub status:                 String,
-    pub guarantee_type:         Option<String>,
-    pub auto_renew:             bool,
-    pub start_date:             chrono::NaiveDate,
-    pub end_date:               Option<chrono::NaiveDate>,
-    pub signed_at:              Option<chrono::DateTime<chrono::Utc>>,
-    pub terminated_at:          Option<chrono::DateTime<chrono::Utc>>,
-    pub termination_reason:     Option<String>,
-    pub created_at:             chrono::DateTime<chrono::Utc>,
+    pub id: uuid::Uuid,
+    pub asset_id: Option<uuid::Uuid>,
+    pub counterparty_user_id: Option<uuid::Uuid>,
+    pub contract_type: String,
+    pub recurring_amount_cents: Option<i64>,
+    pub currency: String,
+    pub billing_interval: String,
+    pub status: String,
+    pub guarantee_type: Option<String>,
+    pub auto_renew: bool,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub signed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub terminated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub termination_reason: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OccupantRecord {
-    pub id:           uuid::Uuid,
-    pub full_name:    String,
-    pub kind:         String,
+    pub id: uuid::Uuid,
+    pub full_name: String,
+    pub kind: String,
     pub relationship: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VehicleRecord {
-    pub id:            uuid::Uuid,
-    pub make:          String,
-    pub model:         String,
-    pub year:          i32,
-    pub color:         String,
+    pub id: uuid::Uuid,
+    pub make: String,
+    pub model: String,
+    pub year: i32,
+    pub color: String,
     pub license_plate: String,
-    pub parking_spot:  Option<String>,
+    pub parking_spot: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LeaseInvoiceSummary {
-    pub id:                 uuid::Uuid,
+    pub id: uuid::Uuid,
     pub gross_amount_cents: i64,
-    pub currency:           String,
-    pub status:             String,
-    pub payment_rail:       Option<String>,
-    pub due_date:           Option<chrono::NaiveDate>,
-    pub paid_at:            Option<chrono::DateTime<chrono::Utc>>,
-    pub created_at:         chrono::DateTime<chrono::Utc>,
+    pub currency: String,
+    pub status: String,
+    pub payment_rail: Option<String>,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub paid_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Occupants API wraps active list.
@@ -94,21 +94,21 @@ pub enum BillingInterval {
 impl BillingInterval {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "monthly"    => Self::Monthly,
-            "weekly"     => Self::Weekly,
-            "bi_weekly"  => Self::BiWeekly,
-            "annual"     => Self::Annual,
-            _            => Self::Unknown,
+            "monthly" => Self::Monthly,
+            "weekly" => Self::Weekly,
+            "bi_weekly" => Self::BiWeekly,
+            "annual" => Self::Annual,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Monthly   => "Monthly",
-            Self::Weekly    => "Weekly",
-            Self::BiWeekly  => "Bi-weekly",
-            Self::Annual    => "Annual",
-            Self::Unknown   => "Unknown",
+            Self::Monthly => "Monthly",
+            Self::Weekly => "Weekly",
+            Self::BiWeekly => "Bi-weekly",
+            Self::Annual => "Annual",
+            Self::Unknown => "Unknown",
         }
     }
 }
@@ -133,45 +133,45 @@ pub enum InvoiceStatus {
 impl InvoiceStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "pending"    => Self::Pending,
+            "pending" => Self::Pending,
             "processing" => Self::Processing,
-            "paid"       => Self::Paid,
-            "failed"     => Self::Failed,
-            "refunded"   => Self::Refunded,
-            _            => Self::Unknown,
+            "paid" => Self::Paid,
+            "failed" => Self::Failed,
+            "refunded" => Self::Refunded,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Pending    => "Pending",
+            Self::Pending => "Pending",
             Self::Processing => "Processing",
-            Self::Paid       => "Paid",
-            Self::Failed     => "Failed",
-            Self::Refunded   => "Refunded",
-            Self::Unknown    => "Unknown",
+            Self::Paid => "Paid",
+            Self::Failed => "Failed",
+            Self::Refunded => "Refunded",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Paid       => "inv-status--paid",
-            Self::Pending    => "inv-status--pending",
+            Self::Paid => "inv-status--paid",
+            Self::Pending => "inv-status--pending",
             Self::Processing => "inv-status--processing",
-            Self::Failed     => "inv-status--failed",
-            Self::Refunded   => "inv-status--refunded",
-            Self::Unknown    => "inv-status--unknown",
+            Self::Failed => "inv-status--failed",
+            Self::Refunded => "inv-status--refunded",
+            Self::Unknown => "inv-status--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Paid       => "check_circle",
-            Self::Pending    => "schedule",
+            Self::Paid => "check_circle",
+            Self::Pending => "schedule",
             Self::Processing => "sync",
-            Self::Failed     => "cancel",
-            Self::Refunded   => "undo",
-            Self::Unknown    => "help",
+            Self::Failed => "cancel",
+            Self::Refunded => "undo",
+            Self::Unknown => "help",
         }
     }
 }
@@ -190,25 +190,13 @@ pub fn LeaseDetail() -> impl IntoView {
     let params = use_params_map();
     let lease_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
-    let detail = Resource::new(
-        lease_id,
-        |id| async move { get_lease_detail(id).await },
-    );
+    let detail = Resource::new(lease_id, |id| async move { get_lease_detail(id).await });
 
-    let occupants = Resource::new(
-        lease_id,
-        |id| async move { get_lease_occupants(id).await },
-    );
+    let occupants = Resource::new(lease_id, |id| async move { get_lease_occupants(id).await });
 
-    let vehicles = Resource::new(
-        lease_id,
-        |id| async move { get_lease_vehicles(id).await },
-    );
+    let vehicles = Resource::new(lease_id, |id| async move { get_lease_vehicles(id).await });
 
-    let invoices = Resource::new(
-        lease_id,
-        |id| async move { get_lease_invoices(id).await },
-    );
+    let invoices = Resource::new(lease_id, |id| async move { get_lease_invoices(id).await });
 
     view! {
         <div class="ld-page">

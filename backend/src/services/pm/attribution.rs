@@ -40,11 +40,10 @@
 //! | `TimeDecay` | Exponential decay — more credit to recent touchpoints |
 //! | `PositionBased` | 40% first + 40% last + 20% split across middle |
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
 use uuid::Uuid;
 
@@ -230,7 +229,9 @@ impl AttributionService {
         } else if let Some(ref email) = payload.contact_email {
             q = q.filter(atlas_attribution_touchpoint::Column::ContactEmail.eq(email.as_str()));
         } else {
-            return Err(anyhow!("record_conversion requires user_id or contact_email"));
+            return Err(anyhow!(
+                "record_conversion requires user_id or contact_email"
+            ));
         }
 
         let touchpoints = q.all(db).await?;
@@ -280,9 +281,7 @@ impl AttributionService {
             // Exponential decay: weight_i = 0.5^(n-1-i), normalized to sum=1.
             // More credit to recent touchpoints (higher index = more recent).
             AttributionModel::TimeDecay => {
-                let weights: Vec<f64> = (0..n)
-                    .map(|i| 0.5f64.powi((n - 1 - i) as i32))
-                    .collect();
+                let weights: Vec<f64> = (0..n).map(|i| 0.5f64.powi((n - 1 - i) as i32)).collect();
                 let weight_sum: f64 = weights.iter().sum();
                 let mut v: Vec<i64> = weights
                     .iter()
@@ -358,8 +357,7 @@ impl AttributionService {
         Ok(atlas_attribution_touchpoint::Entity::find()
             .filter(atlas_attribution_touchpoint::Column::TenantId.eq(tenant_id))
             .filter(
-                atlas_attribution_touchpoint::Column::ConversionEntityId
-                    .eq(conversion_entity_id),
+                atlas_attribution_touchpoint::Column::ConversionEntityId.eq(conversion_entity_id),
             )
             .order_by_asc(atlas_attribution_touchpoint::Column::OccurredAt)
             .all(db)

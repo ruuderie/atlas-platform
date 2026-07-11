@@ -46,11 +46,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Router,
 };
 use chrono::NaiveDate;
 use sea_orm::DatabaseConnection;
@@ -58,9 +58,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::services::pm::household::{
-    ActiveOccupant, AdultRelationship, DepartureReason, FormerOccupant,
-    HouseholdService, MinorRelationship,
-    RegisterAdultInput, RegisterMinorInput, RegisterOccupantInput,
+    ActiveOccupant, AdultRelationship, DepartureReason, FormerOccupant, HouseholdService,
+    MinorRelationship, RegisterAdultInput, RegisterMinorInput, RegisterOccupantInput,
     RegisterVehicleInput, UpdateOccupantInput, UpdateVehicleInput, VehicleRecord,
 };
 use crate::services::pm::household::{CountryCode, LicensePlate, ModelYear};
@@ -92,7 +91,10 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
             post(depart_occupant),
         )
         // Landlord unit view
-        .route("/api/folio/units/{unit_id}/occupants", get(list_unit_occupants))
+        .route(
+            "/api/folio/units/{unit_id}/occupants",
+            get(list_unit_occupants),
+        )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -282,7 +284,8 @@ async fn update_vehicle(
         registration_expiry: body.registration_expiry,
     };
 
-    match HouseholdService::update_vehicle(&db, tenant_id, user_id, lease_id, entry_id, patch).await {
+    match HouseholdService::update_vehicle(&db, tenant_id, user_id, lease_id, entry_id, patch).await
+    {
         Ok(v) => (StatusCode::OK, Json(v)).into_response(),
         Err(e) => {
             tracing::error!("update_vehicle: {e:#}");
@@ -347,14 +350,30 @@ async fn register_occupant(
 ) -> impl IntoResponse {
     let input = match body {
         RegisterOccupantHttpInput::Adult {
-            full_name, relationship, profile_id, id_document_type, id_document_number, notes,
+            full_name,
+            relationship,
+            profile_id,
+            id_document_type,
+            id_document_number,
+            notes,
         } => RegisterOccupantInput::Adult(RegisterAdultInput {
-            full_name, relationship, profile_id, id_document_type, id_document_number, notes,
+            full_name,
+            relationship,
+            profile_id,
+            id_document_type,
+            id_document_number,
+            notes,
         }),
         RegisterOccupantHttpInput::Minor {
-            full_name, relationship, date_of_birth, notes,
+            full_name,
+            relationship,
+            date_of_birth,
+            notes,
         } => RegisterOccupantInput::Minor(RegisterMinorInput {
-            full_name, relationship, date_of_birth, notes,
+            full_name,
+            relationship,
+            date_of_birth,
+            notes,
         }),
     };
 
@@ -381,7 +400,9 @@ async fn update_occupant(
         notes: body.notes,
     };
 
-    match HouseholdService::update_occupant(&db, tenant_id, user_id, lease_id, entry_id, patch).await {
+    match HouseholdService::update_occupant(&db, tenant_id, user_id, lease_id, entry_id, patch)
+        .await
+    {
         Ok(o) => (StatusCode::OK, Json(o)).into_response(),
         Err(e) => {
             tracing::error!("update_occupant: {e:#}");
@@ -398,8 +419,16 @@ async fn depart_occupant(
     Json(body): Json<DepartOccupantHttpInput>,
 ) -> impl IntoResponse {
     match HouseholdService::remove_occupant(
-        &db, tenant_id, user_id, lease_id, entry_id, body.reason, body.notes,
-    ).await {
+        &db,
+        tenant_id,
+        user_id,
+        lease_id,
+        entry_id,
+        body.reason,
+        body.notes,
+    )
+    .await
+    {
         Ok(former) => (StatusCode::OK, Json(former)).into_response(),
         Err(e) => {
             tracing::error!("depart_occupant: {e:#}");

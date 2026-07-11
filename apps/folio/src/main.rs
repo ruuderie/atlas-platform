@@ -1,7 +1,7 @@
 #![recursion_limit = "512"]
 
 #[cfg(feature = "ssr")]
-use axum::http::{HeaderValue, header};
+use axum::http::{header, HeaderValue};
 #[cfg(feature = "ssr")]
 use axum::response::IntoResponse as AxumIntoResponse;
 
@@ -10,7 +10,7 @@ use folio::app::App;
 use folio::state::{AppState, AtlasApiUrl, PublicApiBaseUrl};
 use leptos::prelude::*;
 #[cfg(feature = "ssr")]
-use leptos_axum::{LeptosRoutes, generate_route_list};
+use leptos_axum::{generate_route_list, LeptosRoutes};
 #[cfg(feature = "ssr")]
 use tower::ServiceBuilder;
 #[cfg(feature = "ssr")]
@@ -34,14 +34,14 @@ async fn main() {
     let addr = leptos_options.site_addr;
     let site_root = leptos_options.site_root.clone();
 
-    let atlas_api_url = std::env::var("ATLAS_API_URL")
-        .unwrap_or_else(|_| "http://localhost:8000".to_string());
-    let public_api_base_url = std::env::var("PUBLIC_API_BASE_URL")
-        .unwrap_or_else(|_| atlas_api_url.clone());
+    let atlas_api_url =
+        std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
+    let public_api_base_url =
+        std::env::var("PUBLIC_API_BASE_URL").unwrap_or_else(|_| atlas_api_url.clone());
 
     let app_state = AppState {
-        leptos_options:      leptos_options.clone(),
-        atlas_api_url:       AtlasApiUrl(atlas_api_url.clone()),
+        leptos_options: leptos_options.clone(),
+        atlas_api_url: AtlasApiUrl(atlas_api_url.clone()),
         public_api_base_url: PublicApiBaseUrl(public_api_base_url.clone()),
     };
 
@@ -60,8 +60,7 @@ async fn main() {
         .route("/verify", axum::routing::get(verify_handler))
         .route(
             "/api/{*fn_name}",
-            axum::routing::get(leptos_axum::handle_server_fns)
-                .post(leptos_axum::handle_server_fns),
+            axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
         )
         // Static assets — versioned filename is the cache-bust key.
         // max-age=31536000,immutable → browser caches indefinitely; never re-requests
@@ -112,15 +111,14 @@ async fn main() {
 
     eprintln!("[folio] listening on http://{}", &addr);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app.into_make_service()).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }
 
 #[cfg(feature = "ssr")]
-pub fn shell(
-    options: LeptosOptions,
-    public_api_base_url: String,
-) -> impl IntoView {
-    use leptos_meta::{MetaTags, Stylesheet, Link};
+pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoView {
+    use leptos_meta::{Link, MetaTags, Stylesheet};
 
     let env_script = format!(
         "window.__ENV__ = {{ API_BASE_URL: '{}' }};",
@@ -211,8 +209,8 @@ async fn verify_handler(
         }
     };
 
-    let atlas_url = std::env::var("ATLAS_API_URL")
-        .unwrap_or_else(|_| "http://localhost:8000".to_string());
+    let atlas_url =
+        std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
     let url = format!("{}/api/auth/magic-link/verify", atlas_url);
 
     let client = reqwest::Client::new();
@@ -235,10 +233,22 @@ async fn verify_handler(
     if !backend_res.status().is_success() {
         let body = backend_res.text().await.unwrap_or_default();
         let (title, detail) = match body.strip_prefix("error_code:").unwrap_or("invalid") {
-            "token_expired"      => ("Login link expired.", "This link is no longer valid. Please request a new one."),
-            "token_already_used" => ("Login link already used.", "Each link can only be used once. Please request a new one."),
-            "token_not_found"    => ("Login link invalid or expired.", "This link could not be found. Please request a new one."),
-            _                    => ("Login link invalid or expired.", "error running server function"),
+            "token_expired" => (
+                "Login link expired.",
+                "This link is no longer valid. Please request a new one.",
+            ),
+            "token_already_used" => (
+                "Login link already used.",
+                "Each link can only be used once. Please request a new one.",
+            ),
+            "token_not_found" => (
+                "Login link invalid or expired.",
+                "This link could not be found. Please request a new one.",
+            ),
+            _ => (
+                "Login link invalid or expired.",
+                "error running server function",
+            ),
         };
         return error_html(title, detail);
     }
@@ -265,7 +275,11 @@ async fn verify_handler(
         .iter()
         .find_map(|v| {
             let s = v.to_str().ok()?;
-            if s.contains("session=") { Some(s.to_string()) } else { None }
+            if s.contains("session=") {
+                Some(s.to_string())
+            } else {
+                None
+            }
         });
 
     let token = match session_token {

@@ -20,7 +20,6 @@
 
 // ── InfinitePay webhook signature verification ────────────────────────────────
 
-
 mod infinitepay_signature_tests {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
@@ -109,7 +108,6 @@ mod infinitepay_signature_tests {
 
 // ── InfinitePay event routing ─────────────────────────────────────────────────
 
-
 mod infinitepay_event_routing_tests {
     use serde_json::json;
 
@@ -158,7 +156,8 @@ mod infinitepay_event_routing_tests {
                     "external_id": id.to_string()
                 }
             }
-        }).to_string();
+        })
+        .to_string();
         let v: serde_json::Value = serde_json::from_str(&body).unwrap();
         let extracted = v
             .pointer("/data/object/external_id")
@@ -179,7 +178,8 @@ mod infinitepay_event_routing_tests {
                     "metadata": { "ledger_entry_id": id.to_string() }
                 }
             }
-        }).to_string();
+        })
+        .to_string();
         let v: serde_json::Value = serde_json::from_str(&body).unwrap();
         let extracted = v
             .pointer("/data/object/external_id")
@@ -192,14 +192,16 @@ mod infinitepay_event_routing_tests {
 
 // ── Kelviq constant-time secret comparison ────────────────────────────────────
 
-
 mod kelviq_secret_tests {
     /// Mirror of `KelviqWebhookHandler::constant_time_eq`.
     fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
         if a.len() != b.len() {
             return false;
         }
-        a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+        a.iter()
+            .zip(b.iter())
+            .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+            == 0
     }
 
     #[test]
@@ -244,7 +246,6 @@ mod kelviq_secret_tests {
 }
 
 // ── Kelviq event routing ──────────────────────────────────────────────────────
-
 
 mod kelviq_event_routing_tests {
     use serde_json::json;
@@ -325,11 +326,10 @@ mod kelviq_event_routing_tests {
 
 // ── Lead ingest rate limiter ──────────────────────────────────────────────────
 
-
 mod lead_ingest_rate_limiter_tests {
+    use dashmap::DashMap;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
-    use dashmap::DashMap;
 
     const MAX_REQUESTS: u32 = 5;
     const WINDOW: Duration = Duration::from_secs(60);
@@ -370,14 +370,18 @@ mod lead_ingest_rate_limiter_tests {
     #[test]
     fn sixth_request_is_denied() {
         let store = new_store();
-        for _ in 0..5 { check(&store, "1.2.3.4"); }
+        for _ in 0..5 {
+            check(&store, "1.2.3.4");
+        }
         assert!(!check(&store, "1.2.3.4"));
     }
 
     #[test]
     fn different_ips_are_independent() {
         let store = new_store();
-        for _ in 0..5 { check(&store, "10.0.0.1"); }
+        for _ in 0..5 {
+            check(&store, "10.0.0.1");
+        }
         // 10.0.0.2 has a fresh window
         assert!(check(&store, "10.0.0.2"));
     }
@@ -386,7 +390,9 @@ mod lead_ingest_rate_limiter_tests {
     fn expired_window_resets_counter() {
         let store = new_store();
         // Exhaust the window for this IP
-        for _ in 0..5 { check(&store, "2.2.2.2"); }
+        for _ in 0..5 {
+            check(&store, "2.2.2.2");
+        }
         assert!(!check(&store, "2.2.2.2")); // 6th is blocked
 
         // Manually force-expire the window
@@ -403,7 +409,9 @@ mod lead_ingest_rate_limiter_tests {
         let store = new_store();
         let ips = ["a.a.a.a", "b.b.b.b", "c.c.c.c"];
         for ip in &ips {
-            for _ in 0..5 { check(&store, ip); }
+            for _ in 0..5 {
+                check(&store, ip);
+            }
         }
         // Each IP is at its limit but the others are unaffected
         for ip in &ips {
@@ -414,10 +422,9 @@ mod lead_ingest_rate_limiter_tests {
 
 // ── WebSocket room registry ───────────────────────────────────────────────────
 
-
 mod ws_room_registry_tests {
-    use std::sync::Arc;
     use dashmap::DashMap;
+    use std::sync::Arc;
     use uuid::Uuid;
 
     const CAPACITY: usize = 256;
@@ -504,12 +511,14 @@ mod ws_room_registry_tests {
         }
         // Subscriber should get RecvError::Lagged
         let result = rx.recv().await;
-        assert!(matches!(result, Err(tokio::sync::broadcast::error::RecvError::Lagged(_))));
+        assert!(matches!(
+            result,
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_))
+        ));
     }
 }
 
 // ── GeoService PostGIS guard ──────────────────────────────────────────────────
-
 
 mod geo_service_guard_tests {
     /// These tests verify the guard logic and coordinate conventions —
@@ -564,10 +573,9 @@ mod geo_service_guard_tests {
 
 // ── Payment rail resolve_adapter credential shapes ────────────────────────────
 
-
 mod resolve_adapter_tests {
-    use serde_json::json;
     use crate::services::pm::payment_rail::resolve_adapter;
+    use serde_json::json;
 
     #[test]
     fn stripe_express_resolves_with_valid_credentials() {
@@ -679,7 +687,6 @@ mod resolve_adapter_tests {
 
 // ── Lead status terminal state ────────────────────────────────────────────────
 
-
 mod lead_status_tests {
     use crate::types::lead::LeadStatus;
 
@@ -724,8 +731,8 @@ mod lead_status_tests {
             LeadStatus::Disqualified,
         ] {
             let s = status.to_string();
-            let parsed = LeadStatus::try_from(s.clone())
-                .unwrap_or_else(|_| panic!("failed to parse '{s}'"));
+            let parsed =
+                LeadStatus::try_from(s.clone()).unwrap_or_else(|_| panic!("failed to parse '{s}'"));
             assert_eq!(parsed, status);
         }
     }
@@ -742,7 +749,6 @@ mod lead_status_tests {
 }
 
 // ── InvoiceResult serialization ───────────────────────────────────────────────
-
 
 mod invoice_result_tests {
     use crate::services::pm::payment_rail::InvoiceResult;

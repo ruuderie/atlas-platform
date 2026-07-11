@@ -8,43 +8,51 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CatalogEntry {
-    pub id:               Uuid,
-    pub asset_id:         Uuid,
-    pub listing_type:     String,
-    pub headline:         Option<String>,
-    pub description:      Option<String>,
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub listing_type: String,
+    pub headline: Option<String>,
+    pub description: Option<String>,
     pub base_price_cents: Option<i64>,
-    pub currency:         Option<String>,
-    pub minimum_nights:   Option<i32>,
-    pub is_active:        bool,
-    pub created_at:       String,
+    pub currency: Option<String>,
+    pub minimum_nights: Option<i32>,
+    pub is_active: bool,
+    pub created_at: String,
 }
 
 #[server(FetchStrListing, "/api")]
-pub async fn fetch_str_listing(asset_id: String) -> Result<Option<CatalogEntry>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_listing(
+    asset_id: String,
+) -> Result<Option<CatalogEntry>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let url = format!("/api/folio/catalog?asset_id={asset_id}");
     let entries = crate::atlas_client::authenticated_get::<Vec<CatalogEntry>>(&url, &token, None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     Ok(entries.into_iter().find(|e| e.is_active))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -54,19 +62,16 @@ fn fmt_price(cents: i64, currency: &str) -> String {
 
 #[component]
 pub fn StrListingDetail() -> impl IntoView {
-    let params   = use_params_map();
+    let params = use_params_map();
     let asset_id = params.get().get("id").unwrap_or_default();
 
     // Editable fields (local state — save wires to backend in Phase 7)
-    let headline    = RwSignal::new(String::new());
+    let headline = RwSignal::new(String::new());
     let description = RwSignal::new(String::new());
-    let loaded      = RwSignal::new(false);
-    let saved       = RwSignal::new(false);
+    let loaded = RwSignal::new(false);
+    let saved = RwSignal::new(false);
 
-    let listing_res = Resource::new(
-        move || asset_id.clone(),
-        |id| fetch_str_listing(id),
-    );
+    let listing_res = Resource::new(move || asset_id.clone(), |id| fetch_str_listing(id));
 
     view! {
         <div class="main-area">

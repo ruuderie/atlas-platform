@@ -10,7 +10,9 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set, ActiveModelTrait};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -18,22 +20,24 @@ use crate::extractors::folio_role::PropertyManagerOnly;
 use crate::extractors::tenant::TenantContext;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/pm/clients", get(list_clients).post(create_client))
+    Router::new().route(
+        "/api/folio/pm/clients",
+        get(list_clients).post(create_client),
+    )
 }
 
 // ── Response types ────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 pub struct ClientSummary {
-    pub account_id:          Uuid,
-    pub display_name:        String,
-    pub contact_name:        Option<String>,
-    pub contact_email:       Option<String>,
-    pub property_count:      Option<i64>,
-    pub unit_count:          Option<i64>,
-    pub active_lease_count:  Option<i64>,
-    pub occupancy_pct:       Option<f64>,
+    pub account_id: Uuid,
+    pub display_name: String,
+    pub contact_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub property_count: Option<i64>,
+    pub unit_count: Option<i64>,
+    pub active_lease_count: Option<i64>,
+    pub occupancy_pct: Option<f64>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -65,15 +69,17 @@ async fn list_clients(
     };
 
     // ── 2. Fetch aggregate metrics for all clients in one CTE query ──────────
-    let metrics_map: std::collections::HashMap<Uuid, crate::services::pm::aggregates::ClientMetrics> =
-        match crate::services::pm::aggregates::fetch_client_metrics(&db, ctx.tenant_id).await {
-            Ok(rows) => rows.into_iter().map(|m| (m.account_id, m)).collect(),
-            Err(e) => {
-                tracing::error!(error = %e, "pm/clients: aggregate metrics query failed");
-                // Degrade gracefully — return accounts without metrics rather than 500
-                std::collections::HashMap::new()
-            }
-        };
+    let metrics_map: std::collections::HashMap<
+        Uuid,
+        crate::services::pm::aggregates::ClientMetrics,
+    > = match crate::services::pm::aggregates::fetch_client_metrics(&db, ctx.tenant_id).await {
+        Ok(rows) => rows.into_iter().map(|m| (m.account_id, m)).collect(),
+        Err(e) => {
+            tracing::error!(error = %e, "pm/clients: aggregate metrics query failed");
+            // Degrade gracefully — return accounts without metrics rather than 500
+            std::collections::HashMap::new()
+        }
+    };
 
     // ── 3. Merge ─────────────────────────────────────────────────────────────
     let summaries: Vec<ClientSummary> = accounts
@@ -81,14 +87,14 @@ async fn list_clients(
         .map(|a| {
             let m = metrics_map.get(&a.id);
             ClientSummary {
-                account_id:         a.id,
-                display_name:       a.name.clone(),
-                contact_name:       None, // TODO: join atlas_contact
-                contact_email:      None,
-                property_count:     m.map(|x| x.property_count),
-                unit_count:         m.map(|x| x.unit_count),
+                account_id: a.id,
+                display_name: a.name.clone(),
+                contact_name: None, // TODO: join atlas_contact
+                contact_email: None,
+                property_count: m.map(|x| x.property_count),
+                unit_count: m.map(|x| x.unit_count),
                 active_lease_count: m.map(|x| x.active_lease_count),
-                occupancy_pct:      m.map(|x| x.occupancy_pct),
+                occupancy_pct: m.map(|x| x.occupancy_pct),
             }
         })
         .collect();
@@ -100,8 +106,8 @@ async fn list_clients(
 
 #[derive(Deserialize)]
 pub struct CreateClientRequest {
-    pub display_name:  String,
-    pub contact_name:  Option<String>,
+    pub display_name: String,
+    pub contact_name: Option<String>,
     pub contact_email: Option<String>,
     /// Internal notes — visible to PM only, not to the client.
     pub internal_notes: Option<String>,
@@ -125,16 +131,18 @@ async fn create_client(
     use crate::entities::atlas_account;
 
     let new_account = atlas_account::ActiveModel {
-        id:        Set(Uuid::new_v4()),
+        id: Set(Uuid::new_v4()),
         tenant_id: Set(ctx.tenant_id),
-        name:      Set(body.display_name),
+        name: Set(body.display_name),
         ..Default::default()
     };
 
     match new_account.insert(&db).await {
         Ok(account) => (
             StatusCode::CREATED,
-            Json(CreateClientResponse { account_id: account.id }),
+            Json(CreateClientResponse {
+                account_id: account.id,
+            }),
         )
             .into_response(),
         Err(e) => {

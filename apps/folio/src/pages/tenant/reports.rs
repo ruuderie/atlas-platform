@@ -8,24 +8,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LedgerEntry {
-    pub id:                   Uuid,
-    pub description:          Option<String>,
-    pub gross_amount_cents:   i64,
-    pub fee_amount_cents:     i64,
-    pub net_amount_cents:     i64,
-    pub currency:             String,
-    pub payment_rail:         Option<String>,
-    pub status:               String,
-    pub due_date:             Option<String>,
-    pub paid_at:              Option<String>,
-    pub created_at:           String,
+    pub id: Uuid,
+    pub description: Option<String>,
+    pub gross_amount_cents: i64,
+    pub fee_amount_cents: i64,
+    pub net_amount_cents: i64,
+    pub currency: String,
+    pub payment_rail: Option<String>,
+    pub status: String,
+    pub due_date: Option<String>,
+    pub paid_at: Option<String>,
+    pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -36,19 +36,24 @@ pub async fn fetch_report_ledger() -> Result<Vec<LedgerEntry>, server_fn::error:
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<Vec<LedgerEntry>>(
-        "/api/folio/ledger", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<LedgerEntry>>("/api/folio/ledger", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -59,7 +64,11 @@ fn fmt_cents(cents: i64) -> String {
 }
 
 fn year_from(date: &str) -> &str {
-    if date.len() >= 4 { &date[..4] } else { "—" }
+    if date.len() >= 4 {
+        &date[..4]
+    } else {
+        "—"
+    }
 }
 
 /// Group entries by year and sum paid amounts

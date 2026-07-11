@@ -8,38 +8,68 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 struct RuleRow {
-    name:           &'static str,
-    trigger:        &'static str,
-    adjustment:     &'static str,
-    category:       &'static str,
+    name: &'static str,
+    trigger: &'static str,
+    adjustment: &'static str,
+    category: &'static str,
 }
 
 fn default_rules() -> Vec<RuleRow> {
     vec![
-        RuleRow { name: "Weekend Premium",     trigger: "Fri–Sun",        adjustment: "+20%",  category: "Seasonal" },
-        RuleRow { name: "Last-Minute Discount", trigger: "< 3 days away",  adjustment: "−15%",  category: "Dynamic" },
-        RuleRow { name: "Weekly Stay",          trigger: "7+ nights",      adjustment: "−10%",  category: "Length" },
-        RuleRow { name: "Monthly Stay",         trigger: "28+ nights",     adjustment: "−25%",  category: "Length" },
-        RuleRow { name: "High Season",          trigger: "Jul–Aug",        adjustment: "+30%",  category: "Seasonal" },
-        RuleRow { name: "Early Bird",           trigger: "> 60 days out",  adjustment: "−5%",   category: "Dynamic" },
+        RuleRow {
+            name: "Weekend Premium",
+            trigger: "Fri–Sun",
+            adjustment: "+20%",
+            category: "Seasonal",
+        },
+        RuleRow {
+            name: "Last-Minute Discount",
+            trigger: "< 3 days away",
+            adjustment: "−15%",
+            category: "Dynamic",
+        },
+        RuleRow {
+            name: "Weekly Stay",
+            trigger: "7+ nights",
+            adjustment: "−10%",
+            category: "Length",
+        },
+        RuleRow {
+            name: "Monthly Stay",
+            trigger: "28+ nights",
+            adjustment: "−25%",
+            category: "Length",
+        },
+        RuleRow {
+            name: "High Season",
+            trigger: "Jul–Aug",
+            adjustment: "+30%",
+            category: "Seasonal",
+        },
+        RuleRow {
+            name: "Early Bird",
+            trigger: "> 60 days out",
+            adjustment: "−5%",
+            category: "Dynamic",
+        },
     ]
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CatalogEntry {
-    pub id:               Uuid,
-    pub asset_id:         Uuid,
-    pub listing_type:     String,
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub listing_type: String,
     pub base_price_cents: Option<i64>,
-    pub currency:         Option<String>,
-    pub is_active:        bool,
+    pub currency: Option<String>,
+    pub is_active: bool,
 }
 
 #[server(FetchStrCatalog, "/api")]
@@ -48,19 +78,24 @@ pub async fn fetch_str_catalog() -> Result<Vec<CatalogEntry>, server_fn::error::
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<Vec<CatalogEntry>>(
-        "/api/folio/catalog", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<CatalogEntry>>("/api/folio/catalog", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -72,9 +107,9 @@ fn fmt_price(cents: i64) -> String {
 
 #[component]
 pub fn StrPricingRules() -> impl IntoView {
-    let rules    = default_rules();
+    let rules = default_rules();
     let show_add = RwSignal::new(false);
-    let saved    = RwSignal::new(false);
+    let saved = RwSignal::new(false);
 
     let catalog_res = Resource::new(|| (), |_| fetch_str_catalog());
 

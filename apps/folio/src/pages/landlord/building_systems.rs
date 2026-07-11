@@ -13,26 +13,26 @@
 //  Card grid   : system name · type · condition · next service · cert expiry
 // ─────────────────────────────────────────────────────────────────────────────
 
-use leptos::prelude::*;
-use uuid::Uuid;
 use chrono::{NaiveDate, Utc};
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildingSystemDetail {
-    pub id:                    Uuid,
-    pub tenant_id:             Uuid,
-    pub property_id:           Option<Uuid>,
-    pub name:                  String,
-    pub serial_number:         Option<String>,
-    pub status:                String,
-    pub condition:             Option<String>,
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub property_id: Option<Uuid>,
+    pub name: String,
+    pub serial_number: Option<String>,
+    pub status: String,
+    pub condition: Option<String>,
     pub scheduled_service_date: Option<NaiveDate>,
-    pub expiry_date:           Option<NaiveDate>,
-    pub metadata:              Option<serde_json::Value>,
-    pub created_at:            chrono::DateTime<Utc>,
+    pub expiry_date: Option<NaiveDate>,
+    pub metadata: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<Utc>,
 }
 
 // ── Local enums ───────────────────────────────────────────────────────────────
@@ -54,34 +54,31 @@ enum SystemCategory {
 impl SystemCategory {
     fn label(self) -> &'static str {
         match self {
-            SystemCategory::All        => "All",
+            SystemCategory::All => "All",
             SystemCategory::LifeSafety => "Life Safety",
             SystemCategory::Mechanical => "Mechanical",
             SystemCategory::Electrical => "Electrical",
-            SystemCategory::Water      => "Water",
-            SystemCategory::Structure  => "Structure",
-            SystemCategory::Amenity    => "Amenity",
-            SystemCategory::Access     => "Access",
-            SystemCategory::Other      => "Other",
+            SystemCategory::Water => "Water",
+            SystemCategory::Structure => "Structure",
+            SystemCategory::Amenity => "Amenity",
+            SystemCategory::Access => "Access",
+            SystemCategory::Other => "Other",
         }
     }
 
     fn from_system_type(t: &str) -> Self {
         match t {
-            "fire_suppression" | "fire_alarm" | "emergency_lighting" | "elevator" | "escalator"
-                => SystemCategory::LifeSafety,
-            "common_area_hvac" | "boiler" | "cooling_tower" | "chiller"
-                => SystemCategory::Mechanical,
-            "generator" | "electrical_panel" | "transformer_vault"
-                => SystemCategory::Electrical,
-            "roof_drain_system" | "sewer_lift" | "backflow_preventer"
-                => SystemCategory::Water,
-            "roof" | "facade" | "parking_structure"
-                => SystemCategory::Structure,
-            "pool" | "spa" | "gym_equipment"
-                => SystemCategory::Amenity,
-            "security_system" | "access_control" | "intercom"
-                => SystemCategory::Access,
+            "fire_suppression" | "fire_alarm" | "emergency_lighting" | "elevator" | "escalator" => {
+                SystemCategory::LifeSafety
+            }
+            "common_area_hvac" | "boiler" | "cooling_tower" | "chiller" => {
+                SystemCategory::Mechanical
+            }
+            "generator" | "electrical_panel" | "transformer_vault" => SystemCategory::Electrical,
+            "roof_drain_system" | "sewer_lift" | "backflow_preventer" => SystemCategory::Water,
+            "roof" | "facade" | "parking_structure" => SystemCategory::Structure,
+            "pool" | "spa" | "gym_equipment" => SystemCategory::Amenity,
+            "security_system" | "access_control" | "intercom" => SystemCategory::Access,
             _ => SystemCategory::Other,
         }
     }
@@ -95,7 +92,7 @@ impl SystemCategory {
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Urgency {
     Overdue,
-    DueSoon,   // ≤30 days
+    DueSoon, // ≤30 days
     Ok,
     Unknown,
 }
@@ -107,38 +104,44 @@ impl Urgency {
             .into_iter()
             .flatten()
             .collect();
-        if dates.is_empty() { return Urgency::Unknown; }
+        if dates.is_empty() {
+            return Urgency::Unknown;
+        }
         let earliest = dates.iter().cloned().min().unwrap();
         let days = (earliest - today).num_days();
-        if days < 0       { Urgency::Overdue }
-        else if days <= 30 { Urgency::DueSoon }
-        else               { Urgency::Ok }
+        if days < 0 {
+            Urgency::Overdue
+        } else if days <= 30 {
+            Urgency::DueSoon
+        } else {
+            Urgency::Ok
+        }
     }
 
     fn card_class(self) -> &'static str {
         match self {
-            Urgency::Overdue  => "bsys-card bsys-card--overdue",
-            Urgency::DueSoon  => "bsys-card bsys-card--due-soon",
-            Urgency::Ok       => "bsys-card",
-            Urgency::Unknown  => "bsys-card bsys-card--unknown",
+            Urgency::Overdue => "bsys-card bsys-card--overdue",
+            Urgency::DueSoon => "bsys-card bsys-card--due-soon",
+            Urgency::Ok => "bsys-card",
+            Urgency::Unknown => "bsys-card bsys-card--unknown",
         }
     }
 
     fn badge_class(self) -> &'static str {
         match self {
-            Urgency::Overdue  => "bsys-badge bsys-badge--overdue",
-            Urgency::DueSoon  => "bsys-badge bsys-badge--due-soon",
-            Urgency::Ok       => "bsys-badge bsys-badge--ok",
-            Urgency::Unknown  => "bsys-badge bsys-badge--unknown",
+            Urgency::Overdue => "bsys-badge bsys-badge--overdue",
+            Urgency::DueSoon => "bsys-badge bsys-badge--due-soon",
+            Urgency::Ok => "bsys-badge bsys-badge--ok",
+            Urgency::Unknown => "bsys-badge bsys-badge--unknown",
         }
     }
 
     fn badge_label(self) -> &'static str {
         match self {
-            Urgency::Overdue  => "Overdue",
-            Urgency::DueSoon  => "Due Soon",
-            Urgency::Ok       => "OK",
-            Urgency::Unknown  => "No Date",
+            Urgency::Overdue => "Overdue",
+            Urgency::DueSoon => "Due Soon",
+            Urgency::Ok => "OK",
+            Urgency::Unknown => "No Date",
         }
     }
 }
@@ -147,18 +150,22 @@ impl Urgency {
 
 fn fmt_date(d: Option<&NaiveDate>) -> String {
     d.map(|d| d.format("%b %d, %Y").to_string())
-     .unwrap_or_else(|| "—".to_string())
+        .unwrap_or_else(|| "—".to_string())
 }
 
 fn days_label(d: Option<&NaiveDate>) -> String {
     let today = Utc::now().date_naive();
     match d {
-        None    => "—".to_string(),
+        None => "—".to_string(),
         Some(d) => {
             let diff = (*d - today).num_days();
-            if diff < 0       { format!("{} days overdue", diff.abs()) }
-            else if diff == 0 { "Today".to_string() }
-            else              { format!("in {} days", diff) }
+            if diff < 0 {
+                format!("{} days overdue", diff.abs())
+            } else if diff == 0 {
+                "Today".to_string()
+            } else {
+                format!("in {} days", diff)
+            }
         }
     }
 }
@@ -176,79 +183,83 @@ fn system_type(sys: &BuildingSystemDetail) -> String {
 /// Human-readable system type label.
 fn system_type_label(t: &str) -> &str {
     match t {
-        "elevator"             => "Elevator",
-        "escalator"            => "Escalator",
-        "fire_suppression"     => "Fire Suppression",
-        "fire_alarm"           => "Fire Alarm",
-        "emergency_lighting"   => "Emergency Lighting",
-        "common_area_hvac"     => "HVAC",
-        "boiler"               => "Boiler",
-        "cooling_tower"        => "Cooling Tower",
-        "chiller"              => "Chiller",
-        "generator"            => "Generator",
-        "electrical_panel"     => "Electrical Panel",
-        "transformer_vault"    => "Transformer Vault",
-        "roof_drain_system"    => "Roof Drain",
-        "sewer_lift"           => "Sewer Lift",
-        "backflow_preventer"   => "Backflow Preventer",
-        "roof"                 => "Roof",
-        "facade"               => "Facade",
-        "parking_structure"    => "Parking Structure",
-        "pool"                 => "Pool",
-        "spa"                  => "Spa",
-        "gym_equipment"        => "Gym Equipment",
-        "security_system"      => "Security System",
-        "access_control"       => "Access Control",
-        "intercom"             => "Intercom",
-        _                      => "Other",
+        "elevator" => "Elevator",
+        "escalator" => "Escalator",
+        "fire_suppression" => "Fire Suppression",
+        "fire_alarm" => "Fire Alarm",
+        "emergency_lighting" => "Emergency Lighting",
+        "common_area_hvac" => "HVAC",
+        "boiler" => "Boiler",
+        "cooling_tower" => "Cooling Tower",
+        "chiller" => "Chiller",
+        "generator" => "Generator",
+        "electrical_panel" => "Electrical Panel",
+        "transformer_vault" => "Transformer Vault",
+        "roof_drain_system" => "Roof Drain",
+        "sewer_lift" => "Sewer Lift",
+        "backflow_preventer" => "Backflow Preventer",
+        "roof" => "Roof",
+        "facade" => "Facade",
+        "parking_structure" => "Parking Structure",
+        "pool" => "Pool",
+        "spa" => "Spa",
+        "gym_equipment" => "Gym Equipment",
+        "security_system" => "Security System",
+        "access_control" => "Access Control",
+        "intercom" => "Intercom",
+        _ => "Other",
     }
 }
 
 /// Material icon for each system type.
 fn system_icon(t: &str) -> &str {
     match t {
-        "elevator" | "escalator"              => "elevator",
-        "fire_suppression" | "fire_alarm"     => "local_fire_department",
-        "emergency_lighting"                  => "emergency_share",
+        "elevator" | "escalator" => "elevator",
+        "fire_suppression" | "fire_alarm" => "local_fire_department",
+        "emergency_lighting" => "emergency_share",
         "common_area_hvac" | "cooling_tower" | "chiller" => "air",
-        "boiler"                              => "heat",
-        "generator"                           => "bolt",
+        "boiler" => "heat",
+        "generator" => "bolt",
         "electrical_panel" | "transformer_vault" => "electrical_services",
         "roof_drain_system" | "sewer_lift" | "backflow_preventer" => "water_drop",
-        "roof"                                => "roofing",
-        "facade"                              => "apartment",
-        "parking_structure"                   => "local_parking",
-        "pool" | "spa"                        => "pool",
-        "gym_equipment"                       => "fitness_center",
-        "security_system" | "access_control"  => "security",
-        "intercom"                            => "intercom",
-        _                                     => "settings",
+        "roof" => "roofing",
+        "facade" => "apartment",
+        "parking_structure" => "local_parking",
+        "pool" | "spa" => "pool",
+        "gym_equipment" => "fitness_center",
+        "security_system" | "access_control" => "security",
+        "intercom" => "intercom",
+        _ => "settings",
     }
 }
 
 fn condition_class(c: Option<&str>) -> &'static str {
     match c {
-        Some("Good") | Some("good")     => "bsys-cond bsys-cond--good",
-        Some("Fair") | Some("fair")     => "bsys-cond bsys-cond--fair",
-        Some("Poor") | Some("poor")     => "bsys-cond bsys-cond--poor",
+        Some("Good") | Some("good") => "bsys-cond bsys-cond--good",
+        Some("Fair") | Some("fair") => "bsys-cond bsys-cond--fair",
+        Some("Poor") | Some("poor") => "bsys-cond bsys-cond--poor",
         Some("Critical") | Some("critical") => "bsys-cond bsys-cond--critical",
-        _                               => "bsys-cond bsys-cond--unknown",
+        _ => "bsys-cond bsys-cond--unknown",
     }
 }
 
 // ── Server function ───────────────────────────────────────────────────────────
 
 #[server(FetchBuildingSystems, "/api")]
-pub async fn fetch_building_systems() -> Result<Vec<BuildingSystemDetail>, server_fn::error::ServerFnError> {
+pub async fn fetch_building_systems(
+) -> Result<Vec<BuildingSystemDetail>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = headers.get("cookie")
+    let token = headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Vec<BuildingSystemDetail>>(
         "/api/folio/systems",
@@ -264,14 +275,29 @@ pub async fn fetch_building_systems() -> Result<Vec<BuildingSystemDetail>, serve
 #[component]
 fn BsysKpiStrip(systems: Vec<BuildingSystemDetail>) -> impl IntoView {
     let today = Utc::now().date_naive();
-    let total    = systems.len();
-    let overdue  = systems.iter().filter(|s| Urgency::from_system(s) == Urgency::Overdue).count();
-    let due_soon = systems.iter().filter(|s| Urgency::from_system(s) == Urgency::DueSoon).count();
-    let no_date  = systems.iter().filter(|s| Urgency::from_system(s) == Urgency::Unknown).count();
+    let total = systems.len();
+    let overdue = systems
+        .iter()
+        .filter(|s| Urgency::from_system(s) == Urgency::Overdue)
+        .count();
+    let due_soon = systems
+        .iter()
+        .filter(|s| Urgency::from_system(s) == Urgency::DueSoon)
+        .count();
+    let no_date = systems
+        .iter()
+        .filter(|s| Urgency::from_system(s) == Urgency::Unknown)
+        .count();
     // Cert expiring ≤30 days
-    let cert_exp = systems.iter().filter(|s| {
-        s.expiry_date.map(|d| (d - today).num_days()).map(|d| d >= 0 && d <= 30).unwrap_or(false)
-    }).count();
+    let cert_exp = systems
+        .iter()
+        .filter(|s| {
+            s.expiry_date
+                .map(|d| (d - today).num_days())
+                .map(|d| d >= 0 && d <= 30)
+                .unwrap_or(false)
+        })
+        .count();
 
     view! {
         <div class="bsys-kpi-strip">
@@ -311,19 +337,25 @@ fn BsysKpiStrip(systems: Vec<BuildingSystemDetail>) -> impl IntoView {
 
 #[component]
 fn BsysCard(sys: BuildingSystemDetail) -> impl IntoView {
-    let urgency   = Urgency::from_system(&sys);
-    let st        = system_type(&sys);
-    let st_label  = system_type_label(&st).to_string();
-    let icon      = system_icon(&st).to_string();
-    let cond_cls  = condition_class(sys.condition.as_deref());
-    let cond_str  = sys.condition.clone().unwrap_or_else(|| "Unknown".to_string());
-    let svc_date  = fmt_date(sys.scheduled_service_date.as_ref());
+    let urgency = Urgency::from_system(&sys);
+    let st = system_type(&sys);
+    let st_label = system_type_label(&st).to_string();
+    let icon = system_icon(&st).to_string();
+    let cond_cls = condition_class(sys.condition.as_deref());
+    let cond_str = sys
+        .condition
+        .clone()
+        .unwrap_or_else(|| "Unknown".to_string());
+    let svc_date = fmt_date(sys.scheduled_service_date.as_ref());
     let svc_label = days_label(sys.scheduled_service_date.as_ref());
-    let exp_date  = fmt_date(sys.expiry_date.as_ref());
-    let make_str  = sys.metadata.as_ref()
-        .and_then(|m| m.get("make")).and_then(|v| v.as_str())
+    let exp_date = fmt_date(sys.expiry_date.as_ref());
+    let make_str = sys
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("make"))
+        .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let serial    = sys.serial_number.clone();
+    let serial = sys.serial_number.clone();
 
     view! {
         <div class=urgency.card_class()>
@@ -395,9 +427,9 @@ fn BsysGridSkeleton() -> impl IntoView {
 
 #[component]
 pub fn BuildingSystems() -> impl IntoView {
-    let systems       = Resource::new(|| (), |_| fetch_building_systems());
-    let search        = RwSignal::new(String::new());
-    let cat_filter    = RwSignal::new(SystemCategory::All);
+    let systems = Resource::new(|| (), |_| fetch_building_systems());
+    let search = RwSignal::new(String::new());
+    let cat_filter = RwSignal::new(SystemCategory::All);
 
     view! {
         <div class="bsys-page">

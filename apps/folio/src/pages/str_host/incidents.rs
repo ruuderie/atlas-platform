@@ -7,21 +7,21 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaseSummary {
-    pub id:          Uuid,
-    pub case_type:   String,
-    pub subject:     String,
-    pub status:      String,
-    pub priority:    Option<String>,
+    pub id: Uuid,
+    pub case_type: String,
+    pub subject: String,
+    pub status: String,
+    pub priority: Option<String>,
     pub description: Option<String>,
-    pub asset_id:    Option<Uuid>,
-    pub created_at:  String,
+    pub asset_id: Option<Uuid>,
+    pub created_at: String,
     pub resolved_at: Option<String>,
 }
 
@@ -34,27 +34,36 @@ pub async fn fetch_str_incidents() -> Result<Vec<CaseSummary>, server_fn::error:
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<CaseSummary>>(
-        "/api/folio/cases?case_type=violation", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/cases?case_type=violation",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
 fn status_cls(s: &str) -> &'static str {
     match s.to_lowercase().as_str() {
-        "open" | "submitted"            => "ph-badge--pending",
-        "resolved" | "closed"           => "ph-badge--paid",
-        "escalated"                     => "ph-badge--overdue",
-        _                               => "ph-badge--default",
+        "open" | "submitted" => "ph-badge--pending",
+        "resolved" | "closed" => "ph-badge--paid",
+        "escalated" => "ph-badge--overdue",
+        _ => "ph-badge--default",
     }
 }
 
@@ -64,10 +73,7 @@ fn status_cls(s: &str) -> &'static str {
 pub fn StrIncidents() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
 
-    let res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_str_incidents(),
-    );
+    let res = Resource::new(move || refresh.get(), |_| fetch_str_incidents());
 
     view! {
         <div class="main-area">

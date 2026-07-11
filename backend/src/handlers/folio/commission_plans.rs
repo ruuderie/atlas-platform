@@ -9,19 +9,16 @@
 //! | POST   | /api/folio/commission-plans/{id}/compute       | Compute splits for a transaction amount  |
 
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{
-    entities::user,
-    services::pm::commission::CommissionService,
-};
+use crate::{entities::user, services::pm::commission::CommissionService};
 
 // ── Response types ────────────────────────────────────────────────────────────
 

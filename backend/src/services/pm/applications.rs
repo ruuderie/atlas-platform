@@ -61,8 +61,14 @@ impl ApplicationService {
         jurisdiction: Jurisdiction,
     ) -> Result<Uuid> {
         Self::submit_full(
-            db, tenant_id, asset_id, applicant_user_id, jurisdiction, None,
-        ).await
+            db,
+            tenant_id,
+            asset_id,
+            applicant_user_id,
+            jurisdiction,
+            None,
+        )
+        .await
     }
 
     /// Full application submission with income declaration.
@@ -74,9 +80,9 @@ impl ApplicationService {
         jurisdiction: Jurisdiction,
         monthly_income_cents: Option<i64>,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
-        use chrono::Utc;
         use anyhow::anyhow;
+        use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         // ── 1. Resolve market for credit bureau name ──────────────────────────
         let registry = crate::services::pm::market::market_config::MarketRegistry::build();
@@ -126,7 +132,9 @@ impl ApplicationService {
         };
 
         application.insert(db).await.map_err(|e| {
-            anyhow!("ApplicationService: atlas_application insert failed for tenant {tenant_id}: {e}")
+            anyhow!(
+                "ApplicationService: atlas_application insert failed for tenant {tenant_id}: {e}"
+            )
         })?;
 
         tracing::info!(

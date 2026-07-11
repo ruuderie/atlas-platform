@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkOrderSummary {
-    pub id:             uuid::Uuid,
-    pub subject:        String,
-    pub priority:       String,
-    pub status:         String,
-    pub scheduled_at:   Option<chrono::DateTime<chrono::Utc>>,
+    pub id: uuid::Uuid,
+    pub subject: String,
+    pub priority: String,
+    pub status: String,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
     pub estimated_cost: Option<i64>,
-    pub asset_id:       Option<uuid::Uuid>,
+    pub asset_id: Option<uuid::Uuid>,
 }
 
 #[component]
@@ -203,7 +203,8 @@ fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
 }
 
 #[server(GetVendorScheduleWorkOrders, "/api")]
-pub async fn get_vendor_schedule_work_orders() -> Result<Vec<WorkOrderSummary>, server_fn::error::ServerFnError> {
+pub async fn get_vendor_schedule_work_orders(
+) -> Result<Vec<WorkOrderSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();

@@ -23,53 +23,46 @@
 //! a new token is still generated (re-invite). The old role row is left active.
 
 use axum::{
-    Extension, Json, Router,
-    extract::Path,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::post,
+    Extension, Json, Router, extract::Path, http::StatusCode, response::IntoResponse, routing::post,
 };
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::Utc;
-use lettre::{SmtpTransport, Transport, Message, transport::smtp::authentication::Credentials};
-use lettre::message::{header as mail_header, MultiPart, SinglePart};
+use lettre::message::{MultiPart, SinglePart, header as mail_header};
+use lettre::{Message, SmtpTransport, Transport, transport::smtp::authentication::Credentials};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde::{Deserialize, Serialize};
 use std::env;
+use uuid::Uuid;
 
 use crate::extractors::folio_role::PropertyManagerOnly;
 use crate::extractors::tenant::TenantContext;
 use crate::services::auth_service::AuthService;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route(
-            "/api/folio/pm/clients/{account_id}/invite",
-            post(invite_client_landlord),
-        )
+    Router::new().route(
+        "/api/folio/pm/clients/{account_id}/invite",
+        post(invite_client_landlord),
+    )
 }
 
 // ── Request / response ────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
 pub struct InviteRequest {
-    pub email:         String,
+    pub email: String,
     /// Optional display name to set if this is a new user
-    pub display_name:  Option<String>,
+    pub display_name: Option<String>,
     /// Custom message shown in the invite email body
-    pub invite_note:   Option<String>,
+    pub invite_note: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct InviteResponse {
     /// ID of the user row that was created or found
-    pub user_id:          Uuid,
+    pub user_id: Uuid,
     /// Whether the user account was newly created (false = existing user re-invited)
-    pub is_new_user:      bool,
+    pub is_new_user: bool,
     pub role_assignment_id: Uuid,
-    pub invite_sent_to:   String,
+    pub invite_sent_to: String,
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -113,17 +106,21 @@ async fn invite_client_landlord(
         Ok(None) => {
             // Provision a new user (no password, activated on first login via setup token)
             let first = body.display_name.clone().unwrap_or_default();
-            let username_slug = email_lower.split('@').next().unwrap_or(&email_lower).to_string();
+            let username_slug = email_lower
+                .split('@')
+                .next()
+                .unwrap_or(&email_lower)
+                .to_string();
             let new_user = crate::entities::user::ActiveModel {
-                id:            Set(Uuid::new_v4()),
-                email:         Set(email_lower.clone()),
-                username:      Set(username_slug),
-                first_name:    Set(first),
-                last_name:     Set(String::new()),
-                phone:         Set(String::new()),
+                id: Set(Uuid::new_v4()),
+                email: Set(email_lower.clone()),
+                username: Set(username_slug),
+                first_name: Set(first),
+                last_name: Set(String::new()),
+                phone: Set(String::new()),
                 password_hash: Set(String::new()),
-                is_active:     Set(false),
-                created_at:    Set(Utc::now()),
+                is_active: Set(false),
+                created_at: Set(Utc::now()),
                 ..Default::default()
             };
             match new_user.insert(&db).await {
@@ -147,15 +144,15 @@ async fn invite_client_landlord(
 
     // ── 3. Assign Landlord role scoped to this client account ─────────────────
     let role_row = crate::entities::atlas_user_app_roles::ActiveModel {
-        id:                Set(Uuid::new_v4()),
-        user_id:           Set(user_row.id),
-        tenant_id:         Set(ctx.tenant_id),
-        app_slug:          Set("folio".to_string()),
-        role_profile_id:   Set(landlord_profile_id),
-        granted_by:        Set(Some(ctx.user_id)),
-        granted_at:        Set(Utc::now().into()),
-        expires_at:        Set(None),
-        is_active:         Set(true),
+        id: Set(Uuid::new_v4()),
+        user_id: Set(user_row.id),
+        tenant_id: Set(ctx.tenant_id),
+        app_slug: Set("folio".to_string()),
+        role_profile_id: Set(landlord_profile_id),
+        granted_by: Set(Some(ctx.user_id)),
+        granted_at: Set(Utc::now().into()),
+        expires_at: Set(None),
+        is_active: Set(true),
         client_account_id: Set(Some(client_account_id)),
     };
 
@@ -220,16 +217,22 @@ async fn invite_client_landlord(
         client_name, setup_url
     );
 
-    let smtp_server   = env::var("SMTP_SERVER").unwrap_or_default();
+    let smtp_server = env::var("SMTP_SERVER").unwrap_or_default();
     let smtp_username = env::var("SMTP_USERNAME").unwrap_or_default();
-    let smtp_token    = env::var("SMTP_TOKEN").unwrap_or_default();
-    let smtp_port     = env::var("SMTP_PORT").unwrap_or("587".to_string()).parse::<u16>().unwrap_or(587);
-    let smtp_from     = env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas.oply.co".to_string());
+    let smtp_token = env::var("SMTP_TOKEN").unwrap_or_default();
+    let smtp_port = env::var("SMTP_PORT")
+        .unwrap_or("587".to_string())
+        .parse::<u16>()
+        .unwrap_or(587);
+    let smtp_from = env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas.oply.co".to_string());
 
     if let Ok(email_msg) = Message::builder()
         .from(smtp_from.parse().unwrap())
         .to(email_lower.parse().unwrap())
-        .subject(format!("You've been invited to manage {} on Folio", client_name))
+        .subject(format!(
+            "You've been invited to manage {} on Folio",
+            client_name
+        ))
         .multipart(
             MultiPart::alternative()
                 .singlepart(
@@ -251,11 +254,9 @@ async fn invite_client_landlord(
             .credentials(creds)
             .build();
 
-        tokio::task::spawn_blocking(move || {
-            match mailer.send(&email_msg) {
-                Ok(_)  => tracing::info!(to = %email_lower, "invite: email sent"),
-                Err(e) => tracing::error!(error = %e, "invite: email send failed"),
-            }
+        tokio::task::spawn_blocking(move || match mailer.send(&email_msg) {
+            Ok(_) => tracing::info!(to = %email_lower, "invite: email sent"),
+            Err(e) => tracing::error!(error = %e, "invite: email send failed"),
         });
     }
 
@@ -271,10 +272,10 @@ async fn invite_client_landlord(
     (
         StatusCode::CREATED,
         Json(InviteResponse {
-            user_id:            user_row.id,
+            user_id: user_row.id,
             is_new_user,
             role_assignment_id: role_assignment.id,
-            invite_sent_to:     body.email,
+            invite_sent_to: body.email,
         }),
     )
         .into_response()

@@ -33,11 +33,9 @@
 //! `DocumentType` is a typed enum — cannot register a guest with a raw string
 //! document type that doesn't exist in the system.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chrono::{NaiveDate, Utc};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -61,11 +59,16 @@ impl NationalityCode {
     pub fn new(s: &str) -> Result<Self> {
         let upper = s.trim().to_uppercase();
         if upper.len() != 2 || !upper.chars().all(|c| c.is_ascii_alphabetic()) {
-            bail!("nationality code '{}' must be exactly 2 ASCII letters (ISO 3166-1 alpha-2)", s);
+            bail!(
+                "nationality code '{}' must be exactly 2 ASCII letters (ISO 3166-1 alpha-2)",
+                s
+            );
         }
         Ok(Self(upper))
     }
-    pub fn value(&self) -> &str { &self.0 }
+    pub fn value(&self) -> &str {
+        &self.0
+    }
 }
 
 impl std::fmt::Display for NationalityCode {
@@ -86,11 +89,16 @@ impl DocumentNumber {
             bail!("document number '{}' must be 4–30 characters", s);
         }
         if !trimmed.chars().all(|c| c.is_alphanumeric() || c == '-') {
-            bail!("document number '{}' must contain only alphanumeric characters and hyphens", s);
+            bail!(
+                "document number '{}' must contain only alphanumeric characters and hyphens",
+                s
+            );
         }
         Ok(Self(trimmed.to_uppercase()))
     }
-    pub fn value(&self) -> &str { &self.0 }
+    pub fn value(&self) -> &str {
+        &self.0
+    }
 }
 
 impl std::fmt::Display for DocumentNumber {
@@ -127,12 +135,12 @@ pub enum DocumentType {
 impl std::fmt::Display for DocumentType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::Passport        => "passport",
-            Self::NationalId      => "national_id",
-            Self::DriverLicence   => "driver_licence",
+            Self::Passport => "passport",
+            Self::NationalId => "national_id",
+            Self::DriverLicence => "driver_licence",
             Self::ResidencePermit => "residence_permit",
-            Self::Visa            => "visa",
-            Self::OtherGovId      => "other_gov_id",
+            Self::Visa => "visa",
+            Self::OtherGovId => "other_gov_id",
         })
     }
 }
@@ -141,13 +149,13 @@ impl TryFrom<String> for DocumentType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "passport"         => Ok(Self::Passport),
-            "national_id"      => Ok(Self::NationalId),
-            "driver_licence"   => Ok(Self::DriverLicence),
+            "passport" => Ok(Self::Passport),
+            "national_id" => Ok(Self::NationalId),
+            "driver_licence" => Ok(Self::DriverLicence),
             "residence_permit" => Ok(Self::ResidencePermit),
-            "visa"             => Ok(Self::Visa),
-            "other_gov_id"     => Ok(Self::OtherGovId),
-            other              => Err(format!("unknown DocumentType: '{other}'")),
+            "visa" => Ok(Self::Visa),
+            "other_gov_id" => Ok(Self::OtherGovId),
+            other => Err(format!("unknown DocumentType: '{other}'")),
         }
     }
 }
@@ -205,8 +213,14 @@ impl RegisterStrVehicleInput {
         if trimmed.len() > 20 {
             bail!("license plate '{}' exceeds 20 characters", plate);
         }
-        if !trimmed.chars().all(|c| c.is_alphanumeric() || c == '-' || c == ' ') {
-            bail!("license plate '{}' must contain only alphanumeric characters, hyphens, or spaces", plate);
+        if !trimmed
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == ' ')
+        {
+            bail!(
+                "license plate '{}' must contain only alphanumeric characters, hyphens, or spaces",
+                plate
+            );
         }
         Ok(())
     }
@@ -333,7 +347,13 @@ impl StrGuestService {
             .filter(atlas_record_relationship::Column::RelationshipType.eq(STR_GUEST_RELATIONSHIP))
             .one(db)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("guest registration {} not found on reservation {}", rel_id, reservation_id))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "guest registration {} not found on reservation {}",
+                    rel_id,
+                    reservation_id
+                )
+            })?;
 
         atlas_record_relationship::Entity::delete_by_id(rel.id)
             .exec(db)
@@ -417,10 +437,18 @@ impl StrGuestService {
         let rel = atlas_record_relationship::Entity::find_by_id(rel_id)
             .filter(atlas_record_relationship::Column::TenantId.eq(tenant_id))
             .filter(atlas_record_relationship::Column::SourceEntityId.eq(reservation_id))
-            .filter(atlas_record_relationship::Column::RelationshipType.eq(STR_VEHICLE_RELATIONSHIP))
+            .filter(
+                atlas_record_relationship::Column::RelationshipType.eq(STR_VEHICLE_RELATIONSHIP),
+            )
             .one(db)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("vehicle {} not found on reservation {}", rel_id, reservation_id))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "vehicle {} not found on reservation {}",
+                    rel_id,
+                    reservation_id
+                )
+            })?;
 
         atlas_record_relationship::Entity::delete_by_id(rel.id)
             .exec(db)
@@ -440,7 +468,9 @@ impl StrGuestService {
             .filter(atlas_record_relationship::Column::TenantId.eq(tenant_id))
             .filter(atlas_record_relationship::Column::SourceEntityType.eq("atlas_reservation"))
             .filter(atlas_record_relationship::Column::SourceEntityId.eq(reservation_id))
-            .filter(atlas_record_relationship::Column::RelationshipType.eq(STR_VEHICLE_RELATIONSHIP))
+            .filter(
+                atlas_record_relationship::Column::RelationshipType.eq(STR_VEHICLE_RELATIONSHIP),
+            )
             .all(db)
             .await?;
 
@@ -472,7 +502,10 @@ impl StrGuestService {
             obj.insert(
                 "special_requests".to_string(),
                 serde_json::Value::Array(
-                    requests.iter().map(|r| serde_json::Value::String(r.clone())).collect()
+                    requests
+                        .iter()
+                        .map(|r| serde_json::Value::String(r.clone()))
+                        .collect(),
                 ),
             );
         }
@@ -501,16 +534,22 @@ impl StrGuestService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("reservation {} not found", reservation_id))?;
 
-        let guests   = Self::list_guests(db, tenant_id, reservation_id).await?;
+        let guests = Self::list_guests(db, tenant_id, reservation_id).await?;
         let vehicles = Self::list_vehicles(db, tenant_id, reservation_id).await?;
 
-        let special_requests: Vec<String> = reservation.reservation_metadata
+        let special_requests: Vec<String> = reservation
+            .reservation_metadata
             .get("special_requests")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
-        let guest_count = reservation.reservation_metadata
+        let guest_count = reservation
+            .reservation_metadata
             .get("guest_count")
             .and_then(|v| v.as_u64())
             .unwrap_or(guests.len() as u64) as u32;
@@ -531,14 +570,15 @@ impl StrGuestService {
 
 fn parse_guest(r: atlas_record_relationship::Model) -> Option<StrGuest> {
     let meta = r.relationship_metadata.as_ref()?;
-    let full_name       = meta["full_name"].as_str()?.to_string();
-    let nationality     = meta["nationality"].as_str()?.to_string();
-    let dob_str         = meta["date_of_birth"].as_str()?;
-    let date_of_birth   = NaiveDate::parse_from_str(dob_str, "%Y-%m-%d").ok()?;
-    let document_type   = meta["document_type"].as_str()?.to_string();
+    let full_name = meta["full_name"].as_str()?.to_string();
+    let nationality = meta["nationality"].as_str()?.to_string();
+    let dob_str = meta["date_of_birth"].as_str()?;
+    let date_of_birth = NaiveDate::parse_from_str(dob_str, "%Y-%m-%d").ok()?;
+    let document_type = meta["document_type"].as_str()?.to_string();
     let document_number = meta["document_number"].as_str()?.to_string();
-    let is_lead_guest   = meta["is_lead_guest"].as_bool().unwrap_or(false);
-    let user_account_id = meta["user_account_id"].as_str()
+    let is_lead_guest = meta["is_lead_guest"].as_bool().unwrap_or(false);
+    let user_account_id = meta["user_account_id"]
+        .as_str()
         .and_then(|s| Uuid::parse_str(s).ok());
 
     Some(StrGuest {
@@ -561,9 +601,9 @@ fn parse_vehicle(r: atlas_record_relationship::Model) -> Option<StrVehicle> {
     Some(StrVehicle {
         rel_id: r.id,
         license_plate,
-        make:         meta["make"].as_str().map(String::from),
-        model:        meta["model"].as_str().map(String::from),
-        color:        meta["color"].as_str().map(String::from),
+        make: meta["make"].as_str().map(String::from),
+        model: meta["model"].as_str().map(String::from),
+        color: meta["color"].as_str().map(String::from),
         parking_spot: meta["parking_spot"].as_str().map(String::from),
         registered_at: r.created_at,
     })

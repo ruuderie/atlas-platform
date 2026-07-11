@@ -9,70 +9,81 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CatalogEntry {
-    pub id:              Uuid,
-    pub asset_id:        Uuid,
-    pub listing_type:    String,   // "long_term" | "short_term"
-    pub headline:        Option<String>,
-    pub description:     Option<String>,
-    pub base_price_cents:Option<i64>,
-    pub currency:        Option<String>,
-    pub minimum_nights:  Option<i32>,
-    pub is_active:       bool,
-    pub created_at:      String,
+    pub id: Uuid,
+    pub asset_id: Uuid,
+    pub listing_type: String, // "long_term" | "short_term"
+    pub headline: Option<String>,
+    pub description: Option<String>,
+    pub base_price_cents: Option<i64>,
+    pub currency: Option<String>,
+    pub minimum_nights: Option<i32>,
+    pub is_active: bool,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssetBrief {
-    pub id:            Uuid,
+    pub id: Uuid,
     pub address_line1: String,
-    pub address_city:  String,
+    pub address_city: String,
     pub address_state: Option<String>,
-    pub unit_type:     String,
-    pub bedrooms:      Option<i32>,
-    pub bathrooms:     Option<f32>,
-    pub sqft:          Option<i32>,
+    pub unit_type: String,
+    pub bedrooms: Option<i32>,
+    pub bathrooms: Option<f32>,
+    pub sqft: Option<i32>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchListingPreview, "/api")]
-pub async fn fetch_listing_preview(asset_id: String) -> Result<Option<CatalogEntry>, server_fn::error::ServerFnError> {
+pub async fn fetch_listing_preview(
+    asset_id: String,
+) -> Result<Option<CatalogEntry>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let url = format!("/api/folio/catalog?asset_id={asset_id}");
     let entries = crate::atlas_client::authenticated_get::<Vec<CatalogEntry>>(&url, &token, None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     Ok(entries.into_iter().find(|e| e.is_active))
 }
 
 #[server(FetchAssetBrief, "/api")]
-pub async fn fetch_asset_brief(asset_id: String) -> Result<AssetBrief, server_fn::error::ServerFnError> {
+pub async fn fetch_asset_brief(
+    asset_id: String,
+) -> Result<AssetBrief, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let url = format!("/api/folio/assets/{asset_id}");
     crate::atlas_client::authenticated_get::<AssetBrief>(&url, &token, None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -80,18 +91,22 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 fn fmt_price(cents: i64, currency: &str, listing_type: &str) -> String {
     let amt = format!("{:.0}", cents as f64 / 100.0);
-    let suffix = if listing_type == "short_term" { "/night" } else { "/mo" };
+    let suffix = if listing_type == "short_term" {
+        "/night"
+    } else {
+        "/mo"
+    };
     format!("${}{}", amt, suffix)
 }
 
 fn unit_icon(unit_type: &str) -> &'static str {
     match unit_type.to_lowercase().as_str() {
-        t if t.contains("house")     => "🏡",
-        t if t.contains("condo")     => "🏢",
+        t if t.contains("house") => "🏡",
+        t if t.contains("condo") => "🏢",
         t if t.contains("apartment") => "🏠",
         t if t.contains("townhouse") => "🏘",
-        t if t.contains("studio")    => "🛏",
-        _                            => "🏠",
+        t if t.contains("studio") => "🛏",
+        _ => "🏠",
     }
 }
 
@@ -99,18 +114,12 @@ fn unit_icon(unit_type: &str) -> &'static str {
 
 #[component]
 pub fn ListingNetworkPreview() -> impl IntoView {
-    let params   = use_params_map();
+    let params = use_params_map();
     let asset_id = params.get().get("id").unwrap_or_default();
 
     let aid2 = asset_id.clone();
-    let listing_res = Resource::new(
-        move || asset_id.clone(),
-        |id| fetch_listing_preview(id),
-    );
-    let asset_res = Resource::new(
-        move || aid2.clone(),
-        |id| fetch_asset_brief(id),
-    );
+    let listing_res = Resource::new(move || asset_id.clone(), |id| fetch_listing_preview(id));
+    let asset_res = Resource::new(move || aid2.clone(), |id| fetch_asset_brief(id));
 
     view! {
         <div class="main-area">

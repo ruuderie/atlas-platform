@@ -1,7 +1,7 @@
-use leptos::prelude::*;
-use leptos_router::hooks::use_location;
-use leptos_router::components::A;
 use crate::auth::FolioRole;
+use leptos::prelude::*;
+use leptos_router::components::A;
+use leptos_router::hooks::use_location;
 
 // ── NavIcon — every icon used in Folio, compile-checked ───────────────────────
 //
@@ -24,110 +24,110 @@ pub enum NavIcon {
     ManageAccounts,
 
     // Property / real estate
-    Domain,          // portfolio (building)
-    Apartment,       // assets (unit/building)
-    Map,             // map view
-    Sell,            // pricing
+    Domain,    // portfolio (building)
+    Apartment, // assets (unit/building)
+    Map,       // map view
+    Sell,      // pricing
 
     // Document / contract
-    Description,     // leases / documents
-    Assignment,      // work orders
-    ReceiptLong,     // billing / invoices / statements
-    AccountBalance,  // ledger
-    Folder,          // documents / vault
-    Verified,        // compliance
-    Gavel,           // STR compliance
-    Payments,        // distributions / payouts
+    Description,    // leases / documents
+    Assignment,     // work orders
+    ReceiptLong,    // billing / invoices / statements
+    AccountBalance, // ledger
+    Folder,         // documents / vault
+    Verified,       // compliance
+    Gavel,          // STR compliance
+    Payments,       // distributions / payouts
 
     // People / CRM
-    PersonSearch,    // leads
-    People,          // team / clients / household
-    Group,           // household
-    Badge,           // vendor profile / identity
-    Handshake,       // deals (brokerage)
+    PersonSearch, // leads
+    People,       // team / clients / household
+    Group,        // household
+    Badge,        // vendor profile / identity
+    Handshake,    // deals (brokerage)
 
     // Operations
-    Build,           // maintenance
-    Handyman,        // vendors
-    Campaign,        // campaigns
-    Inventory2,      // catalog
-    SyncAlt,         // syndication / channels
-    CalendarMonth,   // schedule / calendar
-    EventAvailable,  // reservations
+    Build,          // maintenance
+    Handyman,       // vendors
+    Campaign,       // campaigns
+    Inventory2,     // catalog
+    SyncAlt,        // syndication / channels
+    CalendarMonth,  // schedule / calendar
+    EventAvailable, // reservations
 
     // Communication
     Inbox,
-    Chat,            // guest messaging
+    Chat, // guest messaging
 
     // Analytics
-    BarChart,        // meridian / analytics
-    ShowChart,       // property value tracker
+    BarChart,  // meridian / analytics
+    ShowChart, // property value tracker
 
     // Finance
-    CreditCard,      // tenant payments
+    CreditCard, // tenant payments
 
     // STR / reviews
-    Star,            // reviews
-    Report,          // incidents / violations
+    Star,   // reviews
+    Report, // incidents / violations
 
     // Navigation helpers (not sidebar items — used in page chrome)
-    ChevronRight,    // breadcrumb separator
-    ArrowBack,       // back-navigation link
-    Login,           // sign-in / check-in icon
+    ChevronRight, // breadcrumb separator
+    ArrowBack,    // back-navigation link
+    Login,        // sign-in / check-in icon
 }
 
 impl NavIcon {
     /// Returns the Material Symbols Outlined CSS class name for this icon.
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Home           => "home",
-            Self::Settings       => "settings",
-            Self::Logout         => "logout",
-            Self::Help           => "help_outline",
-            Self::Person         => "person",
+            Self::Home => "home",
+            Self::Settings => "settings",
+            Self::Logout => "logout",
+            Self::Help => "help_outline",
+            Self::Person => "person",
             Self::ManageAccounts => "manage_accounts",
 
-            Self::Domain         => "domain",
-            Self::Apartment      => "apartment",
-            Self::Map            => "map",
-            Self::Sell           => "sell",
+            Self::Domain => "domain",
+            Self::Apartment => "apartment",
+            Self::Map => "map",
+            Self::Sell => "sell",
 
-            Self::Description    => "description",
-            Self::Assignment     => "assignment",
-            Self::ReceiptLong    => "receipt_long",
+            Self::Description => "description",
+            Self::Assignment => "assignment",
+            Self::ReceiptLong => "receipt_long",
             Self::AccountBalance => "account_balance",
-            Self::Folder         => "folder",
-            Self::Verified       => "verified",
-            Self::Gavel          => "gavel",
-            Self::Payments       => "payments",
+            Self::Folder => "folder",
+            Self::Verified => "verified",
+            Self::Gavel => "gavel",
+            Self::Payments => "payments",
 
-            Self::PersonSearch   => "person_search",
-            Self::People         => "people",
-            Self::Group          => "group",
-            Self::Badge          => "badge",
-            Self::Handshake      => "handshake",
+            Self::PersonSearch => "person_search",
+            Self::People => "people",
+            Self::Group => "group",
+            Self::Badge => "badge",
+            Self::Handshake => "handshake",
 
-            Self::Build          => "build",
-            Self::Handyman       => "handyman",
-            Self::Campaign       => "campaign",
-            Self::Inventory2     => "inventory_2",
-            Self::SyncAlt        => "sync_alt",
-            Self::CalendarMonth  => "calendar_month",
+            Self::Build => "build",
+            Self::Handyman => "handyman",
+            Self::Campaign => "campaign",
+            Self::Inventory2 => "inventory_2",
+            Self::SyncAlt => "sync_alt",
+            Self::CalendarMonth => "calendar_month",
             Self::EventAvailable => "event_available",
 
-            Self::Inbox          => "inbox",
-            Self::Chat           => "chat",
+            Self::Inbox => "inbox",
+            Self::Chat => "chat",
 
-            Self::BarChart       => "bar_chart",
-            Self::ShowChart       => "show_chart",
-            Self::CreditCard     => "credit_card",
+            Self::BarChart => "bar_chart",
+            Self::ShowChart => "show_chart",
+            Self::CreditCard => "credit_card",
 
-            Self::Star           => "star",
-            Self::Report         => "report",
+            Self::Star => "star",
+            Self::Report => "report",
 
-            Self::ChevronRight   => "chevron_right",
-            Self::ArrowBack      => "arrow_back",
-            Self::Login          => "login",
+            Self::ChevronRight => "chevron_right",
+            Self::ArrowBack => "arrow_back",
+            Self::Login => "login",
         }
     }
 }
@@ -156,9 +156,9 @@ pub enum FolioRoute {
     LandlordDashboard,
     LandlordPortfolio,
     LandlordAssets,
-    LandlordAssetDetail,      // /l/assets/:id — not a nav item, but typed for use in pages
+    LandlordAssetDetail, // /l/assets/:id — not a nav item, but typed for use in pages
     LandlordLeases,
-    LandlordLeaseDetail,      // /l/leases/:id
+    LandlordLeaseDetail, // /l/leases/:id
     LandlordLeads,
     LandlordCampaigns,
     LandlordBilling,
@@ -178,10 +178,10 @@ pub enum FolioRoute {
     LandlordVault,
     LandlordInspections,
     LandlordViolations,
-    LandlordTenantProfile,    // /l/tenants/:id — landlord view of a counterparty tenant
-    LandlordCommunications,   // /l/communications — multi-party messaging
-    LandlordNotifications,    // /l/notifications  — notification inbox + channel prefs
-    LandlordTeam,             // /l/team — team access + G-36 network invites
+    LandlordTenantProfile, // /l/tenants/:id — landlord view of a counterparty tenant
+    LandlordCommunications, // /l/communications — multi-party messaging
+    LandlordNotifications, // /l/notifications  — notification inbox + channel prefs
+    LandlordTeam,          // /l/team — team access + G-36 network invites
 
     // ── Tenant /t/** ──────────────────────────────────────────────────────────
     TenantDashboard,
@@ -190,7 +190,7 @@ pub enum FolioRoute {
     TenantPaymentHistory,
     TenantMaintenance,
     TenantMaintenanceNew,
-    TenantMaintenanceDetail,  // /t/maintenance/:id
+    TenantMaintenanceDetail, // /t/maintenance/:id
     TenantReservations,
     TenantRatings,
     TenantInbox,
@@ -210,7 +210,7 @@ pub enum FolioRoute {
     // ── PMC /pmc/** ───────────────────────────────────────────────────────────
     PmcDashboard,
     PmcClientBook,
-    PmcClientDetail,           // /pmc/clients/:id
+    PmcClientDetail, // /pmc/clients/:id
     PmcMaintenance,
     PmcPortfolioMap,
     PmcOwnerStatements,
@@ -218,7 +218,7 @@ pub enum FolioRoute {
     // ── Owner /o/** ───────────────────────────────────────────────────────────
     OwnerDashboard,
     OwnerProperties,
-    OwnerPropertyDetail,       // /o/properties/:id
+    OwnerPropertyDetail, // /o/properties/:id
     OwnerStatements,
     OwnerDistributions,
     OwnerMaintenance,
@@ -227,8 +227,8 @@ pub enum FolioRoute {
     StrHostDashboard,
     StrHostCalendar,
     StrHostReservations,
-    StrHostListingIndex,   // /s/listings  (list view — NAV target)
-    StrHostListings,       // /s/listings/:id  (detail — linked from cards)
+    StrHostListingIndex, // /s/listings  (list view — NAV target)
+    StrHostListings,     // /s/listings/:id  (detail — linked from cards)
     StrHostPricing,
     StrHostChannels,
     StrHostMessages,
@@ -274,126 +274,127 @@ impl FolioRoute {
     /// The URL path for this route. Must match `app.rs` route definitions exactly.
     pub const fn path(self) -> &'static str {
         match self {
-            Self::LandlordDashboard      => "/l",
-            Self::LandlordPortfolio      => "/l/portfolio",
-            Self::LandlordAssets         => "/l/assets",
-            Self::LandlordAssetDetail    => "/l/assets/:id",
-            Self::LandlordLeases         => "/l/leases",
-            Self::LandlordLeaseDetail    => "/l/leases/:id",
-            Self::LandlordLeads          => "/l/leads",
-            Self::LandlordCampaigns      => "/l/campaigns",
-            Self::LandlordBilling        => "/l/billing",
-            Self::LandlordLedger         => "/l/ledger",
-            Self::LandlordStrCompliance  => "/l/str",
-            Self::LandlordCatalog        => "/l/catalog",
-            Self::LandlordVendors        => "/l/vendors",
-            Self::LandlordReservations   => "/l/reservations",
-            Self::LandlordMaintenance    => "/l/maintenance",
-            Self::LandlordSyndication    => "/l/syndication",
+            Self::LandlordDashboard => "/l",
+            Self::LandlordPortfolio => "/l/portfolio",
+            Self::LandlordAssets => "/l/assets",
+            Self::LandlordAssetDetail => "/l/assets/:id",
+            Self::LandlordLeases => "/l/leases",
+            Self::LandlordLeaseDetail => "/l/leases/:id",
+            Self::LandlordLeads => "/l/leads",
+            Self::LandlordCampaigns => "/l/campaigns",
+            Self::LandlordBilling => "/l/billing",
+            Self::LandlordLedger => "/l/ledger",
+            Self::LandlordStrCompliance => "/l/str",
+            Self::LandlordCatalog => "/l/catalog",
+            Self::LandlordVendors => "/l/vendors",
+            Self::LandlordReservations => "/l/reservations",
+            Self::LandlordMaintenance => "/l/maintenance",
+            Self::LandlordSyndication => "/l/syndication",
             // LandlordMeridian path removed (variant removed — was /l/meridian).
             Self::LandlordMeridianConfig => "/l/meridian/configure",
-            Self::LandlordRatings        => "/l/ratings",
+            Self::LandlordRatings => "/l/ratings",
             Self::LandlordAccountBilling => "/l/account/billing",
-            Self::LandlordMap            => "/l/map",
-            Self::LandlordVault          => "/l/vault",
-            Self::LandlordInspections    => "/l/inspections",
-            Self::LandlordViolations     => "/l/violations",
-            Self::LandlordTenantProfile  => "/l/tenants/:id",
+            Self::LandlordMap => "/l/map",
+            Self::LandlordVault => "/l/vault",
+            Self::LandlordInspections => "/l/inspections",
+            Self::LandlordViolations => "/l/violations",
+            Self::LandlordTenantProfile => "/l/tenants/:id",
             Self::LandlordCommunications => "/l/communications",
-            Self::LandlordNotifications  => "/l/notifications",
-            Self::LandlordTeam           => "/l/team",
+            Self::LandlordNotifications => "/l/notifications",
+            Self::LandlordTeam => "/l/team",
 
-            Self::TenantDashboard        => "/t",
-            Self::TenantMyLease          => "/t/my-lease",
-            Self::TenantPayments         => "/t/payments",
-            Self::TenantPaymentHistory   => "/t/payments/history",
-            Self::TenantMaintenance      => "/t/maintenance",
-            Self::TenantMaintenanceNew   => "/t/maintenance/new",
-            Self::TenantMaintenanceDetail=> "/t/maintenance/:id",
-            Self::TenantReservations     => "/t/reservations",
-            Self::TenantRatings          => "/t/ratings",
-            Self::TenantInbox            => "/t/inbox",
-            Self::TenantDocuments        => "/t/docs",
-            Self::TenantHousehold        => "/t/household",
-            Self::TenantProfile          => "/t/profile",
-            Self::TenantViolations       => "/t/violations",
-            Self::TenantReports          => "/t/reports",
+            Self::TenantDashboard => "/t",
+            Self::TenantMyLease => "/t/my-lease",
+            Self::TenantPayments => "/t/payments",
+            Self::TenantPaymentHistory => "/t/payments/history",
+            Self::TenantMaintenance => "/t/maintenance",
+            Self::TenantMaintenanceNew => "/t/maintenance/new",
+            Self::TenantMaintenanceDetail => "/t/maintenance/:id",
+            Self::TenantReservations => "/t/reservations",
+            Self::TenantRatings => "/t/ratings",
+            Self::TenantInbox => "/t/inbox",
+            Self::TenantDocuments => "/t/docs",
+            Self::TenantHousehold => "/t/household",
+            Self::TenantProfile => "/t/profile",
+            Self::TenantViolations => "/t/violations",
+            Self::TenantReports => "/t/reports",
 
-            Self::VendorDashboard        => "/v",
-            Self::VendorWorkOrders       => "/v/work-orders",
-            Self::VendorInvoices         => "/v/invoices",
-            Self::VendorSchedule         => "/v/schedule",
-            Self::VendorNetworkProfile   => "/v/profile",
+            Self::VendorDashboard => "/v",
+            Self::VendorWorkOrders => "/v/work-orders",
+            Self::VendorInvoices => "/v/invoices",
+            Self::VendorSchedule => "/v/schedule",
+            Self::VendorNetworkProfile => "/v/profile",
 
-            Self::PmcDashboard           => "/pmc",
-            Self::PmcClientBook          => "/pmc/clients",
-            Self::PmcClientDetail        => "/pmc/clients/:id",
-            Self::PmcMaintenance         => "/pmc/maintenance",
-            Self::PmcPortfolioMap        => "/pmc/map",
-            Self::PmcOwnerStatements     => "/pmc/statements",
+            Self::PmcDashboard => "/pmc",
+            Self::PmcClientBook => "/pmc/clients",
+            Self::PmcClientDetail => "/pmc/clients/:id",
+            Self::PmcMaintenance => "/pmc/maintenance",
+            Self::PmcPortfolioMap => "/pmc/map",
+            Self::PmcOwnerStatements => "/pmc/statements",
 
-            Self::OwnerDashboard         => "/o",
-            Self::OwnerProperties        => "/o/properties",
-            Self::OwnerPropertyDetail    => "/o/properties/:id",
-            Self::OwnerStatements        => "/o/statements",
-            Self::OwnerDistributions     => "/o/distributions",
-            Self::OwnerMaintenance       => "/o/maintenance",
+            Self::OwnerDashboard => "/o",
+            Self::OwnerProperties => "/o/properties",
+            Self::OwnerPropertyDetail => "/o/properties/:id",
+            Self::OwnerStatements => "/o/statements",
+            Self::OwnerDistributions => "/o/distributions",
+            Self::OwnerMaintenance => "/o/maintenance",
 
-            Self::StrHostDashboard       => "/s",
-            Self::StrHostCalendar        => "/s/calendar",
-            Self::StrHostReservations    => "/s/reservations",
-            Self::StrHostListingIndex    => "/s/listings",
-            Self::StrHostListings        => "/s/listings/:id",
-            Self::StrHostPricing         => "/s/pricing",
-            Self::StrHostChannels        => "/s/channels",
-            Self::StrHostMessages        => "/s/messages",
-            Self::StrHostReviews         => "/s/reviews",
-            Self::StrHostSyndication     => "/s/syndication",
-            Self::StrHostIncidents       => "/s/incidents",
+            Self::StrHostDashboard => "/s",
+            Self::StrHostCalendar => "/s/calendar",
+            Self::StrHostReservations => "/s/reservations",
+            Self::StrHostListingIndex => "/s/listings",
+            Self::StrHostListings => "/s/listings/:id",
+            Self::StrHostPricing => "/s/pricing",
+            Self::StrHostChannels => "/s/channels",
+            Self::StrHostMessages => "/s/messages",
+            Self::StrHostReviews => "/s/reviews",
+            Self::StrHostSyndication => "/s/syndication",
+            Self::StrHostIncidents => "/s/incidents",
             Self::StrHostViolationFiling => "/s/violations/new",
 
-            Self::AgentDashboard         => "/a",
-            Self::AgentListings          => "/a/listings",
-            Self::AgentClients           => "/a/clients",
-            Self::AgentDeals             => "/a/deals",
-            Self::AgentSchedule          => "/a/schedule",
+            Self::AgentDashboard => "/a",
+            Self::AgentListings => "/a/listings",
+            Self::AgentClients => "/a/clients",
+            Self::AgentDeals => "/a/deals",
+            Self::AgentSchedule => "/a/schedule",
 
-            Self::BrokerDashboard        => "/br",
-            Self::BrokerAgents           => "/br/agents",
-            Self::BrokerListings         => "/br/listings",
-            Self::BrokerCompliance       => "/br/compliance",
-            Self::BrokerRevenue          => "/br/revenue",
+            Self::BrokerDashboard => "/br",
+            Self::BrokerAgents => "/br/agents",
+            Self::BrokerListings => "/br/listings",
+            Self::BrokerCompliance => "/br/compliance",
+            Self::BrokerRevenue => "/br/revenue",
 
-            Self::Settings               => "/settings",
-            Self::Login                  => "/login",
-            Self::Verify                 => "/verify",
+            Self::Settings => "/settings",
+            Self::Login => "/login",
+            Self::Verify => "/verify",
 
-            Self::GuestDashboard         => "/g",
-            Self::GuestReservation       => "/g/reservation",
-            Self::GuestCheckIn           => "/g/check-in",
-            Self::GuestHouseRules        => "/g/house-rules",
-            Self::GuestInbox             => "/g/inbox",
-            Self::GuestProfile           => "/g/profile",
+            Self::GuestDashboard => "/g",
+            Self::GuestReservation => "/g/reservation",
+            Self::GuestCheckIn => "/g/check-in",
+            Self::GuestHouseRules => "/g/house-rules",
+            Self::GuestInbox => "/g/inbox",
+            Self::GuestProfile => "/g/profile",
 
-            Self::PropertyOwnerLiteDashboard   => "/po",
-            Self::PropertyOwnerLiteValue       => "/po/value",
-            Self::PropertyOwnerLiteFindVendor  => "/po/find-vendor",
+            Self::PropertyOwnerLiteDashboard => "/po",
+            Self::PropertyOwnerLiteValue => "/po/value",
+            Self::PropertyOwnerLiteFindVendor => "/po/find-vendor",
         }
     }
 
     /// Returns true if this route is a namespace root (matches exactly, not as prefix).
     /// Root routes: /l, /t, /v, /pmc, /o, /s, /a, /br
     pub const fn is_namespace_root(self) -> bool {
-        matches!(self,
+        matches!(
+            self,
             Self::LandlordDashboard
-            | Self::TenantDashboard
-            | Self::VendorDashboard
-            | Self::PmcDashboard
-            | Self::OwnerDashboard
-            | Self::StrHostDashboard
-            | Self::AgentDashboard
-            | Self::BrokerDashboard
-            | Self::PropertyOwnerLiteDashboard
+                | Self::TenantDashboard
+                | Self::VendorDashboard
+                | Self::PmcDashboard
+                | Self::OwnerDashboard
+                | Self::StrHostDashboard
+                | Self::AgentDashboard
+                | Self::BrokerDashboard
+                | Self::PropertyOwnerLiteDashboard
         )
     }
 }
@@ -454,13 +455,13 @@ mod tests {
     #[test]
     fn namespace_dashboard_paths() {
         assert_eq!(FolioRoute::LandlordDashboard.path(), "/l");
-        assert_eq!(FolioRoute::TenantDashboard.path(),   "/t");
-        assert_eq!(FolioRoute::VendorDashboard.path(),   "/v");
-        assert_eq!(FolioRoute::PmcDashboard.path(),      "/pmc");
-        assert_eq!(FolioRoute::OwnerDashboard.path(),    "/o");
-        assert_eq!(FolioRoute::StrHostDashboard.path(),  "/s");
-        assert_eq!(FolioRoute::AgentDashboard.path(),    "/a");
-        assert_eq!(FolioRoute::BrokerDashboard.path(),   "/br");
+        assert_eq!(FolioRoute::TenantDashboard.path(), "/t");
+        assert_eq!(FolioRoute::VendorDashboard.path(), "/v");
+        assert_eq!(FolioRoute::PmcDashboard.path(), "/pmc");
+        assert_eq!(FolioRoute::OwnerDashboard.path(), "/o");
+        assert_eq!(FolioRoute::StrHostDashboard.path(), "/s");
+        assert_eq!(FolioRoute::AgentDashboard.path(), "/a");
+        assert_eq!(FolioRoute::BrokerDashboard.path(), "/br");
     }
 
     // ── Key route paths ───────────────────────────────────────────────────────
@@ -468,7 +469,10 @@ mod tests {
     #[test]
     fn meridian_config_path_is_configure() {
         // GAP-1 regression: nav footer must go to /l/meridian/configure, not /l/meridian
-        assert_eq!(FolioRoute::LandlordMeridianConfig.path(), "/l/meridian/configure");
+        assert_eq!(
+            FolioRoute::LandlordMeridianConfig.path(),
+            "/l/meridian/configure"
+        );
     }
 
     #[test]
@@ -528,21 +532,25 @@ mod tests {
     #[test]
     fn sampled_paths_are_unique() {
         let routes_and_paths = [
-            (FolioRoute::LandlordDashboard,      "/l"),
-            (FolioRoute::TenantDashboard,        "/t"),
-            (FolioRoute::VendorDashboard,        "/v"),
-            (FolioRoute::PmcDashboard,           "/pmc"),
-            (FolioRoute::OwnerDashboard,         "/o"),
-            (FolioRoute::StrHostDashboard,       "/s"),
-            (FolioRoute::Settings,               "/settings"),
-            (FolioRoute::PmcPortfolioMap,        "/pmc/map"),
-            (FolioRoute::StrHostListingIndex,    "/s/listings"),
+            (FolioRoute::LandlordDashboard, "/l"),
+            (FolioRoute::TenantDashboard, "/t"),
+            (FolioRoute::VendorDashboard, "/v"),
+            (FolioRoute::PmcDashboard, "/pmc"),
+            (FolioRoute::OwnerDashboard, "/o"),
+            (FolioRoute::StrHostDashboard, "/s"),
+            (FolioRoute::Settings, "/settings"),
+            (FolioRoute::PmcPortfolioMap, "/pmc/map"),
+            (FolioRoute::StrHostListingIndex, "/s/listings"),
             (FolioRoute::LandlordMeridianConfig, "/l/meridian/configure"),
-            (FolioRoute::Login,                  "/login"),
+            (FolioRoute::Login, "/login"),
         ];
         let paths: Vec<_> = routes_and_paths.iter().map(|(r, _)| r.path()).collect();
         let unique: std::collections::HashSet<_> = paths.iter().collect();
-        assert_eq!(paths.len(), unique.len(), "path collision detected in sampled routes");
+        assert_eq!(
+            paths.len(),
+            unique.len(),
+            "path collision detected in sampled routes"
+        );
     }
 
     // ── Display impl delegates to path() ─────────────────────────────────────
@@ -567,7 +575,7 @@ mod tests {
 pub struct NavItem {
     pub route: FolioRoute,
     pub label: &'static str,
-    pub icon:  NavIcon,
+    pub icon: NavIcon,
 }
 
 impl NavItem {
@@ -588,8 +596,8 @@ pub struct NavGroup {
 
 #[derive(Clone, Copy, Debug)]
 pub struct NavConfig {
-    pub role_label:   &'static str,
-    pub groups:       &'static [NavGroup],
+    pub role_label: &'static str,
+    pub groups: &'static [NavGroup],
     pub footer_items: &'static [NavItem],
 }
 
@@ -605,70 +613,113 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
         NavGroup {
             label: None,
             items: &[
-                NavItem::new(FolioRoute::LandlordDashboard,   "Dashboard",   NavIcon::Home),
-                NavItem::new(FolioRoute::LandlordPortfolio,   "Portfolio",   NavIcon::Domain),
-                NavItem::new(FolioRoute::LandlordAssets,      "Assets",      NavIcon::Apartment),
-                NavItem::new(FolioRoute::LandlordLeases,      "Leases",      NavIcon::Description),
-                NavItem::new(FolioRoute::LandlordLeads,       "Leads",       NavIcon::PersonSearch),
-                NavItem::new(FolioRoute::LandlordMap,         "Map",         NavIcon::Map),
+                NavItem::new(FolioRoute::LandlordDashboard, "Dashboard", NavIcon::Home),
+                NavItem::new(FolioRoute::LandlordPortfolio, "Portfolio", NavIcon::Domain),
+                NavItem::new(FolioRoute::LandlordAssets, "Assets", NavIcon::Apartment),
+                NavItem::new(FolioRoute::LandlordLeases, "Leases", NavIcon::Description),
+                NavItem::new(FolioRoute::LandlordLeads, "Leads", NavIcon::PersonSearch),
+                NavItem::new(FolioRoute::LandlordMap, "Map", NavIcon::Map),
             ],
         },
         NavGroup {
             label: Some("Operations"),
             items: &[
-                NavItem::new(FolioRoute::LandlordMaintenance,  "Maintenance",  NavIcon::Build),
-                NavItem::new(FolioRoute::LandlordRatings,      "Ratings",      NavIcon::BarChart),
-                NavItem::new(FolioRoute::LandlordCampaigns,    "Campaigns",    NavIcon::Campaign),
-                NavItem::new(FolioRoute::LandlordVendors,      "Vendors",      NavIcon::Handyman),
-                NavItem::new(FolioRoute::LandlordReservations, "Reservations", NavIcon::EventAvailable),
-                NavItem::new(FolioRoute::LandlordCatalog,      "Catalog",      NavIcon::Inventory2),
+                NavItem::new(
+                    FolioRoute::LandlordMaintenance,
+                    "Maintenance",
+                    NavIcon::Build,
+                ),
+                NavItem::new(FolioRoute::LandlordRatings, "Ratings", NavIcon::BarChart),
+                NavItem::new(
+                    FolioRoute::LandlordCampaigns,
+                    "Campaigns",
+                    NavIcon::Campaign,
+                ),
+                NavItem::new(FolioRoute::LandlordVendors, "Vendors", NavIcon::Handyman),
+                NavItem::new(
+                    FolioRoute::LandlordReservations,
+                    "Reservations",
+                    NavIcon::EventAvailable,
+                ),
+                NavItem::new(FolioRoute::LandlordCatalog, "Catalog", NavIcon::Inventory2),
             ],
         },
         NavGroup {
             label: Some("Finance"),
             items: &[
                 NavItem::new(FolioRoute::LandlordBilling, "Billing", NavIcon::ReceiptLong),
-                NavItem::new(FolioRoute::LandlordLedger,  "Ledger",  NavIcon::AccountBalance),
+                NavItem::new(
+                    FolioRoute::LandlordLedger,
+                    "Ledger",
+                    NavIcon::AccountBalance,
+                ),
             ],
         },
         NavGroup {
             label: Some("Connect"),
             items: &[
-                NavItem::new(FolioRoute::LandlordCommunications, "Messages",      NavIcon::Inbox),
-                NavItem::new(FolioRoute::LandlordNotifications,  "Notifications", NavIcon::Campaign),
-                NavItem::new(FolioRoute::LandlordTeam,           "Network",       NavIcon::Group),
+                NavItem::new(
+                    FolioRoute::LandlordCommunications,
+                    "Messages",
+                    NavIcon::Inbox,
+                ),
+                NavItem::new(
+                    FolioRoute::LandlordNotifications,
+                    "Notifications",
+                    NavIcon::Campaign,
+                ),
+                NavItem::new(FolioRoute::LandlordTeam, "Network", NavIcon::Group),
             ],
         },
         NavGroup {
             label: Some("Compliance"),
             items: &[
-                NavItem::new(FolioRoute::LandlordStrCompliance, "STR Compliance", NavIcon::Gavel),
-                NavItem::new(FolioRoute::LandlordSyndication,   "Syndication",    NavIcon::SyncAlt),
+                NavItem::new(
+                    FolioRoute::LandlordStrCompliance,
+                    "STR Compliance",
+                    NavIcon::Gavel,
+                ),
+                NavItem::new(
+                    FolioRoute::LandlordSyndication,
+                    "Syndication",
+                    NavIcon::SyncAlt,
+                ),
             ],
         },
     ],
     footer_items: &[
-        NavItem::new(FolioRoute::LandlordMeridianConfig, "Analytics",  NavIcon::BarChart),
-        NavItem::new(FolioRoute::LandlordAccountBilling, "Account",    NavIcon::ManageAccounts),
-        NavItem::new(FolioRoute::Settings,               "Settings",   NavIcon::Settings),
+        NavItem::new(
+            FolioRoute::LandlordMeridianConfig,
+            "Analytics",
+            NavIcon::BarChart,
+        ),
+        NavItem::new(
+            FolioRoute::LandlordAccountBilling,
+            "Account",
+            NavIcon::ManageAccounts,
+        ),
+        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
     ],
 };
-
 
 pub(crate) static TENANT_NAV: NavConfig = NavConfig {
     role_label: "Tenant",
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::TenantDashboard,    "Dashboard",    NavIcon::Home),
-            NavItem::new(FolioRoute::TenantMyLease,      "My Lease",     NavIcon::Description),
-            NavItem::new(FolioRoute::TenantPayments,     "Payments",     NavIcon::CreditCard),
-            NavItem::new(FolioRoute::TenantMaintenance,  "Maintenance",  NavIcon::Build),
-            NavItem::new(FolioRoute::TenantReservations, "Reservations", NavIcon::EventAvailable),
-            NavItem::new(FolioRoute::TenantRatings,      "Ratings",      NavIcon::BarChart),
-            NavItem::new(FolioRoute::TenantInbox,        "Inbox",        NavIcon::Inbox),
-            NavItem::new(FolioRoute::TenantDocuments,    "Documents",    NavIcon::Folder),
-            NavItem::new(FolioRoute::TenantHousehold,    "Household",    NavIcon::Group),
+            NavItem::new(FolioRoute::TenantDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(FolioRoute::TenantMyLease, "My Lease", NavIcon::Description),
+            NavItem::new(FolioRoute::TenantPayments, "Payments", NavIcon::CreditCard),
+            NavItem::new(FolioRoute::TenantMaintenance, "Maintenance", NavIcon::Build),
+            NavItem::new(
+                FolioRoute::TenantReservations,
+                "Reservations",
+                NavIcon::EventAvailable,
+            ),
+            NavItem::new(FolioRoute::TenantRatings, "Ratings", NavIcon::BarChart),
+            NavItem::new(FolioRoute::TenantInbox, "Inbox", NavIcon::Inbox),
+            NavItem::new(FolioRoute::TenantDocuments, "Documents", NavIcon::Folder),
+            NavItem::new(FolioRoute::TenantHousehold, "Household", NavIcon::Group),
         ],
     }],
     footer_items: &[
@@ -685,16 +736,22 @@ pub(crate) static GUEST_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::GuestDashboard,     "My Stay",       NavIcon::Home),
-            NavItem::new(FolioRoute::GuestReservation,   "Reservation",   NavIcon::EventAvailable),
-            NavItem::new(FolioRoute::GuestCheckIn,       "Check-In",      NavIcon::Login),
-            NavItem::new(FolioRoute::GuestHouseRules,    "House Rules",   NavIcon::Gavel),
-            NavItem::new(FolioRoute::GuestInbox,         "Inbox",         NavIcon::Inbox),
+            NavItem::new(FolioRoute::GuestDashboard, "My Stay", NavIcon::Home),
+            NavItem::new(
+                FolioRoute::GuestReservation,
+                "Reservation",
+                NavIcon::EventAvailable,
+            ),
+            NavItem::new(FolioRoute::GuestCheckIn, "Check-In", NavIcon::Login),
+            NavItem::new(FolioRoute::GuestHouseRules, "House Rules", NavIcon::Gavel),
+            NavItem::new(FolioRoute::GuestInbox, "Inbox", NavIcon::Inbox),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::GuestProfile, "Profile", NavIcon::Person),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::GuestProfile,
+        "Profile",
+        NavIcon::Person,
+    )],
 };
 
 static VENDOR_NAV: NavConfig = NavConfig {
@@ -702,15 +759,25 @@ static VENDOR_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::VendorDashboard,   "Dashboard",   NavIcon::Home),
-            NavItem::new(FolioRoute::VendorWorkOrders,  "Work Orders", NavIcon::Assignment),
-            NavItem::new(FolioRoute::VendorInvoices,    "Invoices",    NavIcon::ReceiptLong),
-            NavItem::new(FolioRoute::VendorSchedule,    "Schedule",    NavIcon::CalendarMonth),
+            NavItem::new(FolioRoute::VendorDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(
+                FolioRoute::VendorWorkOrders,
+                "Work Orders",
+                NavIcon::Assignment,
+            ),
+            NavItem::new(FolioRoute::VendorInvoices, "Invoices", NavIcon::ReceiptLong),
+            NavItem::new(
+                FolioRoute::VendorSchedule,
+                "Schedule",
+                NavIcon::CalendarMonth,
+            ),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::VendorNetworkProfile, "Network Profile", NavIcon::Badge),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::VendorNetworkProfile,
+        "Network Profile",
+        NavIcon::Badge,
+    )],
 };
 
 static PMC_NAV: NavConfig = NavConfig {
@@ -718,16 +785,22 @@ static PMC_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::PmcDashboard,      "Dashboard",   NavIcon::Home),
-            NavItem::new(FolioRoute::PmcClientBook,     "Client Book", NavIcon::People),
-            NavItem::new(FolioRoute::PmcMaintenance,    "Maintenance", NavIcon::Build),
-            NavItem::new(FolioRoute::PmcPortfolioMap,   "Map",         NavIcon::Map),
-            NavItem::new(FolioRoute::PmcOwnerStatements,"Statements",  NavIcon::ReceiptLong),
+            NavItem::new(FolioRoute::PmcDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(FolioRoute::PmcClientBook, "Client Book", NavIcon::People),
+            NavItem::new(FolioRoute::PmcMaintenance, "Maintenance", NavIcon::Build),
+            NavItem::new(FolioRoute::PmcPortfolioMap, "Map", NavIcon::Map),
+            NavItem::new(
+                FolioRoute::PmcOwnerStatements,
+                "Statements",
+                NavIcon::ReceiptLong,
+            ),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::Settings,
+        "Settings",
+        NavIcon::Settings,
+    )],
 };
 
 static OWNER_NAV: NavConfig = NavConfig {
@@ -735,11 +808,23 @@ static OWNER_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::OwnerDashboard,    "Dashboard",    NavIcon::Home),
-            NavItem::new(FolioRoute::OwnerProperties,   "Properties",   NavIcon::Apartment),
-            NavItem::new(FolioRoute::OwnerStatements,   "Statements",   NavIcon::ReceiptLong),
-            NavItem::new(FolioRoute::OwnerDistributions,"Distributions",NavIcon::Payments),
-            NavItem::new(FolioRoute::OwnerMaintenance,  "Maintenance",  NavIcon::Build),
+            NavItem::new(FolioRoute::OwnerDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(
+                FolioRoute::OwnerProperties,
+                "Properties",
+                NavIcon::Apartment,
+            ),
+            NavItem::new(
+                FolioRoute::OwnerStatements,
+                "Statements",
+                NavIcon::ReceiptLong,
+            ),
+            NavItem::new(
+                FolioRoute::OwnerDistributions,
+                "Distributions",
+                NavIcon::Payments,
+            ),
+            NavItem::new(FolioRoute::OwnerMaintenance, "Maintenance", NavIcon::Build),
         ],
     }],
     footer_items: &[],
@@ -751,15 +836,21 @@ static AGENT_NAV: NavConfig = NavConfig {
         label: None,
         items: &[
             NavItem::new(FolioRoute::AgentDashboard, "Dashboard", NavIcon::Home),
-            NavItem::new(FolioRoute::AgentListings,  "Listings",  NavIcon::Apartment),
-            NavItem::new(FolioRoute::AgentClients,   "Clients",   NavIcon::People),
-            NavItem::new(FolioRoute::AgentDeals,     "Deals",     NavIcon::Handshake),
-            NavItem::new(FolioRoute::AgentSchedule,  "Schedule",  NavIcon::CalendarMonth),
+            NavItem::new(FolioRoute::AgentListings, "Listings", NavIcon::Apartment),
+            NavItem::new(FolioRoute::AgentClients, "Clients", NavIcon::People),
+            NavItem::new(FolioRoute::AgentDeals, "Deals", NavIcon::Handshake),
+            NavItem::new(
+                FolioRoute::AgentSchedule,
+                "Schedule",
+                NavIcon::CalendarMonth,
+            ),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::Settings,
+        "Settings",
+        NavIcon::Settings,
+    )],
 };
 
 static BROKER_NAV: NavConfig = NavConfig {
@@ -767,16 +858,22 @@ static BROKER_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::BrokerDashboard,   "Dashboard",  NavIcon::Home),
-            NavItem::new(FolioRoute::BrokerAgents,      "Agents",     NavIcon::People),
-            NavItem::new(FolioRoute::BrokerListings,    "Listings",   NavIcon::Apartment),
-            NavItem::new(FolioRoute::BrokerCompliance,  "Compliance", NavIcon::Verified),
-            NavItem::new(FolioRoute::BrokerRevenue,     "Revenue",    NavIcon::Payments),
+            NavItem::new(FolioRoute::BrokerDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(FolioRoute::BrokerAgents, "Agents", NavIcon::People),
+            NavItem::new(FolioRoute::BrokerListings, "Listings", NavIcon::Apartment),
+            NavItem::new(
+                FolioRoute::BrokerCompliance,
+                "Compliance",
+                NavIcon::Verified,
+            ),
+            NavItem::new(FolioRoute::BrokerRevenue, "Revenue", NavIcon::Payments),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::Settings,
+        "Settings",
+        NavIcon::Settings,
+    )],
 };
 
 static PROPERTY_OWNER_LITE_NAV: NavConfig = NavConfig {
@@ -784,14 +881,28 @@ static PROPERTY_OWNER_LITE_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::PropertyOwnerLiteDashboard,  "My Property",    NavIcon::Home),
-            NavItem::new(FolioRoute::PropertyOwnerLiteValue,      "Property Value", NavIcon::ShowChart),
-            NavItem::new(FolioRoute::PropertyOwnerLiteFindVendor, "Find a Vendor",  NavIcon::Handyman),
+            NavItem::new(
+                FolioRoute::PropertyOwnerLiteDashboard,
+                "My Property",
+                NavIcon::Home,
+            ),
+            NavItem::new(
+                FolioRoute::PropertyOwnerLiteValue,
+                "Property Value",
+                NavIcon::ShowChart,
+            ),
+            NavItem::new(
+                FolioRoute::PropertyOwnerLiteFindVendor,
+                "Find a Vendor",
+                NavIcon::Handyman,
+            ),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::Settings,
+        "Settings",
+        NavIcon::Settings,
+    )],
 };
 
 static STR_HOST_NAV: NavConfig = NavConfig {
@@ -799,20 +910,36 @@ static STR_HOST_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::StrHostDashboard,    "Dashboard",    NavIcon::Home),
-            NavItem::new(FolioRoute::StrHostCalendar,     "Calendar",     NavIcon::CalendarMonth),
-            NavItem::new(FolioRoute::StrHostReservations, "Reservations", NavIcon::EventAvailable),
-            NavItem::new(FolioRoute::StrHostListingIndex,  "Listings",     NavIcon::Apartment),
-            NavItem::new(FolioRoute::StrHostPricing,      "Pricing",      NavIcon::Sell),
-            NavItem::new(FolioRoute::StrHostChannels,     "Channels",     NavIcon::SyncAlt),
-            NavItem::new(FolioRoute::StrHostSyndication,  "Syndication",  NavIcon::SyncAlt),
-            NavItem::new(FolioRoute::StrHostMessages,     "Messages",     NavIcon::Chat),
+            NavItem::new(FolioRoute::StrHostDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(
+                FolioRoute::StrHostCalendar,
+                "Calendar",
+                NavIcon::CalendarMonth,
+            ),
+            NavItem::new(
+                FolioRoute::StrHostReservations,
+                "Reservations",
+                NavIcon::EventAvailable,
+            ),
+            NavItem::new(
+                FolioRoute::StrHostListingIndex,
+                "Listings",
+                NavIcon::Apartment,
+            ),
+            NavItem::new(FolioRoute::StrHostPricing, "Pricing", NavIcon::Sell),
+            NavItem::new(FolioRoute::StrHostChannels, "Channels", NavIcon::SyncAlt),
+            NavItem::new(
+                FolioRoute::StrHostSyndication,
+                "Syndication",
+                NavIcon::SyncAlt,
+            ),
+            NavItem::new(FolioRoute::StrHostMessages, "Messages", NavIcon::Chat),
         ],
     }],
     footer_items: &[
-        NavItem::new(FolioRoute::StrHostReviews,   "Reviews",   NavIcon::Star),
+        NavItem::new(FolioRoute::StrHostReviews, "Reviews", NavIcon::Star),
         NavItem::new(FolioRoute::StrHostIncidents, "Incidents", NavIcon::Report),
-        NavItem::new(FolioRoute::Settings,         "Settings",  NavIcon::Settings),
+        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
     ],
 };
 
@@ -821,15 +948,25 @@ static COHOST_NAV: NavConfig = NavConfig {
     groups: &[NavGroup {
         label: None,
         items: &[
-            NavItem::new(FolioRoute::StrHostDashboard,    "Dashboard",    NavIcon::Home),
-            NavItem::new(FolioRoute::StrHostCalendar,     "Calendar",     NavIcon::CalendarMonth),
-            NavItem::new(FolioRoute::StrHostReservations, "Reservations", NavIcon::EventAvailable),
-            NavItem::new(FolioRoute::StrHostMessages,     "Messages",     NavIcon::Chat),
+            NavItem::new(FolioRoute::StrHostDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(
+                FolioRoute::StrHostCalendar,
+                "Calendar",
+                NavIcon::CalendarMonth,
+            ),
+            NavItem::new(
+                FolioRoute::StrHostReservations,
+                "Reservations",
+                NavIcon::EventAvailable,
+            ),
+            NavItem::new(FolioRoute::StrHostMessages, "Messages", NavIcon::Chat),
         ],
     }],
-    footer_items: &[
-        NavItem::new(FolioRoute::StrHostIncidents, "Incidents", NavIcon::Report),
-    ],
+    footer_items: &[NavItem::new(
+        FolioRoute::StrHostIncidents,
+        "Incidents",
+        NavIcon::Report,
+    )],
 };
 
 //
@@ -840,17 +977,17 @@ static COHOST_NAV: NavConfig = NavConfig {
 impl FolioRole {
     pub fn nav_config(self) -> &'static NavConfig {
         match self {
-            Self::Landlord        => &LANDLORD_NAV,
-            Self::Tenant          => &TENANT_NAV,
-            Self::StrGuest        => &GUEST_NAV,
-            Self::Vendor          => &VENDOR_NAV,
+            Self::Landlord => &LANDLORD_NAV,
+            Self::Tenant => &TENANT_NAV,
+            Self::StrGuest => &GUEST_NAV,
+            Self::Vendor => &VENDOR_NAV,
             Self::PropertyManager => &PMC_NAV,
-            Self::Owner           => &OWNER_NAV,
-            Self::Cohost          => &COHOST_NAV,
+            Self::Owner => &OWNER_NAV,
+            Self::Cohost => &COHOST_NAV,
             // StrHost removed — Landlord portal shows STR sections when
             // session.has_str_assets = true (asset-level trait, not a role)
-            Self::Agent           => &AGENT_NAV,
-            Self::Broker          => &BROKER_NAV,
+            Self::Agent => &AGENT_NAV,
+            Self::Broker => &BROKER_NAV,
             Self::PropertyOwnerLite => &PROPERTY_OWNER_LITE_NAV,
         }
     }
@@ -862,13 +999,13 @@ impl FolioRole {
 pub fn SidebarNav(
     config: &'static NavConfig,
     #[prop(optional)] user_name: Option<String>,
-    #[prop(optional)] initials:  Option<String>,
+    #[prop(optional)] initials: Option<String>,
 ) -> impl IntoView {
     let location = use_location();
 
-    let initials = initials.or_else(|| {
-        user_name.as_deref().map(derive_initials)
-    }).unwrap_or_else(|| "?".to_string());
+    let initials = initials
+        .or_else(|| user_name.as_deref().map(derive_initials))
+        .unwrap_or_else(|| "?".to_string());
 
     view! {
         <nav class="folio-sidebar">
@@ -973,8 +1110,7 @@ fn is_active(current_path: &str, route: FolioRoute) -> bool {
         current_path == route_path
     } else {
         // Prefix match — /l/assets matches /l/assets AND /l/assets/some-id
-        current_path == route_path
-            || current_path.starts_with(&format!("{route_path}/"))
+        current_path == route_path || current_path.starts_with(&format!("{route_path}/"))
     }
 }
 

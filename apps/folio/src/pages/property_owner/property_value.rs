@@ -15,13 +15,13 @@ use leptos::prelude::*;
 /// Source options that match the backend PropertyValueSource enum.
 /// Displayed as a segmented control so the user understands the provenance.
 const VALUE_SOURCES: &[(&str, &str, &str)] = &[
-    ("manual",              "My Estimate",     "edit"),
-    ("purchase_price",      "Purchase Price",  "sell"),
-    ("zillow_avm",          "Zillow AVM",      "bar_chart"),
-    ("county_record",       "County Record",   "account_balance"),
-    ("certified_appraisal", "Appraisal",       "verified"),
-    ("bank_appraisal",      "Bank Appraisal",  "domain"),
-    ("agent_cma",           "Agent CMA",       "real_estate_agent"),
+    ("manual", "My Estimate", "edit"),
+    ("purchase_price", "Purchase Price", "sell"),
+    ("zillow_avm", "Zillow AVM", "bar_chart"),
+    ("county_record", "County Record", "account_balance"),
+    ("certified_appraisal", "Appraisal", "verified"),
+    ("bank_appraisal", "Bank Appraisal", "domain"),
+    ("agent_cma", "Agent CMA", "real_estate_agent"),
 ];
 
 /// Property value tracker — source-keyed chart + log form.
@@ -29,11 +29,11 @@ const VALUE_SOURCES: &[(&str, &str, &str)] = &[
 pub fn PropertyValuePage() -> impl IntoView {
     // Selected source for the log form (local signal)
     let (selected_source, set_source) = signal("manual");
-    let (value_input, set_value)      = signal(String::new());
-    let (date_input, set_date)        = signal(String::new());
-    let (note_input, set_note)        = signal(String::new());
-    let (submitting, set_submitting)  = signal(false);
-    let (success_msg, set_success)    = signal(Option::<String>::None);
+    let (value_input, set_value) = signal(String::new());
+    let (date_input, set_date) = signal(String::new());
+    let (note_input, set_note) = signal(String::new());
+    let (submitting, set_submitting) = signal(false);
+    let (success_msg, set_success) = signal(Option::<String>::None);
 
     view! {
         <div class="page-header">

@@ -8,44 +8,54 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientSummary {
-    pub account_id:         Uuid,
-    pub display_name:       String,
-    pub contact_name:       Option<String>,
-    pub contact_email:      Option<String>,
-    pub property_count:     Option<i64>,
-    pub unit_count:         Option<i64>,
+    pub account_id: Uuid,
+    pub display_name: String,
+    pub contact_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub property_count: Option<i64>,
+    pub unit_count: Option<i64>,
     pub active_lease_count: Option<i64>,
-    pub occupancy_pct:      Option<f64>,
+    pub occupancy_pct: Option<f64>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchPmcClientsStmts, "/api")]
-pub async fn fetch_pmc_clients_stmts() -> Result<Vec<ClientSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_pmc_clients_stmts() -> Result<Vec<ClientSummary>, server_fn::error::ServerFnError>
+{
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<ClientSummary>>(
-        "/api/folio/pm/clients", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/pm/clients",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -53,9 +63,10 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 #[component]
 pub fn PmcOwnerStatements() -> impl IntoView {
-    let selected: RwSignal<std::collections::HashSet<Uuid>> = RwSignal::new(std::collections::HashSet::new());
+    let selected: RwSignal<std::collections::HashSet<Uuid>> =
+        RwSignal::new(std::collections::HashSet::new());
     let generating = RwSignal::new(false);
-    let generated  = RwSignal::new(false);
+    let generated = RwSignal::new(false);
 
     let clients_res = Resource::new(|| (), |_| fetch_pmc_clients_stmts());
 
@@ -64,7 +75,9 @@ pub fn PmcOwnerStatements() -> impl IntoView {
             if s.len() == clients.len() {
                 s.clear();
             } else {
-                for c in &clients { s.insert(c.account_id); }
+                for c in &clients {
+                    s.insert(c.account_id);
+                }
             }
         });
     };

@@ -14,15 +14,15 @@ use crate::components::nav::{FolioRoute, NavIcon};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LeaseSummary {
-    pub id:                   uuid::Uuid,
-    pub asset_id:             Option<uuid::Uuid>,
+    pub id: uuid::Uuid,
+    pub asset_id: Option<uuid::Uuid>,
     pub counterparty_user_id: Option<uuid::Uuid>,
-    pub currency:             String,
-    pub status:               String,
-    pub monthly_rent_cents:   Option<i64>,
-    pub start_date:           Option<chrono::NaiveDate>,
-    pub end_date:             Option<chrono::NaiveDate>,
-    pub created_at:           chrono::DateTime<chrono::Utc>,
+    pub currency: String,
+    pub status: String,
+    pub monthly_rent_cents: Option<i64>,
+    pub start_date: Option<chrono::NaiveDate>,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -41,45 +41,45 @@ pub enum LeaseStatus {
 impl LeaseStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "active"     => Self::Active,
-            "draft"      => Self::Draft,
-            "pending"    => Self::Pending,
-            "expired"    => Self::Expired,
+            "active" => Self::Active,
+            "draft" => Self::Draft,
+            "pending" => Self::Pending,
+            "expired" => Self::Expired,
             "terminated" => Self::Terminated,
-            _            => Self::Unknown,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Active     => "Active",
-            Self::Draft      => "Draft",
-            Self::Pending    => "Pending",
-            Self::Expired    => "Expired",
+            Self::Active => "Active",
+            Self::Draft => "Draft",
+            Self::Pending => "Pending",
+            Self::Expired => "Expired",
             Self::Terminated => "Terminated",
-            Self::Unknown    => "Unknown",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Active     => "lease-status--active",
-            Self::Draft      => "lease-status--draft",
-            Self::Pending    => "lease-status--pending",
-            Self::Expired    => "lease-status--expired",
+            Self::Active => "lease-status--active",
+            Self::Draft => "lease-status--draft",
+            Self::Pending => "lease-status--pending",
+            Self::Expired => "lease-status--expired",
             Self::Terminated => "lease-status--terminated",
-            Self::Unknown    => "lease-status--unknown",
+            Self::Unknown => "lease-status--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Active     => "verified",
-            Self::Draft      => "edit_document",
-            Self::Pending    => "pending",
-            Self::Expired    => "event_busy",
+            Self::Active => "verified",
+            Self::Draft => "edit_document",
+            Self::Pending => "pending",
+            Self::Expired => "event_busy",
             Self::Terminated => "cancel",
-            Self::Unknown    => "help",
+            Self::Unknown => "help",
         }
     }
 }
@@ -93,10 +93,7 @@ pub fn Leases() -> impl IntoView {
     let (status_filter, set_status_filter) = signal(LeaseStatus::Active);
     let (search_query, set_search_query) = signal(String::new());
 
-    let leases = Resource::new(
-        || (),
-        |_| async move { list_leases().await },
-    );
+    let leases = Resource::new(|| (), |_| async move { list_leases().await });
 
     view! {
         <div class="leases-page">
@@ -317,9 +314,7 @@ pub async fn list_leases() -> Result<Vec<LeaseSummary>, server_fn::error::Server
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
-    crate::atlas_client::authenticated_get::<Vec<LeaseSummary>>(
-        "/api/folio/leases", &token, None,
-    )
-    .await
-    .map_err(|e| server_fn::error::ServerFnError::new(format!("Lease list failed: {e}")))
+    crate::atlas_client::authenticated_get::<Vec<LeaseSummary>>("/api/folio/leases", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Lease list failed: {e}")))
 }

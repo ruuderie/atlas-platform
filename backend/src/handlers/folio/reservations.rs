@@ -28,11 +28,11 @@
 //! not block the confirmation response.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -150,7 +150,8 @@ async fn create_hold(
         Err(status) => return status.into_response(),
     };
 
-    let ota_platform = OtaPlatform::try_from(input.ota_platform.clone()).unwrap_or(OtaPlatform::Direct);
+    let ota_platform =
+        OtaPlatform::try_from(input.ota_platform.clone()).unwrap_or(OtaPlatform::Direct);
 
     let result = ReservationService::create_hold(
         &db,
@@ -183,12 +184,15 @@ async fn create_hold(
                         hold_expires_at: r.hold_expires_at,
                         total_price_cents: r.total_price_cents.unwrap_or(0),
                     }),
-                ).into_response(),
+                )
+                    .into_response(),
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
             }
         }
         Err(ReservationError::Conflict { .. }) => StatusCode::CONFLICT.into_response(),
-        Err(ReservationError::InvalidWindow { .. }) => StatusCode::UNPROCESSABLE_ENTITY.into_response(),
+        Err(ReservationError::InvalidWindow { .. }) => {
+            StatusCode::UNPROCESSABLE_ENTITY.into_response()
+        }
         Err(e) => {
             tracing::error!(%tenant_id, "create_hold error: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -211,15 +215,18 @@ async fn list_reservations(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let response: Vec<ReservationResponse> = rows.into_iter().map(|r| ReservationResponse {
-        id: r.id,
-        status: r.status,
-        check_in: r.starts_at,
-        check_out: r.ends_at,
-        total_price_cents: r.total_price_cents.unwrap_or(0),
-        currency: r.currency.unwrap_or_else(|| "USD".to_string()),
-        hold_expires_at: r.hold_expires_at,
-    }).collect();
+    let response: Vec<ReservationResponse> = rows
+        .into_iter()
+        .map(|r| ReservationResponse {
+            id: r.id,
+            status: r.status,
+            check_in: r.starts_at,
+            check_out: r.ends_at,
+            total_price_cents: r.total_price_cents.unwrap_or(0),
+            currency: r.currency.unwrap_or_else(|| "USD".to_string()),
+            hold_expires_at: r.hold_expires_at,
+        })
+        .collect();
 
     Ok(axum::response::Json(response))
 }
@@ -312,13 +319,8 @@ async fn check_out_reservation(
         .map_err(|e| reservation_err_to_status(e, reservation_id, tenant_id))?;
 
     // G-27: open post_checkout rating sessions (best-effort — never fail check-out).
-    if let Err(e) = trigger_post_checkout_sessions(
-        &db,
-        tenant_id,
-        reservation_id,
-        current_user.id,
-    )
-    .await
+    if let Err(e) =
+        trigger_post_checkout_sessions(&db, tenant_id, reservation_id, current_user.id).await
     {
         tracing::warn!(
             %tenant_id,
@@ -377,10 +379,7 @@ fn reservation_err_to_status(e: ReservationError, id: Uuid, tenant_id: Uuid) -> 
     }
 }
 
-async fn resolve_tenant_id(
-    db: &DatabaseConnection,
-    user_id: Uuid,
-) -> Result<Uuid, StatusCode> {
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let user_accounts = crate::entities::user_account::Entity::find()

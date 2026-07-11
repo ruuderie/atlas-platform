@@ -8,18 +8,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeProfile {
-    pub user_id:      Uuid,
-    pub tenant_id:    Option<Uuid>,
-    pub email:        String,
+    pub user_id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub email: String,
     pub display_name: Option<String>,
-    pub folio_role:   String,
+    pub folio_role: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -30,19 +30,24 @@ pub async fn fetch_tenant_profile() -> Result<MeProfile, server_fn::error::Serve
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
-    crate::atlas_client::authenticated_get::<MeProfile>(
-        "/api/folio/me", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<MeProfile>("/api/folio/me", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -50,13 +55,13 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 fn role_label(role: &str) -> &'static str {
     match role {
-        "Tenant"   => "Tenant",
+        "Tenant" => "Tenant",
         "Landlord" => "Landlord / Operator",
-        "PMC"      => "Property Manager",
-        "Vendor"   => "Vendor",
-        "Agent"    => "Agent / Broker",
-        "Owner"    => "Property Owner",
-        _          => "Folio User",
+        "PMC" => "Property Manager",
+        "Vendor" => "Vendor",
+        "Agent" => "Agent / Broker",
+        "Owner" => "Property Owner",
+        _ => "Folio User",
     }
 }
 
@@ -68,7 +73,11 @@ fn initials_from(name: &Option<String>, email: &str) -> String {
             .collect::<String>()
             .to_uppercase()
     } else {
-        email.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".to_string())
+        email
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string())
+            .unwrap_or_else(|| "?".to_string())
     }
 }
 
@@ -79,8 +88,8 @@ pub fn TenantProfile() -> impl IntoView {
     let profile_res = Resource::new(|| (), |_| fetch_tenant_profile());
 
     // Edit mode state (ready for when PATCH /api/folio/me is added)
-    let edit_mode   = RwSignal::new(false);
-    let edit_name   = RwSignal::new(String::new());
+    let edit_mode = RwSignal::new(false);
+    let edit_name = RwSignal::new(String::new());
 
     view! {
         <div class="main-area">

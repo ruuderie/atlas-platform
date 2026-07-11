@@ -30,32 +30,32 @@ use crate::components::marketing_nav::{MarketingNav, MarketingNavRole};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CohostProfile {
-    pub initials:       &'static str,
-    pub name:           &'static str,
-    pub city:           &'static str,
-    pub trust_score:    f32,
-    pub guest_rating:   f32,
-    pub response_rate:  u8,
-    pub avg_occupancy:  u8,
-    pub total_stays:    u32,
-    pub typical_split:  &'static str,    // e.g. "18–22%"
-    pub availability:   u8,             // max units they can take on
-    pub superhost:      bool,
-    pub specialties:    Vec<&'static str>,
-    pub bio_short:      &'static str,
+    pub initials: &'static str,
+    pub name: &'static str,
+    pub city: &'static str,
+    pub trust_score: f32,
+    pub guest_rating: f32,
+    pub response_rate: u8,
+    pub avg_occupancy: u8,
+    pub total_stays: u32,
+    pub typical_split: &'static str, // e.g. "18–22%"
+    pub availability: u8,            // max units they can take on
+    pub superhost: bool,
+    pub specialties: Vec<&'static str>,
+    pub bio_short: &'static str,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct OwnerProperty {
-    pub initials:      &'static str,
-    pub owner_name:    &'static str,
-    pub city:          &'static str,
-    pub beds:          u8,
-    pub baths:         f32,
-    pub property_type: &'static str,    // "Beachfront" | "Condo" | "Townhouse"
-    pub icon:          &'static str,    // material symbol
-    pub seeking:       &'static str,    // short note on what they need
-    pub posted_ago:    &'static str,    // "3 days ago"
+    pub initials: &'static str,
+    pub owner_name: &'static str,
+    pub city: &'static str,
+    pub beds: u8,
+    pub baths: f32,
+    pub property_type: &'static str, // "Beachfront" | "Condo" | "Townhouse"
+    pub icon: &'static str,          // material symbol
+    pub seeking: &'static str,       // short note on what they need
+    pub posted_ago: &'static str,    // "3 days ago"
 }
 
 // ── Seed data (static mock — swap for #[server] fn when API ships) ────────────
@@ -158,9 +158,9 @@ pub fn CohostMarketplace() -> impl IntoView {
 
     // Wrap seed data in StoredValue so multiple reactive `move ||` closures
     // can call .get_value() (which clones) without consuming the original Vec.
-    let cohosts_sv  = StoredValue::new(seeded_cohosts());
+    let cohosts_sv = StoredValue::new(seeded_cohosts());
     let cohosts_sv2 = cohosts_sv;
-    let props_sv    = StoredValue::new(seeded_properties());
+    let props_sv = StoredValue::new(seeded_properties());
 
     view! {
         <Title text="Cohost Network — Folio"/>
@@ -687,12 +687,7 @@ pub fn CohostMarketplace() -> impl IntoView {
 // ── Sub-component: inline reputation progress bar ─────────────────────────────
 
 #[component]
-fn CohostRepBar(
-    label:     String,
-    value_str: String,
-    pct:       u8,
-    color:     &'static str,
-) -> impl IntoView {
+fn CohostRepBar(label: String, value_str: String, pct: u8, color: &'static str) -> impl IntoView {
     view! {
         <div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">

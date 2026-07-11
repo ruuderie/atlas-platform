@@ -17,12 +17,12 @@
 //! | POST   | /api/folio/campaigns/events | Record campaign event (webhook entrypoint) |
 
 use axum::{
+    Router,
     body::Body,
     extract::{Extension, Json, Path, Query},
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::{IntoResponse, Response},
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,10 @@ use crate::{
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/campaigns", post(create_campaign).get(list_campaigns))
+        .route(
+            "/api/folio/campaigns",
+            post(create_campaign).get(list_campaigns),
+        )
         .route("/api/folio/campaigns/{id}", get(get_campaign))
         .route("/api/folio/campaigns/{id}/status", post(transition_status))
         .route("/api/folio/campaigns/{id}/children", get(list_children))
@@ -57,11 +60,20 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         )
         .route("/api/folio/campaigns/events", post(record_event))
         // Export campaign members as a direct-mail-ready CSV (leads + contacts)
-        .route("/api/folio/campaigns/{id}/enrollments/export", get(export_enrollments_csv))
+        .route(
+            "/api/folio/campaigns/{id}/enrollments/export",
+            get(export_enrollments_csv),
+        )
         // Bulk-enroll atlas_leads by lead ID
-        .route("/api/folio/campaigns/{id}/enroll-leads", post(enroll_leads_bulk))
+        .route(
+            "/api/folio/campaigns/{id}/enroll-leads",
+            post(enroll_leads_bulk),
+        )
         // Bulk-enroll atlas_contacts by contact ID (address resolved from linked account)
-        .route("/api/folio/campaigns/{id}/enroll-contacts", post(enroll_contacts_bulk))
+        .route(
+            "/api/folio/campaigns/{id}/enroll-contacts",
+            post(enroll_contacts_bulk),
+        )
 }
 
 // ── Shared tenant resolution ──────────────────────────────────────────────────
@@ -186,13 +198,25 @@ async fn create_campaign(
     let campaign_type = match CampaignType::try_from(req.campaign_type.as_str()) {
         Ok(t) => t,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
 
-    let goal_type = match req.goal_type.as_deref().map(crate::types::pm::CampaignGoalType::try_from) {
+    let goal_type = match req
+        .goal_type
+        .as_deref()
+        .map(crate::types::pm::CampaignGoalType::try_from)
+    {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(g)) => Some(g),
         None => None,
@@ -221,7 +245,11 @@ async fn create_campaign(
     };
 
     match CampaignService::create(&db, tenant_id, payload).await {
-        Ok(c) => (StatusCode::CREATED, Json(serde_json::json!({ "campaign": c }))).into_response(),
+        Ok(c) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "campaign": c })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -242,14 +270,22 @@ async fn list_campaigns(
 
     let campaign_type = match q.campaign_type.as_deref().map(CampaignType::try_from) {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(t)) => Some(t),
         None => None,
     };
     let status = match q.status.as_deref().map(CampaignStatus::try_from) {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(s)) => Some(s),
         None => None,
@@ -302,7 +338,11 @@ async fn transition_status(
     let new_status = match CampaignStatus::try_from(req.status.as_str()) {
         Ok(s) => s,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
     match CampaignService::transition_status(&db, tenant_id, id, new_status).await {
@@ -371,7 +411,11 @@ async fn add_sequence_step(
     let step_type = match crate::types::pm::SequenceStepType::try_from(req.step_type.as_str()) {
         Ok(t) => t,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
     let payload = CreateSequenceStepPayload {
@@ -392,7 +436,11 @@ async fn add_sequence_step(
         exit_on_conversion: req.exit_on_conversion,
     };
     match CampaignService::add_sequence_step(&db, tenant_id, payload).await {
-        Ok(step) => (StatusCode::CREATED, Json(serde_json::json!({ "step": step }))).into_response(),
+        Ok(step) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "step": step })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -440,9 +488,11 @@ async fn enroll_contact(
         next_step_at: req.next_step_at,
     };
     match CampaignService::enroll(&db, tenant_id, payload).await {
-        Ok(enrollment) => {
-            (StatusCode::CREATED, Json(serde_json::json!({ "enrollment": enrollment }))).into_response()
-        }
+        Ok(enrollment) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "enrollment": enrollment })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -463,7 +513,11 @@ async fn list_enrollments(
     };
     let status_filter = match q.status.as_deref().map(EnrollmentStatus::try_from) {
         Some(Err(e)) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
         Some(Ok(s)) => Some(s),
         None => None,
@@ -493,13 +547,21 @@ async fn record_event(
     let event_type = match crate::types::pm::CampaignEventType::try_from(req.event_type.as_str()) {
         Ok(t) => t,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
     let channel = match crate::types::pm::CampaignChannel::try_from(req.channel.as_str()) {
         Ok(c) => c,
         Err(e) => {
-            return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response()
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
         }
     };
     let payload = RecordEventPayload {
@@ -515,7 +577,11 @@ async fn record_event(
         conversion_entity_id: req.conversion_entity_id,
     };
     match CampaignService::record_event(&db, tenant_id, payload).await {
-        Ok(event) => (StatusCode::CREATED, Json(serde_json::json!({ "event": event }))).into_response(),
+        Ok(event) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "event": event })),
+        )
+            .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
@@ -557,15 +623,22 @@ async fn export_enrollments_csv(
     };
 
     let status_filter = match q.status.as_deref().map(EnrollmentStatus::try_from) {
-        Some(Err(e)) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response(),
+        Some(Err(e)) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response();
+        }
         Some(Ok(s)) => Some(s),
         None => None,
     };
 
-    let enrollments = match CampaignService::list_enrollments(&db, tenant_id, id, status_filter).await {
-        Ok(e) => e,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    };
+    let enrollments =
+        match CampaignService::list_enrollments(&db, tenant_id, id, status_filter).await {
+            Ok(e) => e,
+            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        };
 
     use std::collections::HashMap;
 
@@ -575,10 +648,14 @@ async fn export_enrollments_csv(
     for e in &enrollments {
         if let Some(meta) = &e.contact_metadata {
             if let Some(id_val) = meta.get("lead_id").and_then(|v| v.as_str()) {
-                if let Ok(uid) = id_val.parse::<Uuid>() { lead_ids_in_meta.push(uid); }
+                if let Ok(uid) = id_val.parse::<Uuid>() {
+                    lead_ids_in_meta.push(uid);
+                }
             }
             if let Some(id_val) = meta.get("contact_id").and_then(|v| v.as_str()) {
-                if let Ok(uid) = id_val.parse::<Uuid>() { contact_ids_in_meta.push(uid); }
+                if let Ok(uid) = id_val.parse::<Uuid>() {
+                    contact_ids_in_meta.push(uid);
+                }
             }
         }
     }
@@ -588,15 +665,20 @@ async fn export_enrollments_csv(
         crate::entities::atlas_lead::Entity::find()
             .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
             .filter(crate::entities::atlas_lead::Column::Id.is_in(lead_ids_in_meta))
-            .all(&db).await.unwrap_or_default()
+            .all(&db)
+            .await
+            .unwrap_or_default()
     } else {
         // Also load via email for backwards-compat with enrollments that predate metadata lead_id
         crate::entities::atlas_lead::Entity::find()
             .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
-            .all(&db).await.unwrap_or_default()
+            .all(&db)
+            .await
+            .unwrap_or_default()
     };
     let lead_by_id: HashMap<Uuid, _> = leads.iter().map(|l| (l.id, l)).collect();
-    let lead_by_email: HashMap<String, _> = leads.iter()
+    let lead_by_email: HashMap<String, _> = leads
+        .iter()
         .filter_map(|l| l.email.as_ref().map(|e| (e.to_lowercase(), l)))
         .collect();
 
@@ -605,7 +687,9 @@ async fn export_enrollments_csv(
         crate::entities::atlas_contact::Entity::find()
             .filter(crate::entities::atlas_contact::Column::TenantId.eq(tenant_id))
             .filter(crate::entities::atlas_contact::Column::Id.is_in(contact_ids_in_meta))
-            .all(&db).await.unwrap_or_default()
+            .all(&db)
+            .await
+            .unwrap_or_default()
     } else {
         vec![]
     };
@@ -615,7 +699,9 @@ async fn export_enrollments_csv(
     let accounts = if !account_ids.is_empty() {
         crate::entities::atlas_account::Entity::find()
             .filter(crate::entities::atlas_account::Column::Id.is_in(account_ids))
-            .all(&db).await.unwrap_or_default()
+            .all(&db)
+            .await
+            .unwrap_or_default()
     } else {
         vec![]
     };
@@ -624,7 +710,7 @@ async fn export_enrollments_csv(
 
     // ── Build CSV ────────────────────────────────────────────────────────────
     let mut csv = String::from(
-        "first_name,last_name,company,email,phone,street_address,city,state,postal_code,country\r\n"
+        "first_name,last_name,company,email,phone,street_address,city,state,postal_code,country\r\n",
     );
 
     fn esc(s: &str) -> String {
@@ -636,7 +722,9 @@ async fn export_enrollments_csv(
     }
 
     fn meta_str<'a>(meta: Option<&'a serde_json::Value>, key: &str) -> &'a str {
-        meta.and_then(|m| m.get(key)).and_then(|v| v.as_str()).unwrap_or("")
+        meta.and_then(|m| m.get(key))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
     }
 
     for enrollment in &enrollments {
@@ -646,16 +734,22 @@ async fn export_enrollments_csv(
         // Priority: contact_metadata.lead_id > contact_metadata.contact_id
         //           > email fallback into lead table > raw metadata
         let lead_id = meta
-            .and_then(|m| m.get("lead_id")).and_then(|v| v.as_str())
+            .and_then(|m| m.get("lead_id"))
+            .and_then(|v| v.as_str())
             .and_then(|s| s.parse::<Uuid>().ok());
         let contact_id = meta
-            .and_then(|m| m.get("contact_id")).and_then(|v| v.as_str())
+            .and_then(|m| m.get("contact_id"))
+            .and_then(|v| v.as_str())
             .and_then(|s| s.parse::<Uuid>().ok());
 
         let lead = lead_id
             .and_then(|lid| lead_by_id.get(&lid).copied())
-            .or_else(|| enrollment.contact_email.as_deref()
-                .and_then(|e| lead_by_email.get(&e.to_lowercase()).copied()));
+            .or_else(|| {
+                enrollment
+                    .contact_email
+                    .as_deref()
+                    .and_then(|e| lead_by_email.get(&e.to_lowercase()).copied())
+            });
 
         let (contact, account) = if let Some(cid) = contact_id {
             let c = contact_by_id.get(&cid).copied();
@@ -684,19 +778,22 @@ async fn export_enrollments_csv(
         };
 
         // ── company ──────────────────────────────────────────────────────
-        let company = lead.and_then(|l| l.company.as_deref())
+        let company = lead
+            .and_then(|l| l.company.as_deref())
             .or_else(|| account.map(|a| a.name.as_str()))
             .or_else(|| meta_str(meta, "company").into())
             .unwrap_or("");
 
         // ── email ────────────────────────────────────────────────────────
-        let email = lead.and_then(|l| l.email.as_deref())
+        let email = lead
+            .and_then(|l| l.email.as_deref())
             .or_else(|| contact.and_then(|c| c.email.as_deref()))
             .or(enrollment.contact_email.as_deref())
             .unwrap_or("");
 
         // ── phone ────────────────────────────────────────────────────────
-        let phone = lead.and_then(|l| l.phone.as_deref())
+        let phone = lead
+            .and_then(|l| l.phone.as_deref())
             .or_else(|| contact.and_then(|c| c.phone.as_deref()))
             .or_else(|| account.and_then(|a| a.company_phone.as_deref()))
             .or_else(|| meta_str(meta, "phone").into())
@@ -707,16 +804,30 @@ async fn export_enrollments_csv(
             let ma: Option<crate::types::shared::MailingAddress> =
                 lead.mailing_address_typed().ok().flatten();
             (
-                ma.as_ref().and_then(|a| a.street.as_deref())
-                    .or(lead.street_address.as_deref()).unwrap_or("").to_string(),
-                ma.as_ref().and_then(|a| a.city.as_deref())
-                    .or(lead.city.as_deref()).unwrap_or("").to_string(),
-                ma.as_ref().and_then(|a| a.state.as_deref())
-                    .or(lead.state.as_deref()).unwrap_or("").to_string(),
-                ma.as_ref().and_then(|a| a.postal_code.as_deref())
-                    .or(lead.postal_code.as_deref()).unwrap_or("").to_string(),
-                ma.as_ref().and_then(|a| a.country.as_deref())
-                    .unwrap_or(&lead.country).to_string(),
+                ma.as_ref()
+                    .and_then(|a| a.street.as_deref())
+                    .or(lead.street_address.as_deref())
+                    .unwrap_or("")
+                    .to_string(),
+                ma.as_ref()
+                    .and_then(|a| a.city.as_deref())
+                    .or(lead.city.as_deref())
+                    .unwrap_or("")
+                    .to_string(),
+                ma.as_ref()
+                    .and_then(|a| a.state.as_deref())
+                    .or(lead.state.as_deref())
+                    .unwrap_or("")
+                    .to_string(),
+                ma.as_ref()
+                    .and_then(|a| a.postal_code.as_deref())
+                    .or(lead.postal_code.as_deref())
+                    .unwrap_or("")
+                    .to_string(),
+                ma.as_ref()
+                    .and_then(|a| a.country.as_deref())
+                    .unwrap_or(&lead.country)
+                    .to_string(),
             )
         } else if let Some(acct) = account {
             // Contact → account address
@@ -734,14 +845,26 @@ async fn export_enrollments_csv(
                 meta_str(meta, "city").to_string(),
                 meta_str(meta, "state").to_string(),
                 meta_str(meta, "zip").to_string(),
-                { let c = meta_str(meta, "country"); if c.is_empty() { "US" } else { c } }.to_string(),
+                {
+                    let c = meta_str(meta, "country");
+                    if c.is_empty() { "US" } else { c }
+                }
+                .to_string(),
             )
         };
 
         csv.push_str(&format!(
             "{},{},{},{},{},{},{},{},{},{}\r\n",
-            esc(first_name), esc(last_name), esc(company), esc(email),
-            esc(phone), esc(&street), esc(&city), esc(&state), esc(&zip), esc(&country)
+            esc(first_name),
+            esc(last_name),
+            esc(company),
+            esc(email),
+            esc(phone),
+            esc(&street),
+            esc(&city),
+            esc(&state),
+            esc(&zip),
+            esc(&country)
         ));
     }
 
@@ -749,7 +872,10 @@ async fn export_enrollments_csv(
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/csv; charset=utf-8")
-        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{filename}\""))
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{filename}\""),
+        )
         .body(Body::from(csv))
         .unwrap()
 }
@@ -794,10 +920,16 @@ async fn enroll_leads_bulk(
             campaign_id,
             contact_user_id: None,
             contact_email: lead.email.clone(),
-            contact_name: Some(format!("{} {}",
-                lead.first_name.as_deref().unwrap_or(""),
-                lead.last_name.as_deref().unwrap_or(""),
-            ).trim().to_string()).filter(|s| !s.is_empty()),
+            contact_name: Some(
+                format!(
+                    "{} {}",
+                    lead.first_name.as_deref().unwrap_or(""),
+                    lead.last_name.as_deref().unwrap_or(""),
+                )
+                .trim()
+                .to_string(),
+            )
+            .filter(|s| !s.is_empty()),
             contact_metadata: Some(serde_json::json!({
                 "lead_id": lead.id,
                 "company": lead.company,
@@ -817,11 +949,15 @@ async fn enroll_leads_bulk(
         }
     }
 
-    (StatusCode::OK, Json(serde_json::json!({
-        "enrolled": enrolled,
-        "requested": req.lead_ids.len(),
-        "errors": errors,
-    }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "enrolled": enrolled,
+            "requested": req.lead_ids.len(),
+            "errors": errors,
+        })),
+    )
+        .into_response()
 }
 
 // ── enroll_contacts_bulk ──────────────────────────────────────────────────────
@@ -863,7 +999,9 @@ async fn enroll_contacts_bulk(
     let accounts = if !account_ids.is_empty() {
         crate::entities::atlas_account::Entity::find()
             .filter(crate::entities::atlas_account::Column::Id.is_in(account_ids))
-            .all(&db).await.unwrap_or_default()
+            .all(&db)
+            .await
+            .unwrap_or_default()
     } else {
         vec![]
     };
@@ -876,13 +1014,12 @@ async fn enroll_contacts_bulk(
         let acct = account_by_id.get(&contact.account_id);
 
         // Resolve display name — prefer full_name, fall back to first + last
-        let contact_name = contact.full_name.clone()
-            .or_else(|| {
-                let f = contact.first_name.as_deref().unwrap_or("");
-                let l = contact.last_name.as_deref().unwrap_or("");
-                let full = format!("{} {}", f, l).trim().to_string();
-                if full.is_empty() { None } else { Some(full) }
-            });
+        let contact_name = contact.full_name.clone().or_else(|| {
+            let f = contact.first_name.as_deref().unwrap_or("");
+            let l = contact.last_name.as_deref().unwrap_or("");
+            let full = format!("{} {}", f, l).trim().to_string();
+            if full.is_empty() { None } else { Some(full) }
+        });
 
         let payload = EnrollContactPayload {
             campaign_id,
@@ -914,9 +1051,13 @@ async fn enroll_contacts_bulk(
         }
     }
 
-    (StatusCode::OK, Json(serde_json::json!({
-        "enrolled": enrolled,
-        "requested": req.contact_ids.len(),
-        "errors": errors,
-    }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "enrolled": enrolled,
+            "requested": req.contact_ids.len(),
+            "errors": errors,
+        })),
+    )
+        .into_response()
 }

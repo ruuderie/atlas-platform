@@ -112,7 +112,11 @@ impl MaintenanceService {
     ) -> Result<Uuid> {
         let id = Uuid::new_v4();
         let now = Utc::now();
-        let priority = if input.is_emergency { "emergency" } else { "routine" };
+        let priority = if input.is_emergency {
+            "emergency"
+        } else {
+            "routine"
+        };
         let preferred_trade = input.category.preferred_trade();
 
         let metadata = serde_json::json!({
@@ -241,9 +245,15 @@ impl MaintenanceService {
         // Merge findings into case_metadata
         let mut meta = case.case_metadata.clone().unwrap_or(serde_json::json!({}));
         if let Some(obj) = meta.as_object_mut() {
-            obj.insert("findings".to_string(), serde_json::Value::String(input.findings.clone()));
+            obj.insert(
+                "findings".to_string(),
+                serde_json::Value::String(input.findings.clone()),
+            );
             if let Some(c) = &input.condition_after {
-                obj.insert("condition_after".to_string(), serde_json::Value::String(c.clone()));
+                obj.insert(
+                    "condition_after".to_string(),
+                    serde_json::Value::String(c.clone()),
+                );
             }
         }
 
@@ -287,7 +297,9 @@ impl MaintenanceService {
                 input.case_id,
                 crate::services::pm::vault::PmDocumentType::InspectionReport,
                 r2_key,
-            ).await {
+            )
+            .await
+            {
                 // Log but don't fail the whole completion — the inspection is done
                 // even if an individual attachment registration fails.
                 tracing::warn!(case_id = %input.case_id, %r2_key,

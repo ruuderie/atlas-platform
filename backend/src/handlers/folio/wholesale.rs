@@ -25,11 +25,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -157,7 +157,10 @@ async fn create_lead(
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
     let motivation = SellerMotivation::try_from(input.seller_motivation.clone()).map_err(|_| {
-        tracing::warn!("create_lead: invalid seller_motivation '{}'", input.seller_motivation);
+        tracing::warn!(
+            "create_lead: invalid seller_motivation '{}'",
+            input.seller_motivation
+        );
         StatusCode::UNPROCESSABLE_ENTITY
     })?;
 
@@ -176,7 +179,10 @@ async fn create_lead(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok((StatusCode::CREATED, axum::response::Json(CreateWholesaleResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateWholesaleResponse { id }),
+    ))
 }
 
 /// POST /api/folio/wholesale/:id/advance

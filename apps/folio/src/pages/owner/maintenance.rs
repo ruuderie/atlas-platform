@@ -9,28 +9,28 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerMaintenanceSummary {
-    pub case_id:      Uuid,
-    pub asset_id:     Option<Uuid>,
-    pub subject:      String,
-    pub priority:     String,
-    pub status:       String,
-    pub created_at:   String,
+    pub case_id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub subject: String,
+    pub priority: String,
+    pub status: String,
+    pub created_at: String,
     pub completed_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerInspectionEntry {
-    pub case_id:      Uuid,
-    pub asset_id:     Option<Uuid>,
-    pub subject:      String,
-    pub status:       String,
+    pub case_id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub subject: String,
+    pub status: String,
     pub scheduled_at: Option<String>,
     pub completed_at: Option<String>,
 }
@@ -38,35 +38,50 @@ pub struct OwnerInspectionEntry {
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchOwnerMaintenanceCases, "/api")]
-pub async fn fetch_owner_maintenance_cases() -> Result<Vec<OwnerMaintenanceSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_owner_maintenance_cases(
+) -> Result<Vec<OwnerMaintenanceSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<OwnerMaintenanceSummary>>(
-        "/api/folio/owner/maintenance", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/maintenance",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchOwnerInspections, "/api")]
-pub async fn fetch_owner_inspections() -> Result<Vec<OwnerInspectionEntry>, server_fn::error::ServerFnError> {
+pub async fn fetch_owner_inspections(
+) -> Result<Vec<OwnerInspectionEntry>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<OwnerInspectionEntry>>(
-        "/api/folio/owner/inspections", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/inspections",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -75,27 +90,27 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 fn priority_color(p: &str) -> &'static str {
     match p.to_lowercase().as_str() {
         "urgent" | "emergency" => "#f87171",
-        "high"                 => "#fb923c",
-        "medium"               => "#fbbf24",
-        _                      => "#94a3b8",
+        "high" => "#fb923c",
+        "medium" => "#fbbf24",
+        _ => "#94a3b8",
     }
 }
 
 fn priority_icon(p: &str) -> &'static str {
     match p.to_lowercase().as_str() {
         "urgent" | "emergency" => "🔴",
-        "high"                 => "🟠",
-        "medium"               => "🟡",
-        _                      => "⚪",
+        "high" => "🟠",
+        "medium" => "🟡",
+        _ => "⚪",
     }
 }
 
 fn status_cls(s: &str) -> &'static str {
     match s.to_lowercase().as_str() {
-        "resolved" | "completed" | "closed"   => "owner-chip--green",
+        "resolved" | "completed" | "closed" => "owner-chip--green",
         "open" | "submitted" | "acknowledged" => "owner-chip--amber",
-        "escalated"                           => "owner-chip--red",
-        _                                     => "owner-chip--grey",
+        "escalated" => "owner-chip--red",
+        _ => "owner-chip--grey",
     }
 }
 
@@ -103,17 +118,11 @@ fn status_cls(s: &str) -> &'static str {
 
 #[component]
 pub fn OwnerMaintenanceApproval() -> impl IntoView {
-    let refresh    = RwSignal::new(0u32);
-    let tab        = RwSignal::new("maintenance"); // "maintenance" | "inspections"
+    let refresh = RwSignal::new(0u32);
+    let tab = RwSignal::new("maintenance"); // "maintenance" | "inspections"
 
-    let maint_res  = Resource::new(
-        move || refresh.get(),
-        |_| fetch_owner_maintenance_cases(),
-    );
-    let insp_res   = Resource::new(
-        move || refresh.get(),
-        |_| fetch_owner_inspections(),
-    );
+    let maint_res = Resource::new(move || refresh.get(), |_| fetch_owner_maintenance_cases());
+    let insp_res = Resource::new(move || refresh.get(), |_| fetch_owner_inspections());
 
     view! {
         <div class="main-area">

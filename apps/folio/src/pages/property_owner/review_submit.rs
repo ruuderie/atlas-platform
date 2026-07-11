@@ -35,12 +35,12 @@ enum ReviewStep {
 /// Public review submit page — no session required.
 #[component]
 pub fn ReviewSubmitPage() -> impl IntoView {
-    let params    = use_params_map();
+    let params = use_params_map();
     let invite_id = move || params.get().get("invite_id").unwrap_or_default();
 
-    let (step, set_step)           = signal(ReviewStep::EmailGate);
-    let (email, set_email)         = signal(String::new());
-    let (otp, set_otp)             = signal(String::new());
+    let (step, set_step) = signal(ReviewStep::EmailGate);
+    let (email, set_email) = signal(String::new());
+    let (otp, set_otp) = signal(String::new());
     let (testimonial, set_testimonial) = signal(String::new());
     let (otp_error, set_otp_error) = signal(Option::<String>::None);
 

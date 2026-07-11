@@ -17,16 +17,8 @@
 //! (existing).  If the table doesn't exist yet the INSERT will fail gracefully
 //! with 500 — it does NOT block other endpoints.
 
-use axum::{
-    Json, Router,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::post,
-};
-use sea_orm::{
-    ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement,
-};
+use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -37,8 +29,7 @@ use crate::services::notification_service::{
 // ── Route registration ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/service-requests", post(create_service_request))
+    Router::new().route("/api/folio/service-requests", post(create_service_request))
 }
 
 // ── Input / output types ──────────────────────────────────────────────────────
@@ -46,11 +37,11 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 #[derive(Debug, Deserialize)]
 pub struct CreateServiceRequestInput {
     /// The atlas_service_providers.id to send the request to.
-    pub vendor_id:   Uuid,
+    pub vendor_id: Uuid,
     /// Free-text description of the work needed.
     pub description: String,
     /// Optional: link to a specific asset (property) for context.
-    pub asset_id:    Option<Uuid>,
+    pub asset_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -81,7 +72,8 @@ pub async fn create_service_request(
     let request_id = Uuid::new_v4();
 
     // 1. Insert service request row.
-    let asset_val = body.asset_id
+    let asset_val = body
+        .asset_id
         .map(|id| format!("'{id}'::uuid"))
         .unwrap_or_else(|| "NULL".to_string());
 
@@ -91,15 +83,19 @@ pub async fn create_service_request(
         "INSERT INTO atlas_service_requests \
          (id, vendor_id, description, asset_id, status, created_at, updated_at) \
          VALUES ('{req}'::uuid, '{vendor}'::uuid, '{desc}', {asset}, 'pending', NOW(), NOW());",
-        req    = request_id,
+        req = request_id,
         vendor = body.vendor_id,
-        desc   = desc_escaped,
-        asset  = asset_val,
+        desc = desc_escaped,
+        asset = asset_val,
     );
 
-    if let Err(e) = db.execute(
-        Statement::from_string(DatabaseBackend::Postgres, insert_sql)
-    ).await {
+    if let Err(e) = db
+        .execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            insert_sql,
+        ))
+        .await
+    {
         tracing::error!(
             error = %e,
             vendor_id = %body.vendor_id,
@@ -124,23 +120,23 @@ pub async fn create_service_request(
     );
 
     if let Ok(Some(row)) = db.query_one(vendor_sql).await {
-        let vendor_user_id:   Option<Uuid> = row.try_get("", "user_id").ok();
+        let vendor_user_id: Option<Uuid> = row.try_get("", "user_id").ok();
         let vendor_tenant_id: Option<Uuid> = row.try_get("", "tenant_id").ok();
 
         if let (Some(v_user), Some(v_tenant)) = (vendor_user_id, vendor_tenant_id) {
             let dispatch = DispatchInput {
-                tenant_id:         v_tenant,
-                user_id:           v_user,
+                tenant_id: v_tenant,
+                user_id: v_user,
                 notification_type: "service_request_received".to_string(),
-                title:             "New service request".to_string(),
-                body:              format!(
+                title: "New service request".to_string(),
+                body: format!(
                     "You have a new service request: \"{}\"",
                     body.description.chars().take(80).collect::<String>()
                 ),
-                priority:          NotificationPriority::High,
-                entity_type:       Some("atlas_service_requests".to_string()),
-                entity_id:         Some(request_id),
-                metadata:          Some(serde_json::json!({
+                priority: NotificationPriority::High,
+                entity_type: Some("atlas_service_requests".to_string()),
+                entity_id: Some(request_id),
+                metadata: Some(serde_json::json!({
                     "request_id": request_id,
                     "asset_id":   body.asset_id,
                 })),

@@ -1,3 +1,20 @@
+pub mod aggregates; // G-33/PMC — Per-client aggregate metrics (single CTE SQL query)
+pub mod appliance; // G-10 lifecycle — Appliance tracking (ApplianceMetadata + lifecycle alerts)
+pub mod applications;
+pub mod asset;
+pub mod attribution; // Phase 6 — Multi-channel attribution touchpoints (G20)
+pub mod building_system; // G-10 lifecycle — Building system tracking (elevator, roof, HVAC, fire suppression)
+pub mod campaign; // Phase 6 — Multi-channel campaign management (G19)
+pub mod catalog; // Phase 6 — Product catalog, pricebook & availability (G26)
+pub mod commission; // Phase 6 — Commission plan application & splits (G25)
+pub mod condominio;
+pub mod event; // Phase 6 — Event management, ticketing & check-in (G21)
+pub mod fair_housing;
+pub mod household; // G-22 — Lease-scoped tenant declarations: vehicles + occupants (type-safe)
+pub mod lead; // Phase 6 — Lead lifecycle: qualify, convert, disqualify (G31)
+pub mod lease;
+pub mod ledger; // Phase 3 — PM ledger service (atlas_ledger_entries wrapper)
+pub mod maintenance;
 /// Folio — Property Management Service Layer
 ///
 /// All PM services are thin, domain-specific wrappers over the platform generics
@@ -31,38 +48,21 @@
 /// - `rails/`                — Per-rail implementations (stripe_connect, infinitepay,
 ///                             bitcoin_onchain, lightning, kelviq)
 /// - `ledger`                — PM ledger service: create/update `atlas_ledger_entries`
-pub mod market;          // Market configuration system — MUST be first
+pub mod market; // Market configuration system — MUST be first
+pub mod opportunity; // Phase 6 — Sales pipeline & deal management (G15)
+pub mod owner; // G-22 — Beneficial owner read-only portfolio visibility
+pub mod payment_rail; // Phase 3 — PaymentRailAdapter trait + adapter registry
 pub mod portfolio;
-pub mod asset;
-pub mod lease;
-pub mod maintenance;
-pub mod vendor;
-pub mod wholesale;
-pub mod condominio;
-pub mod fair_housing;
-pub mod applications;
+pub mod quote; // Phase 6 — Pre-purchase pricing proposals (G24)
+pub mod rails; // Phase 3 — per-rail adapter implementations
+pub mod record_relationship; // Phase 6 — Universal M:M junction table (G22)
+pub mod reporting; // Cross-table aggregation: tenant reports, landlord KPIs, vendor analytics
+pub mod reservation; // Phase 6 — STR Reservation lifecycle (G23 atlas_reservations)
+pub mod scorecard_provisioner;
 pub mod str_compliance;
+pub mod str_guest;
 pub mod tax;
 pub mod vault;
-pub mod scorecard_provisioner;
-pub mod payment_rail;    // Phase 3 — PaymentRailAdapter trait + adapter registry
-pub mod rails;           // Phase 3 — per-rail adapter implementations
-pub mod ledger;          // Phase 3 — PM ledger service (atlas_ledger_entries wrapper)
-pub mod reservation;     // Phase 6 — STR Reservation lifecycle (G23 atlas_reservations)
-pub mod catalog;         // Phase 6 — Product catalog, pricebook & availability (G26)
-pub mod campaign;        // Phase 6 — Multi-channel campaign management (G19)
-pub mod attribution;     // Phase 6 — Multi-channel attribution touchpoints (G20)
-pub mod event;           // Phase 6 — Event management, ticketing & check-in (G21)
-pub mod record_relationship; // Phase 6 — Universal M:M junction table (G22)
-pub mod quote;               // Phase 6 — Pre-purchase pricing proposals (G24)
-pub mod opportunity;         // Phase 6 — Sales pipeline & deal management (G15)
-pub mod commission;          // Phase 6 — Commission plan application & splits (G25)
-pub mod lead;                // Phase 6 — Lead lifecycle: qualify, convert, disqualify (G31)
-pub mod aggregates;          // G-33/PMC — Per-client aggregate metrics (single CTE SQL query)
-pub mod appliance;           // G-10 lifecycle — Appliance tracking (ApplianceMetadata + lifecycle alerts)
-pub mod building_system;     // G-10 lifecycle — Building system tracking (elevator, roof, HVAC, fire suppression)
-pub mod household;           // G-22 — Lease-scoped tenant declarations: vehicles + occupants (type-safe)
-pub mod violation;           // G-13 — Compliance violation lifecycle (typed category + cure status transitions)
-pub mod reporting;           // Cross-table aggregation: tenant reports, landlord KPIs, vendor analytics
-pub mod owner;               // G-22 — Beneficial owner read-only portfolio visibility
-pub mod str_guest;           // G-22 — STR guest registration, vehicle declarations, special requests
+pub mod vendor;
+pub mod violation; // G-13 — Compliance violation lifecycle (typed category + cure status transitions)
+pub mod wholesale; // G-22 — STR guest registration, vehicle declarations, special requests

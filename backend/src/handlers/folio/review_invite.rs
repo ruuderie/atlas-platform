@@ -36,40 +36,44 @@
 //!      -> 200 PublicVendorProfile  |  404
 //! ```
 
+use axum::extract::Query;
 use axum::{
     Router,
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
 };
-use sea_orm::{DatabaseBackend, DatabaseConnection, Statement, ConnectionTrait};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
+use serde::{Deserialize, Serialize};
 use std::env;
-use axum::extract::Query;
+use uuid::Uuid;
 
+use crate::services::notification_service::{
+    DispatchInput, NotificationPriority, NotificationService,
+};
 use crate::types::pm::InvitePurpose;
-use crate::services::notification_service::{NotificationService, DispatchInput, NotificationPriority};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
 /// Authenticated routes — vendor must be logged in.
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/review-invites", post(create_review_invite))
+    Router::new().route("/api/folio/review-invites", post(create_review_invite))
 }
 
 /// Public routes — no auth header required.
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/pub/review/{invite_id}",        get(get_review_context))
-        .route("/api/pub/review/{invite_id}/submit",  post(submit_review))
-        .route("/api/pub/vendors/{sp_id}",            get(get_public_vendor_profile))
+        .route("/api/pub/review/{invite_id}", get(get_review_context))
+        .route("/api/pub/review/{invite_id}/submit", post(submit_review))
+        .route("/api/pub/vendors/{sp_id}", get(get_public_vendor_profile))
         // Renter help — public vendor search + public service request
-        .route("/api/pub/vendors",                    get(search_vendors))
-        .route("/api/pub/service-requests",           post(create_public_service_request))
+        .route("/api/pub/vendors", get(search_vendors))
+        .route(
+            "/api/pub/service-requests",
+            post(create_public_service_request),
+        )
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -77,43 +81,43 @@ pub fn public_routes_raw() -> Router<DatabaseConnection> {
 #[derive(Debug, Deserialize)]
 pub struct CreateReviewInviteInput {
     /// Email address of the property owner being invited to review.
-    pub email:           String,
-    pub display_name:    Option<String>,
+    pub email: String,
+    pub display_name: Option<String>,
     /// The atlas_service_providers.id of the vendor creating the invite.
     /// In production this will be read from the auth session; accepted here
     /// for initial wiring before middleware is in place.
-    pub vendor_id:       Uuid,
+    pub vendor_id: Uuid,
     /// Optional personal message to include in the invite email.
-    pub invite_note:     Option<String>,
+    pub invite_note: Option<String>,
     /// Expiry in days. Default 14. Max 60.
-    pub expires_days:    Option<u32>,
+    pub expires_days: Option<u32>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct CreateReviewInviteResponse {
-    pub invite_id:  Uuid,
+    pub invite_id: Uuid,
     pub review_url: String,
 }
 
 /// G-27 scorecard dimension context returned for the review form.
 #[derive(Debug, Serialize)]
 pub struct ReviewDimension {
-    pub id:          Uuid,
-    pub label:       String,
-    pub scale_type:  String,  // "rating" | "boolean" | "absolute" | "poll_single" | "poll_multi"
-    pub scale_min:   Option<f64>,
-    pub scale_max:   Option<f64>,
-    pub unit_label:  Option<String>,
+    pub id: Uuid,
+    pub label: String,
+    pub scale_type: String, // "rating" | "boolean" | "absolute" | "poll_single" | "poll_multi"
+    pub scale_min: Option<f64>,
+    pub scale_max: Option<f64>,
+    pub unit_label: Option<String>,
     pub description: Option<String>,
 }
 
 /// Full context returned for the public review form.
 #[derive(Debug, Serialize)]
 pub struct ReviewContext {
-    pub invite_id:    Uuid,
-    pub vendor_name:  String,
+    pub invite_id: Uuid,
+    pub vendor_name: String,
     pub scorecard_id: Uuid,
-    pub dimensions:   Vec<ReviewDimension>,
+    pub dimensions: Vec<ReviewDimension>,
 }
 
 /// One dimension score submitted by the reviewer.
@@ -122,18 +126,18 @@ pub struct DimensionScore {
     pub dimension_id: Uuid,
     /// Numeric score (for rating/absolute/boolean dimensions).
     /// Boolean: 1.0 = yes, 0.0 = no.
-    pub score:        Option<f64>,
+    pub score: Option<f64>,
     /// Option ID for poll_single / poll_multi dimensions.
-    pub option_id:    Option<Uuid>,
+    pub option_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SubmitReviewInput {
     /// OTP-verified email of the reviewer.
     pub reviewer_email: String,
-    pub scores:         Vec<DimensionScore>,
+    pub scores: Vec<DimensionScore>,
     /// Free-text review body.
-    pub testimonial:    Option<String>,
+    pub testimonial: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -144,9 +148,9 @@ struct SubmitReviewResponse {
 /// Single published review entry.
 #[derive(Debug, Serialize)]
 pub struct PublishedReview {
-    pub session_id:    Uuid,
-    pub testimonial:   Option<String>,
-    pub published_at:  String,
+    pub session_id: Uuid,
+    pub testimonial: Option<String>,
+    pub published_at: String,
     pub reviewer_name: Option<String>,
 }
 
@@ -154,20 +158,20 @@ pub struct PublishedReview {
 #[derive(Debug, Serialize)]
 pub struct DimensionAggregate {
     pub dimension_label: String,
-    pub scale_type:      String,
-    pub avg_score:       Option<f64>,
+    pub scale_type: String,
+    pub avg_score: Option<f64>,
     pub total_responses: i64,
 }
 
 /// Public vendor profile response — shareable, unauthenticated.
 #[derive(Debug, Serialize)]
 pub struct PublicVendorProfile {
-    pub vendor_id:   Uuid,
+    pub vendor_id: Uuid,
     pub vendor_name: String,
-    pub trade_type:  Option<String>,
-    pub bio:         Option<String>,
-    pub aggregates:  Vec<DimensionAggregate>,
-    pub reviews:     Vec<PublishedReview>,
+    pub trade_type: Option<String>,
+    pub bio: Option<String>,
+    pub aggregates: Vec<DimensionAggregate>,
+    pub reviews: Vec<PublishedReview>,
     pub total_score: Option<f64>,
     pub review_count: i64,
 }
@@ -183,11 +187,11 @@ pub async fn create_review_invite(
     State(db): State<DatabaseConnection>,
     Json(body): Json<CreateReviewInviteInput>,
 ) -> impl IntoResponse {
-    let email_lower  = body.email.to_lowercase();
-    let invite_id    = Uuid::new_v4();
+    let email_lower = body.email.to_lowercase();
+    let invite_id = Uuid::new_v4();
     let expires_days = body.expires_days.unwrap_or(14).min(60) as i64;
-    let expires_at   = Utc::now() + chrono::Duration::days(expires_days);
-    let purpose      = InvitePurpose::ReviewRequest.to_string();
+    let expires_at = Utc::now() + chrono::Duration::days(expires_days);
+    let purpose = InvitePurpose::ReviewRequest.to_string();
 
     let insert_sql = format!(
         "INSERT INTO platform_invite \
@@ -198,28 +202,36 @@ pub async fn create_review_invite(
           'property_owner_lite', '{purpose}', '{vendor_id}'::uuid, \
           {note}, NOW(), '{expires_at}'::timestamptz) \
          ON CONFLICT DO NOTHING;",
-        id           = invite_id,
-        email        = email_lower.replace('\'', "''"),
-        display_name = body.display_name.as_deref()
+        id = invite_id,
+        email = email_lower.replace('\'', "''"),
+        display_name = body
+            .display_name
+            .as_deref()
             .map(|n| format!("'{}'", n.replace('\'', "''")))
             .unwrap_or_else(|| "NULL".to_string()),
-        purpose      = purpose,
-        vendor_id    = body.vendor_id,
-        note         = body.invite_note.as_deref()
+        purpose = purpose,
+        vendor_id = body.vendor_id,
+        note = body
+            .invite_note
+            .as_deref()
             .map(|n| format!("'{}'", n.replace('\'', "''")))
             .unwrap_or_else(|| "NULL".to_string()),
-        expires_at   = expires_at.format("%Y-%m-%dT%H:%M:%SZ"),
+        expires_at = expires_at.format("%Y-%m-%dT%H:%M:%SZ"),
     );
 
-    if let Err(e) = db.execute(
-        Statement::from_string(DatabaseBackend::Postgres, insert_sql)
-    ).await {
+    if let Err(e) = db
+        .execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            insert_sql,
+        ))
+        .await
+    {
         tracing::error!(error = %e, "create_review_invite: insert failed");
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    let frontend_url = env::var("FRONTEND_URL")
-        .unwrap_or_else(|_| "https://folio.uat.atlas.oply.co".to_string());
+    let frontend_url =
+        env::var("FRONTEND_URL").unwrap_or_else(|_| "https://folio.uat.atlas.oply.co".to_string());
     let review_url = format!("{}/review/{}", frontend_url, invite_id);
 
     tracing::info!(
@@ -229,10 +241,14 @@ pub async fn create_review_invite(
         email = %email_lower,
     );
 
-    (StatusCode::CREATED, axum::Json(CreateReviewInviteResponse {
-        invite_id,
-        review_url,
-    })).into_response()
+    (
+        StatusCode::CREATED,
+        axum::Json(CreateReviewInviteResponse {
+            invite_id,
+            review_url,
+        }),
+    )
+        .into_response()
 }
 
 // ── Public Handlers ───────────────────────────────────────────────────────────
@@ -261,9 +277,13 @@ pub async fn get_review_context(
     let invite_row = match db.query_one(invite_sql).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            return (StatusCode::NOT_FOUND, axum::Json(serde_json::json!({
-                "error": "Invite not found or has expired."
-            }))).into_response();
+            return (
+                StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({
+                    "error": "Invite not found or has expired."
+                })),
+            )
+                .into_response();
         }
         Err(e) => {
             tracing::error!(error = %e, "get_review_context: invite query failed");
@@ -271,7 +291,7 @@ pub async fn get_review_context(
         }
     };
 
-    let vendor_id:   Uuid   = invite_row.try_get("", "context_entity_id").unwrap();
+    let vendor_id: Uuid = invite_row.try_get("", "context_entity_id").unwrap();
     let vendor_name: String = invite_row.try_get("", "vendor_name").unwrap_or_default();
 
     // 2. Look up the vendor's G-27 scorecard (entity_type = 'atlas_service_provider')
@@ -289,9 +309,13 @@ pub async fn get_review_context(
     let scorecard_row = match db.query_one(scorecard_sql).await {
         Ok(Some(r)) => r,
         _ => {
-            return (StatusCode::NOT_FOUND, axum::Json(serde_json::json!({
-                "error": "No scorecard found for this vendor."
-            }))).into_response();
+            return (
+                StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({
+                    "error": "No scorecard found for this vendor."
+                })),
+            )
+                .into_response();
         }
     };
 
@@ -311,29 +335,36 @@ pub async fn get_review_context(
     );
 
     let dims = match db.query_all(dims_sql).await {
-        Ok(rows) => rows.into_iter().filter_map(|r| {
-            Some(ReviewDimension {
-                id:          r.try_get("", "id").ok()?,
-                label:       r.try_get("", "label").ok()?,
-                scale_type:  r.try_get("", "scale_type").ok()?,
-                scale_min:   r.try_get("", "scale_min").ok().unwrap_or(None),
-                scale_max:   r.try_get("", "scale_max").ok().unwrap_or(None),
-                unit_label:  r.try_get("", "unit_label").ok().unwrap_or(None),
-                description: r.try_get("", "description").ok().unwrap_or(None),
+        Ok(rows) => rows
+            .into_iter()
+            .filter_map(|r| {
+                Some(ReviewDimension {
+                    id: r.try_get("", "id").ok()?,
+                    label: r.try_get("", "label").ok()?,
+                    scale_type: r.try_get("", "scale_type").ok()?,
+                    scale_min: r.try_get("", "scale_min").ok().unwrap_or(None),
+                    scale_max: r.try_get("", "scale_max").ok().unwrap_or(None),
+                    unit_label: r.try_get("", "unit_label").ok().unwrap_or(None),
+                    description: r.try_get("", "description").ok().unwrap_or(None),
+                })
             })
-        }).collect(),
+            .collect(),
         Err(e) => {
             tracing::error!(error = %e, "get_review_context: dimensions query failed");
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
 
-    (StatusCode::OK, axum::Json(ReviewContext {
-        invite_id,
-        vendor_name,
-        scorecard_id,
-        dimensions: dims,
-    })).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(ReviewContext {
+            invite_id,
+            vendor_name,
+            scorecard_id,
+            dimensions: dims,
+        }),
+    )
+        .into_response()
 }
 
 /// POST /api/pub/review/:invite_id/submit
@@ -373,9 +404,13 @@ pub async fn submit_review(
     let ctx = match db.query_one(invite_sql).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            return (StatusCode::GONE, axum::Json(serde_json::json!({
-                "error": "This review link has expired or is invalid."
-            }))).into_response();
+            return (
+                StatusCode::GONE,
+                axum::Json(serde_json::json!({
+                    "error": "This review link has expired or is invalid."
+                })),
+            )
+                .into_response();
         }
         Err(e) => {
             tracing::error!(error = %e, "submit_review: context query failed");
@@ -385,7 +420,7 @@ pub async fn submit_review(
 
     let scorecard_id: Uuid = ctx.try_get("", "scorecard_id").unwrap();
     // Vendor identity — needed for G35 notification dispatch.
-    let vendor_user_id: Option<Uuid>   = ctx.try_get("", "vendor_user_id").ok();
+    let vendor_user_id: Option<Uuid> = ctx.try_get("", "vendor_user_id").ok();
     let vendor_tenant_id: Option<Uuid> = ctx.try_get("", "vendor_tenant_id").ok();
 
     // 2. Resolve rater user_id (or create a stub)
@@ -406,14 +441,20 @@ pub async fn submit_review(
         [scorecard_id.into(), rater_id.into()],
     );
     if let Ok(Some(_)) = db.query_one(dup_sql).await {
-        return (StatusCode::CONFLICT, axum::Json(serde_json::json!({
-            "error": "You have already submitted a review for this vendor."
-        }))).into_response();
+        return (
+            StatusCode::CONFLICT,
+            axum::Json(serde_json::json!({
+                "error": "You have already submitted a review for this vendor."
+            })),
+        )
+            .into_response();
     }
 
     // 4. Insert atlas_rating_sessions row (testimonial set; published_at = NULL → held for moderation)
     let session_id = Uuid::new_v4();
-    let testimonial_sql_val = body.testimonial.as_deref()
+    let testimonial_sql_val = body
+        .testimonial
+        .as_deref()
         .map(|t| format!("'{}'", t.replace('\'', "''")))
         .unwrap_or_else(|| "NULL".to_string());
 
@@ -422,25 +463,31 @@ pub async fn submit_review(
          (id, scorecard_id, rater_id, status, testimonial, is_flagged, published_at, created_at, updated_at) \
          VALUES ('{sid}'::uuid, '{sc}'::uuid, '{rater}'::uuid, 'submitted', \
                  {testimonial}, false, NULL, NOW(), NOW());",
-        sid        = session_id,
-        sc         = scorecard_id,
-        rater      = rater_id,
+        sid = session_id,
+        sc = scorecard_id,
+        rater = rater_id,
         testimonial = testimonial_sql_val,
     );
 
-    if let Err(e) = db.execute(
-        Statement::from_string(DatabaseBackend::Postgres, session_sql)
-    ).await {
+    if let Err(e) = db
+        .execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            session_sql,
+        ))
+        .await
+    {
         tracing::error!(error = %e, "submit_review: session insert failed");
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
     // 5. Insert one atlas_scorecard_entries row per dimension score
     for score in &body.scores {
-        let score_val = score.score
+        let score_val = score
+            .score
             .map(|s| format!("{}", s))
             .unwrap_or_else(|| "NULL".to_string());
-        let option_id_val = score.option_id
+        let option_id_val = score
+            .option_id
             .map(|o| format!("'{}'::uuid", o))
             .unwrap_or_else(|| "NULL".to_string());
 
@@ -448,14 +495,15 @@ pub async fn submit_review(
             "INSERT INTO atlas_scorecard_entries \
              (id, session_id, dimension_id, score, option_id, created_at) \
              VALUES (gen_random_uuid(), '{sid}'::uuid, '{dim}'::uuid, {score}, {opt}, NOW());",
-            sid   = session_id,
-            dim   = score.dimension_id,
+            sid = session_id,
+            dim = score.dimension_id,
             score = score_val,
-            opt   = option_id_val,
+            opt = option_id_val,
         );
-        if let Err(e) = db.execute(
-            Statement::from_string(DatabaseBackend::Postgres, entry_sql)
-        ).await {
+        if let Err(e) = db
+            .execute(Statement::from_string(DatabaseBackend::Postgres, entry_sql))
+            .await
+        {
             tracing::error!(error = %e, dimension_id = %score.dimension_id, "submit_review: entry insert failed");
             // Continue — partial score is better than total failure
         }
@@ -473,16 +521,17 @@ pub async fn submit_review(
     // Best-effort: errors are logged, never block the 201 response.
     if let (Some(v_user), Some(v_tenant)) = (vendor_user_id, vendor_tenant_id) {
         let dispatch = DispatchInput {
-            tenant_id:         v_tenant,
-            user_id:           v_user,
+            tenant_id: v_tenant,
+            user_id: v_user,
             notification_type: "review_received".to_string(),
-            title:             "New review submitted".to_string(),
-            body:              "A property owner submitted a review. \
-                               It will appear on your profile after moderation.".to_string(),
-            priority:          NotificationPriority::Normal,
-            entity_type:       Some("atlas_rating_sessions".to_string()),
-            entity_id:         Some(session_id),
-            metadata:          Some(serde_json::json!({
+            title: "New review submitted".to_string(),
+            body: "A property owner submitted a review. \
+                               It will appear on your profile after moderation."
+                .to_string(),
+            priority: NotificationPriority::Normal,
+            entity_type: Some("atlas_rating_sessions".to_string()),
+            entity_id: Some(session_id),
+            metadata: Some(serde_json::json!({
                 "invite_id": invite_id,
                 "moderation_held": true
             })),
@@ -493,14 +542,15 @@ pub async fn submit_review(
         }
 
         // G-36: complete review_submitted outcomes for the vendor actor's NetworkInvite actions.
-        if let Err(e) = crate::services::program_service::ProgramService::complete_outcomes_for_actor_user(
-            &db,
-            v_user,
-            crate::types::pm::ProgramOutcomeType::ReviewSubmitted,
-            Some("atlas_rating_sessions"),
-            Some(session_id),
-        )
-        .await
+        if let Err(e) =
+            crate::services::program_service::ProgramService::complete_outcomes_for_actor_user(
+                &db,
+                v_user,
+                crate::types::pm::ProgramOutcomeType::ReviewSubmitted,
+                Some("atlas_rating_sessions"),
+                Some(session_id),
+            )
+            .await
         {
             tracing::warn!(
                 error = %e,
@@ -510,7 +560,11 @@ pub async fn submit_review(
         }
     }
 
-    (StatusCode::CREATED, axum::Json(SubmitReviewResponse { session_id })).into_response()
+    (
+        StatusCode::CREATED,
+        axum::Json(SubmitReviewResponse { session_id }),
+    )
+        .into_response()
 }
 
 /// GET /api/pub/vendors/:sp_id
@@ -536,15 +590,19 @@ pub async fn get_public_vendor_profile(
     let vendor = match db.query_one(vendor_sql).await {
         Ok(Some(r)) => r,
         _ => {
-            return (StatusCode::NOT_FOUND, axum::Json(serde_json::json!({
-                "error": "Vendor not found."
-            }))).into_response();
+            return (
+                StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({
+                    "error": "Vendor not found."
+                })),
+            )
+                .into_response();
         }
     };
 
     let vendor_name: String = vendor.try_get("", "business_name").unwrap_or_default();
     let trade_type: Option<String> = vendor.try_get("", "trade_type").ok().unwrap_or(None);
-    let bio: Option<String>        = vendor.try_get("", "bio").ok().unwrap_or(None);
+    let bio: Option<String> = vendor.try_get("", "bio").ok().unwrap_or(None);
 
     // 2. Fetch G-27 dimension aggregates
     let agg_sql = Statement::from_sql_and_values(
@@ -560,14 +618,16 @@ pub async fn get_public_vendor_profile(
         [sp_id.into()],
     );
 
-    let aggregates: Vec<DimensionAggregate> = db.query_all(agg_sql).await
+    let aggregates: Vec<DimensionAggregate> = db
+        .query_all(agg_sql)
+        .await
         .unwrap_or_default()
         .into_iter()
         .filter_map(|r| {
             Some(DimensionAggregate {
                 dimension_label: r.try_get("", "dimension_label").ok()?,
-                scale_type:      r.try_get("", "scale_type").ok()?,
-                avg_score:       r.try_get("", "avg_score").ok().unwrap_or(None),
+                scale_type: r.try_get("", "scale_type").ok()?,
+                avg_score: r.try_get("", "avg_score").ok().unwrap_or(None),
                 total_responses: r.try_get("", "total_responses").unwrap_or(0),
             })
         })
@@ -590,7 +650,9 @@ pub async fn get_public_vendor_profile(
         [sp_id.into()],
     );
 
-    let reviews: Vec<PublishedReview> = db.query_all(reviews_sql).await
+    let reviews: Vec<PublishedReview> = db
+        .query_all(reviews_sql)
+        .await
         .unwrap_or_default()
         .into_iter()
         .filter_map(|r| {
@@ -598,8 +660,8 @@ pub async fn get_public_vendor_profile(
             let published_at: chrono::DateTime<Utc> = r.try_get("", "published_at").ok()?;
             Some(PublishedReview {
                 session_id,
-                testimonial:   r.try_get("", "testimonial").ok().unwrap_or(None),
-                published_at:  published_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+                testimonial: r.try_get("", "testimonial").ok().unwrap_or(None),
+                published_at: published_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                 reviewer_name: r.try_get("", "reviewer_name").ok().unwrap_or(None),
             })
         })
@@ -607,25 +669,37 @@ pub async fn get_public_vendor_profile(
 
     // 4. Compute overall average from aggregates (weighted by total_responses)
     let total_score: Option<f64> = {
-        let (sum, count): (f64, f64) = aggregates.iter()
+        let (sum, count): (f64, f64) = aggregates
+            .iter()
             .filter(|a| a.scale_type == "rating" || a.scale_type == "absolute")
-            .filter_map(|a| a.avg_score.map(|s| (s * a.total_responses as f64, a.total_responses as f64)))
+            .filter_map(|a| {
+                a.avg_score
+                    .map(|s| (s * a.total_responses as f64, a.total_responses as f64))
+            })
             .fold((0.0, 0.0), |(s, c), (sv, cv)| (s + sv, c + cv));
-        if count > 0.0 { Some((sum / count * 10.0).round() / 10.0) } else { None }
+        if count > 0.0 {
+            Some((sum / count * 10.0).round() / 10.0)
+        } else {
+            None
+        }
     };
 
     let review_count = reviews.len() as i64;
 
-    (StatusCode::OK, axum::Json(PublicVendorProfile {
-        vendor_id: sp_id,
-        vendor_name,
-        trade_type,
-        bio,
-        aggregates,
-        reviews,
-        total_score,
-        review_count,
-    })).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(PublicVendorProfile {
+            vendor_id: sp_id,
+            vendor_name,
+            trade_type,
+            bio,
+            aggregates,
+            reviews,
+            total_score,
+            review_count,
+        }),
+    )
+        .into_response()
 }
 
 // ── Public vendor search ──────────────────────────────────────────────────────
@@ -643,26 +717,26 @@ pub async fn get_public_vendor_profile(
 #[derive(Debug, Deserialize)]
 pub struct VendorSearchParams {
     pub trade: Option<String>,
-    pub zip:   Option<String>,
-    pub q:     Option<String>,
+    pub zip: Option<String>,
+    pub q: Option<String>,
     pub limit: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct VendorSearchItem {
-    pub id:           Uuid,
+    pub id: Uuid,
     pub business_name: String,
-    pub trade_type:   Option<String>,
-    pub avg_score:    Option<f64>,
+    pub trade_type: Option<String>,
+    pub avg_score: Option<f64>,
     pub review_count: i64,
-    pub bio:          Option<String>,
-    pub verified:     bool,
+    pub bio: Option<String>,
+    pub verified: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct VendorSearchResponse {
     pub vendors: Vec<VendorSearchItem>,
-    pub total:   usize,
+    pub total: usize,
 }
 
 pub async fn search_vendors(
@@ -685,9 +759,7 @@ pub async fn search_vendors(
     }
 
     if let Some(ref q) = params.q {
-        conditions.push(format!(
-            "LOWER(asp.business_name) LIKE ${bind_idx}"
-        ));
+        conditions.push(format!("LOWER(asp.business_name) LIKE ${bind_idx}"));
         bind_values.push(format!("%{}%", q.to_lowercase()).into());
         bind_idx += 1;
     }
@@ -737,24 +809,32 @@ pub async fn search_vendors(
         }
     };
 
-    let vendors: Vec<VendorSearchItem> = rows.into_iter().filter_map(|r| {
-        let id: Uuid   = r.try_get("", "id").ok()?;
-        let name: String = r.try_get("", "business_name").ok()?;
-        Some(VendorSearchItem {
-            id,
-            business_name: name,
-            trade_type:   r.try_get("", "trade_type").ok().flatten(),
-            avg_score:    r.try_get("", "avg_score").ok().flatten(),
-            review_count: r.try_get("", "review_count").unwrap_or(0),
-            bio:          r.try_get("", "bio").ok().flatten(),
-            verified:     r.try_get::<String>("", "verified")
-                           .map(|v| v == "true")
-                           .unwrap_or(false),
+    let vendors: Vec<VendorSearchItem> = rows
+        .into_iter()
+        .filter_map(|r| {
+            let id: Uuid = r.try_get("", "id").ok()?;
+            let name: String = r.try_get("", "business_name").ok()?;
+            Some(VendorSearchItem {
+                id,
+                business_name: name,
+                trade_type: r.try_get("", "trade_type").ok().flatten(),
+                avg_score: r.try_get("", "avg_score").ok().flatten(),
+                review_count: r.try_get("", "review_count").unwrap_or(0),
+                bio: r.try_get("", "bio").ok().flatten(),
+                verified: r
+                    .try_get::<String>("", "verified")
+                    .map(|v| v == "true")
+                    .unwrap_or(false),
+            })
         })
-    }).collect();
+        .collect();
 
     let total = vendors.len();
-    (StatusCode::OK, axum::Json(VendorSearchResponse { vendors, total })).into_response()
+    (
+        StatusCode::OK,
+        axum::Json(VendorSearchResponse { vendors, total }),
+    )
+        .into_response()
 }
 
 // ── Public service request (zero-auth) ───────────────────────────────────────
@@ -768,17 +848,17 @@ pub async fn search_vendors(
 /// Rate-limit: upstream nginx / tower middleware should enforce per-IP limits.
 #[derive(Debug, Deserialize)]
 pub struct PublicServiceRequestInput {
-    pub vendor_id:    Uuid,
-    pub description:  String,
-    pub urgency:      Option<String>,   // "not_urgent" | "this_week" | "emergency"
-    pub address:      Option<String>,
-    pub renter_name:  Option<String>,
+    pub vendor_id: Uuid,
+    pub description: String,
+    pub urgency: Option<String>, // "not_urgent" | "this_week" | "emergency"
+    pub address: Option<String>,
+    pub renter_name: Option<String>,
     pub renter_email: Option<String>,
     pub renter_phone: Option<String>,
     /// Optional: UTM / referral source so we know how the renter found us
-    pub utm_source:   Option<String>,
+    pub utm_source: Option<String>,
     /// Optional: pre-fill from /help?vendor_id=X links
-    pub asset_id:     Option<Uuid>,
+    pub asset_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -794,16 +874,20 @@ pub async fn create_public_service_request(
         return (
             StatusCode::UNPROCESSABLE_ENTITY,
             axum::Json(serde_json::json!({"error": "Description is required."})),
-        ).into_response();
+        )
+            .into_response();
     }
 
     let request_id = Uuid::new_v4();
-    let urgency    = body.urgency.as_deref().unwrap_or("not_urgent");
-    let desc_esc   = body.description.replace('\'', "''");
-    let addr_val   = body.address.as_deref()
+    let urgency = body.urgency.as_deref().unwrap_or("not_urgent");
+    let desc_esc = body.description.replace('\'', "''");
+    let addr_val = body
+        .address
+        .as_deref()
         .map(|a| format!("'{}'", a.replace('\'', "''")))
         .unwrap_or_else(|| "NULL".to_string());
-    let asset_val  = body.asset_id
+    let asset_val = body
+        .asset_id
         .map(|id| format!("'{id}'::uuid"))
         .unwrap_or_else(|| "NULL".to_string());
 
@@ -821,18 +905,22 @@ pub async fn create_public_service_request(
          (id, vendor_id, description, urgency, address, asset_id, request_metadata, status, created_at, updated_at) \
          VALUES ('{req}'::uuid, '{vendor}'::uuid, '{desc}', '{urgency}', {addr}, {asset}, \
                  '{meta}'::jsonb, 'pending', NOW(), NOW());",
-        req    = request_id,
+        req = request_id,
         vendor = body.vendor_id,
-        desc   = desc_esc,
+        desc = desc_esc,
         urgency = urgency,
-        addr   = addr_val,
-        asset  = asset_val,
-        meta   = meta.to_string().replace('\'', "''"),
+        addr = addr_val,
+        asset = asset_val,
+        meta = meta.to_string().replace('\'', "''"),
     );
 
-    if let Err(e) = db.execute(
-        Statement::from_string(DatabaseBackend::Postgres, insert_sql)
-    ).await {
+    if let Err(e) = db
+        .execute(Statement::from_string(
+            DatabaseBackend::Postgres,
+            insert_sql,
+        ))
+        .await
+    {
         tracing::error!(error = %e, vendor_id = %body.vendor_id, "create_public_service_request: insert failed");
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
@@ -852,27 +940,25 @@ pub async fn create_public_service_request(
     );
 
     if let Ok(Some(row)) = db.query_one(vendor_sql).await {
-        let v_user:   Option<Uuid> = row.try_get("", "user_id").ok();
+        let v_user: Option<Uuid> = row.try_get("", "user_id").ok();
         let v_tenant: Option<Uuid> = row.try_get("", "tenant_id").ok();
-        let biz_name: String       = row.try_get("", "business_name").unwrap_or_default();
+        let biz_name: String = row.try_get("", "business_name").unwrap_or_default();
 
         if let (Some(v_user), Some(v_tenant)) = (v_user, v_tenant) {
-            let renter_label = body.renter_name
-                .as_deref()
-                .unwrap_or("A renter");
+            let renter_label = body.renter_name.as_deref().unwrap_or("A renter");
             let dispatch = DispatchInput {
-                tenant_id:         v_tenant,
-                user_id:           v_user,
+                tenant_id: v_tenant,
+                user_id: v_user,
                 notification_type: "service_request_received".to_string(),
-                title:             format!("New request from {renter_label}"),
-                body:              format!(
+                title: format!("New request from {renter_label}"),
+                body: format!(
                     "{renter_label} needs help: \"{}\"",
                     body.description.chars().take(80).collect::<String>()
                 ),
-                priority:          NotificationPriority::High,
-                entity_type:       Some("atlas_service_requests".to_string()),
-                entity_id:         Some(request_id),
-                metadata:          Some(serde_json::json!({
+                priority: NotificationPriority::High,
+                entity_type: Some("atlas_service_requests".to_string()),
+                entity_id: Some(request_id),
+                metadata: Some(serde_json::json!({
                     "request_id":   request_id,
                     "renter_email": body.renter_email,
                     "renter_phone": body.renter_phone,
@@ -888,5 +974,9 @@ pub async fn create_public_service_request(
         }
     }
 
-    (StatusCode::CREATED, axum::Json(PublicServiceRequestResponse { request_id })).into_response()
+    (
+        StatusCode::CREATED,
+        axum::Json(PublicServiceRequestResponse { request_id }),
+    )
+        .into_response()
 }

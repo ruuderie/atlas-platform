@@ -1,6 +1,6 @@
 use leptos::prelude::*;
-use leptos_router::hooks::use_query_map;
 use leptos_router::components::Redirect;
+use leptos_router::hooks::use_query_map;
 
 /// Handles ?token=... magic-link callbacks.
 ///
@@ -11,7 +11,13 @@ use leptos_router::components::Redirect;
 #[component]
 pub fn Verify() -> impl IntoView {
     let query = use_query_map();
-    let token = move || query.read().get("token").map(|s| s.clone()).unwrap_or_default();
+    let token = move || {
+        query
+            .read()
+            .get("token")
+            .map(|s| s.clone())
+            .unwrap_or_default()
+    };
     let result: Resource<Result<crate::auth::SessionInfo, _>> =
         Resource::new(token, |t| crate::auth::verify_magic_link(t));
 

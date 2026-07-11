@@ -51,12 +51,12 @@ use uuid::Uuid;
 /// Aggregate metrics for one client account in the PMC dashboard.
 #[derive(Debug, Clone, Serialize)]
 pub struct ClientMetrics {
-    pub account_id:          Uuid,
-    pub property_count:      i64,
-    pub unit_count:          i64,
-    pub active_lease_count:  i64,
+    pub account_id: Uuid,
+    pub property_count: i64,
+    pub unit_count: i64,
+    pub active_lease_count: i64,
     /// Ratio of active leases to total units. 0.0 if no units.
-    pub occupancy_pct:       f64,
+    pub occupancy_pct: f64,
 }
 
 /// Fetch aggregate metrics for ALL client accounts in the given tenant.

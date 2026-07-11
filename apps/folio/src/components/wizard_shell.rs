@@ -36,27 +36,27 @@ use serde::{Deserialize, Serialize};
 /// Intentionally contains NO PII — safe to display to unauthenticated users.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ResolvedInviteCode {
-    pub code:            String,
-    pub role:            String,
-    pub label:           Option<String>,
-    pub invite_message:  Option<String>,
-    pub context:         InviteCodeContext,
-    pub expires_at:      Option<String>,
-    pub uses_remaining:  Option<i32>,
-    pub is_valid:        bool,
+    pub code: String,
+    pub role: String,
+    pub label: Option<String>,
+    pub invite_message: Option<String>,
+    pub context: InviteCodeContext,
+    pub expires_at: Option<String>,
+    pub uses_remaining: Option<i32>,
+    pub is_valid: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct InviteCodeContext {
-    pub asset:       Option<ContextEntity>,
-    pub landlord:    Option<ContextEntity>,
-    pub broker:      Option<ContextEntity>,
+    pub asset: Option<ContextEntity>,
+    pub landlord: Option<ContextEntity>,
+    pub broker: Option<ContextEntity>,
     pub asset_count: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ContextEntity {
-    pub name:    String,
+    pub name: String,
     pub address: Option<String>,
 }
 
@@ -71,12 +71,13 @@ pub async fn resolve_invite_code(
     if code.trim().is_empty() {
         return Ok(None);
     }
-    crate::atlas_client::fetch::<ResolvedInviteCode>(
-        &format!("/api/folio/invite/resolve/{}", code.trim()),
-    )
+    crate::atlas_client::fetch::<ResolvedInviteCode>(&format!(
+        "/api/folio/invite/resolve/{}",
+        code.trim()
+    ))
     .await
     .map(Some)
-    .or_else(|_| Ok(None))   // 404/410 → treat as no code
+    .or_else(|_| Ok(None)) // 404/410 → treat as no code
 }
 
 // ── Step descriptor ───────────────────────────────────────────────────────────
@@ -84,9 +85,9 @@ pub async fn resolve_invite_code(
 /// A single step in a wizard flow.
 #[derive(Clone, PartialEq)]
 pub struct WizardStepDesc {
-    pub id:         &'static str,
-    pub label:      &'static str,
-    pub skippable:  bool,
+    pub id: &'static str,
+    pub label: &'static str,
+    pub skippable: bool,
 }
 
 // ── WizardShell component ─────────────────────────────────────────────────────
@@ -110,23 +111,24 @@ pub struct WizardStepDesc {
 ///   after OTP auth. Wizards can read this to pre-fill / skip their email field.
 #[component]
 pub fn WizardShell(
-    steps:         Vec<WizardStepDesc>,
-    current_idx:   RwSignal<usize>,
-    persona_pill:  &'static str,
-    persona_icon:  &'static str,
-    accent_color:  &'static str,
-    panel_bg:      &'static str,
-    ctx_headline:  &'static str,
+    steps: Vec<WizardStepDesc>,
+    current_idx: RwSignal<usize>,
+    persona_pill: &'static str,
+    persona_icon: &'static str,
+    accent_color: &'static str,
+    panel_bg: &'static str,
+    ctx_headline: &'static str,
     #[prop(into)] ctx_body: ViewFn,
     #[prop(optional)] invite_code: Option<RwSignal<Option<ResolvedInviteCode>>>,
     /// Set this signal to receive the verified email from the OTP pre-step.
     /// If the user was already authenticated, it is populated from the session.
-    #[prop(optional)] session_email: Option<RwSignal<Option<String>>>,
-    on_next:       Callback<()>,
-    on_prev:       Callback<()>,
-    is_last_step:  Signal<bool>,
-    next_label:    Signal<&'static str>,
-    children:      ChildrenFn,
+    #[prop(optional)]
+    session_email: Option<RwSignal<Option<String>>>,
+    on_next: Callback<()>,
+    on_prev: Callback<()>,
+    is_last_step: Signal<bool>,
+    next_label: Signal<&'static str>,
+    children: ChildrenFn,
 ) -> impl IntoView {
     let total = steps.len();
     let steps_store = StoredValue::new(steps);
@@ -139,12 +141,12 @@ pub fn WizardShell(
     let pre_auth_done: RwSignal<bool> = RwSignal::new(false);
 
     // Local OTP flow state
-    let otp_email:     RwSignal<String> = RwSignal::new(String::new());
-    let otp_code:      RwSignal<String> = RwSignal::new(String::new());
-    let otp_sent:      RwSignal<bool>   = RwSignal::new(false);
-    let otp_sending:   RwSignal<bool>   = RwSignal::new(false);
-    let otp_verifying: RwSignal<bool>   = RwSignal::new(false);
-    let otp_error:     RwSignal<Option<String>> = RwSignal::new(None);
+    let otp_email: RwSignal<String> = RwSignal::new(String::new());
+    let otp_code: RwSignal<String> = RwSignal::new(String::new());
+    let otp_sent: RwSignal<bool> = RwSignal::new(false);
+    let otp_sending: RwSignal<bool> = RwSignal::new(false);
+    let otp_verifying: RwSignal<bool> = RwSignal::new(false);
+    let otp_error: RwSignal<Option<String>> = RwSignal::new(None);
 
     // On mount: check if user already has a session
     let session_email_sig = session_email;
@@ -154,7 +156,9 @@ pub fn WizardShell(
             match crate::auth::get_session().await {
                 Ok(info) => {
                     // Already authenticated — skip pre-auth, populate email
-                    if let Some(sig) = se { sig.set(Some(info.email)); }
+                    if let Some(sig) = se {
+                        sig.set(Some(info.email));
+                    }
                     pre_auth_done.set(true);
                 }
                 Err(_) => {
@@ -167,15 +171,15 @@ pub fn WizardShell(
     // Send OTP action
     let send_action = Action::new(move |email: &String| {
         let email = email.clone();
-        async move {
-            crate::pages::onboarding::otp_client::send_otp(email).await
-        }
+        async move { crate::pages::onboarding::otp_client::send_otp(email).await }
     });
 
     let send_email_clone = otp_email;
     let on_send = move |_| {
         let email = send_email_clone.get();
-        if email.trim().is_empty() { return; }
+        if email.trim().is_empty() {
+            return;
+        }
         otp_error.set(None);
         otp_sending.set(true);
         send_action.dispatch(email);
@@ -185,8 +189,12 @@ pub fn WizardShell(
         if let Some(result) = send_action.value().get() {
             otp_sending.set(false);
             match result {
-                Ok(_)  => { otp_sent.set(true); }
-                Err(e) => { otp_error.set(Some(format!("Could not send code: {e}"))); }
+                Ok(_) => {
+                    otp_sent.set(true);
+                }
+                Err(e) => {
+                    otp_error.set(Some(format!("Could not send code: {e}")));
+                }
             }
         }
     });
@@ -194,18 +202,18 @@ pub fn WizardShell(
     // Verify OTP action
     let verify_action = Action::new(move |(email, code): &(String, String)| {
         let email = email.clone();
-        let code  = code.clone();
-        async move {
-            crate::pages::onboarding::otp_client::verify_otp(email, code).await
-        }
+        let code = code.clone();
+        async move { crate::pages::onboarding::otp_client::verify_otp(email, code).await }
     });
 
     let verify_email_clone = otp_email;
-    let verify_code_clone  = otp_code;
+    let verify_code_clone = otp_code;
     let on_verify = move |_| {
         let email = verify_email_clone.get();
-        let code  = verify_code_clone.get();
-        if code.trim().is_empty() { return; }
+        let code = verify_code_clone.get();
+        if code.trim().is_empty() {
+            return;
+        }
         otp_error.set(None);
         otp_verifying.set(true);
         verify_action.dispatch((email, code));
@@ -216,7 +224,9 @@ pub fn WizardShell(
             otp_verifying.set(false);
             match result {
                 Ok(resp) => {
-                    if let Some(sig) = session_email_sig { sig.set(Some(resp.email)); }
+                    if let Some(sig) = session_email_sig {
+                        sig.set(Some(resp.email));
+                    }
                     pre_auth_done.set(true);
                 }
                 Err(e) => {

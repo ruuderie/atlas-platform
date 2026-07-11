@@ -4,15 +4,12 @@
 //! USVI Hotel Room Tax: 12.5%.
 //! No island-level STR ordinance configured yet — Phase 5.
 
+use crate::services::pm::market::market_config::{
+    AntiDiscriminationLaw, CreditBureau, MarketConfig, TaxEngine, TenancyLaw,
+};
+use crate::types::pm::{Currency, GuaranteeType, Jurisdiction, StatuteRef, TaxRate};
 use rust_decimal::Decimal;
 use std::str::FromStr;
-use crate::types::pm::{
-    Jurisdiction, Currency, TaxRate, StatuteRef,
-    GuaranteeType,
-};
-use crate::services::pm::market::market_config::{
-    MarketConfig, TenancyLaw, AntiDiscriminationLaw, TaxEngine, CreditBureau,
-};
 // FairHousingAct and TransUnionBureau are stateless zero-size types —
 // imported directly from miami.rs with no duplication.
 use crate::services::pm::market::miami::{FairHousingAct, TransUnionBureau};
@@ -31,8 +28,12 @@ impl TaxEngine for UsviHotelRoomTax {
         })
     }
 
-    fn rental_withholding_rate(&self) -> Option<TaxRate> { None }
-    fn remittance_currency(&self) -> Currency { Currency::Usd }
+    fn rental_withholding_rate(&self) -> Option<TaxRate> {
+        None
+    }
+    fn remittance_currency(&self) -> Currency {
+        Currency::Usd
+    }
 }
 
 // ── Tenancy Law: USVI Code Title 28 ──────────────────────────────────────────
@@ -53,10 +54,18 @@ impl TenancyLaw for UsviTenancyLaw {
 
     // No override of classify_expense — inherits None (no condomínio system in USVI).
 
-    fn max_deposit_months(&self) -> Option<u8> { Some(2) } // V.I. Code tit. 28 § 311
-    fn landlord_termination_notice_days(&self) -> u32 { 30 }
-    fn tenant_vacate_notice_days(&self) -> u32 { 30 }
-    fn allowed_guarantee_types(&self) -> &'static [GuaranteeType] { USVI_GUARANTEES }
+    fn max_deposit_months(&self) -> Option<u8> {
+        Some(2)
+    } // V.I. Code tit. 28 § 311
+    fn landlord_termination_notice_days(&self) -> u32 {
+        30
+    }
+    fn tenant_vacate_notice_days(&self) -> u32 {
+        30
+    }
+    fn allowed_guarantee_types(&self) -> &'static [GuaranteeType] {
+        USVI_GUARANTEES
+    }
 }
 
 // ── Root: UsViMarket ──────────────────────────────────────────────────────────
@@ -64,11 +73,19 @@ impl TenancyLaw for UsviTenancyLaw {
 pub struct UsViMarket;
 
 impl MarketConfig for UsViMarket {
-    fn jurisdiction(&self) -> Jurisdiction { Jurisdiction::Vi }
-    fn default_currency(&self) -> Currency { Currency::Usd }
-    fn display_name(&self) -> &'static str { "US Virgin Islands" }
+    fn jurisdiction(&self) -> Jurisdiction {
+        Jurisdiction::Vi
+    }
+    fn default_currency(&self) -> Currency {
+        Currency::Usd
+    }
+    fn display_name(&self) -> &'static str {
+        "US Virgin Islands"
+    }
 
-    fn tenancy_law(&self) -> Option<&dyn TenancyLaw> { Some(&UsviTenancyLaw) }
+    fn tenancy_law(&self) -> Option<&dyn TenancyLaw> {
+        Some(&UsviTenancyLaw)
+    }
 
     // FHA applies in USVI — reuse Miami's implementation directly.
     fn anti_discrimination_law(&self) -> Option<&dyn AntiDiscriminationLaw> {
@@ -76,8 +93,16 @@ impl MarketConfig for UsViMarket {
     }
 
     // No island-level STR ordinance — Phase 5.
-    fn str_regulation(&self) -> Option<&dyn crate::services::pm::market::market_config::StrRegulation> { None }
+    fn str_regulation(
+        &self,
+    ) -> Option<&dyn crate::services::pm::market::market_config::StrRegulation> {
+        None
+    }
 
-    fn tax_engine(&self) -> &dyn TaxEngine { &UsviHotelRoomTax }
-    fn credit_bureau(&self) -> &dyn CreditBureau { &TransUnionBureau }
+    fn tax_engine(&self) -> &dyn TaxEngine {
+        &UsviHotelRoomTax
+    }
+    fn credit_bureau(&self) -> &dyn CreditBureau {
+        &TransUnionBureau
+    }
 }

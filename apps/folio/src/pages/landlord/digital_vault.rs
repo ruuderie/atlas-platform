@@ -8,49 +8,56 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentSummary {
-    pub id:                      Uuid,
-    pub document_category:       String,
-    pub related_entity_type:     Option<String>,
-    pub related_entity_id:       Option<Uuid>,
+    pub id: Uuid,
+    pub document_category: String,
+    pub related_entity_type: Option<String>,
+    pub related_entity_id: Option<Uuid>,
     pub is_counterparty_visible: bool,
-    pub requires_signature:      bool,
-    pub is_signed:               bool,
-    pub version_number:          i32,
-    pub created_at:              String,
+    pub requires_signature: bool,
+    pub is_signed: bool,
+    pub version_number: i32,
+    pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(LLFetchVaultDocs, "/api")]
-pub async fn ll_fetch_vault_docs(entity_type: Option<String>) -> Result<Vec<DocumentSummary>, server_fn::error::ServerFnError> {
+pub async fn ll_fetch_vault_docs(
+    entity_type: Option<String>,
+) -> Result<Vec<DocumentSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let url = match entity_type {
         Some(et) => format!("/api/folio/vault/documents?entity_type={et}"),
-        None     => "/api/folio/vault/documents".to_string(),
+        None => "/api/folio/vault/documents".to_string(),
     };
-    crate::atlas_client::authenticated_get::<Vec<DocumentSummary>>(
-        &url, &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+    crate::atlas_client::authenticated_get::<Vec<DocumentSummary>>(&url, &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -59,24 +66,25 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 fn doc_icon(cat: &str) -> &'static str {
     match cat.to_lowercase().as_str() {
         c if c.contains("lease") || c.contains("agreement") => "📋",
-        c if c.contains("permit")                            => "📜",
-        c if c.contains("insurance")                         => "🛡",
-        c if c.contains("inspection")                        => "🔍",
-        c if c.contains("certificate")                       => "🏆",
-        c if c.contains("tax")                               => "💼",
-        c if c.contains("notice")                            => "📣",
-        c if c.contains("id")                                => "🪪",
-        _                                                    => "📄",
+        c if c.contains("permit") => "📜",
+        c if c.contains("insurance") => "🛡",
+        c if c.contains("inspection") => "🔍",
+        c if c.contains("certificate") => "🏆",
+        c if c.contains("tax") => "💼",
+        c if c.contains("notice") => "📣",
+        c if c.contains("id") => "🪪",
+        _ => "📄",
     }
 }
 
 fn doc_label(category: &str) -> String {
-    category.replace('_', " ")
+    category
+        .replace('_', " ")
         .split_whitespace()
         .map(|w| {
             let mut c = w.chars();
             match c.next() {
-                None    => String::new(),
+                None => String::new(),
                 Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
             }
         })
@@ -88,14 +96,11 @@ fn doc_label(category: &str) -> String {
 
 #[component]
 pub fn LandlordDigitalVault() -> impl IntoView {
-    let refresh      = RwSignal::new(0u32);
-    let cat_filter   = RwSignal::new("all".to_string());
+    let refresh = RwSignal::new(0u32);
+    let cat_filter = RwSignal::new("all".to_string());
     let selected_doc = RwSignal::new(None::<DocumentSummary>);
 
-    let docs_res = Resource::new(
-        move || refresh.get(),
-        |_| ll_fetch_vault_docs(None),
-    );
+    let docs_res = Resource::new(move || refresh.get(), |_| ll_fetch_vault_docs(None));
 
     view! {
         <div class="main-area">

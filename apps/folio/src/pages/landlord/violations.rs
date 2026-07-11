@@ -16,17 +16,17 @@ use serde::{Deserialize, Serialize};
 /// Mirrors ViolationRecord from the violation service.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ViolationRecord {
-    pub id:               uuid::Uuid,
-    pub asset_id:         Option<uuid::Uuid>,
-    pub contract_id:      Option<uuid::Uuid>,
-    pub reservation_id:   Option<uuid::Uuid>,
-    pub category:         String,
-    pub subject:          String,
-    pub description:      Option<String>,
-    pub cure_status:      String,
-    pub cure_deadline:    Option<chrono::NaiveDate>,
-    pub filed_at:         chrono::DateTime<chrono::Utc>,
-    pub resolved_at:      Option<chrono::DateTime<chrono::Utc>>,
+    pub id: uuid::Uuid,
+    pub asset_id: Option<uuid::Uuid>,
+    pub contract_id: Option<uuid::Uuid>,
+    pub reservation_id: Option<uuid::Uuid>,
+    pub category: String,
+    pub subject: String,
+    pub description: Option<String>,
+    pub cure_status: String,
+    pub cure_deadline: Option<chrono::NaiveDate>,
+    pub filed_at: chrono::DateTime<chrono::Utc>,
+    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
     pub resolution_notes: Option<String>,
 }
 
@@ -45,41 +45,41 @@ pub enum CureStatus {
 impl CureStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "open"      => Self::Open,
-            "cured"     => Self::Cured,
+            "open" => Self::Open,
+            "cured" => Self::Cured,
             "escalated" => Self::Escalated,
             "dismissed" => Self::Dismissed,
-            _           => Self::Unknown,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Open      => "Open",
-            Self::Cured     => "Cured",
+            Self::Open => "Open",
+            Self::Cured => "Cured",
             Self::Escalated => "Escalated",
             Self::Dismissed => "Dismissed",
-            Self::Unknown   => "Unknown",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Open      => "vs--open",
-            Self::Cured     => "vs--cured",
+            Self::Open => "vs--open",
+            Self::Cured => "vs--cured",
             Self::Escalated => "vs--escalated",
             Self::Dismissed => "vs--dismissed",
-            Self::Unknown   => "vs--unknown",
+            Self::Unknown => "vs--unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Open      => "radio_button_unchecked",
-            Self::Cured     => "check_circle",
+            Self::Open => "radio_button_unchecked",
+            Self::Cured => "check_circle",
             Self::Escalated => "warning",
             Self::Dismissed => "cancel",
-            Self::Unknown   => "help",
+            Self::Unknown => "help",
         }
     }
 }
@@ -113,61 +113,61 @@ pub enum ViolCategory {
 impl ViolCategory {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "noise"                 => Self::Noise,
+            "noise" => Self::Noise,
             "unauthorized_occupant" => Self::UnauthorizedOccupant,
-            "unauthorized_pet"      => Self::UnauthorizedPet,
-            "unauthorized_vehicle"  => Self::UnauthorizedVehicle,
-            "property_damage"       => Self::PropertyDamage,
-            "lease_breach"          => Self::LeaseBreach,
-            "subletting"            => Self::Subletting,
-            "failure_to_maintain"   => Self::FailureToMaintain,
-            "illegal_activity"      => Self::IllegalActivity,
-            "hoarding"              => Self::Hoarding,
-            "smoking_in_unit"       => Self::SmokingInUnit,
-            "unauthorized_party"    => Self::UnauthorizedParty,
-            "over_occupancy"        => Self::OverOccupancy,
-            "other"                 => Self::Other,
-            _                       => Self::Unknown,
+            "unauthorized_pet" => Self::UnauthorizedPet,
+            "unauthorized_vehicle" => Self::UnauthorizedVehicle,
+            "property_damage" => Self::PropertyDamage,
+            "lease_breach" => Self::LeaseBreach,
+            "subletting" => Self::Subletting,
+            "failure_to_maintain" => Self::FailureToMaintain,
+            "illegal_activity" => Self::IllegalActivity,
+            "hoarding" => Self::Hoarding,
+            "smoking_in_unit" => Self::SmokingInUnit,
+            "unauthorized_party" => Self::UnauthorizedParty,
+            "over_occupancy" => Self::OverOccupancy,
+            "other" => Self::Other,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Noise                => "Noise",
+            Self::Noise => "Noise",
             Self::UnauthorizedOccupant => "Unauth. Occupant",
-            Self::UnauthorizedPet      => "Unauth. Pet",
-            Self::UnauthorizedVehicle  => "Unauth. Vehicle",
-            Self::PropertyDamage       => "Property Damage",
-            Self::LeaseBreach          => "Lease Breach",
-            Self::Subletting           => "Subletting",
-            Self::FailureToMaintain    => "Failure to Maintain",
-            Self::IllegalActivity      => "Illegal Activity",
-            Self::Hoarding             => "Hoarding",
-            Self::SmokingInUnit        => "Smoking",
-            Self::UnauthorizedParty    => "Unauth. Party (STR)",
-            Self::OverOccupancy        => "Over-Occupancy (STR)",
-            Self::Other                => "Other",
-            Self::Unknown              => "Unknown",
+            Self::UnauthorizedPet => "Unauth. Pet",
+            Self::UnauthorizedVehicle => "Unauth. Vehicle",
+            Self::PropertyDamage => "Property Damage",
+            Self::LeaseBreach => "Lease Breach",
+            Self::Subletting => "Subletting",
+            Self::FailureToMaintain => "Failure to Maintain",
+            Self::IllegalActivity => "Illegal Activity",
+            Self::Hoarding => "Hoarding",
+            Self::SmokingInUnit => "Smoking",
+            Self::UnauthorizedParty => "Unauth. Party (STR)",
+            Self::OverOccupancy => "Over-Occupancy (STR)",
+            Self::Other => "Other",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Noise                => "volume_up",
+            Self::Noise => "volume_up",
             Self::UnauthorizedOccupant => "person_off",
-            Self::UnauthorizedPet      => "pets",
-            Self::UnauthorizedVehicle  => "directions_car",
-            Self::PropertyDamage       => "construction",
-            Self::LeaseBreach          => "description",
-            Self::Subletting           => "swap_horiz",
-            Self::FailureToMaintain    => "cleaning_services",
-            Self::IllegalActivity      => "gavel",
-            Self::Hoarding             => "inventory_2",
-            Self::SmokingInUnit        => "smoking_rooms",
-            Self::UnauthorizedParty    => "celebration",
-            Self::OverOccupancy        => "group",
-            Self::Other                => "more_horiz",
-            Self::Unknown              => "help",
+            Self::UnauthorizedPet => "pets",
+            Self::UnauthorizedVehicle => "directions_car",
+            Self::PropertyDamage => "construction",
+            Self::LeaseBreach => "description",
+            Self::Subletting => "swap_horiz",
+            Self::FailureToMaintain => "cleaning_services",
+            Self::IllegalActivity => "gavel",
+            Self::Hoarding => "inventory_2",
+            Self::SmokingInUnit => "smoking_rooms",
+            Self::UnauthorizedParty => "celebration",
+            Self::OverOccupancy => "group",
+            Self::Other => "more_horiz",
+            Self::Unknown => "help",
         }
     }
 }
@@ -184,19 +184,19 @@ pub enum StatusFilter {
 impl StatusFilter {
     pub const fn label(self) -> &'static str {
         match self {
-            Self::All       => "All",
-            Self::Open      => "Open",
+            Self::All => "All",
+            Self::Open => "Open",
             Self::Escalated => "Escalated",
-            Self::Resolved  => "Resolved",
+            Self::Resolved => "Resolved",
         }
     }
 
     pub fn matches(self, s: CureStatus) -> bool {
         match self {
-            Self::All       => true,
-            Self::Open      => s == CureStatus::Open,
+            Self::All => true,
+            Self::Open => s == CureStatus::Open,
             Self::Escalated => s == CureStatus::Escalated,
-            Self::Resolved  => matches!(s, CureStatus::Cured | CureStatus::Dismissed),
+            Self::Resolved => matches!(s, CureStatus::Cured | CureStatus::Dismissed),
         }
     }
 }
@@ -209,10 +209,7 @@ pub fn Violations() -> impl IntoView {
     let (status_filter, set_status) = signal(StatusFilter::All);
     let (search_query, set_search) = signal(String::new());
 
-    let violations = Resource::new(
-        || (),
-        |_| async move { list_violations().await },
-    );
+    let violations = Resource::new(|| (), |_| async move { list_violations().await });
 
     view! {
         <div class="viol-page">
@@ -439,8 +436,7 @@ fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
 
 /// GET /api/folio/violations
 #[server(ListViolations, "/api")]
-pub async fn list_violations(
-) -> Result<Vec<ViolationRecord>, server_fn::error::ServerFnError> {
+pub async fn list_violations() -> Result<Vec<ViolationRecord>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();

@@ -20,8 +20,8 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
-use uuid::Uuid;
 use std::str::FromStr;
+use uuid::Uuid;
 
 // ── Step enum ────────────────────────────────────────────────────────────────
 
@@ -41,15 +41,15 @@ enum HelpStep {
 
 #[derive(Clone, Debug, PartialEq)]
 struct VendorItem {
-    id:            String,
+    id: String,
     business_name: String,
-    trade_type:    Option<String>,
-    avg_score:     Option<f64>,
-    review_count:  i64,
-    bio:           Option<String>,
-    verified:      bool,
-    initials:      String,
-    color:         &'static str,
+    trade_type: Option<String>,
+    avg_score: Option<f64>,
+    review_count: i64,
+    bio: Option<String>,
+    verified: bool,
+    initials: String,
+    color: &'static str,
 }
 
 static AVATAR_COLORS: &[&str] = &[
@@ -60,10 +60,24 @@ fn make_initials(name: &str) -> String {
     let words: Vec<&str> = name.split_whitespace().collect();
     match words.len() {
         0 => "?".to_string(),
-        1 => words[0].chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(),
+        1 => words[0]
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string())
+            .unwrap_or_default(),
         _ => {
-            let a = words[0].chars().next().unwrap_or('?').to_uppercase().to_string();
-            let b = words[1].chars().next().unwrap_or('?').to_uppercase().to_string();
+            let a = words[0]
+                .chars()
+                .next()
+                .unwrap_or('?')
+                .to_uppercase()
+                .to_string();
+            let b = words[1]
+                .chars()
+                .next()
+                .unwrap_or('?')
+                .to_uppercase()
+                .to_string();
             format!("{a}{b}")
         }
     }
@@ -77,22 +91,70 @@ fn pick_color(idx: usize) -> &'static str {
 
 #[derive(Clone, Debug, PartialEq)]
 struct TradeCategory {
-    id:    &'static str,
+    id: &'static str,
     label: &'static str,
-    icon:  &'static str,
+    icon: &'static str,
     color: &'static str,
-    bg:    &'static str,
+    bg: &'static str,
 }
 
 static CATEGORIES: &[TradeCategory] = &[
-    TradeCategory { id: "electrical",    label: "Electrical",    icon: "bolt",              color: "#d97706", bg: "#fef3c7" },
-    TradeCategory { id: "plumbing",      label: "Plumbing",      icon: "water_drop",        color: "#2563eb", bg: "#dbeafe" },
-    TradeCategory { id: "hvac",          label: "HVAC",          icon: "ac_unit",           color: "#db2777", bg: "#fce7f3" },
-    TradeCategory { id: "roofing",       label: "Roofing",       icon: "roofing",           color: "#059669", bg: "#d1fae5" },
-    TradeCategory { id: "pest_control",  label: "Pest Control",  icon: "pest_control",      color: "#7c3aed", bg: "#ede9fe" },
-    TradeCategory { id: "general",       label: "General",       icon: "handyman",          color: "#ea580c", bg: "#ffedd5" },
-    TradeCategory { id: "landscaping",   label: "Landscaping",   icon: "yard",              color: "#16a34a", bg: "#f0fdf4" },
-    TradeCategory { id: "cleaning",      label: "Cleaning",      icon: "cleaning_services", color: "#475569", bg: "#f1f5f9" },
+    TradeCategory {
+        id: "electrical",
+        label: "Electrical",
+        icon: "bolt",
+        color: "#d97706",
+        bg: "#fef3c7",
+    },
+    TradeCategory {
+        id: "plumbing",
+        label: "Plumbing",
+        icon: "water_drop",
+        color: "#2563eb",
+        bg: "#dbeafe",
+    },
+    TradeCategory {
+        id: "hvac",
+        label: "HVAC",
+        icon: "ac_unit",
+        color: "#db2777",
+        bg: "#fce7f3",
+    },
+    TradeCategory {
+        id: "roofing",
+        label: "Roofing",
+        icon: "roofing",
+        color: "#059669",
+        bg: "#d1fae5",
+    },
+    TradeCategory {
+        id: "pest_control",
+        label: "Pest Control",
+        icon: "pest_control",
+        color: "#7c3aed",
+        bg: "#ede9fe",
+    },
+    TradeCategory {
+        id: "general",
+        label: "General",
+        icon: "handyman",
+        color: "#ea580c",
+        bg: "#ffedd5",
+    },
+    TradeCategory {
+        id: "landscaping",
+        label: "Landscaping",
+        icon: "yard",
+        color: "#16a34a",
+        bg: "#f0fdf4",
+    },
+    TradeCategory {
+        id: "cleaning",
+        label: "Cleaning",
+        icon: "cleaning_services",
+        color: "#475569",
+        bg: "#f1f5f9",
+    },
 ];
 
 // ── Page component ───────────────────────────────────────────────────────────
@@ -106,10 +168,14 @@ pub fn RenterHelpPage() -> impl IntoView {
     let initial_step = {
         let q = query.get();
         let has_vendor = q.get("vendor_id").is_some();
-        let has_trade  = q.get("trade").is_some();
-        if has_vendor       { HelpStep::Form }
-        else if has_trade   { HelpStep::Vendors }
-        else                { HelpStep::Hero }
+        let has_trade = q.get("trade").is_some();
+        if has_vendor {
+            HelpStep::Form
+        } else if has_trade {
+            HelpStep::Vendors
+        } else {
+            HelpStep::Hero
+        }
     };
     let pre_vendor_id = {
         let q = query.get();
@@ -126,26 +192,55 @@ pub fn RenterHelpPage() -> impl IntoView {
     };
     let utm = RwSignal::new(utm_source);
 
-    let (step, set_step)               = signal(initial_step);
-    let (selected_trade, set_trade)    = signal(pre_trade.unwrap_or_else(|| "electrical".to_string()));
-    let (selected_vendor, set_vendor)  = signal(Option::<VendorItem>::None);
-    let (urgency, set_urgency)         = signal("this_week".to_string());
+    let (step, set_step) = signal(initial_step);
+    let (selected_trade, set_trade) = signal(pre_trade.unwrap_or_else(|| "electrical".to_string()));
+    let (selected_vendor, set_vendor) = signal(Option::<VendorItem>::None);
+    let (urgency, set_urgency) = signal("this_week".to_string());
     let (description, set_description) = signal(String::new());
-    let (address, set_address)         = signal(String::new());
+    let (address, set_address) = signal(String::new());
     let (renter_name, set_renter_name) = signal(String::new());
-    let (renter_email, set_email)      = signal(String::new());
-    let (renter_phone, set_phone)      = signal(String::new());
+    let (renter_email, set_email) = signal(String::new());
+    let (renter_phone, set_phone) = signal(String::new());
     let (landlord_email, set_ll_email) = signal(String::new());
     let (invite_sent, set_invite_sent) = signal(false);
-    let (request_id, set_request_id)   = signal(Option::<String>::None);
+    let (request_id, set_request_id) = signal(Option::<String>::None);
     // Stub vendor data — in production this comes from /api/pub/vendors
     let stub_vendors: Vec<VendorItem> = vec![
-        VendorItem { id: "aaaaaaaa-0000-0000-0000-000000000001".to_string(), business_name: "Rivera & West Electric".to_string(), trade_type: Some("electrical".to_string()), avg_score: Some(4.9), review_count: 127, bio: Some("Licensed since 2014. Residential & commercial.".to_string()), verified: true, initials: "RW".to_string(), color: "#0d1421" },
-        VendorItem { id: "aaaaaaaa-0000-0000-0000-000000000002".to_string(), business_name: "Metro Power Solutions".to_string(), trade_type: Some("electrical".to_string()), avg_score: Some(4.6), review_count: 84, bio: None, verified: true, initials: "MP".to_string(), color: "#0284c7" },
-        VendorItem { id: "aaaaaaaa-0000-0000-0000-000000000003".to_string(), business_name: "Circuit Works LLC".to_string(), trade_type: Some("electrical".to_string()), avg_score: Some(4.4), review_count: 39, bio: Some("Panel upgrades & EV charging specialists.".to_string()), verified: false, initials: "CW".to_string(), color: "#7c3aed" },
+        VendorItem {
+            id: "aaaaaaaa-0000-0000-0000-000000000001".to_string(),
+            business_name: "Rivera & West Electric".to_string(),
+            trade_type: Some("electrical".to_string()),
+            avg_score: Some(4.9),
+            review_count: 127,
+            bio: Some("Licensed since 2014. Residential & commercial.".to_string()),
+            verified: true,
+            initials: "RW".to_string(),
+            color: "#0d1421",
+        },
+        VendorItem {
+            id: "aaaaaaaa-0000-0000-0000-000000000002".to_string(),
+            business_name: "Metro Power Solutions".to_string(),
+            trade_type: Some("electrical".to_string()),
+            avg_score: Some(4.6),
+            review_count: 84,
+            bio: None,
+            verified: true,
+            initials: "MP".to_string(),
+            color: "#0284c7",
+        },
+        VendorItem {
+            id: "aaaaaaaa-0000-0000-0000-000000000003".to_string(),
+            business_name: "Circuit Works LLC".to_string(),
+            trade_type: Some("electrical".to_string()),
+            avg_score: Some(4.4),
+            review_count: 39,
+            bio: Some("Panel upgrades & EV charging specialists.".to_string()),
+            verified: false,
+            initials: "CW".to_string(),
+            color: "#7c3aed",
+        },
     ];
     let (vendors, _set_vendors) = signal(stub_vendors);
-
 
     view! {
         // SEO meta

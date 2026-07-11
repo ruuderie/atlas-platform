@@ -13,10 +13,10 @@
 
 use anyhow::Result;
 use sea_orm::DatabaseConnection;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::types::pm::{PmContractType, GuaranteeType, Currency};
+use crate::types::pm::{Currency, GuaranteeType, PmContractType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateLeaseInput {
@@ -42,8 +42,8 @@ impl LeaseService {
         tenant_id: Uuid,
         input: CreateLeaseInput,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         let id = Uuid::new_v4();
         let now = Utc::now();

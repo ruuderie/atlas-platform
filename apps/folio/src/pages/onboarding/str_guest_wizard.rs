@@ -8,47 +8,73 @@
 //   3. Guest Profile
 //   4. House Rules & Check-In
 
-use leptos::prelude::*;
 use crate::components::wizard_shell::{
-    ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code,
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
+use leptos::prelude::*;
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "stay",     label: "Select Your Stay",          skippable: false },
-    WizardStepDesc { id: "account",  label: "Create Account",            skippable: false },
-    WizardStepDesc { id: "profile",  label: "Guest Profile",             skippable: false },
-    WizardStepDesc { id: "rules",    label: "House Rules & Check-In",    skippable: false },
+    WizardStepDesc {
+        id: "stay",
+        label: "Select Your Stay",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "account",
+        label: "Create Account",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "profile",
+        label: "Guest Profile",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "rules",
+        label: "House Rules & Check-In",
+        skippable: false,
+    },
 ];
 
 #[component]
 pub fn StrGuestWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
     let code_resource = Resource::new(code_key, |code| resolve_invite_code(code));
-    Effect::new(move |_| { if let Some(Ok(r)) = code_resource.get() { invite_sig.set(r); } });
+    Effect::new(move |_| {
+        if let Some(Ok(r)) = code_resource.get() {
+            invite_sig.set(r);
+        }
+    });
 
     let current_idx = RwSignal::new(0usize);
-    let total       = STEPS.len();
-    let is_last     = Signal::derive(move || current_idx.get() == total - 1);
-    let next_label  = Signal::derive(move || if is_last.get() { "Confirm Booking" } else { "Continue" });
+    let total = STEPS.len();
+    let is_last = Signal::derive(move || current_idx.get() == total - 1);
+    let next_label = Signal::derive(move || {
+        if is_last.get() {
+            "Confirm Booking"
+        } else {
+            "Continue"
+        }
+    });
 
     // Stay
-    let checkin  = RwSignal::new(String::new());
+    let checkin = RwSignal::new(String::new());
     let checkout = RwSignal::new(String::new());
-    let guests   = RwSignal::new("2".to_string());
-    let special  = RwSignal::new(String::new());
+    let guests = RwSignal::new("2".to_string());
+    let special = RwSignal::new(String::new());
 
     // Account (post-OTP confirm / passkey upsell)
     let auth_method = RwSignal::new("passkey".to_string());
     let confirm_email = RwSignal::new(String::new());
 
     // Profile
-    let first    = RwSignal::new(String::new());
-    let last     = RwSignal::new(String::new());
-    let phone    = RwSignal::new(String::new());
-    let country  = RwSignal::new("US".to_string());
+    let first = RwSignal::new(String::new());
+    let last = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let country = RwSignal::new("US".to_string());
     let emerg_name = RwSignal::new(String::new());
     let emerg_phone = RwSignal::new(String::new());
     let emerg_rel = RwSignal::new(String::new());
@@ -65,20 +91,29 @@ pub fn StrGuestWizard() -> impl IntoView {
                 let nav = leptos_router::hooks::use_navigate();
                 match accept_invite_code(invite_id, "/t/reservations".to_string()).await {
                     Ok(resp) => nav(&resp.redirect, Default::default()),
-                    Err(_)   => nav("/t/reservations", Default::default()),
+                    Err(_) => nav("/t/reservations", Default::default()),
                 }
             });
-        } else { current_idx.set(idx + 1); }
+        } else {
+            current_idx.set(idx + 1);
+        }
     });
-    let on_prev = Callback::new(move |_| { let i = current_idx.get(); if i > 0 { current_idx.set(i - 1); } });
+    let on_prev = Callback::new(move |_| {
+        let i = current_idx.get();
+        if i > 0 {
+            current_idx.set(i - 1);
+        }
+    });
 
-    let ctx_body = ViewFn::from(|| view! {
-        <p class="wiz-ctx-p">"Book your stay directly through Folio and skip OTA platform fees."</p>
-        <ul class="wiz-ctx-list">
-            <li><span class="ms msf">"check_circle"</span>"No platform fees"</li>
-            <li><span class="ms msf">"check_circle"</span>"Direct host communication"</li>
-            <li><span class="ms msf">"check_circle"</span>"Secure check-in details in-app"</li>
-        </ul>
+    let ctx_body = ViewFn::from(|| {
+        view! {
+            <p class="wiz-ctx-p">"Book your stay directly through Folio and skip OTA platform fees."</p>
+            <ul class="wiz-ctx-list">
+                <li><span class="ms msf">"check_circle"</span>"No platform fees"</li>
+                <li><span class="ms msf">"check_circle"</span>"Direct host communication"</li>
+                <li><span class="ms msf">"check_circle"</span>"Secure check-in details in-app"</li>
+            </ul>
+        }
     });
 
     view! {

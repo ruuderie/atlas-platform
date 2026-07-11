@@ -10,23 +10,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MapPin {
-    pub id:             Uuid,
-    pub name:           String,
-    pub asset_type:     String,
-    pub status:         String,
-    pub latitude:       f64,
-    pub longitude:      f64,
+    pub id: Uuid,
+    pub name: String,
+    pub asset_type: String,
+    pub status: String,
+    pub latitude: f64,
+    pub longitude: f64,
     pub address_line_1: Option<String>,
-    pub city:           Option<String>,
+    pub city: Option<String>,
     pub state_province: Option<String>,
-    pub postal_code:    Option<String>,
+    pub postal_code: Option<String>,
 }
 
 // ── Server function ───────────────────────────────────────────────────────────
@@ -36,30 +36,29 @@ pub async fn fetch_map_pins() -> Result<Vec<MapPin>, server_fn::error::ServerFnE
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = headers.get("cookie")
+    let token = headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
-    crate::atlas_client::authenticated_get::<Vec<MapPin>>(
-        "/api/folio/assets/map",
-        &token,
-        None,
-    )
-    .await
-    .map_err(|e| server_fn::error::ServerFnError::new(format!("Fetch map pins failed: {e}")))
+    crate::atlas_client::authenticated_get::<Vec<MapPin>>("/api/folio/assets/map", &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Fetch map pins failed: {e}")))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn status_color(status: &str) -> &str {
     match status {
-        "active" | "occupied"    => "#4ade80",
-        "vacant"                 => "#fb923c",
-        "maintenance"            => "#facc15",
-        _                        => "#94a3b8",
+        "active" | "occupied" => "#4ade80",
+        "vacant" => "#fb923c",
+        "maintenance" => "#facc15",
+        _ => "#94a3b8",
     }
 }
 
@@ -85,15 +84,26 @@ fn build_map_init_script(pins: &[MapPin]) -> String {
         )
     }).collect::<Vec<_>>().join(",");
 
-    let center_lat = if pins.is_empty() { 39.5 } else {
+    let center_lat = if pins.is_empty() {
+        39.5
+    } else {
         pins.iter().map(|p| p.latitude).sum::<f64>() / pins.len() as f64
     };
-    let center_lng = if pins.is_empty() { -98.35 } else {
+    let center_lng = if pins.is_empty() {
+        -98.35
+    } else {
         pins.iter().map(|p| p.longitude).sum::<f64>() / pins.len() as f64
     };
-    let zoom = if pins.is_empty() { 4 } else if pins.len() == 1 { 14 } else { 10 };
+    let zoom = if pins.is_empty() {
+        4
+    } else if pins.len() == 1 {
+        14
+    } else {
+        10
+    };
 
-    format!(r#"
+    format!(
+        r#"
 (function() {{
   if (window.__atlasMapInit) return;
   window.__atlasMapInit = true;
@@ -154,10 +164,10 @@ fn build_map_init_script(pins: &[MapPin]) -> String {
   }}
 }})();
 "#,
-        pins_json  = pins_json,
+        pins_json = pins_json,
         center_lat = center_lat,
         center_lng = center_lng,
-        zoom       = zoom,
+        zoom = zoom,
     )
 }
 
@@ -165,10 +175,16 @@ fn build_map_init_script(pins: &[MapPin]) -> String {
 
 #[component]
 fn MapKpiStrip(pins: Vec<MapPin>) -> impl IntoView {
-    let total     = pins.len();
-    let active    = pins.iter().filter(|p| p.status == "active" || p.status == "occupied").count();
-    let vacant    = pins.iter().filter(|p| p.status == "vacant").count();
-    let no_coords = pins.iter().filter(|p| p.latitude == 0.0 && p.longitude == 0.0).count();
+    let total = pins.len();
+    let active = pins
+        .iter()
+        .filter(|p| p.status == "active" || p.status == "occupied")
+        .count();
+    let vacant = pins.iter().filter(|p| p.status == "vacant").count();
+    let no_coords = pins
+        .iter()
+        .filter(|p| p.latitude == 0.0 && p.longitude == 0.0)
+        .count();
 
     view! {
         <div class="map-kpi-strip">

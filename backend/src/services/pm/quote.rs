@@ -23,11 +23,11 @@
 //! `discount = Σ discount lines + Σ (subtotal × basis_points / 10000)` for pct discounts
 //! `total    = subtotal - discount + tax`
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set, TransactionTrait, ConnectionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    QueryOrder, Set, TransactionTrait,
 };
 use uuid::Uuid;
 
@@ -203,8 +203,7 @@ impl QuoteService {
         tenant_id: Uuid,
         filter: QuoteFilter,
     ) -> Result<Vec<atlas_quote::Model>> {
-        let mut q = atlas_quote::Entity::find()
-            .filter(atlas_quote::Column::TenantId.eq(tenant_id));
+        let mut q = atlas_quote::Entity::find().filter(atlas_quote::Column::TenantId.eq(tenant_id));
 
         if let Some(status) = filter.status {
             q = q.filter(atlas_quote::Column::Status.eq(status.to_string()));
@@ -219,7 +218,9 @@ impl QuoteService {
             q = q.filter(atlas_quote::Column::CampaignId.eq(cid));
         }
 
-        Ok(q.order_by_desc(atlas_quote::Column::CreatedAt).all(db).await?)
+        Ok(q.order_by_desc(atlas_quote::Column::CreatedAt)
+            .all(db)
+            .await?)
     }
 
     pub async fn list_line_items(
@@ -255,12 +256,12 @@ impl QuoteService {
         let valid = matches!(
             (&current, &new_status),
             (QuoteStatus::Draft, QuoteStatus::Sent)
-            | (QuoteStatus::Sent, QuoteStatus::Accepted)
-            | (QuoteStatus::Sent, QuoteStatus::Rejected)
-            | (QuoteStatus::Sent, QuoteStatus::Expired)
-            | (QuoteStatus::Accepted, QuoteStatus::Converted)
-            | (QuoteStatus::Draft, QuoteStatus::Superseded)
-            | (QuoteStatus::Sent, QuoteStatus::Superseded)
+                | (QuoteStatus::Sent, QuoteStatus::Accepted)
+                | (QuoteStatus::Sent, QuoteStatus::Rejected)
+                | (QuoteStatus::Sent, QuoteStatus::Expired)
+                | (QuoteStatus::Accepted, QuoteStatus::Converted)
+                | (QuoteStatus::Draft, QuoteStatus::Superseded)
+                | (QuoteStatus::Sent, QuoteStatus::Superseded)
         );
 
         if !valid {

@@ -9,73 +9,88 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerPortfolioSummary {
-    pub owner_user_id:             Uuid,
-    pub total_properties:          usize,
-    pub revenue_this_month_cents:  i64,
-    pub revenue_ytd_cents:         i64,
+    pub owner_user_id: Uuid,
+    pub total_properties: usize,
+    pub revenue_this_month_cents: i64,
+    pub revenue_ytd_cents: i64,
     pub outstanding_balance_cents: i64,
-    pub on_time_payment_rate_pct:  f64,
-    pub occupancy_pct:             f64,
-    pub active_leases:             usize,
-    pub open_maintenance_cases:    usize,
-    pub open_violations:           usize,
-    pub occupied_units:            usize,
-    pub vacant_units:              usize,
-    pub outstanding_payments:      usize,
+    pub on_time_payment_rate_pct: f64,
+    pub occupancy_pct: f64,
+    pub active_leases: usize,
+    pub open_maintenance_cases: usize,
+    pub open_violations: usize,
+    pub occupied_units: usize,
+    pub vacant_units: usize,
+    pub outstanding_payments: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerPropertySummary {
-    pub asset_id:                  Uuid,
-    pub asset_name:                String,
-    pub asset_type:                String,
-    pub address_line_1:            Option<String>,
-    pub active_leases:             usize,
-    pub open_maintenance:          usize,
-    pub open_violations:           usize,
-    pub revenue_this_month_cents:  i64,
+    pub asset_id: Uuid,
+    pub asset_name: String,
+    pub asset_type: String,
+    pub address_line_1: Option<String>,
+    pub active_leases: usize,
+    pub open_maintenance: usize,
+    pub open_violations: usize,
+    pub revenue_this_month_cents: i64,
     pub outstanding_balance_cents: i64,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchOwnerSummaryDist, "/api")]
-pub async fn fetch_owner_summary_dist() -> Result<OwnerPortfolioSummary, server_fn::error::ServerFnError> {
+pub async fn fetch_owner_summary_dist(
+) -> Result<OwnerPortfolioSummary, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<OwnerPortfolioSummary>(
-        "/api/folio/owner/summary", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/summary",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchOwnerPropertiesDist, "/api")]
-pub async fn fetch_owner_properties_dist() -> Result<Vec<OwnerPropertySummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_owner_properties_dist(
+) -> Result<Vec<OwnerPropertySummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<OwnerPropertySummary>>(
-        "/api/folio/owner/properties", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/properties",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -98,7 +113,7 @@ fn net_distribution(gross_cents: i64) -> i64 {
 #[component]
 pub fn OwnerDistributions() -> impl IntoView {
     let summary_res = Resource::new(|| (), |_| fetch_owner_summary_dist());
-    let props_res   = Resource::new(|| (), |_| fetch_owner_properties_dist());
+    let props_res = Resource::new(|| (), |_| fetch_owner_properties_dist());
 
     view! {
         <div class="main-area">

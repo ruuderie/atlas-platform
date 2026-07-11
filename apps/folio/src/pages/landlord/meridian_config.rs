@@ -12,7 +12,7 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use shared_ui::components::configurator::Configurator;
 use shared_ui::components::scorecard::models::{
-    ColdStartStrategy, ConfiguratorMode, DisplayConfigForm, DisplayRuleForm, DimensionForm,
+    ColdStartStrategy, ConfiguratorMode, DimensionForm, DisplayConfigForm, DisplayRuleForm,
     ModeScope, RuleAction, RuleOperator, ScaleType, ScoringMethod, TemplateForm,
     TemplateSavePayload, TemplateScope, TriggerCategory,
 };
@@ -184,7 +184,9 @@ struct UpdateRuleBody {
 // ── Server fns ────────────────────────────────────────────────────────────────
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
     headers
         .get("cookie")
         .and_then(|v| v.to_str().ok())
@@ -198,7 +200,8 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 }
 
 #[server(FetchG27Templates, "/api")]
-pub async fn fetch_g27_templates() -> Result<Vec<ScorecardTemplate>, server_fn::error::ServerFnError> {
+pub async fn fetch_g27_templates() -> Result<Vec<ScorecardTemplate>, server_fn::error::ServerFnError>
+{
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -401,7 +404,10 @@ pub async fn save_meridian_configurator(
             };
             let create_url = format!("/api/scorecard-templates/{template_id}/display-rules");
             let _ = crate::atlas_client::authenticated_post::<CreateRuleBody, DisplayRuleDto>(
-                &create_url, &token, None, &body,
+                &create_url,
+                &token,
+                None,
+                &body,
             )
             .await;
         }

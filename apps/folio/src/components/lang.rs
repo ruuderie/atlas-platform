@@ -54,7 +54,7 @@ impl Lang {
             "pt" => Lang::Pt,
             "es" => Lang::Es,
             "fr" => Lang::Fr,
-            _    => Lang::En,
+            _ => Lang::En,
         }
     }
 
@@ -97,11 +97,10 @@ impl Lang {
     /// Infer language from a country code (geo fallback when no cookie set).
     pub fn from_country(country_code: &str) -> Self {
         match country_code {
-            "BR"                              => Lang::Pt,
-            "MX" | "CO" | "AR" | "CL"
-            | "PE" | "EC" | "VE" | "UY"     => Lang::Es,
+            "BR" => Lang::Pt,
+            "MX" | "CO" | "AR" | "CL" | "PE" | "EC" | "VE" | "UY" => Lang::Es,
             // Quebec detection would require city-level data; default CA to EN
-            _                                => Lang::En,
+            _ => Lang::En,
         }
     }
 }

@@ -20,7 +20,10 @@ use crate::extractors::tenant::TenantContext;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/marketplace/vendors", get(list_vendors))
-        .route("/api/folio/marketplace/vendors/{id}", get(get_vendor_detail))
+        .route(
+            "/api/folio/marketplace/vendors/{id}",
+            get(get_vendor_detail),
+        )
 }
 
 // ── Query params ──────────────────────────────────────────────────────────────
@@ -28,33 +31,33 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 #[derive(Deserialize)]
 pub struct VendorSearchParams {
     /// Latitude of the search center (decimal degrees, WGS84)
-    pub lat:        Option<f64>,
+    pub lat: Option<f64>,
     /// Longitude of the search center (decimal degrees, WGS84)
-    pub lng:        Option<f64>,
+    pub lng: Option<f64>,
     /// Search radius in kilometers (default: 50)
-    pub radius_km:  Option<f64>,
+    pub radius_km: Option<f64>,
     /// Filter by trade type slug (e.g. "plumber", "electrician")
     pub trade_type: Option<String>,
     /// Max results (default: 20, max: 100)
-    pub limit:      Option<i64>,
+    pub limit: Option<i64>,
 }
 
 // ── Response types ────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
 pub struct VendorCard {
-    pub id:                Uuid,
-    pub business_name:     String,
-    pub marketplace_bio:   Option<String>,
-    pub trade_types:       Vec<String>,
-    pub rating_avg:        Option<f64>,
-    pub rating_count:      i32,
+    pub id: Uuid,
+    pub business_name: String,
+    pub marketplace_bio: Option<String>,
+    pub trade_types: Vec<String>,
+    pub rating_avg: Option<f64>,
+    pub rating_count: i32,
     /// Number of cross-tenant landlord endorsements (trust signal)
     pub endorsement_count: i64,
     /// Distance from the search center in kilometers (None if no geo filter)
-    pub distance_km:       Option<f64>,
-    pub is_insured:        bool,
-    pub is_bonded:         bool,
+    pub distance_km: Option<f64>,
+    pub is_insured: bool,
+    pub is_bonded: bool,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -143,15 +146,15 @@ async fn list_vendors(
             let id: Uuid = row.try_get("", "id").ok()?;
             Some(VendorCard {
                 id,
-                business_name:     row.try_get("", "business_name").unwrap_or_default(),
-                marketplace_bio:   row.try_get("", "marketplace_bio").ok().flatten(),
-                trade_types:       row.try_get("", "trade_types").unwrap_or_default(),
-                rating_avg:        row.try_get("", "rating_avg").ok().flatten(),
-                rating_count:      row.try_get("", "rating_count").unwrap_or(0),
+                business_name: row.try_get("", "business_name").unwrap_or_default(),
+                marketplace_bio: row.try_get("", "marketplace_bio").ok().flatten(),
+                trade_types: row.try_get("", "trade_types").unwrap_or_default(),
+                rating_avg: row.try_get("", "rating_avg").ok().flatten(),
+                rating_count: row.try_get("", "rating_count").unwrap_or(0),
                 endorsement_count: row.try_get("", "endorsement_count").unwrap_or(0),
-                distance_km:       row.try_get("", "distance_km").ok().flatten(),
-                is_insured:        row.try_get("", "is_insured").unwrap_or(false),
-                is_bonded:         row.try_get("", "is_bonded").unwrap_or(false),
+                distance_km: row.try_get("", "distance_km").ok().flatten(),
+                is_insured: row.try_get("", "is_insured").unwrap_or(false),
+                is_bonded: row.try_get("", "is_bonded").unwrap_or(false),
             })
         })
         .collect();
@@ -212,15 +215,15 @@ async fn get_vendor_detail(
             };
             let card = VendorCard {
                 id,
-                business_name:     row.try_get("", "business_name").unwrap_or_default(),
-                marketplace_bio:   row.try_get("", "marketplace_bio").ok().flatten(),
-                trade_types:       row.try_get("", "trade_types").unwrap_or_default(),
-                rating_avg:        row.try_get("", "rating_avg").ok().flatten(),
-                rating_count:      row.try_get("", "rating_count").unwrap_or(0),
+                business_name: row.try_get("", "business_name").unwrap_or_default(),
+                marketplace_bio: row.try_get("", "marketplace_bio").ok().flatten(),
+                trade_types: row.try_get("", "trade_types").unwrap_or_default(),
+                rating_avg: row.try_get("", "rating_avg").ok().flatten(),
+                rating_count: row.try_get("", "rating_count").unwrap_or(0),
                 endorsement_count: row.try_get("", "endorsement_count").unwrap_or(0),
-                distance_km:       None,
-                is_insured:        row.try_get("", "is_insured").unwrap_or(false),
-                is_bonded:         row.try_get("", "is_bonded").unwrap_or(false),
+                distance_km: None,
+                is_insured: row.try_get("", "is_insured").unwrap_or(false),
+                is_bonded: row.try_get("", "is_bonded").unwrap_or(false),
             };
             Json(card).into_response()
         }

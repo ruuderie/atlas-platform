@@ -3,12 +3,7 @@
 //! Returns KPI metrics across ALL client accounts in this PMC tenant.
 //! No `ClientContext` here — this is the aggregate, unfiltered by client.
 
-use axum::{
-    Extension, Json, Router,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-};
+use axum::{Extension, Json, Router, http::StatusCode, response::IntoResponse, routing::get};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter};
 use serde::Serialize;
 use uuid::Uuid;
@@ -17,24 +12,23 @@ use crate::extractors::folio_role::PropertyManagerOnly;
 use crate::extractors::tenant::TenantContext;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/pm/analytics", get(get_analytics))
+    Router::new().route("/api/folio/pm/analytics", get(get_analytics))
 }
 
 #[derive(Serialize)]
 pub struct PmAnalytics {
-    pub tenant_id:         Uuid,
+    pub tenant_id: Uuid,
     /// Total active leases across all client books
     pub total_active_leases: i64,
     /// Total portfolios managed
-    pub total_portfolios:    i64,
+    pub total_portfolios: i64,
     /// Per-client metrics (one entry per client account)
-    pub clients:             Vec<ClientMetric>,
+    pub clients: Vec<ClientMetric>,
 }
 
 #[derive(Serialize)]
 pub struct ClientMetric {
-    pub account_id:    Uuid,
+    pub account_id: Uuid,
     pub active_leases: i64,
     pub portfolio_count: i64,
 }
@@ -79,7 +73,7 @@ async fn get_analytics(
     let clients: Vec<ClientMetric> = vec![]; // TODO: GROUP BY managed_account_id
 
     Json(PmAnalytics {
-        tenant_id:           ctx.tenant_id,
+        tenant_id: ctx.tenant_id,
         total_active_leases,
         total_portfolios,
         clients,

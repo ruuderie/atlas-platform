@@ -44,10 +44,10 @@ pub enum ReportType {
 impl std::fmt::Display for ReportType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::RentalHistory    => "rental_history",
-            Self::PaymentHistory   => "payment_history",
+            Self::RentalHistory => "rental_history",
+            Self::PaymentHistory => "payment_history",
             Self::ViolationHistory => "violation_history",
-            Self::FullExport       => "full_export",
+            Self::FullExport => "full_export",
         })
     }
 }
@@ -56,10 +56,10 @@ impl TryFrom<String> for ReportType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "rental_history"    => Ok(Self::RentalHistory),
-            "payment_history"   => Ok(Self::PaymentHistory),
+            "rental_history" => Ok(Self::RentalHistory),
+            "payment_history" => Ok(Self::PaymentHistory),
             "violation_history" => Ok(Self::ViolationHistory),
-            "full_export"       => Ok(Self::FullExport),
+            "full_export" => Ok(Self::FullExport),
             other => Err(format!("unknown ReportType: '{other}'")),
         }
     }
@@ -183,9 +183,8 @@ impl ReportingService {
         let now = Utc::now();
 
         // Generate the report synchronously
-        let report = Self::generate_tenant_report(
-            db, tenant_id, requesting_user_id, &report_type,
-        ).await?;
+        let report =
+            Self::generate_tenant_report(db, tenant_id, requesting_user_id, &report_type).await?;
 
         let metadata = serde_json::json!({
             "report_type":       report_type.to_string(),
@@ -240,10 +239,8 @@ impl ReportingService {
     ) -> Result<LandlordOverview> {
         let now = Utc::now();
         let today = now.date_naive();
-        let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)
-            .unwrap_or(today);
-        let year_start = NaiveDate::from_ymd_opt(today.year(), 1, 1)
-            .unwrap_or(today);
+        let month_start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
+        let year_start = NaiveDate::from_ymd_opt(today.year(), 1, 1).unwrap_or(today);
 
         // All ledger entries for this landlord tenant
         let entries = atlas_ledger_entry::Entity::find()
@@ -252,34 +249,48 @@ impl ReportingService {
             .all(db)
             .await?;
 
-        let revenue_this_month_cents: i64 = entries.iter()
+        let revenue_this_month_cents: i64 = entries
+            .iter()
             .filter(|e| e.status == "paid")
-            .filter(|e| e.paid_at.map(|p| p.date_naive() >= month_start).unwrap_or(false))
+            .filter(|e| {
+                e.paid_at
+                    .map(|p| p.date_naive() >= month_start)
+                    .unwrap_or(false)
+            })
             .map(|e| e.net_amount_cents)
             .sum();
 
-        let revenue_this_year_cents: i64 = entries.iter()
+        let revenue_this_year_cents: i64 = entries
+            .iter()
             .filter(|e| e.status == "paid")
-            .filter(|e| e.paid_at.map(|p| p.date_naive() >= year_start).unwrap_or(false))
+            .filter(|e| {
+                e.paid_at
+                    .map(|p| p.date_naive() >= year_start)
+                    .unwrap_or(false)
+            })
             .map(|e| e.net_amount_cents)
             .sum();
 
-        let outstanding_entries: Vec<_> = entries.iter()
+        let outstanding_entries: Vec<_> = entries
+            .iter()
             .filter(|e| e.status == "pending" || e.status == "overdue")
             .collect();
         let outstanding_payments = outstanding_entries.len() as i64;
-        let outstanding_balance_cents: i64 = outstanding_entries.iter()
+        let outstanding_balance_cents: i64 = outstanding_entries
+            .iter()
             .map(|e| e.gross_amount_cents)
             .sum();
 
         // On-time rate: of paid entries with a due_date, how many were paid ≤ due_date?
-        let paid_with_due: Vec<_> = entries.iter()
+        let paid_with_due: Vec<_> = entries
+            .iter()
             .filter(|e| e.status == "paid" && e.due_date.is_some() && e.paid_at.is_some())
             .collect();
         let on_time_payment_rate_pct = if paid_with_due.is_empty() {
             100.0
         } else {
-            let on_time = paid_with_due.iter()
+            let on_time = paid_with_due
+                .iter()
                 .filter(|e| {
                     let due = e.due_date.unwrap();
                     let paid = e.paid_at.unwrap().date_naive();
@@ -305,10 +316,12 @@ impl ReportingService {
             .all(db)
             .await?;
 
-        let open_maintenance_cases = cases.iter()
+        let open_maintenance_cases = cases
+            .iter()
             .filter(|c| c.case_type == PmCaseType::Maintenance.to_string())
             .count() as i64;
-        let open_violations = cases.iter()
+        let open_violations = cases
+            .iter()
             .filter(|c| c.case_type == PmCaseType::ComplianceViolation.to_string())
             .count() as i64;
 
@@ -340,7 +353,8 @@ impl ReportingService {
             .all(db)
             .await?;
 
-        let completed: Vec<_> = all_cases.iter()
+        let completed: Vec<_> = all_cases
+            .iter()
             .filter(|c| c.status == "completed" && c.completed_at.is_some())
             .collect();
         let open = all_cases.iter().filter(|c| c.status == "open").count() as i64;
@@ -348,7 +362,8 @@ impl ReportingService {
         let avg_close_days = if completed.is_empty() {
             None
         } else {
-            let total_days: f64 = completed.iter()
+            let total_days: f64 = completed
+                .iter()
                 .filter_map(|c| {
                     let completed_at = c.completed_at?;
                     let days = (completed_at - c.created_at).num_hours() as f64 / 24.0;
@@ -358,9 +373,7 @@ impl ReportingService {
             Some(total_days / completed.len() as f64)
         };
 
-        let total_revenue_cents: i64 = all_cases.iter()
-            .filter_map(|c| c.actual_cost_cents)
-            .sum();
+        let total_revenue_cents: i64 = all_cases.iter().filter_map(|c| c.actual_cost_cents).sum();
 
         Ok(VendorOverview {
             generated_at: now,
@@ -432,18 +445,21 @@ impl ReportingService {
             .all(db)
             .await?;
 
-        Ok(leases.into_iter().map(|c| LeaseHistoryEntry {
-            contract_id: c.id,
-            asset_id: c.asset_id,
-            start_date: c.start_date,
-            end_date: c.end_date,
-            status: c.status,
-            currency: c.currency,
-            monthly_rent_cents: c.recurring_amount_cents,
-            signed_at: c.signed_at,
-            terminated_at: c.terminated_at,
-            termination_reason: c.termination_reason,
-        }).collect())
+        Ok(leases
+            .into_iter()
+            .map(|c| LeaseHistoryEntry {
+                contract_id: c.id,
+                asset_id: c.asset_id,
+                start_date: c.start_date,
+                end_date: c.end_date,
+                status: c.status,
+                currency: c.currency,
+                monthly_rent_cents: c.recurring_amount_cents,
+                signed_at: c.signed_at,
+                terminated_at: c.terminated_at,
+                termination_reason: c.termination_reason,
+            })
+            .collect())
     }
 
     async fn build_payment_history(
@@ -458,27 +474,30 @@ impl ReportingService {
             .all(db)
             .await?;
 
-        Ok(entries.into_iter().map(|e| {
-            let (paid_on_time, days_late) = match (e.due_date, e.paid_at) {
-                (Some(due), Some(paid)) => {
-                    let paid_date = paid.date_naive();
-                    let diff = (paid_date - due).num_days();
-                    (diff <= 0, Some(diff))
+        Ok(entries
+            .into_iter()
+            .map(|e| {
+                let (paid_on_time, days_late) = match (e.due_date, e.paid_at) {
+                    (Some(due), Some(paid)) => {
+                        let paid_date = paid.date_naive();
+                        let diff = (paid_date - due).num_days();
+                        (diff <= 0, Some(diff))
+                    }
+                    _ => (false, None),
+                };
+                PaymentHistoryEntry {
+                    ledger_id: e.id,
+                    gross_amount_cents: e.gross_amount_cents,
+                    currency: e.currency,
+                    due_date: e.due_date,
+                    paid_at: e.paid_at,
+                    paid_on_time,
+                    days_late,
+                    payment_rail: e.payment_rail,
+                    status: e.status,
                 }
-                _ => (false, None),
-            };
-            PaymentHistoryEntry {
-                ledger_id: e.id,
-                gross_amount_cents: e.gross_amount_cents,
-                currency: e.currency,
-                due_date: e.due_date,
-                paid_at: e.paid_at,
-                paid_on_time,
-                days_late,
-                payment_rail: e.payment_rail,
-                status: e.status,
-            }
-        }).collect())
+            })
+            .collect())
     }
 
     async fn build_violation_history(
@@ -509,23 +528,28 @@ impl ReportingService {
             .all(db)
             .await?;
 
-        Ok(cases.into_iter().map(|c| {
-            let meta = c.case_metadata.as_ref();
-            ViolationHistoryEntry {
-                case_id: c.id,
-                asset_id: c.asset_id,
-                category: meta.and_then(|m| m["category"].as_str()).unwrap_or("other").to_string(),
-                subject: c.subject,
-                cure_status: c.status,
-                cure_deadline: meta
-                    .and_then(|m| m["cure_deadline"].as_str())
-                    .and_then(|s| s.parse().ok()),
-                filed_at: c.created_at,
-                resolved_at: meta
-                    .and_then(|m| m["resolved_at"].as_str())
-                    .and_then(|s| s.parse().ok()),
-            }
-        }).collect())
+        Ok(cases
+            .into_iter()
+            .map(|c| {
+                let meta = c.case_metadata.as_ref();
+                ViolationHistoryEntry {
+                    case_id: c.id,
+                    asset_id: c.asset_id,
+                    category: meta
+                        .and_then(|m| m["category"].as_str())
+                        .unwrap_or("other")
+                        .to_string(),
+                    subject: c.subject,
+                    cure_status: c.status,
+                    cure_deadline: meta
+                        .and_then(|m| m["cure_deadline"].as_str())
+                        .and_then(|s| s.parse().ok()),
+                    filed_at: c.created_at,
+                    resolved_at: meta
+                        .and_then(|m| m["resolved_at"].as_str())
+                        .and_then(|s| s.parse().ok()),
+                }
+            })
+            .collect())
     }
 }
-

@@ -22,47 +22,51 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LtrListing {
-    pub asset_id:     String,
-    pub token:        String,
-    pub address:      String,
-    pub city:         String,
-    pub state:        String,
-    pub bedrooms:     Option<u32>,
-    pub bathrooms:    Option<f64>,
-    pub sqft:         Option<u32>,
-    pub rent_cents:   i64,
-    pub available:    Option<String>,
-    pub listing_type: String,    // "apartment" | "house" | "condo" | "townhome"
-    pub amenities:    Vec<String>,
-    pub photo_url:    Option<String>,
-    pub is_featured:  bool,
+    pub asset_id: String,
+    pub token: String,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub bedrooms: Option<u32>,
+    pub bathrooms: Option<f64>,
+    pub sqft: Option<u32>,
+    pub rent_cents: i64,
+    pub available: Option<String>,
+    pub listing_type: String, // "apartment" | "house" | "condo" | "townhome"
+    pub amenities: Vec<String>,
+    pub photo_url: Option<String>,
+    pub is_featured: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LtrSearchResult {
-    pub listings:     Vec<LtrListing>,
-    pub total_count:  i64,
-    pub page:         i64,
-    pub per_page:     i64,
+    pub listings: Vec<LtrListing>,
+    pub total_count: i64,
+    pub page: i64,
+    pub per_page: i64,
 }
 
 #[derive(Debug, Clone, Default)]
 struct Filters {
-    city:       String,
-    beds:       String,
-    max_rent:   String,
-    page:       i64,
+    city: String,
+    beds: String,
+    max_rent: String,
+    page: i64,
 }
 
 #[server(SearchLtrListings, "/api")]
 pub async fn search_ltr_listings(
-    city: String, beds: String, max_rent: String, page: i64,
+    city: String,
+    beds: String,
+    max_rent: String,
+    page: i64,
 ) -> Result<LtrSearchResult, server_fn::error::ServerFnError> {
     let q = format!(
         "/api/pub/listings/ltr?city={city}&beds={beds}&max_rent_cents={max_rent}&page={page}&per_page=12"
     );
     crate::atlas_client::authenticated_get::<LtrSearchResult>(&q, "", None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -78,11 +82,11 @@ fn fmt_rent(cents: i64) -> String {
 
 fn listing_type_icon(t: &str) -> &'static str {
     match t {
-        "apartment"  => "🏢",
-        "house"      => "🏡",
-        "condo"      => "🏙",
-        "townhome"   => "🏘",
-        _            => "🏠",
+        "apartment" => "🏢",
+        "house" => "🏡",
+        "condo" => "🏙",
+        "townhome" => "🏘",
+        _ => "🏠",
     }
 }
 
@@ -95,12 +99,12 @@ pub fn LtrListings() -> impl IntoView {
     let init_city = q.get("city").unwrap_or_default();
     let init_beds = q.get("beds").unwrap_or_default();
     let init_rent = q.get("max_rent").unwrap_or_default();
-    let is_embed  = q.get("embed").map(|v| v == "1").unwrap_or(false);
+    let is_embed = q.get("embed").map(|v| v == "1").unwrap_or(false);
 
-    let city     = RwSignal::new(init_city);
-    let beds     = RwSignal::new(init_beds);
+    let city = RwSignal::new(init_city);
+    let beds = RwSignal::new(init_beds);
     let max_rent = RwSignal::new(init_rent);
-    let page     = RwSignal::new(1i64);
+    let page = RwSignal::new(1i64);
 
     let res = Resource::new(
         move || (city.get(), beds.get(), max_rent.get(), page.get()),

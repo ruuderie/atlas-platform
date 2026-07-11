@@ -18,34 +18,37 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeadPortalData {
-    pub asset_name:       String,
-    pub address:          String,
-    pub listing_type:     String,
-    pub bedrooms:         Option<u32>,
-    pub bathrooms:        Option<f64>,
-    pub rent_cents:       Option<i64>,
-    pub available_date:   Option<String>,
-    pub photo_url:        Option<String>,
-    pub campaign_name:    Option<String>,
-    pub agent_name:       Option<String>,
-    pub agent_phone:      Option<String>,
+    pub asset_name: String,
+    pub address: String,
+    pub listing_type: String,
+    pub bedrooms: Option<u32>,
+    pub bathrooms: Option<f64>,
+    pub rent_cents: Option<i64>,
+    pub available_date: Option<String>,
+    pub photo_url: Option<String>,
+    pub campaign_name: Option<String>,
+    pub agent_name: Option<String>,
+    pub agent_phone: Option<String>,
 }
 
 #[server(FetchLeadPortal, "/api")]
-pub async fn fetch_lead_portal(token: String) -> Result<Option<LeadPortalData>, server_fn::error::ServerFnError> {
+pub async fn fetch_lead_portal(
+    token: String,
+) -> Result<Option<LeadPortalData>, server_fn::error::ServerFnError> {
     let url = format!("/api/pub/leads/portal?token={token}");
     crate::atlas_client::authenticated_get::<Option<LeadPortalData>>(&url, "", None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeadSubmission {
-    pub token:       String,
-    pub name:        String,
-    pub email:       String,
-    pub phone:       Option<String>,
-    pub message:     Option<String>,
-    pub action:      String,   // "contact" | "schedule"
+    pub token: String,
+    pub name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub message: Option<String>,
+    pub action: String, // "contact" | "schedule"
 }
 
 #[server(SubmitLead, "/api")]
@@ -56,49 +59,75 @@ pub async fn submit_lead(sub: LeadSubmission) -> Result<(), server_fn::error::Se
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn fmt_rent(cents: i64) -> String {
-    format!("${}/mo", (cents / 100).to_string()
-        .chars().rev().enumerate()
-        .flat_map(|(i, c)| if i > 0 && i % 3 == 0 { vec![',', c] } else { vec![c] })
-        .collect::<String>().chars().rev().collect::<String>())
+    format!(
+        "${}/mo",
+        (cents / 100)
+            .to_string()
+            .chars()
+            .rev()
+            .enumerate()
+            .flat_map(|(i, c)| if i > 0 && i % 3 == 0 {
+                vec![',', c]
+            } else {
+                vec![c]
+            })
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    )
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn LeadPortal() -> impl IntoView {
-    let params  = use_params_map();
-    let token   = params.get().get("token").unwrap_or_default();
+    let params = use_params_map();
+    let token = params.get().get("token").unwrap_or_default();
 
-    let name    = RwSignal::new(String::new());
-    let email   = RwSignal::new(String::new());
-    let phone   = RwSignal::new(String::new());
+    let name = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
     let message = RwSignal::new(String::new());
-    let action  = RwSignal::new("contact".to_string());
+    let action = RwSignal::new("contact".to_string());
     let submitting = RwSignal::new(false);
-    let submitted  = RwSignal::new(false);
-    let sub_error  = RwSignal::new(None::<String>);
+    let submitted = RwSignal::new(false);
+    let sub_error = RwSignal::new(None::<String>);
 
     let token_sv = StoredValue::new(token.clone());
-    let res = Resource::new(
-        move || token.clone(),
-        |t| fetch_lead_portal(t),
-    );
+    let res = Resource::new(move || token.clone(), |t| fetch_lead_portal(t));
 
     let handle_submit = move |_| {
-        if name.get().trim().is_empty() || email.get().trim().is_empty() { return; }
+        if name.get().trim().is_empty() || email.get().trim().is_empty() {
+            return;
+        }
         submitting.set(true);
         let sub = LeadSubmission {
-            token:   token_sv.get_value(),
-            name:    name.get(),
-            email:   email.get(),
-            phone:   if phone.get().is_empty() { None } else { Some(phone.get()) },
-            message: if message.get().is_empty() { None } else { Some(message.get()) },
-            action:  action.get(),
+            token: token_sv.get_value(),
+            name: name.get(),
+            email: email.get(),
+            phone: if phone.get().is_empty() {
+                None
+            } else {
+                Some(phone.get())
+            },
+            message: if message.get().is_empty() {
+                None
+            } else {
+                Some(message.get())
+            },
+            action: action.get(),
         };
         leptos::task::spawn_local(async move {
             match submit_lead(sub).await {
-                Ok(_)  => { submitted.set(true); submitting.set(false); }
-                Err(e) => { sub_error.set(Some(e.to_string())); submitting.set(false); }
+                Ok(_) => {
+                    submitted.set(true);
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    sub_error.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

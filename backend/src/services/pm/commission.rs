@@ -16,7 +16,7 @@
 //! The plan-level `cap_cents` and `minimum_cents` apply to the TOTAL commission.
 //! Split-level `cap_cents` caps an individual recipient's earnings per transaction.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use uuid::Uuid;
 
@@ -82,14 +82,12 @@ impl CommissionService {
         tenant_id: Uuid,
         plan_id: Uuid,
     ) -> Result<Vec<atlas_commission_plan_split::Model>> {
-        Ok(
-            atlas_commission_plan_split::Entity::find()
-                .filter(atlas_commission_plan_split::Column::TenantId.eq(tenant_id))
-                .filter(atlas_commission_plan_split::Column::PlanId.eq(plan_id))
-                .order_by_asc(atlas_commission_plan_split::Column::Priority)
-                .all(db)
-                .await?,
-        )
+        Ok(atlas_commission_plan_split::Entity::find()
+            .filter(atlas_commission_plan_split::Column::TenantId.eq(tenant_id))
+            .filter(atlas_commission_plan_split::Column::PlanId.eq(plan_id))
+            .order_by_asc(atlas_commission_plan_split::Column::Priority)
+            .all(db)
+            .await?)
     }
 
     // ── Commission computation ─────────────────────────────────────────────────
@@ -121,9 +119,7 @@ impl CommissionService {
                 running_remainder
             } else {
                 match split.split_basis.as_str() {
-                    "gross_percentage" => {
-                        (transaction_amount_cents as f64 * rate / 100.0) as i64
-                    }
+                    "gross_percentage" => (transaction_amount_cents as f64 * rate / 100.0) as i64,
                     "net_percentage" => (net_base as f64 * rate / 100.0) as i64,
                     "flat_fee" => split.cap_cents.unwrap_or(0),
                     "tiered" => Self::compute_tiered(transaction_amount_cents, &plan.tiers),
@@ -183,7 +179,9 @@ impl CommissionService {
     /// ```
     fn compute_tiered(amount_cents: i64, tiers: &Option<serde_json::Value>) -> i64 {
         let Some(config) = tiers else { return 0 };
-        let Some(arr) = config.as_array() else { return 0 };
+        let Some(arr) = config.as_array() else {
+            return 0;
+        };
 
         let mut remaining = amount_cents;
         let mut result: i64 = 0;
@@ -204,7 +202,9 @@ impl CommissionService {
             if let Some(limit) = up_to {
                 prev = limit;
             }
-            if remaining <= 0 { break; }
+            if remaining <= 0 {
+                break;
+            }
         }
 
         result

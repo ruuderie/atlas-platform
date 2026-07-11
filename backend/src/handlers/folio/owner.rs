@@ -36,11 +36,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::DatabaseConnection;
 use serde::Deserialize;
@@ -53,9 +53,9 @@ use crate::services::pm::owner::OwnerService;
 /// Read-only owner routes — gated by `require_owner` middleware in folio.rs.
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/owner/summary",     get(owner_summary))
-        .route("/api/folio/owner/properties",  get(owner_properties))
-        .route("/api/folio/owner/leases",      get(owner_leases))
+        .route("/api/folio/owner/summary", get(owner_summary))
+        .route("/api/folio/owner/properties", get(owner_properties))
+        .route("/api/folio/owner/leases", get(owner_leases))
         .route("/api/folio/owner/maintenance", get(owner_maintenance))
         .route("/api/folio/owner/inspections", get(owner_inspections))
 }
@@ -63,8 +63,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
 /// PMC-only write route — gated by `require_landlord` (PM operators are Landlord-role
 /// in the PMC client context). Registered in the landlord_router in folio.rs.
 pub fn pmc_write_routes() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/pm/owner-links", post(link_owner_to_asset))
+    Router::new().route("/api/folio/pm/owner-links", post(link_owner_to_asset))
 }
 
 // ── HTTP input types ──────────────────────────────────────────────────────────
@@ -156,9 +155,19 @@ async fn link_owner_to_asset(
     Json(body): Json<LinkOwnerInput>,
 ) -> impl IntoResponse {
     match OwnerService::link_owner_to_asset(
-        &db, tenant_id, user_id, body.owner_user_id, body.asset_id,
-    ).await {
-        Ok(rel_id) => (StatusCode::CREATED, Json(serde_json::json!({ "rel_id": rel_id }))).into_response(),
+        &db,
+        tenant_id,
+        user_id,
+        body.owner_user_id,
+        body.asset_id,
+    )
+    .await
+    {
+        Ok(rel_id) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "rel_id": rel_id })),
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!("link_owner_to_asset: {e:#}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()

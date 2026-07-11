@@ -21,27 +21,27 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PmcMapProperty {
-    pub asset_id:        String,
-    pub address:         String,
-    pub city:            String,
-    pub state:           String,
-    pub lat:             Option<f64>,
-    pub lng:             Option<f64>,
-    pub status:          String,      // "occupied" | "vacant" | "maintenance" | "notice"
-    pub tenant_count:    u32,
-    pub open_wo_count:   u32,
-    pub owner_name:      Option<String>,
-    pub property_type:   String,      // "residential" | "commercial" | "mixed"
-    pub unit_count:      u32,
+    pub asset_id: String,
+    pub address: String,
+    pub city: String,
+    pub state: String,
+    pub lat: Option<f64>,
+    pub lng: Option<f64>,
+    pub status: String, // "occupied" | "vacant" | "maintenance" | "notice"
+    pub tenant_count: u32,
+    pub open_wo_count: u32,
+    pub owner_name: Option<String>,
+    pub property_type: String, // "residential" | "commercial" | "mixed"
+    pub unit_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PmcMapSummary {
-    pub properties:      Vec<PmcMapProperty>,
-    pub total_units:     u32,
-    pub occupied_units:  u32,
-    pub vacant_units:    u32,
-    pub total_open_wo:   u32,
+    pub properties: Vec<PmcMapProperty>,
+    pub total_units: u32,
+    pub occupied_units: u32,
+    pub vacant_units: u32,
+    pub total_open_wo: u32,
 }
 
 // ── Server function ───────────────────────────────────────────────────────────
@@ -56,46 +56,54 @@ pub async fn fetch_pmc_map_properties() -> Result<PmcMapSummary, server_fn::erro
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         crate::atlas_client::authenticated_get::<PmcMapSummary>(
-            "/api/folio/pmc/properties?view=map", &token, None,
-        ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            "/api/folio/pmc/properties?view=map",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn status_color(status: &str) -> &'static str {
     match status {
-        "occupied"    => "#4ade80",
-        "vacant"      => "#fbbf24",
+        "occupied" => "#4ade80",
+        "vacant" => "#fbbf24",
         "maintenance" => "#f87171",
-        "notice"      => "#a78bfa",
-        _             => "#94a3b8",
+        "notice" => "#a78bfa",
+        _ => "#94a3b8",
     }
 }
 
 fn status_label(status: &str) -> &'static str {
     match status {
-        "occupied"    => "Occupied",
-        "vacant"      => "Vacant",
+        "occupied" => "Occupied",
+        "vacant" => "Vacant",
         "maintenance" => "Maintenance",
-        "notice"      => "Notice",
-        _             => "Unknown",
+        "notice" => "Notice",
+        _ => "Unknown",
     }
 }
 
 fn type_icon(property_type: &str) -> &'static str {
     match property_type {
         "commercial" => "🏢",
-        "mixed"      => "🏙",
-        _            => "🏘",
+        "mixed" => "🏙",
+        _ => "🏘",
     }
 }
 
@@ -139,7 +147,10 @@ mod tests {
     fn status_color_returns_valid_hex() {
         for s in &["occupied", "vacant", "maintenance", "notice", "unknown"] {
             let c = status_color(s);
-            assert!(c.starts_with('#'), "expected hex color, got {c:?} for status {s:?}");
+            assert!(
+                c.starts_with('#'),
+                "expected hex color, got {c:?} for status {s:?}"
+            );
             assert_eq!(c.len(), 7, "expected 6-char hex color, got {c:?}");
         }
     }
@@ -148,16 +159,16 @@ mod tests {
 
     #[test]
     fn status_label_all_known() {
-        assert_eq!(status_label("occupied"),    "Occupied");
-        assert_eq!(status_label("vacant"),      "Vacant");
+        assert_eq!(status_label("occupied"), "Occupied");
+        assert_eq!(status_label("vacant"), "Vacant");
         assert_eq!(status_label("maintenance"), "Maintenance");
-        assert_eq!(status_label("notice"),      "Notice");
+        assert_eq!(status_label("notice"), "Notice");
     }
 
     #[test]
     fn status_label_unknown_falls_back() {
         assert_eq!(status_label("delinquent"), "Unknown");
-        assert_eq!(status_label(""),           "Unknown");
+        assert_eq!(status_label(""), "Unknown");
     }
 
     #[test]
@@ -165,7 +176,10 @@ mod tests {
         for s in &["occupied", "vacant", "maintenance", "notice"] {
             let label = status_label(s);
             let first = label.chars().next().unwrap();
-            assert!(first.is_uppercase(), "label {label:?} should start with uppercase");
+            assert!(
+                first.is_uppercase(),
+                "label {label:?} should start with uppercase"
+            );
         }
     }
 
@@ -185,8 +199,8 @@ mod tests {
     fn type_icon_residential_fallback() {
         // Both explicit "residential" and any unknown type get the residential icon
         assert_eq!(type_icon("residential"), "🏘");
-        assert_eq!(type_icon("industrial"),  "🏘");
-        assert_eq!(type_icon(""),            "🏘");
+        assert_eq!(type_icon("industrial"), "🏘");
+        assert_eq!(type_icon(""), "🏘");
     }
 }
 
@@ -195,7 +209,7 @@ mod tests {
 #[component]
 pub fn PmcPortfolioMap() -> impl IntoView {
     let filter_status = RwSignal::new("all".to_string());
-    let search_city   = RwSignal::new(String::new());
+    let search_city = RwSignal::new(String::new());
 
     let map_res = Resource::new(|| (), |_| fetch_pmc_map_properties());
 

@@ -25,8 +25,8 @@ use leptos::prelude::*;
 /// Response shape from POST /api/folio/invite-codes/:id/accept
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AcceptCodeResponse {
-    pub ok:       bool,
-    pub role:     String,
+    pub ok: bool,
+    pub role: String,
     pub redirect: String,
 }
 
@@ -40,13 +40,13 @@ pub struct AcceptCodeResponse {
 /// is a no-op and returns the fallback redirect unchanged.
 #[server(AcceptInviteCode, "/api")]
 pub async fn accept_invite_code(
-    invite_code:       String,
+    invite_code: String,
     fallback_redirect: String,
 ) -> Result<AcceptCodeResponse, server_fn::error::ServerFnError> {
     if invite_code.is_empty() {
         return Ok(AcceptCodeResponse {
-            ok:       true,
-            role:     String::new(),
+            ok: true,
+            role: String::new(),
             redirect: fallback_redirect,
         });
     }
@@ -62,7 +62,9 @@ pub async fn accept_invite_code(
         &token,
         None,
         &serde_json::json!({}),
-    ).await.map_err(server_fn::error::ServerFnError::new)?;
+    )
+    .await
+    .map_err(server_fn::error::ServerFnError::new)?;
 
     let redirect = result["redirect"]
         .as_str()
@@ -70,8 +72,8 @@ pub async fn accept_invite_code(
         .to_string();
 
     Ok(AcceptCodeResponse {
-        ok:       result["ok"].as_bool().unwrap_or(true),
-        role:     result["role"].as_str().unwrap_or("").to_string(),
+        ok: result["ok"].as_bool().unwrap_or(true),
+        role: result["role"].as_str().unwrap_or("").to_string(),
         redirect,
     })
 }

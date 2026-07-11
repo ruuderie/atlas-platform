@@ -12,10 +12,10 @@
 //! | POST   | /api/folio/opportunities/{id}/quote         | Attach a quote to this opportunity   |
 
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -23,9 +23,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::user,
-    services::pm::opportunity::{
-        CreateOpportunityPayload, OpportunityFilter, OpportunityService,
-    },
+    services::pm::opportunity::{CreateOpportunityPayload, OpportunityFilter, OpportunityService},
     types::pm::{OpportunityStage, OpportunityType},
 };
 
@@ -243,4 +241,3 @@ async fn update_forecast(
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(opp))
 }
-

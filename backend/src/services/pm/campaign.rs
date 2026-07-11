@@ -40,11 +40,11 @@
 //! `record_event()` after the webhook is parsed by the integration layer (G05).
 //! This service never calls out to external APIs directly.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+    TransactionTrait,
 };
 use uuid::Uuid;
 
@@ -232,8 +232,8 @@ impl CampaignService {
         tenant_id: Uuid,
         filter: CampaignFilter,
     ) -> Result<Vec<atlas_campaign::Model>> {
-        let mut q = atlas_campaign::Entity::find()
-            .filter(atlas_campaign::Column::TenantId.eq(tenant_id));
+        let mut q =
+            atlas_campaign::Entity::find().filter(atlas_campaign::Column::TenantId.eq(tenant_id));
 
         if let Some(ct) = filter.campaign_type {
             q = q.filter(atlas_campaign::Column::CampaignType.eq(ct.to_string()));
@@ -254,7 +254,9 @@ impl CampaignService {
             q = q.filter(atlas_campaign::Column::ParentCampaignId.eq(pid));
         }
 
-        Ok(q.order_by_desc(atlas_campaign::Column::CreatedAt).all(db).await?)
+        Ok(q.order_by_desc(atlas_campaign::Column::CreatedAt)
+            .all(db)
+            .await?)
     }
 
     /// Transition campaign status. Enforces valid state machine transitions.
@@ -280,12 +282,24 @@ impl CampaignService {
 
         // Validate state machine.
         let allowed = match &current {
-            CampaignStatus::Draft     => matches!(new_status, CampaignStatus::Scheduled | CampaignStatus::Active),
-            CampaignStatus::Scheduled => matches!(new_status, CampaignStatus::Active | CampaignStatus::Archived),
-            CampaignStatus::Active    => matches!(new_status, CampaignStatus::Paused | CampaignStatus::Completed | CampaignStatus::Archived),
-            CampaignStatus::Paused    => matches!(new_status, CampaignStatus::Active | CampaignStatus::Archived),
+            CampaignStatus::Draft => matches!(
+                new_status,
+                CampaignStatus::Scheduled | CampaignStatus::Active
+            ),
+            CampaignStatus::Scheduled => matches!(
+                new_status,
+                CampaignStatus::Active | CampaignStatus::Archived
+            ),
+            CampaignStatus::Active => matches!(
+                new_status,
+                CampaignStatus::Paused | CampaignStatus::Completed | CampaignStatus::Archived
+            ),
+            CampaignStatus::Paused => matches!(
+                new_status,
+                CampaignStatus::Active | CampaignStatus::Archived
+            ),
             CampaignStatus::Completed => matches!(new_status, CampaignStatus::Archived),
-            CampaignStatus::Archived  => false,
+            CampaignStatus::Archived => false,
         };
 
         if !allowed {
@@ -477,14 +491,14 @@ impl CampaignService {
         // will enforce exhaustiveness, preventing silent counter misrouting.
 
         let maybe_counter: Option<CampaignCounter> = match &payload.event_type {
-            CampaignEventType::Sent         => None, // not tracked in counters
-            CampaignEventType::Delivered    => None,
-            CampaignEventType::Opened       => Some(CampaignCounter::Opens),
-            CampaignEventType::Clicked      => Some(CampaignCounter::Clicks),
-            CampaignEventType::Replied      => Some(CampaignCounter::Replies),
-            CampaignEventType::FormFill     => None,
-            CampaignEventType::Converted    => Some(CampaignCounter::Conversions),
-            CampaignEventType::Bounced      => None,
+            CampaignEventType::Sent => None, // not tracked in counters
+            CampaignEventType::Delivered => None,
+            CampaignEventType::Opened => Some(CampaignCounter::Opens),
+            CampaignEventType::Clicked => Some(CampaignCounter::Clicks),
+            CampaignEventType::Replied => Some(CampaignCounter::Replies),
+            CampaignEventType::FormFill => None,
+            CampaignEventType::Converted => Some(CampaignCounter::Conversions),
+            CampaignEventType::Bounced => None,
             CampaignEventType::Unsubscribed => None,
             CampaignEventType::SpamReported => None,
         };
@@ -495,10 +509,12 @@ impl CampaignService {
 
         // ── Enrollment state transitions ───────────────────────────────────────
         let terminal_status: Option<(EnrollmentStatus, &str)> = match &payload.event_type {
-            CampaignEventType::Converted    => Some((EnrollmentStatus::Exited, "converted")),
-            CampaignEventType::Replied      => Some((EnrollmentStatus::Exited, "replied")),
-            CampaignEventType::Bounced      => Some((EnrollmentStatus::Bounced, "bounced")),
-            CampaignEventType::Unsubscribed => Some((EnrollmentStatus::Unsubscribed, "unsubscribed")),
+            CampaignEventType::Converted => Some((EnrollmentStatus::Exited, "converted")),
+            CampaignEventType::Replied => Some((EnrollmentStatus::Exited, "replied")),
+            CampaignEventType::Bounced => Some((EnrollmentStatus::Bounced, "bounced")),
+            CampaignEventType::Unsubscribed => {
+                Some((EnrollmentStatus::Unsubscribed, "unsubscribed"))
+            }
             CampaignEventType::SpamReported => Some((EnrollmentStatus::Exited, "spam_reported")),
             // All other events keep the enrollment active.
             _ => None,
@@ -569,11 +585,12 @@ impl CampaignService {
             q = q.filter(atlas_campaign_enrollment::Column::Status.eq(st.to_string()));
         }
 
-        Ok(q.order_by_asc(atlas_campaign_enrollment::Column::EnrolledAt)
-            .all(db)
-            .await?)
+        Ok(
+            q.order_by_asc(atlas_campaign_enrollment::Column::EnrolledAt)
+                .all(db)
+                .await?,
+        )
     }
-
 
     // ── Hierarchy ─────────────────────────────────────────────────────────────
 
@@ -643,10 +660,10 @@ impl CampaignService {
 
         #[derive(Debug, FromQueryResult)]
         struct Row {
-            contacts:    i64,
-            opens:       i64,
-            clicks:      i64,
-            replies:     i64,
+            contacts: i64,
+            opens: i64,
+            clicks: i64,
+            replies: i64,
             conversions: i64,
         }
 
@@ -659,10 +676,10 @@ impl CampaignService {
         .ok_or_else(|| anyhow!("hierarchy stats query returned no rows for {root_id}"))?;
 
         Ok(HierarchyStats {
-            total_contacts:    row.contacts,
-            total_opens:       row.opens,
-            total_clicks:      row.clicks,
-            total_replies:     row.replies,
+            total_contacts: row.contacts,
+            total_opens: row.opens,
+            total_clicks: row.clicks,
+            total_replies: row.replies,
             total_conversions: row.conversions,
         })
     }
@@ -717,10 +734,10 @@ enum CampaignCounter {
 impl CampaignCounter {
     fn column_name(&self) -> &'static str {
         match self {
-            CampaignCounter::Contacts    => "total_contacts",
-            CampaignCounter::Opens       => "total_opens",
-            CampaignCounter::Clicks      => "total_clicks",
-            CampaignCounter::Replies     => "total_replies",
+            CampaignCounter::Contacts => "total_contacts",
+            CampaignCounter::Opens => "total_opens",
+            CampaignCounter::Clicks => "total_clicks",
+            CampaignCounter::Replies => "total_replies",
             CampaignCounter::Conversions => "total_conversions",
         }
     }

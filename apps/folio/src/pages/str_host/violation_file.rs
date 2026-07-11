@@ -7,21 +7,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Server function ───────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileViolationInput {
-    pub subject:     String,
+    pub subject: String,
     pub description: String,
-    pub priority:    String,
-    pub category:    String,
+    pub priority: String,
+    pub category: String,
 }
 
 #[server(FileStrViolation, "/api")]
-pub async fn file_str_violation(input: FileViolationInput) -> Result<String, server_fn::error::ServerFnError> {
+pub async fn file_str_violation(
+    input: FileViolationInput,
+) -> Result<String, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -32,13 +34,18 @@ pub async fn file_str_violation(input: FileViolationInput) -> Result<String, ser
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -46,27 +53,35 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 
 #[component]
 pub fn StrViolationFiling() -> impl IntoView {
-    let subject     = RwSignal::new(String::new());
+    let subject = RwSignal::new(String::new());
     let description = RwSignal::new(String::new());
-    let priority    = RwSignal::new("normal".to_string());
-    let category    = RwSignal::new("property_damage".to_string());
-    let submitting  = RwSignal::new(false);
-    let submitted   = RwSignal::new(false);
-    let error_msg   = RwSignal::new(None::<String>);
+    let priority = RwSignal::new("normal".to_string());
+    let category = RwSignal::new("property_damage".to_string());
+    let submitting = RwSignal::new(false);
+    let submitted = RwSignal::new(false);
+    let error_msg = RwSignal::new(None::<String>);
 
     let handle_submit = move |_| {
-        if subject.get().trim().is_empty() { return; }
+        if subject.get().trim().is_empty() {
+            return;
+        }
         submitting.set(true);
         let input = FileViolationInput {
-            subject:     subject.get(),
+            subject: subject.get(),
             description: description.get(),
-            priority:    priority.get(),
-            category:    category.get(),
+            priority: priority.get(),
+            category: category.get(),
         };
         leptos::task::spawn_local(async move {
             match file_str_violation(input).await {
-                Ok(_) => { submitted.set(true); submitting.set(false); }
-                Err(e) => { error_msg.set(Some(e.to_string())); submitting.set(false); }
+                Ok(_) => {
+                    submitted.set(true);
+                    submitting.set(false);
+                }
+                Err(e) => {
+                    error_msg.set(Some(e.to_string()));
+                    submitting.set(false);
+                }
             }
         });
     };

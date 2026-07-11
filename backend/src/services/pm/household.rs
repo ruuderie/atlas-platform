@@ -15,7 +15,7 @@
 //! Return types split `ActiveOccupant` from `FormerOccupant` so callers never
 //! have to null-check `removed_at` — the type carries that fact.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use chrono::{Datelike, NaiveDate, Utc};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -57,7 +57,9 @@ impl LicensePlate {
         }
         Ok(Self(s))
     }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl std::fmt::Display for LicensePlate {
@@ -74,14 +76,23 @@ impl ModelYear {
     pub fn new(year: i32) -> Result<Self> {
         let next_year = Utc::now().year() + 2; // allow pre-orders
         if year < 1886 {
-            bail!("model year {} is before the automobile was invented (1886)", year);
+            bail!(
+                "model year {} is before the automobile was invented (1886)",
+                year
+            );
         }
         if year > next_year {
-            bail!("model year {} is too far in the future (max {})", year, next_year);
+            bail!(
+                "model year {} is too far in the future (max {})",
+                year,
+                next_year
+            );
         }
         Ok(Self(year as u16))
     }
-    pub fn value(self) -> i32 { self.0 as i32 }
+    pub fn value(self) -> i32 {
+        self.0 as i32
+    }
 }
 
 impl std::fmt::Display for ModelYear {
@@ -102,7 +113,9 @@ impl CountryCode {
         }
         Ok(Self(s))
     }
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl std::fmt::Display for CountryCode {
@@ -203,9 +216,9 @@ impl std::fmt::Display for AdultRelationship {
         f.write_str(match self {
             Self::CoTenant => "co_tenant",
             Self::Roommate => "roommate",
-            Self::Spouse   => "spouse",
-            Self::Partner  => "partner",
-            Self::Other    => "other",
+            Self::Spouse => "spouse",
+            Self::Partner => "partner",
+            Self::Other => "other",
         })
     }
 }
@@ -222,7 +235,7 @@ pub enum MinorRelationship {
 impl std::fmt::Display for MinorRelationship {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::Child     => "child",
+            Self::Child => "child",
             Self::Dependent => "dependent",
         })
     }
@@ -297,11 +310,11 @@ pub enum DepartureReason {
 impl std::fmt::Display for DepartureReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::MovedOut          => "moved_out",
+            Self::MovedOut => "moved_out",
             Self::RelationshipEnded => "relationship_ended",
-            Self::LeaseViolation    => "lease_violation",
-            Self::Deceased          => "deceased",
-            Self::Other             => "other",
+            Self::LeaseViolation => "lease_violation",
+            Self::Deceased => "deceased",
+            Self::Other => "other",
         })
     }
 }
@@ -429,7 +442,10 @@ impl HouseholdService {
             .all(db)
             .await?;
 
-        Ok(rows.into_iter().filter_map(|r| parse_vehicle(lease_id, r)).collect())
+        Ok(rows
+            .into_iter()
+            .filter_map(|r| parse_vehicle(lease_id, r))
+            .collect())
     }
 
     /// Update a vehicle mid-lease (tenant got a new car, parking spot changed, etc.)
@@ -455,22 +471,34 @@ impl HouseholdService {
             .await?
             .ok_or_else(|| anyhow!("vehicle {entry_id} not found on lease {lease_id}"))?;
 
-        let mut meta = row.relationship_metadata.clone()
+        let mut meta = row
+            .relationship_metadata
+            .clone()
             .unwrap_or_else(|| serde_json::json!({}));
 
         macro_rules! patch_str {
             ($field:literal, $val:expr) => {
-                if let Some(v) = $val { meta[$field] = serde_json::json!(v); }
+                if let Some(v) = $val {
+                    meta[$field] = serde_json::json!(v);
+                }
             };
         }
-        patch_str!("make",   patch.make);
-        patch_str!("model",  patch.model);
-        patch_str!("color",  patch.color);
-        patch_str!("state",  patch.state);
-        if let Some(p) = patch.license_plate { meta["license_plate"] = serde_json::json!(p.as_str()); }
-        if let Some(c) = patch.country       { meta["country"]       = serde_json::json!(c.as_str()); }
-        if let Some(y) = patch.year          { meta["year"]          = serde_json::json!(y.value()); }
-        if let Some(ps) = patch.parking_spot { meta["parking_spot"]  = serde_json::json!(ps); }
+        patch_str!("make", patch.make);
+        patch_str!("model", patch.model);
+        patch_str!("color", patch.color);
+        patch_str!("state", patch.state);
+        if let Some(p) = patch.license_plate {
+            meta["license_plate"] = serde_json::json!(p.as_str());
+        }
+        if let Some(c) = patch.country {
+            meta["country"] = serde_json::json!(c.as_str());
+        }
+        if let Some(y) = patch.year {
+            meta["year"] = serde_json::json!(y.value());
+        }
+        if let Some(ps) = patch.parking_spot {
+            meta["parking_spot"] = serde_json::json!(ps);
+        }
         if let Some(e) = patch.registration_expiry {
             meta["registration_expiry"] = serde_json::json!(e.to_string());
         }
@@ -536,8 +564,16 @@ impl HouseholdService {
                         "id_document_number":   a.id_document_number,
                         "notes":                a.notes,
                     });
-                    (TARGET_ADULT, meta, a.full_name.clone(), a.relationship.to_string(),
-                     false, None, a.profile_id, a.id_document_type.clone())
+                    (
+                        TARGET_ADULT,
+                        meta,
+                        a.full_name.clone(),
+                        a.relationship.to_string(),
+                        false,
+                        None,
+                        a.profile_id,
+                        a.id_document_type.clone(),
+                    )
                 }
                 RegisterOccupantInput::Minor(m) => {
                     let meta = serde_json::json!({
@@ -547,8 +583,16 @@ impl HouseholdService {
                         "date_of_birth": m.date_of_birth.to_string(),
                         "notes":         m.notes,
                     });
-                    (TARGET_MINOR, meta, m.full_name.clone(), m.relationship.to_string(),
-                     true, Some(m.date_of_birth), None, None)
+                    (
+                        TARGET_MINOR,
+                        meta,
+                        m.full_name.clone(),
+                        m.relationship.to_string(),
+                        true,
+                        Some(m.date_of_birth),
+                        None,
+                        None,
+                    )
                 }
             };
 
@@ -644,18 +688,22 @@ impl HouseholdService {
             }
         }
 
-        let mut meta = row.relationship_metadata.clone()
+        let mut meta = row
+            .relationship_metadata
+            .clone()
             .unwrap_or_else(|| serde_json::json!({}));
 
         macro_rules! patch_str {
             ($field:literal, $val:expr) => {
-                if let Some(v) = $val { meta[$field] = serde_json::json!(v); }
+                if let Some(v) = $val {
+                    meta[$field] = serde_json::json!(v);
+                }
             };
         }
-        patch_str!("full_name",          patch.full_name);
-        patch_str!("id_document_type",   patch.id_document_type);
+        patch_str!("full_name", patch.full_name);
+        patch_str!("id_document_type", patch.id_document_type);
         patch_str!("id_document_number", patch.id_document_number);
-        patch_str!("notes",              patch.notes);
+        patch_str!("notes", patch.notes);
 
         let mut active: atlas_record_relationship::ActiveModel = row.into();
         active.relationship_metadata = Set(Some(meta));
@@ -663,8 +711,9 @@ impl HouseholdService {
 
         tracing::info!(%tenant_id, %user_id, %lease_id, occupant_id = %entry_id,
             "HouseholdService: occupant corrected");
-        try_parse_active(lease_id, updated)
-            .ok_or_else(|| anyhow!("occupant {entry_id} could not be re-parsed as active after update"))
+        try_parse_active(lease_id, updated).ok_or_else(|| {
+            anyhow!("occupant {entry_id} could not be re-parsed as active after update")
+        })
     }
 
     /// Record an occupant departure — **soft delete only, never hard delete**.
@@ -697,9 +746,11 @@ impl HouseholdService {
             }
         }
 
-        let mut meta = row.relationship_metadata.clone()
+        let mut meta = row
+            .relationship_metadata
+            .clone()
             .unwrap_or_else(|| serde_json::json!({}));
-        meta["removed_at"]     = serde_json::json!(now.to_rfc3339());
+        meta["removed_at"] = serde_json::json!(now.to_rfc3339());
         meta["removal_reason"] = serde_json::json!(reason.to_string());
         if let Some(n) = &notes {
             meta["departure_notes"] = serde_json::json!(n);
@@ -795,26 +846,26 @@ fn parse_vehicle(lease_id: Uuid, r: atlas_record_relationship::Model) -> Option<
     Some(VehicleRecord {
         id: r.target_entity_id,
         lease_id,
-        make:          m["make"].as_str()?.to_string(),
-        model:         m["model"].as_str()?.to_string(),
-        year:          m["year"].as_i64()? as i32,
-        color:         m["color"].as_str()?.to_string(),
+        make: m["make"].as_str()?.to_string(),
+        model: m["model"].as_str()?.to_string(),
+        year: m["year"].as_i64()? as i32,
+        color: m["color"].as_str()?.to_string(),
         license_plate: m["license_plate"].as_str()?.to_string(),
-        state:         m["state"].as_str()?.to_string(),
-        country:       m["country"].as_str().unwrap_or("US").to_string(),
-        parking_spot:  m["parking_spot"].as_str().map(|s| s.to_string()),
-        registration_expiry: m["registration_expiry"].as_str().and_then(|s| s.parse().ok()),
+        state: m["state"].as_str()?.to_string(),
+        country: m["country"].as_str().unwrap_or("US").to_string(),
+        parking_spot: m["parking_spot"].as_str().map(|s| s.to_string()),
+        registration_expiry: m["registration_expiry"]
+            .as_str()
+            .and_then(|s| s.parse().ok()),
         registered_at: r.created_at,
-        updated_at: m["updated_at"].as_str()
+        updated_at: m["updated_at"]
+            .as_str()
             .and_then(|s| s.parse::<chrono::DateTime<Utc>>().ok()),
     })
 }
 
 /// Returns `Some(ActiveOccupant)` only if `removed_at` is absent from metadata.
-fn try_parse_active(
-    lease_id: Uuid,
-    r: atlas_record_relationship::Model,
-) -> Option<ActiveOccupant> {
+fn try_parse_active(lease_id: Uuid, r: atlas_record_relationship::Model) -> Option<ActiveOccupant> {
     let m = r.relationship_metadata.as_ref()?;
     // If removed_at is present, this is a FormerOccupant — skip
     if m.get("removed_at").and_then(|v| v.as_str()).is_some() {
@@ -840,20 +891,17 @@ fn try_parse_active(
 }
 
 /// Returns `Some(FormerOccupant)` only if `removed_at` is present in metadata.
-fn try_parse_former(
-    lease_id: Uuid,
-    r: atlas_record_relationship::Model,
-) -> Option<FormerOccupant> {
+fn try_parse_former(lease_id: Uuid, r: atlas_record_relationship::Model) -> Option<FormerOccupant> {
     let m = r.relationship_metadata.as_ref()?;
     let removed_at_str = m["removed_at"].as_str()?;
     let removed_at: chrono::DateTime<Utc> = removed_at_str.parse().ok()?;
     let reason_str = m["removal_reason"].as_str().unwrap_or("other");
     let removal_reason = match reason_str {
-        "moved_out"          => DepartureReason::MovedOut,
+        "moved_out" => DepartureReason::MovedOut,
         "relationship_ended" => DepartureReason::RelationshipEnded,
-        "lease_violation"    => DepartureReason::LeaseViolation,
-        "deceased"           => DepartureReason::Deceased,
-        _                    => DepartureReason::Other,
+        "lease_violation" => DepartureReason::LeaseViolation,
+        "deceased" => DepartureReason::Deceased,
+        _ => DepartureReason::Other,
     };
     let is_minor = m["is_minor"].as_bool().unwrap_or(false);
     Some(FormerOccupant {

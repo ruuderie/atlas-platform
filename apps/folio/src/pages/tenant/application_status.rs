@@ -8,48 +8,58 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApplicationSummary {
-    pub id:                    Uuid,
-    pub applicant_user_id:     Uuid,
-    pub target_asset_id:       Option<Uuid>,
-    pub status:                String,
-    pub screening_status:      String,
-    pub screening_provider:    Option<String>,
-    pub screening_passed:      Option<bool>,
-    pub monthly_income_cents:  Option<i64>,
-    pub submitted_at:          Option<String>,
-    pub decided_at:            Option<String>,
-    pub decision_reason:       Option<String>,
-    pub created_at:            String,
+    pub id: Uuid,
+    pub applicant_user_id: Uuid,
+    pub target_asset_id: Option<Uuid>,
+    pub status: String,
+    pub screening_status: String,
+    pub screening_provider: Option<String>,
+    pub screening_passed: Option<bool>,
+    pub monthly_income_cents: Option<i64>,
+    pub submitted_at: Option<String>,
+    pub decided_at: Option<String>,
+    pub decision_reason: Option<String>,
+    pub created_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchMyApplications, "/api")]
-pub async fn fetch_my_applications() -> Result<Vec<ApplicationSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_my_applications(
+) -> Result<Vec<ApplicationSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<ApplicationSummary>>(
-        "/api/folio/applications", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/applications",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -58,21 +68,21 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 fn app_status_info(status: &str) -> (&'static str, &'static str, &'static str) {
     // (icon, css_class, label)
     match status.to_lowercase().as_str() {
-        "pending" | "submitted"  => ("⏳", "app-status--pending",  "Under Review"),
-        "approved"               => ("✅", "app-status--approved", "Approved"),
-        "denied" | "rejected"    => ("❌", "app-status--denied",   "Not Approved"),
-        "withdrawn" | "cancelled"=> ("🚪", "app-status--neutral",  "Withdrawn"),
-        _                        => ("📋", "app-status--neutral",  "Unknown"),
+        "pending" | "submitted" => ("⏳", "app-status--pending", "Under Review"),
+        "approved" => ("✅", "app-status--approved", "Approved"),
+        "denied" | "rejected" => ("❌", "app-status--denied", "Not Approved"),
+        "withdrawn" | "cancelled" => ("🚪", "app-status--neutral", "Withdrawn"),
+        _ => ("📋", "app-status--neutral", "Unknown"),
     }
 }
 
 fn screening_info(status: &str, passed: Option<bool>) -> (&'static str, &'static str) {
     match (status.to_lowercase().as_str(), passed) {
-        ("pending" | "in_progress", _)  => ("🔍 In Progress",    "color:#60a5fa"),
-        ("complete", Some(true))        => ("✓ Passed",          "color:#4ade80"),
-        ("complete", Some(false))       => ("✗ Did Not Pass",    "color:#f87171"),
-        ("waived", _)                   => ("— Waived",          "color:#94a3b8"),
-        _                               => ("Pending",           "color:#94a3b8"),
+        ("pending" | "in_progress", _) => ("🔍 In Progress", "color:#60a5fa"),
+        ("complete", Some(true)) => ("✓ Passed", "color:#4ade80"),
+        ("complete", Some(false)) => ("✗ Did Not Pass", "color:#f87171"),
+        ("waived", _) => ("— Waived", "color:#94a3b8"),
+        _ => ("Pending", "color:#94a3b8"),
     }
 }
 
@@ -86,10 +96,7 @@ fn cents_display(cents: i64) -> String {
 pub fn TenantApplicationStatus() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
 
-    let apps_res = Resource::new(
-        move || refresh.get(),
-        |_| fetch_my_applications(),
-    );
+    let apps_res = Resource::new(move || refresh.get(), |_| fetch_my_applications());
 
     view! {
         <div class="main-area">

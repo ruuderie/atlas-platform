@@ -31,11 +31,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post},
-    Router,
 };
 use chrono::NaiveDate;
 use sea_orm::DatabaseConnection;
@@ -51,8 +51,14 @@ use crate::services::pm::violation::{
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/violations", get(list_all).post(file_violation))
-        .route("/api/folio/violations/{id}/status", patch(update_cure_status))
-        .route("/api/folio/assets/{asset_id}/violations", get(list_for_asset))
+        .route(
+            "/api/folio/violations/{id}/status",
+            patch(update_cure_status),
+        )
+        .route(
+            "/api/folio/assets/{asset_id}/violations",
+            get(list_for_asset),
+        )
         .route("/api/folio/tenant/violations", get(list_for_tenant))
 }
 
@@ -96,9 +102,10 @@ async fn list_all(
 
     match crate::entities::atlas_case::Entity::find()
         .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
-        .filter(crate::entities::atlas_case::Column::CaseType.eq(
-            PmCaseType::ComplianceViolation.to_string(),
-        ))
+        .filter(
+            crate::entities::atlas_case::Column::CaseType
+                .eq(PmCaseType::ComplianceViolation.to_string()),
+        )
         .order_by_desc(crate::entities::atlas_case::Column::CreatedAt)
         .all(&db)
         .await
@@ -150,8 +157,14 @@ async fn update_cure_status(
     Json(body): Json<UpdateCureStatusHttpInput>,
 ) -> impl IntoResponse {
     match ViolationService::update_cure_status(
-        &db, tenant_id, violation_id, body.status, body.resolution_notes,
-    ).await {
+        &db,
+        tenant_id,
+        violation_id,
+        body.status,
+        body.resolution_notes,
+    )
+    .await
+    {
         Ok(v) => (StatusCode::OK, Json(v)).into_response(),
         Err(e) => {
             tracing::error!("update_cure_status: {e:#}");

@@ -23,26 +23,26 @@ use crate::components::nav::{FolioRoute, NavIcon};
 /// Mirrors `AssetDetail` from `GET /api/folio/assets/:id`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssetDetailModel {
-    pub id:                      uuid::Uuid,
-    pub tenant_id:               uuid::Uuid,
-    pub portfolio_id:            Option<uuid::Uuid>,
-    pub asset_type:              String,
-    pub name:                    String,
-    pub serial_or_folio_number:  Option<String>,
-    pub status:                  String,
-    pub address_line_1:          Option<String>,
-    pub address_line_2:          Option<String>,
-    pub city:                    Option<String>,
-    pub state_province:          Option<String>,
-    pub country_code:            Option<String>,
-    pub postal_code:             Option<String>,
-    pub attributes:              Option<serde_json::Value>,
+    pub id: uuid::Uuid,
+    pub tenant_id: uuid::Uuid,
+    pub portfolio_id: Option<uuid::Uuid>,
+    pub asset_type: String,
+    pub name: String,
+    pub serial_or_folio_number: Option<String>,
+    pub status: String,
+    pub address_line_1: Option<String>,
+    pub address_line_2: Option<String>,
+    pub city: Option<String>,
+    pub state_province: Option<String>,
+    pub country_code: Option<String>,
+    pub postal_code: Option<String>,
+    pub attributes: Option<serde_json::Value>,
     // G-10 lifecycle extension fields
-    pub scheduled_service_date:  Option<chrono::NaiveDate>,
-    pub expiry_date:             Option<chrono::NaiveDate>,
-    pub condition:               Option<String>,
-    pub lifecycle_metadata:      Option<serde_json::Value>,
-    pub created_at:              chrono::DateTime<chrono::Utc>,
+    pub scheduled_service_date: Option<chrono::NaiveDate>,
+    pub expiry_date: Option<chrono::NaiveDate>,
+    pub condition: Option<String>,
+    pub lifecycle_metadata: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Mirrors `AssetCaseSummary` from `GET /api/folio/assets/:id/inspections`.
@@ -50,29 +50,29 @@ pub struct AssetDetailModel {
 /// Contractor is first-class: `assigned_vendor_name` is denormalized by the backend.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssetCaseSummary {
-    pub id:                    uuid::Uuid,
-    pub case_type:             String,
-    pub subject:               String,
-    pub status:                String,
-    pub priority:              String,
-    pub scheduled_at:          Option<chrono::DateTime<chrono::Utc>>,
-    pub completed_at:          Option<chrono::DateTime<chrono::Utc>>,
-    pub estimated_cost_cents:  Option<i64>,
-    pub actual_cost_cents:     Option<i64>,
-    pub assigned_vendor_name:  Option<String>,
-    pub created_at:            chrono::DateTime<chrono::Utc>,
+    pub id: uuid::Uuid,
+    pub case_type: String,
+    pub subject: String,
+    pub status: String,
+    pub priority: String,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub estimated_cost_cents: Option<i64>,
+    pub actual_cost_cents: Option<i64>,
+    pub assigned_vendor_name: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// Mirrors G-21 event shape from `GET /api/folio/events?subject_entity_type=atlas_asset&…`.
 /// Backed by G-21 `atlas_events` — these are *scheduled occurrences* (open houses, showings).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssetEventSummary {
-    pub id:         uuid::Uuid,
-    pub name:       String,
+    pub id: uuid::Uuid,
+    pub name: String,
     pub event_type: String,
-    pub status:     String,
-    pub starts_at:  chrono::DateTime<chrono::Utc>,
-    pub ends_at:    chrono::DateTime<chrono::Utc>,
+    pub status: String,
+    pub starts_at: chrono::DateTime<chrono::Utc>,
+    pub ends_at: chrono::DateTime<chrono::Utc>,
     pub venue_name: Option<String>,
 }
 
@@ -81,16 +81,16 @@ pub struct AssetEventSummary {
 /// The actual contractor per job lives on `atlas_cases.assigned_service_provider_id`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssetContractorSummary {
-    pub vendor_id:         uuid::Uuid,
-    pub business_name:     String,
-    pub primary_trade:     Option<String>,
+    pub vendor_id: uuid::Uuid,
+    pub business_name: String,
+    pub primary_trade: Option<String>,
     pub relationship_type: String,
 }
 
 /// Minimal vendor list item for the contractor selector.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VendorListItem {
-    pub id:            uuid::Uuid,
+    pub id: uuid::Uuid,
     pub business_name: String,
     pub primary_trade: Option<String>,
 }
@@ -109,31 +109,31 @@ pub enum AssetStatus {
 impl AssetStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "active"   => Self::Active,
+            "active" => Self::Active,
             "inactive" => Self::Inactive,
-            "pending"  => Self::Pending,
+            "pending" => Self::Pending,
             "archived" => Self::Archived,
-            _          => Self::Unknown,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Active   => "Active",
+            Self::Active => "Active",
             Self::Inactive => "Inactive",
-            Self::Pending  => "Pending",
+            Self::Pending => "Pending",
             Self::Archived => "Archived",
-            Self::Unknown  => "Unknown",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Active   => "asset-status-pill--active",
+            Self::Active => "asset-status-pill--active",
             Self::Inactive => "asset-status-pill--inactive",
-            Self::Pending  => "asset-status-pill--pending",
+            Self::Pending => "asset-status-pill--pending",
             Self::Archived => "asset-status-pill--archived",
-            Self::Unknown  => "asset-status-pill--unknown",
+            Self::Unknown => "asset-status-pill--unknown",
         }
     }
 }
@@ -153,33 +153,33 @@ impl AssetCondition {
     pub fn from_str(s: &str) -> Self {
         match s {
             "excellent" => Self::Excellent,
-            "good"      => Self::Good,
-            "fair"      => Self::Fair,
-            "poor"      => Self::Poor,
-            "retired"   => Self::Retired,
-            _           => Self::Unknown,
+            "good" => Self::Good,
+            "fair" => Self::Fair,
+            "poor" => Self::Poor,
+            "retired" => Self::Retired,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Excellent => "Excellent",
-            Self::Good      => "Good",
-            Self::Fair      => "Fair",
-            Self::Poor      => "Poor",
-            Self::Retired   => "Retired",
-            Self::Unknown   => "Unknown",
+            Self::Good => "Good",
+            Self::Fair => "Fair",
+            Self::Poor => "Poor",
+            Self::Retired => "Retired",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
             Self::Excellent => "asset-cond-pill--excellent",
-            Self::Good      => "asset-cond-pill--good",
-            Self::Fair      => "asset-cond-pill--fair",
-            Self::Poor      => "asset-cond-pill--poor",
-            Self::Retired   => "asset-cond-pill--retired",
-            Self::Unknown   => "asset-cond-pill--unknown",
+            Self::Good => "asset-cond-pill--good",
+            Self::Fair => "asset-cond-pill--fair",
+            Self::Poor => "asset-cond-pill--poor",
+            Self::Retired => "asset-cond-pill--retired",
+            Self::Unknown => "asset-cond-pill--unknown",
         }
     }
 }
@@ -201,53 +201,51 @@ pub enum AssetCaseType {
 impl AssetCaseType {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "maintenance"          => Self::Maintenance,
+            "maintenance" => Self::Maintenance,
             "scheduled_inspection" => Self::ScheduledInspection,
             "compliance_violation" => Self::ComplianceViolation,
-            "lease_renewal"        => Self::LeaseRenewal,
-            "move_out"             => Self::MoveOut,
-            "application_review"   => Self::ApplicationReview,
-            "report_request"       => Self::ReportRequest,
-            _                      => Self::Unknown,
+            "lease_renewal" => Self::LeaseRenewal,
+            "move_out" => Self::MoveOut,
+            "application_review" => Self::ApplicationReview,
+            "report_request" => Self::ReportRequest,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn display_label(self) -> &'static str {
         match self {
-            Self::Maintenance        => "Maintenance",
+            Self::Maintenance => "Maintenance",
             Self::ScheduledInspection => "Inspection",
             Self::ComplianceViolation => "Compliance",
-            Self::LeaseRenewal        => "Lease Renewal",
-            Self::MoveOut             => "Move Out",
-            Self::ApplicationReview   => "Application",
-            Self::ReportRequest       => "Report Request",
-            Self::Unknown             => "Work Item",
+            Self::LeaseRenewal => "Lease Renewal",
+            Self::MoveOut => "Move Out",
+            Self::ApplicationReview => "Application",
+            Self::ReportRequest => "Report Request",
+            Self::Unknown => "Work Item",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::Maintenance         => "build",
+            Self::Maintenance => "build",
             Self::ScheduledInspection => "fact_check",
             Self::ComplianceViolation => "gavel",
-            Self::LeaseRenewal        => "autorenew",
-            Self::MoveOut             => "move_item",
-            Self::ApplicationReview   => "person_search",
-            Self::ReportRequest       => "description",
-            Self::Unknown             => "work",
+            Self::LeaseRenewal => "autorenew",
+            Self::MoveOut => "move_item",
+            Self::ApplicationReview => "person_search",
+            Self::ReportRequest => "description",
+            Self::Unknown => "work",
         }
     }
 
     pub const fn icon_class(self) -> &'static str {
         match self {
-            Self::Maintenance
-            | Self::ScheduledInspection => "asset-tl-icon--maintenance",
-            Self::ComplianceViolation    => "asset-tl-icon--compliance",
-            Self::LeaseRenewal
-            | Self::MoveOut             => "asset-tl-icon--lease",
-            Self::ApplicationReview
-            | Self::ReportRequest
-            | Self::Unknown             => "asset-tl-icon--scheduled",
+            Self::Maintenance | Self::ScheduledInspection => "asset-tl-icon--maintenance",
+            Self::ComplianceViolation => "asset-tl-icon--compliance",
+            Self::LeaseRenewal | Self::MoveOut => "asset-tl-icon--lease",
+            Self::ApplicationReview | Self::ReportRequest | Self::Unknown => {
+                "asset-tl-icon--scheduled"
+            }
         }
     }
 }
@@ -266,34 +264,34 @@ pub enum AssetScheduledEventType {
 impl AssetScheduledEventType {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "open_house"    => Self::OpenHouse,
-            "training"      => Self::Training,
-            "conference"    => Self::Conference,
-            "meetup"        => Self::Meetup,
+            "open_house" => Self::OpenHouse,
+            "training" => Self::Training,
+            "conference" => Self::Conference,
+            "meetup" => Self::Meetup,
             "venue_booking" => Self::VenueBooking,
-            _               => Self::Unknown,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn display_label(self) -> &'static str {
         match self {
-            Self::OpenHouse    => "Open House",
-            Self::Training     => "Training",
-            Self::Conference   => "Conference",
-            Self::Meetup       => "Meetup",
+            Self::OpenHouse => "Open House",
+            Self::Training => "Training",
+            Self::Conference => "Conference",
+            Self::Meetup => "Meetup",
             Self::VenueBooking => "Venue Booking",
-            Self::Unknown      => "Scheduled Event",
+            Self::Unknown => "Scheduled Event",
         }
     }
 
     pub const fn material_icon(self) -> &'static str {
         match self {
-            Self::OpenHouse    => "home",
-            Self::Training     => "school",
-            Self::Conference   => "groups",
-            Self::Meetup       => "handshake",
+            Self::OpenHouse => "home",
+            Self::Training => "school",
+            Self::Conference => "groups",
+            Self::Meetup => "handshake",
             Self::VenueBooking => "event_seat",
-            Self::Unknown      => "event",
+            Self::Unknown => "event",
         }
     }
 }
@@ -312,45 +310,42 @@ pub enum CaseStatus {
 impl CaseStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
-            "open"        => Self::Open,
+            "open" => Self::Open,
             "in_progress" => Self::InProgress,
-            "scheduled"   => Self::Scheduled,
-            "completed"   => Self::Completed,
-            "cancelled"   => Self::Cancelled,
-            _             => Self::Unknown,
+            "scheduled" => Self::Scheduled,
+            "completed" => Self::Completed,
+            "cancelled" => Self::Cancelled,
+            _ => Self::Unknown,
         }
     }
 
     pub const fn pill_class(self) -> &'static str {
         match self {
-            Self::Completed  => "asset-event-pill--complete",
-            Self::Cancelled  => "asset-event-pill--cancelled",
+            Self::Completed => "asset-event-pill--complete",
+            Self::Cancelled => "asset-event-pill--cancelled",
             Self::InProgress => "asset-event-pill--active",
-            Self::Open
-            | Self::Scheduled
-            | Self::Unknown  => "asset-event-pill--scheduled",
+            Self::Open | Self::Scheduled | Self::Unknown => "asset-event-pill--scheduled",
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Open       => "Open",
+            Self::Open => "Open",
             Self::InProgress => "In Progress",
-            Self::Scheduled  => "Scheduled",
-            Self::Completed  => "Completed",
-            Self::Cancelled  => "Cancelled",
-            Self::Unknown    => "Unknown",
+            Self::Scheduled => "Scheduled",
+            Self::Completed => "Completed",
+            Self::Cancelled => "Cancelled",
+            Self::Unknown => "Unknown",
         }
     }
 
     pub const fn tl_icon_class(self) -> &'static str {
         match self {
-            Self::Completed  => "asset-tl-icon--complete",
-            Self::Cancelled  => "asset-tl-icon--cancelled",
-            Self::InProgress
-            | Self::Open
-            | Self::Scheduled
-            | Self::Unknown  => "asset-tl-icon--scheduled",
+            Self::Completed => "asset-tl-icon--complete",
+            Self::Cancelled => "asset-tl-icon--cancelled",
+            Self::InProgress | Self::Open | Self::Scheduled | Self::Unknown => {
+                "asset-tl-icon--scheduled"
+            }
         }
     }
 }
@@ -371,19 +366,25 @@ pub fn AssetDetail() -> impl IntoView {
 
     // G-13 cases (maintenance + inspections) — loads in parallel with events
     let cases = Resource::new(asset_id.clone(), |id| async move {
-        if id.is_empty() { return Ok(vec![]); }
+        if id.is_empty() {
+            return Ok(vec![]);
+        }
         get_asset_cases(id).await
     });
 
     // G-21 events (open houses, showings, etc.) — loads in parallel with cases
     let events = Resource::new(asset_id.clone(), |id| async move {
-        if id.is_empty() { return Ok(vec![]); }
+        if id.is_empty() {
+            return Ok(vec![]);
+        }
         get_asset_events(id).await
     });
 
     // Default contractor — used only to trigger initial contractor_managed load.
     let _contractor = Resource::new(asset_id.clone(), |id| async move {
-        if id.is_empty() { return Ok(None); }
+        if id.is_empty() {
+            return Ok(None);
+        }
         get_asset_contractor(id).await
     });
 
@@ -393,7 +394,9 @@ pub fn AssetDetail() -> impl IntoView {
     let contractor_managed = Resource::new(
         move || (asset_id_for_contractor(), contractor_refresh.get()),
         |(id, _)| async move {
-            if id.is_empty() { return Ok(None); }
+            if id.is_empty() {
+                return Ok(None);
+            }
             get_asset_contractor(id).await
         },
     );
@@ -428,9 +431,9 @@ fn AssetDetailContent(
     contractor: Resource<Result<Option<AssetContractorSummary>, server_fn::error::ServerFnError>>,
     set_contractor_refresh: WriteSignal<u32>,
 ) -> impl IntoView {
-    let status    = AssetStatus::from_str(&detail.status);
+    let status = AssetStatus::from_str(&detail.status);
     let condition = detail.condition.as_deref().map(AssetCondition::from_str);
-    let asset_id  = detail.id.to_string();
+    let asset_id = detail.id.to_string();
 
     let address_display = {
         let parts: Vec<&str> = [
@@ -438,31 +441,53 @@ fn AssetDetailContent(
             detail.city.as_deref(),
             detail.state_province.as_deref(),
             detail.country_code.as_deref(),
-        ].into_iter().flatten().collect();
-        if parts.is_empty() { None } else { Some(parts.join(", ")) }
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        if parts.is_empty() {
+            None
+        } else {
+            Some(parts.join(", "))
+        }
     };
 
     let attribute_pairs: Vec<(String, String)> = detail
-        .attributes.as_ref()
+        .attributes
+        .as_ref()
         .and_then(|v| v.as_object())
-        .map(|obj| obj.iter().map(|(k, v)| {
-            let display_key = k.replace('_', " ");
-            let display_val = match v {
-                serde_json::Value::String(s) => s.clone(),
-                serde_json::Value::Number(n) => n.to_string(),
-                serde_json::Value::Bool(b)   => if *b { "Yes".into() } else { "No".into() },
-                _                            => v.to_string(),
-            };
-            (display_key, display_val)
-        }).collect())
+        .map(|obj| {
+            obj.iter()
+                .map(|(k, v)| {
+                    let display_key = k.replace('_', " ");
+                    let display_val = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        serde_json::Value::Number(n) => n.to_string(),
+                        serde_json::Value::Bool(b) => {
+                            if *b {
+                                "Yes".into()
+                            } else {
+                                "No".into()
+                            }
+                        }
+                        _ => v.to_string(),
+                    };
+                    (display_key, display_val)
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
-    let asset_name   = detail.name.clone();
-    let asset_type   = detail.asset_type.clone();
+    let asset_name = detail.name.clone();
+    let asset_type = detail.asset_type.clone();
     let folio_number = detail.serial_or_folio_number.clone();
-    let svc_date  = detail.scheduled_service_date.map(|d| d.format("%b %-d, %Y").to_string());
-    let exp_date  = detail.expiry_date.map(|d| d.format("%b %-d, %Y").to_string());
-    let created   = detail.created_at.format("%b %-d, %Y").to_string();
+    let svc_date = detail
+        .scheduled_service_date
+        .map(|d| d.format("%b %-d, %Y").to_string());
+    let exp_date = detail
+        .expiry_date
+        .map(|d| d.format("%b %-d, %Y").to_string());
+    let created = detail.created_at.format("%b %-d, %Y").to_string();
     let has_lifecycle = svc_date.is_some() || exp_date.is_some() || condition.is_some();
 
     view! {
@@ -753,7 +778,6 @@ fn AssetDetailContent(
 
 // ── Default Contractor panel (Phase B) ────────────────────────────────────────
 
-
 /// Sidebar panel for the asset's default contractor.
 /// Provides inline set / change / remove via G-22 `POST|DELETE /api/folio/relationships`.
 #[component]
@@ -772,7 +796,9 @@ fn DefaultContractorPanel(
     let vendors = Resource::new(
         move || selector_open.get(),
         |open| async move {
-            if !open { return Ok(vec![]); }
+            if !open {
+                return Ok(vec![]);
+            }
             get_vendor_list().await
         },
     );
@@ -937,7 +963,6 @@ fn DefaultContractorPanel(
     }
 }
 
-
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 #[component]
@@ -1017,8 +1042,12 @@ pub async fn get_asset_detail(
     let token = extract_token_from_headers(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<AssetDetailModel>(
-        &format!("/api/folio/assets/{asset_id}"), &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Asset fetch failed: {e}")))
+        &format!("/api/folio/assets/{asset_id}"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Asset fetch failed: {e}")))
 }
 
 /// Fetches G-13 cases (maintenance + inspections) for this asset.
@@ -1036,8 +1065,12 @@ pub async fn get_asset_cases(
     let token = extract_token_from_headers(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Vec<AssetCaseSummary>>(
-        &format!("/api/folio/assets/{asset_id}/inspections"), &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Cases fetch failed: {e}")))
+        &format!("/api/folio/assets/{asset_id}/inspections"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Cases fetch failed: {e}")))
 }
 
 /// Fetches G-21 events for this asset.
@@ -1056,8 +1089,11 @@ pub async fn get_asset_events(
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Vec<AssetEventSummary>>(
         &format!("/api/folio/events?subject_entity_type=atlas_asset&subject_entity_id={asset_id}"),
-        &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Events fetch failed: {e}")))
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Events fetch failed: {e}")))
 }
 
 /// Fetches the default contractor (G-22) for this asset.
@@ -1074,8 +1110,12 @@ pub async fn get_asset_contractor(
     let token = extract_token_from_headers(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Option<AssetContractorSummary>>(
-        &format!("/api/folio/assets/{asset_id}/contractor"), &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Contractor fetch failed: {e}")))
+        &format!("/api/folio/assets/{asset_id}/contractor"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Contractor fetch failed: {e}")))
 }
 
 /// Fetches the vendor list for the contractor selector.
@@ -1095,13 +1135,20 @@ pub async fn get_vendor_list() -> Result<Vec<VendorListItem>, server_fn::error::
     let token = extract_token_from_headers(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     let raw = crate::atlas_client::authenticated_get::<Vec<RawVendor>>(
-        "/api/folio/vendors", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(format!("Vendor list fetch failed: {e}")))?;
-    Ok(raw.into_iter().map(|v| VendorListItem {
-        id: v.id,
-        business_name: v.business_name,
-        primary_trade: v.trade_type,
-    }).collect())
+        "/api/folio/vendors",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Vendor list fetch failed: {e}")))?;
+    Ok(raw
+        .into_iter()
+        .map(|v| VendorListItem {
+            id: v.id,
+            business_name: v.business_name,
+            primary_trade: v.trade_type,
+        })
+        .collect())
 }
 
 /// Sets the default contractor for this asset via POST /api/folio/relationships.
@@ -1131,8 +1178,12 @@ pub async fn set_default_contractor(
     });
 
     crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/folio/relationships", &token, None, &payload,
-    ).await
+        "/api/folio/relationships",
+        &token,
+        None,
+        &payload,
+    )
+    .await
     .map(|_| ())
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Set contractor failed: {e}")))
 }
@@ -1167,8 +1218,7 @@ pub async fn remove_default_contractor(
         "/api/folio/relationships?source_entity_type=atlas_asset&source_entity_id={}&target_entity_type=atlas_service_providers&target_entity_id={}&relationship_type=default_contractor",
         asset_id, vendor_id
     );
-    crate::atlas_client::authenticated_delete(
-        &path, &token, None,
-    ).await
-    .map_err(|e| server_fn::error::ServerFnError::new(format!("Remove contractor failed: {e}")))
+    crate::atlas_client::authenticated_delete(&path, &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Remove contractor failed: {e}")))
 }

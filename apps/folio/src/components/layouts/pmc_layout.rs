@@ -1,7 +1,7 @@
-use leptos::prelude::*;
-use leptos_router::components::Outlet;
 use crate::auth::SessionInfo;
 use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
+use leptos::prelude::*;
+use leptos_router::components::Outlet;
 
 /// Persistent shell for all /pmc/** property management company routes.
 #[component]

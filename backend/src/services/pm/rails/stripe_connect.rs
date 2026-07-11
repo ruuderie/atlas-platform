@@ -29,7 +29,7 @@
 //! Set `STRIPE_PLATFORM_FEE_BPS` env var (basis points, e.g. `200` = 2%).
 //! If unset, defaults to 0 (no platform fee taken).
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use serde_json::json;
 use stripe::{
@@ -122,7 +122,10 @@ impl PaymentRailAdapter for StripeConnectRail {
             .context("Stripe PaymentIntent::create failed")?;
 
         let client_secret = intent.client_secret.clone().ok_or_else(|| {
-            anyhow!("Stripe did not return a client_secret for PaymentIntent {}", intent.id)
+            anyhow!(
+                "Stripe did not return a client_secret for PaymentIntent {}",
+                intent.id
+            )
         })?;
 
         tracing::info!(

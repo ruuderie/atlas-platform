@@ -8,64 +8,77 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrMessage {
-    pub id:          Uuid,
-    pub room_id:     Uuid,
-    pub sender_id:   Uuid,
+    pub id: Uuid,
+    pub room_id: Uuid,
+    pub sender_id: Uuid,
     pub sender_name: Option<String>,
-    pub body:        String,
-    pub created_at:  String,
-    pub is_host:     bool,
+    pub body: String,
+    pub created_at: String,
+    pub is_host: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrConversation {
-    pub room_id:       Uuid,
-    pub guest_name:    Option<String>,
-    pub reservation_id:Option<Uuid>,
-    pub last_message:  Option<String>,
-    pub last_at:       Option<String>,
-    pub unread_count:  usize,
+    pub room_id: Uuid,
+    pub guest_name: Option<String>,
+    pub reservation_id: Option<Uuid>,
+    pub last_message: Option<String>,
+    pub last_at: Option<String>,
+    pub unread_count: usize,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchStrConversations, "/api")]
-pub async fn fetch_str_conversations() -> Result<Vec<StrConversation>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_conversations(
+) -> Result<Vec<StrConversation>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<StrConversation>>(
-        "/api/folio/comms/str/conversations", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/comms/str/conversations",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchStrMessages, "/api")]
-pub async fn fetch_str_messages(room_id: String) -> Result<Vec<StrMessage>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_messages(
+    room_id: String,
+) -> Result<Vec<StrMessage>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let url = format!("/api/folio/comms/str/rooms/{room_id}/messages");
     crate::atlas_client::authenticated_get::<Vec<StrMessage>>(&url, &token, None)
-        .await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -74,16 +87,16 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 #[component]
 pub fn StrGuestMessaging() -> impl IntoView {
     let active_room = RwSignal::new(None::<Uuid>);
-    let compose     = RwSignal::new(String::new());
-    let sending     = RwSignal::new(false);
+    let compose = RwSignal::new(String::new());
+    let sending = RwSignal::new(false);
 
     let convs_res = Resource::new(|| (), |_| fetch_str_conversations());
-    let msgs_res  = Resource::new(
+    let msgs_res = Resource::new(
         move || active_room.get().map(|id| id.to_string()),
         |id_opt| async move {
             match id_opt {
                 Some(id) => fetch_str_messages(id).await,
-                None     => Ok(vec![]),
+                None => Ok(vec![]),
             }
         },
     );

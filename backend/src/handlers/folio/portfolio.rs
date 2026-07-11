@@ -18,11 +18,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,10 @@ use crate::entities::user;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/portfolios", get(list_portfolios).post(create_portfolio))
+        .route(
+            "/api/folio/portfolios",
+            get(list_portfolios).post(create_portfolio),
+        )
         .route("/api/folio/portfolios/{id}/nav", get(get_portfolio_nav))
 }
 
@@ -120,8 +123,8 @@ async fn create_portfolio(
     Extension(current_user): Extension<user::Model>,
     Json(input): Json<CreatePortfolioInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    use sea_orm::{Set, ActiveModelTrait};
     use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
 
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
@@ -145,7 +148,10 @@ async fn create_portfolio(
     })?;
 
     tracing::info!(portfolio_id = %id, %tenant_id, "create_portfolio: created");
-    Ok((StatusCode::CREATED, axum::response::Json(CreatePortfolioResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreatePortfolioResponse { id }),
+    ))
 }
 
 /// GET /api/folio/portfolios/:id/nav
@@ -156,16 +162,13 @@ async fn get_portfolio_nav(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    let nav = crate::services::pm::portfolio::PortfolioService::compute_nav(
-        &db,
-        tenant_id,
-        portfolio_id,
-    )
-    .await
-    .map_err(|e| {
-        tracing::error!(%tenant_id, %portfolio_id, "get_portfolio_nav error: {e:#}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let nav =
+        crate::services::pm::portfolio::PortfolioService::compute_nav(&db, tenant_id, portfolio_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(%tenant_id, %portfolio_id, "get_portfolio_nav error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
 
     Ok(axum::response::Json(PortfolioNav {
         portfolio_id,

@@ -33,11 +33,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
@@ -233,10 +233,10 @@ async fn list_all_systems(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let systems: Vec<crate::services::pm::building_system::BuildingSystemDetail> =
-        rows.into_iter()
-            .map(crate::services::pm::building_system::to_detail_pub)
-            .collect();
+    let systems: Vec<crate::services::pm::building_system::BuildingSystemDetail> = rows
+        .into_iter()
+        .map(crate::services::pm::building_system::to_detail_pub)
+        .collect();
 
     Ok(axum::response::Json(systems))
 }

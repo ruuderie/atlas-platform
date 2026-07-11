@@ -1,7 +1,7 @@
+use crate::auth::SessionInfo;
+use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
-use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
-use crate::auth::SessionInfo;
 
 /// Persistent shell for all /a/** agent routes.
 /// Requires `folio_mode = "brokerage"` on the instance.

@@ -11,49 +11,75 @@
 // Invite code support: ?code= pre-populates the context panel.
 // Email OTP is handled by WizardShell as a pre-auth gate.
 
-use leptos::prelude::*;
 use crate::components::wizard_shell::{
-    ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code,
+    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
+use leptos::prelude::*;
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "identity",    label: "Identity & Profile",     skippable: false },
-    WizardStepDesc { id: "portfolio",   label: "Review Your Portfolio",  skippable: false },
-    WizardStepDesc { id: "statements",  label: "Statement Preferences",  skippable: false },
-    WizardStepDesc { id: "network",     label: "Grow your network",      skippable: true  },
+    WizardStepDesc {
+        id: "identity",
+        label: "Identity & Profile",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "portfolio",
+        label: "Review Your Portfolio",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "statements",
+        label: "Statement Preferences",
+        skippable: false,
+    },
+    WizardStepDesc {
+        id: "network",
+        label: "Grow your network",
+        skippable: true,
+    },
 ];
 
 #[component]
 pub fn OwnerWizard() -> impl IntoView {
-    let query    = leptos_router::hooks::use_query_map();
+    let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
     let code_resource = Resource::new(code_key, |code| resolve_invite_code(code));
-    Effect::new(move |_| { if let Some(Ok(r)) = code_resource.get() { invite_sig.set(r); } });
+    Effect::new(move |_| {
+        if let Some(Ok(r)) = code_resource.get() {
+            invite_sig.set(r);
+        }
+    });
 
     let current_idx = RwSignal::new(0usize);
-    let total       = STEPS.len();
-    let is_last     = Signal::derive(move || current_idx.get() == total - 1);
-    let next_label  = Signal::derive(move || if is_last.get() { "Go to Owner Portal" } else { "Continue" });
+    let total = STEPS.len();
+    let is_last = Signal::derive(move || current_idx.get() == total - 1);
+    let next_label = Signal::derive(move || {
+        if is_last.get() {
+            "Go to Owner Portal"
+        } else {
+            "Continue"
+        }
+    });
 
     // Identity
-    let first_name   = RwSignal::new(String::new());
-    let last_name    = RwSignal::new(String::new());
+    let first_name = RwSignal::new(String::new());
+    let last_name = RwSignal::new(String::new());
     let display_name = RwSignal::new(String::new());
-    let phone        = RwSignal::new(String::new());
-    let ownership    = RwSignal::new("individual".to_string());
-    let entity_name  = RwSignal::new(String::new());
-    let tax_id       = RwSignal::new(String::new());
+    let phone = RwSignal::new(String::new());
+    let ownership = RwSignal::new("individual".to_string());
+    let entity_name = RwSignal::new(String::new());
+    let tax_id = RwSignal::new(String::new());
 
     // Portfolio / approvals
     let approval_threshold = RwSignal::new("1000".to_string());
 
     // Statements
-    let dist_method  = RwSignal::new("ach".to_string());
-    let stmt_freq    = RwSignal::new("monthly_1st".to_string());
-    let stmt_format  = RwSignal::new("pdf_email".to_string());
-    let acct_email   = RwSignal::new(String::new());
+    let dist_method = RwSignal::new("ach".to_string());
+    let stmt_freq = RwSignal::new("monthly_1st".to_string());
+    let stmt_format = RwSignal::new("pdf_email".to_string());
+    let acct_email = RwSignal::new(String::new());
 
     let on_next = Callback::new(move |_| {
         let idx = current_idx.get();
@@ -63,21 +89,30 @@ pub fn OwnerWizard() -> impl IntoView {
                 let nav = leptos_router::hooks::use_navigate();
                 match accept_invite_code(invite_id, "/o".to_string()).await {
                     Ok(resp) => nav(&resp.redirect, Default::default()),
-                    Err(_)   => nav("/o", Default::default()),
+                    Err(_) => nav("/o", Default::default()),
                 }
             });
-        } else { current_idx.set(idx + 1); }
+        } else {
+            current_idx.set(idx + 1);
+        }
     });
-    let on_prev = Callback::new(move |_| { let i = current_idx.get(); if i > 0 { current_idx.set(i - 1); } });
+    let on_prev = Callback::new(move |_| {
+        let i = current_idx.get();
+        if i > 0 {
+            current_idx.set(i - 1);
+        }
+    });
 
-    let ctx_body = ViewFn::from(|| view! {
-        <p class="wiz-ctx-p">"Your owner portal gives you read-only visibility into your portfolio managed by your property manager."</p>
-        <ul class="wiz-ctx-list">
-            <li><span class="ms msf">"check_circle"</span>"Monthly owner statements"</li>
-            <li><span class="ms msf">"check_circle"</span>"Real-time occupancy & income"</li>
-            <li><span class="ms msf">"check_circle"</span>"Maintenance approval requests"</li>
-            <li><span class="ms msf">"check_circle"</span>"Distribution schedule and payment history"</li>
-        </ul>
+    let ctx_body = ViewFn::from(|| {
+        view! {
+            <p class="wiz-ctx-p">"Your owner portal gives you read-only visibility into your portfolio managed by your property manager."</p>
+            <ul class="wiz-ctx-list">
+                <li><span class="ms msf">"check_circle"</span>"Monthly owner statements"</li>
+                <li><span class="ms msf">"check_circle"</span>"Real-time occupancy & income"</li>
+                <li><span class="ms msf">"check_circle"</span>"Maintenance approval requests"</li>
+                <li><span class="ms msf">"check_circle"</span>"Distribution schedule and payment history"</li>
+            </ul>
+        }
     });
 
     view! {

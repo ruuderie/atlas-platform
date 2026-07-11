@@ -13,10 +13,10 @@
 //! | POST   | /api/folio/quotes/{id}/convert        | Mark converted → reservation         |
 
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -24,9 +24,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::user,
-    services::pm::quote::{
-        CreateLineItemPayload, CreateQuotePayload, QuoteFilter, QuoteService,
-    },
+    services::pm::quote::{CreateLineItemPayload, CreateQuotePayload, QuoteFilter, QuoteService},
     types::pm::{QuoteLineItemType, QuoteStatus},
 };
 
@@ -39,7 +37,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/folio/quotes/{id}/line-items", get(list_line_items))
         .route("/api/folio/quotes/{id}/status", post(transition_status))
         .route("/api/folio/quotes/{id}/revise", post(revise_quote))
-        .route("/api/folio/quotes/{id}/convert", post(convert_to_reservation))
+        .route(
+            "/api/folio/quotes/{id}/convert",
+            post(convert_to_reservation),
+        )
 }
 
 // ── Tenant resolution ─────────────────────────────────────────────────────────
@@ -245,8 +246,8 @@ async fn transition_status(
     Json(body): Json<TransitionStatusInput>,
 ) -> Result<impl axum::response::IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    let new_status =
-        QuoteStatus::try_from(body.status.as_str()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    let new_status = QuoteStatus::try_from(body.status.as_str())
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
 
     let quote = QuoteService::transition_status(&db, tenant_id, id, new_status)
         .await
@@ -301,18 +302,17 @@ async fn convert_to_reservation(
     Json(body): Json<ConvertInput>,
 ) -> Result<impl axum::response::IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    let quote =
-        QuoteService::convert_to_reservation(&db, tenant_id, id, body.reservation_id)
-            .await
-            .map_err(|e| {
-                if e.to_string().contains("not found") {
-                    StatusCode::NOT_FOUND
-                } else if e.to_string().contains("Invalid quote transition") {
-                    StatusCode::UNPROCESSABLE_ENTITY
-                } else {
-                    StatusCode::INTERNAL_SERVER_ERROR
-                }
-            })?;
+    let quote = QuoteService::convert_to_reservation(&db, tenant_id, id, body.reservation_id)
+        .await
+        .map_err(|e| {
+            if e.to_string().contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if e.to_string().contains("Invalid quote transition") {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
 
     Ok(Json(QuoteResponse {
         id: quote.id,

@@ -1,14 +1,17 @@
+use crate::auth::{ServerFnError, SessionInfo};
 use leptos::prelude::*;
-use crate::auth::{SessionInfo, ServerFnError};
 
 #[component]
 pub fn LandlordDashboard() -> impl IntoView {
     let session = use_context::<Resource<Result<SessionInfo, ServerFnError>>>()
         .expect("Session context missing");
-    let name = move || session.get()
-        .and_then(|r| r.ok())
-        .and_then(|s| s.display_name)
-        .unwrap_or_else(|| "there".into());
+    let name = move || {
+        session
+            .get()
+            .and_then(|r| r.ok())
+            .and_then(|s| s.display_name)
+            .unwrap_or_else(|| "there".into())
+    };
 
     view! {
         <div class="page-header">
@@ -30,7 +33,12 @@ pub fn LandlordDashboard() -> impl IntoView {
 }
 
 #[component]
-fn StatCard(label: &'static str, value: &'static str, icon: &'static str, href: &'static str) -> impl IntoView {
+fn StatCard(
+    label: &'static str,
+    value: &'static str,
+    icon: &'static str,
+    href: &'static str,
+) -> impl IntoView {
     view! {
         <a href=href class="stat-card stat-card--link">
             <span class="stat-icon">{icon}</span>

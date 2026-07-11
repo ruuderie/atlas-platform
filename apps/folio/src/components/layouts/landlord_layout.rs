@@ -1,9 +1,9 @@
-use leptos::prelude::*;
-use leptos_router::components::Outlet;
+use crate::auth::SessionInfo;
 use crate::components::nav::{SidebarNav, LANDLORD_NAV};
 use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 use crate::components::scorecard_nudge_host::ScorecardNudgeHost;
-use crate::auth::SessionInfo;
+use leptos::prelude::*;
+use leptos_router::components::Outlet;
 
 /// Persistent shell for all /l/** landlord routes.
 /// Nav items are driven by `LANDLORD_NAV` in `components/nav.rs`.

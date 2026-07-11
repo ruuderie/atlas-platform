@@ -43,11 +43,11 @@
 //! The violations handler already accepts this field.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post, put},
-    Router,
 };
 use chrono::NaiveDate;
 use sea_orm::DatabaseConnection;
@@ -55,20 +55,32 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::services::pm::str_guest::{
-    DocumentNumber, DocumentType, NationalityCode, RegisterStrGuestInput,
-    RegisterStrVehicleInput, StrGuestService,
+    DocumentNumber, DocumentType, NationalityCode, RegisterStrGuestInput, RegisterStrVehicleInput,
+    StrGuestService,
 };
 
 // ── Route registration ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/reservations/{id}/manifest",         get(get_manifest))
-        .route("/api/folio/reservations/{id}/guests",           post(register_guest))
-        .route("/api/folio/reservations/{id}/guests/{rel_id}",   delete(remove_guest))
-        .route("/api/folio/reservations/{id}/vehicles",         post(register_vehicle))
-        .route("/api/folio/reservations/{id}/vehicles/{rel_id}", delete(remove_vehicle))
-        .route("/api/folio/reservations/{id}/special-requests", put(set_special_requests))
+        .route("/api/folio/reservations/{id}/manifest", get(get_manifest))
+        .route("/api/folio/reservations/{id}/guests", post(register_guest))
+        .route(
+            "/api/folio/reservations/{id}/guests/{rel_id}",
+            delete(remove_guest),
+        )
+        .route(
+            "/api/folio/reservations/{id}/vehicles",
+            post(register_vehicle),
+        )
+        .route(
+            "/api/folio/reservations/{id}/vehicles/{rel_id}",
+            delete(remove_vehicle),
+        )
+        .route(
+            "/api/folio/reservations/{id}/special-requests",
+            put(set_special_requests),
+        )
 }
 
 // ── HTTP input types ──────────────────────────────────────────────────────────
@@ -150,7 +162,11 @@ async fn register_guest(
     };
 
     match StrGuestService::register_guest(&db, tenant_id, reservation_id, user_id, input).await {
-        Ok(rel_id) => (StatusCode::CREATED, Json(serde_json::json!({ "rel_id": rel_id }))).into_response(),
+        Ok(rel_id) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "rel_id": rel_id })),
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!("register_guest: {e:#}");
             (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()).into_response()
@@ -193,7 +209,11 @@ async fn register_vehicle(
     };
 
     match StrGuestService::register_vehicle(&db, tenant_id, reservation_id, user_id, input).await {
-        Ok(rel_id) => (StatusCode::CREATED, Json(serde_json::json!({ "rel_id": rel_id }))).into_response(),
+        Ok(rel_id) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({ "rel_id": rel_id })),
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!("register_vehicle: {e:#}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
@@ -221,7 +241,8 @@ async fn set_special_requests(
     Path(reservation_id): Path<Uuid>,
     Json(body): Json<SpecialRequestsBody>,
 ) -> impl IntoResponse {
-    match StrGuestService::set_special_requests(&db, tenant_id, reservation_id, body.requests).await {
+    match StrGuestService::set_special_requests(&db, tenant_id, reservation_id, body.requests).await
+    {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => {
             tracing::error!("set_special_requests: {e:#}");

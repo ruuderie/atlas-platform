@@ -7,43 +7,53 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrReservation {
-    pub id:                 Uuid,
-    pub status:             String,
-    pub check_in:           String,
-    pub check_out:          String,
-    pub total_price_cents:  i64,
-    pub currency:           String,
-    pub hold_expires_at:    Option<String>,
+    pub id: Uuid,
+    pub status: String,
+    pub check_in: String,
+    pub check_out: String,
+    pub total_price_cents: i64,
+    pub currency: String,
+    pub hold_expires_at: Option<String>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchStrReservations, "/api")]
-pub async fn fetch_str_reservations() -> Result<Vec<StrReservation>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_reservations() -> Result<Vec<StrReservation>, server_fn::error::ServerFnError>
+{
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<StrReservation>>(
-        "/api/folio/reservations", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/reservations",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -63,7 +73,9 @@ fn nights_between(check_in: &str, check_out: &str) -> i64 {
             let m = parts[1].parse::<i64>().unwrap_or(0);
             let d = parts[2].parse::<i64>().unwrap_or(0);
             y * 365 + m * 30 + d
-        } else { 0 }
+        } else {
+            0
+        }
     };
     (parse_day(check_out) - parse_day(check_in)).max(1)
 }

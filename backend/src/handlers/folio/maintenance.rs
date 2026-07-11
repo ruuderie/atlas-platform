@@ -32,11 +32,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -53,11 +53,23 @@ use crate::types::pm::MaintenanceCategory;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/maintenance", get(list_tickets).post(create_ticket))
+        .route(
+            "/api/folio/maintenance",
+            get(list_tickets).post(create_ticket),
+        )
         // Inspection scheduling routes
-        .route("/api/folio/inspections", get(list_upcoming_inspections).post(schedule_inspection))
-        .route("/api/folio/inspections/{id}/complete", post(complete_inspection))
-        .route("/api/folio/assets/{asset_id}/inspections", get(list_inspections_for_asset))
+        .route(
+            "/api/folio/inspections",
+            get(list_upcoming_inspections).post(schedule_inspection),
+        )
+        .route(
+            "/api/folio/inspections/{id}/complete",
+            post(complete_inspection),
+        )
+        .route(
+            "/api/folio/assets/{asset_id}/inspections",
+            get(list_inspections_for_asset),
+        )
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -139,7 +151,9 @@ async fn list_tickets(
 
     let cases = crate::entities::atlas_case::Entity::find()
         .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
-        .filter(crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::Maintenance.to_string()))
+        .filter(
+            crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::Maintenance.to_string()),
+        )
         .all(&db)
         .await
         .map_err(|e| {
@@ -194,9 +208,11 @@ async fn create_ticket(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok((StatusCode::CREATED, axum::response::Json(CreateTicketResponse { id })))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateTicketResponse { id }),
+    ))
 }
-
 
 /// GET /api/folio/inspections
 async fn list_upcoming_inspections(
@@ -238,7 +254,10 @@ async fn schedule_inspection(
         tracing::error!(%tenant_id, "schedule_inspection error: {e:#}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    Ok((StatusCode::CREATED, axum::response::Json(serde_json::json!({ "id": id }))))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(serde_json::json!({ "id": id })),
+    ))
 }
 
 /// POST /api/folio/inspections/{id}/complete
@@ -286,8 +305,14 @@ async fn list_inspections_for_asset(
         .filter(crate::entities::atlas_case::Column::AssetId.eq(asset_id))
         .filter(
             sea_orm::Condition::any()
-                .add(crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::Maintenance.to_string()))
-                .add(crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::ScheduledInspection.to_string()))
+                .add(
+                    crate::entities::atlas_case::Column::CaseType
+                        .eq(PmCaseType::Maintenance.to_string()),
+                )
+                .add(
+                    crate::entities::atlas_case::Column::CaseType
+                        .eq(PmCaseType::ScheduledInspection.to_string()),
+                ),
         )
         .order_by_desc(crate::entities::atlas_case::Column::ScheduledAt)
         .all(&db)

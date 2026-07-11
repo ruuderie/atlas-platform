@@ -26,11 +26,11 @@
 //! `atlas_applications` (G-18). No net-new tables.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
@@ -154,9 +154,7 @@ async fn list_applications(
 
     let applications = crate::entities::atlas_application::Entity::find()
         .filter(crate::entities::atlas_application::Column::TenantId.eq(tenant_id))
-        .filter(
-            crate::entities::atlas_application::Column::ApplicationType.eq("rental"),
-        )
+        .filter(crate::entities::atlas_application::Column::ApplicationType.eq("rental"))
         .order_by_desc(crate::entities::atlas_application::Column::CreatedAt)
         .all(&db)
         .await
@@ -228,7 +226,14 @@ async fn decide_application(
     };
 
     // FHA best-practice: denial reason is required.
-    if new_status == "denied" && input.reason.as_deref().map(|r| r.trim()).unwrap_or("").is_empty() {
+    if new_status == "denied"
+        && input
+            .reason
+            .as_deref()
+            .map(|r| r.trim())
+            .unwrap_or("")
+            .is_empty()
+    {
         tracing::warn!(%tenant_id, %application_id, "decide_application: denial requires a reason");
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -247,7 +252,10 @@ async fn decide_application(
     }
 
     // Deny transition from terminal states.
-    if matches!(application.status.as_str(), "approved" | "denied" | "withdrawn") {
+    if matches!(
+        application.status.as_str(),
+        "approved" | "denied" | "withdrawn"
+    ) {
         tracing::warn!(
             %application_id,
             current_status = %application.status,

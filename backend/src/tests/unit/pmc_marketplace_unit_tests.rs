@@ -177,7 +177,10 @@ mod invite_email_tests {
 
     #[test]
     fn uppercase_email_is_lowercased() {
-        assert_eq!(normalize_email("Jane.DOE@EXAMPLE.COM"), "jane.doe@example.com");
+        assert_eq!(
+            normalize_email("Jane.DOE@EXAMPLE.COM"),
+            "jane.doe@example.com"
+        );
     }
 
     #[test]
@@ -251,7 +254,10 @@ mod invite_setup_url_tests {
         let url = build_setup_url("https://app.example.com", "tok", Uuid::new_v4());
         let token_pos = url.find("token=").unwrap();
         let client_pos = url.find("client=").unwrap();
-        assert!(token_pos < client_pos, "token must come before client in query string");
+        assert!(
+            token_pos < client_pos,
+            "token must come before client in query string"
+        );
     }
 
     #[test]
@@ -330,7 +336,10 @@ mod marketplace_geo_sql_tests {
         let make_point_pos = filter.find("ST_MakePoint(").unwrap();
         let inside = &filter[make_point_pos..make_point_pos + 30];
         // -64.93 (lng) should appear before 18.33 (lat)
-        assert!(inside.contains("-64.93"), "longitude must come first in ST_MakePoint");
+        assert!(
+            inside.contains("-64.93"),
+            "longitude must come first in ST_MakePoint"
+        );
     }
 
     #[test]
@@ -387,7 +396,7 @@ mod marketplace_geo_sql_tests {
 // ── Marketplace: endorsement metadata ─────────────────────────────────────────
 
 mod marketplace_endorsement_tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use uuid::Uuid;
 
     const ENDORSEMENT_TYPE: &str = "marketplace_endorsement";
@@ -521,7 +530,10 @@ mod marketplace_listing_tests {
         // -80.19 (lng) comes before 25.76 (lat) in the string
         let lng_pos = wkt.find("-80.19").unwrap();
         let lat_pos = wkt.find("25.76").unwrap();
-        assert!(lng_pos < lat_pos, "longitude must precede latitude in WKT POINT");
+        assert!(
+            lng_pos < lat_pos,
+            "longitude must precede latitude in WKT POINT"
+        );
     }
 
     #[test]
@@ -611,12 +623,18 @@ mod app_config_tests {
 
     #[test]
     fn deployment_mode_internal_operator_db_value_is_snake_case() {
-        assert_eq!(deploy_db_value(AppDeploymentMode::InternalOperator), "internal_operator");
+        assert_eq!(
+            deploy_db_value(AppDeploymentMode::InternalOperator),
+            "internal_operator"
+        );
     }
 
     #[test]
     fn deployment_modes_are_distinct() {
-        assert_ne!(AppDeploymentMode::Standard, AppDeploymentMode::InternalOperator);
+        assert_ne!(
+            AppDeploymentMode::Standard,
+            AppDeploymentMode::InternalOperator
+        );
     }
 
     // ── AppDeploymentMode ≠ FolioMode: they are independent axes ─────────────
@@ -650,7 +668,11 @@ mod app_config_tests {
     fn all_folio_mode_db_values_are_lowercase_snake_case() {
         for mode in [FolioMode::Standard, FolioMode::Pmc, FolioMode::Brokerage] {
             let val = db_value(mode);
-            assert_eq!(val, val.to_lowercase(), "DB value must be lowercase: '{val}'");
+            assert_eq!(
+                val,
+                val.to_lowercase(),
+                "DB value must be lowercase: '{val}'"
+            );
             assert!(!val.contains('-'), "DB value must use underscores: '{val}'");
         }
     }
@@ -707,7 +729,10 @@ mod client_context_header_tests {
         // In practice an HTTP header value like this would be unusual but technically
         // valid at the parse level. The tenant isolation DB check is the authoritative guard.
         let result = parse_client_account_header(Some("{550e8400-e29b-41d4-a716-446655440000}"));
-        assert!(result.is_ok(), "uuid crate accepts braced format — this is expected");
+        assert!(
+            result.is_ok(),
+            "uuid crate accepts braced format — this is expected"
+        );
     }
 
     #[test]
@@ -717,8 +742,6 @@ mod client_context_header_tests {
         assert!(parse_client_account_header(Some(&nil)).is_ok());
     }
 }
-
-
 
 // ── PropertyType: commercial variants ─────────────────────────────────────────
 

@@ -16,40 +16,40 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types (mirror backend shapes) ────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaseSummary {
-    pub id:                   Uuid,
-    pub status:               String,
-    pub start_date:           Option<String>,
-    pub end_date:             Option<String>,
-    pub monthly_rent_cents:   Option<i64>,
-    pub currency:             String,
+    pub id: Uuid,
+    pub status: String,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub monthly_rent_cents: Option<i64>,
+    pub currency: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveOccupant {
-    pub id:               Uuid,
-    pub full_name:        String,
-    pub relationship:     String,
-    pub is_minor:         bool,
-    pub date_of_birth:    Option<String>,
+    pub id: Uuid,
+    pub full_name: String,
+    pub relationship: String,
+    pub is_minor: bool,
+    pub date_of_birth: Option<String>,
     pub id_document_type: Option<String>,
-    pub registered_at:    String,
+    pub registered_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FormerOccupant {
-    pub id:               Uuid,
-    pub full_name:        String,
-    pub relationship:     String,
-    pub is_minor:         bool,
-    pub removed_at:       String,
-    pub removal_reason:   String,
+    pub id: Uuid,
+    pub full_name: String,
+    pub relationship: String,
+    pub is_minor: bool,
+    pub removed_at: String,
+    pub removal_reason: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,17 +60,17 @@ pub struct OccupantList {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VehicleRecord {
-    pub id:                  Uuid,
-    pub make:                String,
-    pub model:               String,
-    pub year:                i32,
-    pub color:               String,
-    pub license_plate:       String,
-    pub state:               String,
-    pub country:             String,
-    pub parking_spot:        Option<String>,
+    pub id: Uuid,
+    pub make: String,
+    pub model: String,
+    pub year: i32,
+    pub color: String,
+    pub license_plate: String,
+    pub state: String,
+    pub country: String,
+    pub parking_spot: Option<String>,
     pub registration_expiry: Option<String>,
-    pub registered_at:       String,
+    pub registered_at: String,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
@@ -83,45 +83,61 @@ pub async fn hh_fetch_lease() -> Result<Option<LeaseSummary>, server_fn::error::
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let leases = crate::atlas_client::authenticated_get::<Vec<LeaseSummary>>(
-        "/api/folio/leases", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
-    Ok(leases.into_iter().find(|l| l.status.to_lowercase() == "active"))
+        "/api/folio/leases",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    Ok(leases
+        .into_iter()
+        .find(|l| l.status.to_lowercase() == "active"))
 }
 
 /// Fetch occupants (active + former) for a lease.
 #[server(HhFetchOccupants, "/api")]
-pub async fn hh_fetch_occupants(lease_id: Uuid) -> Result<OccupantList, server_fn::error::ServerFnError> {
+pub async fn hh_fetch_occupants(
+    lease_id: Uuid,
+) -> Result<OccupantList, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<OccupantList>(
         &format!("/api/folio/leases/{lease_id}/occupants"),
-        &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 /// Fetch registered vehicles for a lease.
 #[server(HhFetchVehicles, "/api")]
-pub async fn hh_fetch_vehicles(lease_id: Uuid) -> Result<Vec<VehicleRecord>, server_fn::error::ServerFnError> {
+pub async fn hh_fetch_vehicles(
+    lease_id: Uuid,
+) -> Result<Vec<VehicleRecord>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<VehicleRecord>>(
         &format!("/api/folio/leases/{lease_id}/vehicles"),
-        &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 /// Register a new occupant on a lease.
 #[server(HhAddOccupant, "/api")]
 pub async fn hh_add_occupant(
-    lease_id:     Uuid,
-    full_name:    String,
+    lease_id: Uuid,
+    full_name: String,
     relationship: String,
-    is_minor:     bool,
-    dob:          Option<String>,
+    is_minor: bool,
+    dob: Option<String>,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -145,22 +161,26 @@ pub async fn hh_add_occupant(
 
     crate::atlas_client::authenticated_post::<serde_json::Value, serde_json::Value>(
         &format!("/api/folio/leases/{lease_id}/occupants"),
-        &token, None, &body,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     Ok(())
 }
 
 /// Register a new vehicle on a lease.
 #[server(HhAddVehicle, "/api")]
 pub async fn hh_add_vehicle(
-    lease_id:    Uuid,
-    make:        String,
-    model:       String,
-    year:        i32,
-    color:       String,
-    plate:       String,
-    state:       String,
-    parking:     Option<String>,
+    lease_id: Uuid,
+    make: String,
+    model: String,
+    year: i32,
+    color: String,
+    plate: String,
+    state: String,
+    parking: Option<String>,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -174,38 +194,53 @@ pub async fn hh_add_vehicle(
     });
     crate::atlas_client::authenticated_post::<serde_json::Value, serde_json::Value>(
         &format!("/api/folio/leases/{lease_id}/vehicles"),
-        &token, None, &body,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
     Ok(())
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
 fn relationship_icon(rel: &str, is_minor: bool) -> &'static str {
-    if is_minor { return "👶"; }
+    if is_minor {
+        return "👶";
+    }
     match rel.to_lowercase().as_str() {
         r if r.contains("spouse") || r.contains("partner") => "💑",
-        r if r.contains("parent")  => "👨‍👩‍👦",
+        r if r.contains("parent") => "👨‍👩‍👦",
         r if r.contains("sibling") => "👫",
-        r if r.contains("room")    => "🤝",
-        _                          => "🧑",
+        r if r.contains("room") => "🤝",
+        _ => "🧑",
     }
 }
 
 fn cents_to_display(cents: i64, currency: &str) -> String {
     let symbol = match currency.to_uppercase().as_str() {
-        "USD" => "$", "EUR" => "€", "GBP" => "£", "CAD" => "CA$", _ => currency,
+        "USD" => "$",
+        "EUR" => "€",
+        "GBP" => "£",
+        "CAD" => "CA$",
+        _ => currency,
     };
     format!("{}{:.2}", symbol, cents as f64 / 100.0)
 }
@@ -214,22 +249,15 @@ fn cents_to_display(cents: i64, currency: &str) -> String {
 
 #[component]
 pub fn TenantHousehold() -> impl IntoView {
-    let refresh    = RwSignal::new(0u32);
-    let active_tab = RwSignal::new("people");  // "people" | "vehicles"
+    let refresh = RwSignal::new(0u32);
+    let active_tab = RwSignal::new("people"); // "people" | "vehicles"
 
     // ── Lease ──────────────────────────────────────────────────────────────
-    let lease_res = Resource::new(
-        move || refresh.get(),
-        |_| hh_fetch_lease(),
-    );
+    let lease_res = Resource::new(move || refresh.get(), |_| hh_fetch_lease());
 
     // Derived lease ID signal (used by occupant + vehicle resources)
-    let lease_id = Signal::derive(move || {
-        lease_res.get()
-            .and_then(|r| r.ok())
-            .flatten()
-            .map(|l| l.id)
-    });
+    let lease_id =
+        Signal::derive(move || lease_res.get().and_then(|r| r.ok()).flatten().map(|l| l.id));
 
     // ── Occupants ──────────────────────────────────────────────────────────
     let occupants_res = Resource::new(
@@ -237,7 +265,7 @@ pub fn TenantHousehold() -> impl IntoView {
         |(lid, _)| async move {
             match lid {
                 Some(id) => hh_fetch_occupants(id).await.ok(),
-                None     => None,
+                None => None,
             }
         },
     );
@@ -248,39 +276,47 @@ pub fn TenantHousehold() -> impl IntoView {
         |(lid, _)| async move {
             match lid {
                 Some(id) => hh_fetch_vehicles(id).await.ok(),
-                None     => None,
+                None => None,
             }
         },
     );
 
     // ── Add occupant modal state ────────────────────────────────────────────
-    let show_add_person  = RwSignal::new(false);
-    let new_person_name  = RwSignal::new(String::new());
-    let new_person_rel   = RwSignal::new("Adult — Other".to_string());
+    let show_add_person = RwSignal::new(false);
+    let new_person_name = RwSignal::new(String::new());
+    let new_person_rel = RwSignal::new("Adult — Other".to_string());
     let new_person_minor = RwSignal::new(false);
-    let new_person_dob   = RwSignal::new(String::new());
-    let adding_person    = RwSignal::new(false);
+    let new_person_dob = RwSignal::new(String::new());
+    let adding_person = RwSignal::new(false);
 
     // ── Add vehicle modal state ─────────────────────────────────────────────
     let show_add_vehicle = RwSignal::new(false);
-    let new_veh_make     = RwSignal::new(String::new());
-    let new_veh_model    = RwSignal::new(String::new());
-    let new_veh_year     = RwSignal::new("2020".to_string());
-    let new_veh_color    = RwSignal::new(String::new());
-    let new_veh_plate    = RwSignal::new(String::new());
-    let new_veh_state    = RwSignal::new(String::new());
-    let new_veh_parking  = RwSignal::new(String::new());
-    let adding_vehicle   = RwSignal::new(false);
+    let new_veh_make = RwSignal::new(String::new());
+    let new_veh_model = RwSignal::new(String::new());
+    let new_veh_year = RwSignal::new("2020".to_string());
+    let new_veh_color = RwSignal::new(String::new());
+    let new_veh_plate = RwSignal::new(String::new());
+    let new_veh_state = RwSignal::new(String::new());
+    let new_veh_parking = RwSignal::new(String::new());
+    let adding_vehicle = RwSignal::new(false);
 
     // ── Handlers ───────────────────────────────────────────────────────────
     let handle_add_person = move |_| {
-        let Some(lid) = lease_id.get() else { return; };
+        let Some(lid) = lease_id.get() else {
+            return;
+        };
         let name = new_person_name.get();
-        if name.trim().is_empty() { return; }
-        let rel     = new_person_rel.get();
-        let minor   = new_person_minor.get();
+        if name.trim().is_empty() {
+            return;
+        }
+        let rel = new_person_rel.get();
+        let minor = new_person_minor.get();
         let dob_str = new_person_dob.get();
-        let dob     = if minor && !dob_str.is_empty() { Some(dob_str) } else { None };
+        let dob = if minor && !dob_str.is_empty() {
+            Some(dob_str)
+        } else {
+            None
+        };
         adding_person.set(true);
         spawn_local(async move {
             if hh_add_occupant(lid, name, rel, minor, dob).await.is_ok() {
@@ -293,18 +329,32 @@ pub fn TenantHousehold() -> impl IntoView {
     };
 
     let handle_add_vehicle = move |_| {
-        let Some(lid) = lease_id.get() else { return; };
-        let make  = new_veh_make.get();
+        let Some(lid) = lease_id.get() else {
+            return;
+        };
+        let make = new_veh_make.get();
         let model = new_veh_model.get();
         let plate = new_veh_plate.get();
-        if make.trim().is_empty() || model.trim().is_empty() || plate.trim().is_empty() { return; }
-        let year    = new_veh_year.get().parse::<i32>().unwrap_or(2020);
-        let color   = new_veh_color.get();
-        let state   = new_veh_state.get();
-        let parking = { let p = new_veh_parking.get(); if p.trim().is_empty() { None } else { Some(p) } };
+        if make.trim().is_empty() || model.trim().is_empty() || plate.trim().is_empty() {
+            return;
+        }
+        let year = new_veh_year.get().parse::<i32>().unwrap_or(2020);
+        let color = new_veh_color.get();
+        let state = new_veh_state.get();
+        let parking = {
+            let p = new_veh_parking.get();
+            if p.trim().is_empty() {
+                None
+            } else {
+                Some(p)
+            }
+        };
         adding_vehicle.set(true);
         spawn_local(async move {
-            if hh_add_vehicle(lid, make, model, year, color, plate, state, parking).await.is_ok() {
+            if hh_add_vehicle(lid, make, model, year, color, plate, state, parking)
+                .await
+                .is_ok()
+            {
                 show_add_vehicle.set(false);
                 new_veh_make.set(String::new());
                 new_veh_model.set(String::new());

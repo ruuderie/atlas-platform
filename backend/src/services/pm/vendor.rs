@@ -11,14 +11,14 @@
 //!   `user_id`            → required — link to atlas user account
 //!   `is_insured`/`is_bonded` → defaults false
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use sea_orm::DatabaseConnection;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::types::pm::TradeType;
 use crate::services::pm::scorecard_provisioner::get_pm_template;
 use crate::services::scorecard_service::ScorecardService;
+use crate::types::pm::TradeType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateVendorInput {
@@ -48,8 +48,8 @@ impl VendorService {
         tenant_id: Uuid,
         input: CreateVendorInput,
     ) -> Result<Uuid> {
-        use sea_orm::{Set, ActiveModelTrait};
         use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
 
         let id = Uuid::new_v4();
         let now = Utc::now();
@@ -100,7 +100,9 @@ impl VendorService {
                     template.id,
                     "atlas_service_provider",
                     id,
-                ).await {
+                )
+                .await
+                {
                     Ok(scorecard_id) => {
                         tracing::info!(
                             vendor_id = %id, %tenant_id,
@@ -137,7 +139,7 @@ impl VendorService {
         vendor_id: Uuid,
         available: bool,
     ) -> Result<()> {
-        use sea_orm::{EntityTrait, IntoActiveModel, ActiveModelTrait, Set};
+        use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, Set};
 
         let vendor = crate::entities::atlas_service_provider::Entity::find_by_id(vendor_id)
             .one(db)
@@ -145,10 +147,14 @@ impl VendorService {
             .ok_or_else(|| anyhow!("Vendor {vendor_id} not found"))?;
 
         if vendor.tenant_id != tenant_id {
-            return Err(anyhow!("Vendor {vendor_id} not found for tenant {tenant_id}"));
+            return Err(anyhow!(
+                "Vendor {vendor_id} not found for tenant {tenant_id}"
+            ));
         }
 
-        let mut meta = vendor.profile_metadata.clone()
+        let mut meta = vendor
+            .profile_metadata
+            .clone()
             .unwrap_or_else(|| serde_json::json!({}));
         meta["is_emergency_available"] = serde_json::json!(available);
 

@@ -1,162 +1,115 @@
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::components::{Redirect, Route, Router, Routes, ParentRoute};
+use leptos_router::components::{ParentRoute, Redirect, Route, Router, Routes};
 use leptos_router::path;
 
 use crate::auth::{FolioRole, SessionInfo};
-use crate::pages::not_found::NotFound;
 use crate::pages::login::Login;
+use crate::pages::not_found::NotFound;
 
-use crate::pages::marketing::market_landing_page::MarketLandingPage;
+use crate::pages::marketing::beta_program_page::BetaProgramPage;
 use crate::pages::marketing::broker_landing_page::BrokerLandingPage;
+use crate::pages::marketing::founding_member_page::FoundingMemberPage;
+use crate::pages::marketing::market_landing_page::MarketLandingPage;
 use crate::pages::marketing::property_manager_landing_page::PropertyManagerLandingPage;
 use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
-use crate::pages::marketing::founding_member_page::FoundingMemberPage;
-use crate::pages::marketing::beta_program_page::BetaProgramPage;
 
 // Landlord pages
 use crate::pages::landlord::{
-    dashboard::LandlordDashboard,
-    portfolio::Portfolio,
-    assets::Assets,
-    asset_detail::AssetDetail,
-    leases::Leases,
-    lease_detail::LeaseDetail,
-    tenant_profile::TenantProfile,
-    maintenance_queue::MaintenanceQueue,
-    ledger::Ledger,
-    violations::Violations,
-    inspections::Inspections,
-    building_systems::BuildingSystems,
-    unit_appliances::UnitAppliances,
-    communications::Communications,
-    map_portfolio::MapPortfolio,
-    notifications::NotificationsPage,
-    leads::Leads,
-    campaigns::Campaigns,
-    billing::Billing,
-    str_compliance::StrCompliance,
-    catalog::Catalog,
-    vendors::Vendors,
-    reservations::LandlordReservations,
-    contractor_marketplace::ContractorMarketplace,
-    digital_vault::LandlordDigitalVault,
-    syndication::LandlordSyndication,
+    account_billing::LandlordAccountBilling, asset_alerts::AssetAlerts, asset_detail::AssetDetail,
+    assets::Assets, billing::Billing, building_systems::BuildingSystems, campaigns::Campaigns,
+    catalog::Catalog, communications::Communications,
+    contractor_marketplace::ContractorMarketplace, dashboard::LandlordDashboard,
+    digital_vault::LandlordDigitalVault, inspections::Inspections, leads::Leads,
+    lease_detail::LeaseDetail, leases::Leases, ledger::Ledger,
+    listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
+    map_portfolio::MapPortfolio, meridian_config::MeridianConfigurator,
+    notifications::NotificationsPage, portfolio::Portfolio, ratings::LandlordRatings,
+    reservations::LandlordReservations, str_compliance::StrCompliance,
+    syndication::LandlordSyndication, team::LandlordTeam, tenant_profile::TenantProfile,
+    unit_appliances::UnitAppliances, vendors::Vendors, violations::Violations,
     wholesaling::LandlordWholesaling,
-    listing_preview::ListingNetworkPreview,
-    account_billing::LandlordAccountBilling,
-    asset_alerts::AssetAlerts,
-    meridian_config::MeridianConfigurator,
-    ratings::LandlordRatings,
-    team::LandlordTeam,
 };
 
 // Tenant pages
 use crate::pages::tenant::{
-    dashboard::TenantDashboard,
-    my_lease::MyLease,
-    payments::TenantPayments,
-    maintenance::MaintenanceRequests,
-    reservations::TenantReservations,
-    inbox::TenantInbox,
-    household::TenantHousehold,
-    documents::TenantDocuments,
-    payment_history::TenantPaymentHistory,
-    violations::TenantViolations,
-    profile::TenantProfile as TenantProfilePage,
-    maintenance_detail::TenantMaintenanceDetail,
-    application_status::TenantApplicationStatus,
-    reports::TenantReports,
-    ratings::TenantRatings,
+    application_status::TenantApplicationStatus, dashboard::TenantDashboard,
+    documents::TenantDocuments, household::TenantHousehold, inbox::TenantInbox,
+    maintenance::MaintenanceRequests, maintenance_detail::TenantMaintenanceDetail,
+    my_lease::MyLease, payment_history::TenantPaymentHistory, payments::TenantPayments,
+    profile::TenantProfile as TenantProfilePage, ratings::TenantRatings, reports::TenantReports,
+    reservations::TenantReservations, violations::TenantViolations,
 };
 
 // Vendor pages
 use crate::pages::vendor::{
-    dashboard::VendorDashboard,
-    work_orders::WorkOrders,
-    invoices::VendorInvoices,
-    network_profile::VendorNetworkProfile,
-    schedule::VendorSchedule,
+    dashboard::VendorDashboard, invoices::VendorInvoices, network_profile::VendorNetworkProfile,
+    schedule::VendorSchedule, work_orders::WorkOrders,
 };
 
 // PMC pages
 use crate::pages::pmc::{
-    dashboard::PmcDashboard,
-    client_book::ClientBook,
-    client_detail::PmcClientDetail,
-    maintenance_dispatch::PmcMaintenanceDispatch,
-    owner_statements::PmcOwnerStatements,
+    client_book::ClientBook, client_detail::PmcClientDetail, dashboard::PmcDashboard,
+    maintenance_dispatch::PmcMaintenanceDispatch, owner_statements::PmcOwnerStatements,
     portfolio_map::PmcPortfolioMap,
 };
 
 // Owner pages
 use crate::pages::owner::{
-    dashboard::OwnerDashboard,
-    property::OwnerPropertyDetail,
+    dashboard::OwnerDashboard, distributions::OwnerDistributions,
+    maintenance::OwnerMaintenanceApproval, property::OwnerPropertyDetail,
     statements::OwnerStatements,
-    distributions::OwnerDistributions,
-    maintenance::OwnerMaintenanceApproval,
 };
 
 // STR Host pages
 use crate::pages::str_host::{
-    dashboard::StrHostDashboard,
-    calendar::StrCalendar,
-    reservations::StrReservationManifest,
-    listing_index::StrListingIndex,
-    listing::StrListingDetail,
-    pricing::StrPricingRules,
-    channels::StrChannelManager,
-    syndication::StrSyndication,
-    messages::StrGuestMessaging,
-    reviews::StrReviews,
-    incidents::StrIncidents,
-    violation_file::StrViolationFiling,
+    calendar::StrCalendar, channels::StrChannelManager, dashboard::StrHostDashboard,
+    incidents::StrIncidents, listing::StrListingDetail, listing_index::StrListingIndex,
+    messages::StrGuestMessaging, pricing::StrPricingRules, reservations::StrReservationManifest,
+    reviews::StrReviews, syndication::StrSyndication, violation_file::StrViolationFiling,
 };
 
 // Wizard pages (public + token-gated)
-use crate::pages::marketing::renter_application::RenterApplication;
-use crate::pages::marketing::lead_portal::LeadPortal;
-use crate::pages::marketing::inquiry_confirm::InquiryConfirm;
-use crate::pages::marketing::ltr_listings::LtrListings;
-use crate::pages::marketing::str_listings::StrListings;
-use crate::pages::marketing::ni_signup::NiSignup;
-use crate::pages::marketing::cohost_marketplace::CohostMarketplace;
-use crate::pages::vendor::onboard::VendorOnboard;
-use crate::pages::vendor::job_link::VendorJobLink;
-use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
-use crate::pages::pmc::onboard::PmcOnboard;
-use crate::pages::settings::Settings;
 use crate::pages::auth::passkey_setup::PasskeySetup;
-use crate::pages::onboarding::wizard::OnboardingWizard;
-use crate::pages::onboarding::landlord_wizard::LandlordWizard;
-use crate::pages::onboarding::tenant_wizard::TenantApplicantWizard;
-use crate::pages::onboarding::str_guest_wizard::StrGuestWizard;
-use crate::pages::onboarding::cohost_wizard::CohostWizard;
-use crate::pages::onboarding::owner_wizard::OwnerWizard;
-use crate::pages::onboarding::property_owner_wizard::PropertyOwnerWizard;
+use crate::pages::marketing::cohost_marketplace::CohostMarketplace;
+use crate::pages::marketing::inquiry_confirm::InquiryConfirm;
+use crate::pages::marketing::lead_portal::LeadPortal;
+use crate::pages::marketing::ltr_listings::LtrListings;
+use crate::pages::marketing::ni_signup::NiSignup;
+use crate::pages::marketing::renter_application::RenterApplication;
+use crate::pages::marketing::str_listings::StrListings;
 use crate::pages::onboarding::agent_wizard::AgentWizard;
 use crate::pages::onboarding::broker_wizard::BrokerWizard;
-use crate::pages::onboarding::pmc_wizard::PmcWizard;
-use crate::pages::onboarding::vendor_wizard::VendorWizard;
+use crate::pages::onboarding::cohost_wizard::CohostWizard;
 use crate::pages::onboarding::invite_join::InviteJoin;
+use crate::pages::onboarding::landlord_wizard::LandlordWizard;
+use crate::pages::onboarding::owner_wizard::OwnerWizard;
+use crate::pages::onboarding::pmc_wizard::PmcWizard;
+use crate::pages::onboarding::property_owner_wizard::PropertyOwnerWizard;
+use crate::pages::onboarding::str_guest_wizard::StrGuestWizard;
+use crate::pages::onboarding::tenant_wizard::TenantApplicantWizard;
+use crate::pages::onboarding::vendor_wizard::VendorWizard;
+use crate::pages::onboarding::wizard::OnboardingWizard;
+use crate::pages::pmc::onboard::PmcOnboard;
+use crate::pages::settings::Settings;
+use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
+use crate::pages::vendor::job_link::VendorJobLink;
+use crate::pages::vendor::onboard::VendorOnboard;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
-    AgentDashboard, AgentClients, AgentListings, AgentDeals, AgentSchedule,
+    AgentClients, AgentDashboard, AgentDeals, AgentListings, AgentSchedule,
 };
 
 // Broker pages
 use crate::pages::broker::dashboard::{
-    BrokerDashboard, BrokerAgents, BrokerListings, BrokerCompliance, BrokerRevenue,
+    BrokerAgents, BrokerCompliance, BrokerDashboard, BrokerListings, BrokerRevenue,
 };
 
 // Property Owner Lite pages
 use crate::pages::property_owner::{
-    dashboard::PropertyOwnerDashboard,
-    property_value::PropertyValuePage,
-    find_vendor::FindVendorPage,
-    review_submit::ReviewSubmitPage,
+    dashboard::PropertyOwnerDashboard, find_vendor::FindVendorPage,
+    property_value::PropertyValuePage, review_submit::ReviewSubmitPage,
 };
 
 // Public zero-auth pages
@@ -164,13 +117,13 @@ use crate::pages::r#pub::renter_help::RenterHelpPage;
 
 // Layouts — each already renders <Outlet/> for its child routes
 use crate::components::layouts::{
+    brokerage_layouts::{AgentLayout, BrokerLayout},
     landlord_layout::LandlordLayout,
+    owner_layout::OwnerLayout,
+    pmc_layout::PmcLayout,
+    property_owner_layout::PropertyOwnerLayout,
     tenant_layout::TenantLayout,
     vendor_layout::VendorLayout,
-    pmc_layout::PmcLayout,
-    owner_layout::OwnerLayout,
-    brokerage_layouts::{AgentLayout, BrokerLayout},
-    property_owner_layout::PropertyOwnerLayout,
 };
 
 /// Root application shell. Sets up meta context and the router.
@@ -418,7 +371,9 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn LandlordShell() -> impl IntoView {
-    role_shell_view(FolioRole::Landlord, || view! { <LandlordLayout/> }.into_any())
+    role_shell_view(FolioRole::Landlord, || {
+        view! { <LandlordLayout/> }.into_any()
+    })
 }
 
 #[component]
@@ -433,7 +388,9 @@ fn VendorShell() -> impl IntoView {
 
 #[component]
 fn PmcShell() -> impl IntoView {
-    role_shell_view(FolioRole::PropertyManager, || view! { <PmcLayout/> }.into_any())
+    role_shell_view(FolioRole::PropertyManager, || {
+        view! { <PmcLayout/> }.into_any()
+    })
 }
 
 #[component]
@@ -453,7 +410,9 @@ fn BrokerShell() -> impl IntoView {
 
 #[component]
 fn PropertyOwnerShell() -> impl IntoView {
-    role_shell_view(FolioRole::PropertyOwnerLite, || view! { <PropertyOwnerLayout/> }.into_any())
+    role_shell_view(FolioRole::PropertyOwnerLite, || {
+        view! { <PropertyOwnerLayout/> }.into_any()
+    })
 }
 
 /// Shared guard logic for all role shells.
@@ -461,7 +420,10 @@ fn PropertyOwnerShell() -> impl IntoView {
 /// Creates its own `get_session` Resource locally rather than reading
 /// from context. This is intentional — see App doc comment for the
 /// session strategy.
-fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sync + 'static) -> impl IntoView {
+fn role_shell_view(
+    required: FolioRole,
+    layout: impl Fn() -> AnyView + Send + Sync + 'static,
+) -> impl IntoView {
     use crate::auth::get_session;
     let session = Resource::new(|| (), |_| get_session());
 

@@ -38,7 +38,7 @@ pub async fn send_otp(email: String) -> Result<(), server_fn::error::ServerFnErr
 #[server(VerifyOtp, "/api")]
 pub async fn verify_otp(
     email: String,
-    code:  String,
+    code: String,
 ) -> Result<OtpSessionResponse, server_fn::error::ServerFnError> {
     // post_returning_session extracts the bearer token from the Set-Cookie header,
     // which is how the backend returns the session for OTP just like magic links.
@@ -57,10 +57,10 @@ pub async fn verify_otp(
         resp["token"].as_str().unwrap_or("").to_string()
     });
 
-    let email_out = resp["email"]
-        .as_str()
-        .unwrap_or(&email)
-        .to_string();
+    let email_out = resp["email"].as_str().unwrap_or(&email).to_string();
 
-    Ok(OtpSessionResponse { token, email: email_out })
+    Ok(OtpSessionResponse {
+        token,
+        email: email_out,
+    })
 }

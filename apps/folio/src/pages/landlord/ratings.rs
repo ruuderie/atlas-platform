@@ -3,8 +3,8 @@
 //! After vendor work-order complete (`case_resolved`), sessions appear here
 //! for the landlord/PM (`assigned_user_id`) to rate the contractor.
 
-use leptos::prelude::*;
 use crate::pages::tenant::ratings::PendingRatingsPage;
+use leptos::prelude::*;
 
 #[component]
 pub fn LandlordRatings() -> impl IntoView {

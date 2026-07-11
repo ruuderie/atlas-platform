@@ -19,22 +19,23 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrListingSummary {
-    pub id:                String,
-    pub name:              String,
-    pub address:           String,
-    pub listing_type:      String,   // "apartment" | "house" | "cabin" | "villa" | etc.
-    pub status:            String,   // "active" | "draft" | "unlisted" | "blocked"
-    pub base_rate_cents:   i64,
-    pub channel_count:     u32,
-    pub rating:            Option<f64>,
-    pub review_count:      Option<u32>,
-    pub next_checkin:      Option<String>,
-    pub occupancy_30d:     Option<f64>,
-    pub photo_url:         Option<String>,
+    pub id: String,
+    pub name: String,
+    pub address: String,
+    pub listing_type: String, // "apartment" | "house" | "cabin" | "villa" | etc.
+    pub status: String,       // "active" | "draft" | "unlisted" | "blocked"
+    pub base_rate_cents: i64,
+    pub channel_count: u32,
+    pub rating: Option<f64>,
+    pub review_count: Option<u32>,
+    pub next_checkin: Option<String>,
+    pub occupancy_30d: Option<f64>,
+    pub photo_url: Option<String>,
 }
 
 #[server(FetchStrListingIndex, "/api")]
-pub async fn fetch_str_listing_index() -> Result<Vec<StrListingSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_str_listing_index(
+) -> Result<Vec<StrListingSummary>, server_fn::error::ServerFnError> {
     #[cfg(feature = "ssr")]
     {
         use axum::http::HeaderMap;
@@ -43,39 +44,47 @@ pub async fn fetch_str_listing_index() -> Result<Vec<StrListingSummary>, server_
         let token = headers
             .get("cookie")
             .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            }))
+            .and_then(|s| {
+                s.split(';').find_map(|p| {
+                    let p = p.trim();
+                    p.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
             .ok_or_else(|| server_fn::error::ServerFnError::new("No session"))?;
         crate::atlas_client::authenticated_get::<Vec<StrListingSummary>>(
-            "/api/folio/str/listings", &token, None,
-        ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+            "/api/folio/str/listings",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
     }
     #[cfg(not(feature = "ssr"))]
-    { unreachable!() }
+    {
+        unreachable!()
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn status_badge_class(status: &str) -> &'static str {
     match status {
-        "active"   => "ph-badge ph-badge--paid",
-        "draft"    => "ph-badge ph-badge--default",
+        "active" => "ph-badge ph-badge--paid",
+        "draft" => "ph-badge ph-badge--default",
         "unlisted" => "ph-badge ph-badge--overdue",
-        "blocked"  => "ph-badge ph-badge--overdue",
-        _          => "ph-badge ph-badge--default",
+        "blocked" => "ph-badge ph-badge--overdue",
+        _ => "ph-badge ph-badge--default",
     }
 }
 
 fn listing_type_icon(t: &str) -> &'static str {
     match t {
-        "cabin"     => "🌲",
-        "villa"     => "🏰",
+        "cabin" => "🌲",
+        "villa" => "🏰",
         "apartment" => "🏢",
-        "boat"      => "⛵",
-        "house"     => "🏡",
-        _           => "🏠",
+        "boat" => "⛵",
+        "house" => "🏡",
+        _ => "🏠",
     }
 }
 
@@ -186,24 +195,27 @@ mod tests {
     #[test]
     fn status_badge_class_unknown_falls_back() {
         // Any unknown status gets the default badge
-        assert_eq!(status_badge_class("some_future_status"), "ph-badge ph-badge--default");
+        assert_eq!(
+            status_badge_class("some_future_status"),
+            "ph-badge ph-badge--default"
+        );
     }
 
     // ── listing_type_icon ────────────────────────────────────────────────────
 
     #[test]
     fn listing_type_icon_known_types() {
-        assert_eq!(listing_type_icon("cabin"),     "🌲");
-        assert_eq!(listing_type_icon("villa"),     "🏰");
+        assert_eq!(listing_type_icon("cabin"), "🌲");
+        assert_eq!(listing_type_icon("villa"), "🏰");
         assert_eq!(listing_type_icon("apartment"), "🏢");
-        assert_eq!(listing_type_icon("boat"),      "⛵");
-        assert_eq!(listing_type_icon("house"),     "🏡");
+        assert_eq!(listing_type_icon("boat"), "⛵");
+        assert_eq!(listing_type_icon("house"), "🏡");
     }
 
     #[test]
     fn listing_type_icon_unknown_falls_back() {
-        assert_eq!(listing_type_icon("yurt"),  "🏠");
-        assert_eq!(listing_type_icon(""),      "🏠");
+        assert_eq!(listing_type_icon("yurt"), "🏠");
+        assert_eq!(listing_type_icon(""), "🏠");
     }
 }
 

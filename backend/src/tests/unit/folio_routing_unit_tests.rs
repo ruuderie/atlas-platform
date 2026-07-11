@@ -13,16 +13,19 @@ mod folio_role_tests {
 
     #[test]
     fn display_is_snake_case() {
-        assert_eq!(FolioRole::Landlord.to_string(),        "landlord");
-        assert_eq!(FolioRole::Tenant.to_string(),          "tenant");
-        assert_eq!(FolioRole::Vendor.to_string(),          "vendor");
+        assert_eq!(FolioRole::Landlord.to_string(), "landlord");
+        assert_eq!(FolioRole::Tenant.to_string(), "tenant");
+        assert_eq!(FolioRole::Vendor.to_string(), "vendor");
         assert_eq!(FolioRole::PropertyManager.to_string(), "property_manager");
-        assert_eq!(FolioRole::Owner.to_string(),           "owner");
-        assert_eq!(FolioRole::Cohost.to_string(),          "cohost");
-        assert_eq!(FolioRole::Agent.to_string(),           "agent");
-        assert_eq!(FolioRole::Broker.to_string(),          "broker");
+        assert_eq!(FolioRole::Owner.to_string(), "owner");
+        assert_eq!(FolioRole::Cohost.to_string(), "cohost");
+        assert_eq!(FolioRole::Agent.to_string(), "agent");
+        assert_eq!(FolioRole::Broker.to_string(), "broker");
         // str_host is NOT a valid role — STR is an asset trait
-        assert!(FolioRole::try_from("str_host").is_err(), "str_host must not parse");
+        assert!(
+            FolioRole::try_from("str_host").is_err(),
+            "str_host must not parse"
+        );
     }
 
     // ── TryFrom roundtrip ─────────────────────────────────────────────────────
@@ -52,7 +55,10 @@ mod folio_role_tests {
         assert!(FolioRole::try_from("admin").is_err());
         assert!(FolioRole::try_from("superuser").is_err());
         assert!(FolioRole::try_from("").is_err());
-        assert!(FolioRole::try_from("Landlord").is_err(), "case-sensitive: PascalCase must fail");
+        assert!(
+            FolioRole::try_from("Landlord").is_err(),
+            "case-sensitive: PascalCase must fail"
+        );
     }
 
     // ── Default ───────────────────────────────────────────────────────────────
@@ -68,26 +74,34 @@ mod folio_role_tests {
 
     #[test]
     fn home_path_all_variants() {
-        assert_eq!(FolioRole::Landlord.home_path(),        "/dashboard");
-        assert_eq!(FolioRole::Tenant.home_path(),          "/my-home");
-        assert_eq!(FolioRole::Vendor.home_path(),          "/work-orders");
+        assert_eq!(FolioRole::Landlord.home_path(), "/dashboard");
+        assert_eq!(FolioRole::Tenant.home_path(), "/my-home");
+        assert_eq!(FolioRole::Vendor.home_path(), "/work-orders");
         assert_eq!(FolioRole::PropertyManager.home_path(), "/pm");
-        assert_eq!(FolioRole::Owner.home_path(),           "/owner");
-        assert_eq!(FolioRole::Cohost.home_path(),          "/ch");
-        assert_eq!(FolioRole::Agent.home_path(),           "/a");
-        assert_eq!(FolioRole::Broker.home_path(),          "/b");
+        assert_eq!(FolioRole::Owner.home_path(), "/owner");
+        assert_eq!(FolioRole::Cohost.home_path(), "/ch");
+        assert_eq!(FolioRole::Agent.home_path(), "/a");
+        assert_eq!(FolioRole::Broker.home_path(), "/b");
     }
 
     #[test]
     fn home_paths_start_with_slash() {
         let roles = [
-            FolioRole::Landlord, FolioRole::Tenant, FolioRole::Vendor,
-            FolioRole::PropertyManager, FolioRole::Owner, FolioRole::Cohost,
-            FolioRole::Agent, FolioRole::Broker,
+            FolioRole::Landlord,
+            FolioRole::Tenant,
+            FolioRole::Vendor,
+            FolioRole::PropertyManager,
+            FolioRole::Owner,
+            FolioRole::Cohost,
+            FolioRole::Agent,
+            FolioRole::Broker,
         ];
         for role in &roles {
             let p = role.home_path();
-            assert!(p.starts_with('/'), "home_path for {role} = {p:?} must start with '/'");
+            assert!(
+                p.starts_with('/'),
+                "home_path for {role} = {p:?} must start with '/'"
+            );
         }
     }
 
@@ -95,7 +109,7 @@ mod folio_role_tests {
 
     #[test]
     fn is_pmc_only_property_manager() {
-        assert!( FolioRole::PropertyManager.is_pmc());
+        assert!(FolioRole::PropertyManager.is_pmc());
         assert!(!FolioRole::Landlord.is_pmc());
         assert!(!FolioRole::Tenant.is_pmc());
         assert!(!FolioRole::Vendor.is_pmc());
@@ -107,7 +121,7 @@ mod folio_role_tests {
 
     #[test]
     fn is_owner_only_owner() {
-        assert!( FolioRole::Owner.is_owner());
+        assert!(FolioRole::Owner.is_owner());
         assert!(!FolioRole::Landlord.is_owner());
         assert!(!FolioRole::PropertyManager.is_owner());
         assert!(!FolioRole::Tenant.is_owner());
@@ -115,8 +129,8 @@ mod folio_role_tests {
 
     #[test]
     fn is_brokerage_only_agent_and_broker() {
-        assert!( FolioRole::Agent.is_brokerage());
-        assert!( FolioRole::Broker.is_brokerage());
+        assert!(FolioRole::Agent.is_brokerage());
+        assert!(FolioRole::Broker.is_brokerage());
         assert!(!FolioRole::Landlord.is_brokerage());
         assert!(!FolioRole::Tenant.is_brokerage());
         assert!(!FolioRole::Vendor.is_brokerage());
@@ -146,7 +160,9 @@ mod folio_role_tests {
             assert!(
                 count <= 1,
                 "role {role} is in multiple exclusive groups (pmc={}, owner={}, brokerage={})",
-                role.is_pmc(), role.is_owner(), role.is_brokerage()
+                role.is_pmc(),
+                role.is_owner(),
+                role.is_brokerage()
             );
         }
     }
@@ -177,8 +193,17 @@ mod folio_role_tests {
     #[test]
     fn serde_json_snake_case_wire_format() {
         // The Folio frontend depends on this exact wire format for session deserialization
-        assert_eq!(serde_json::to_string(&FolioRole::PropertyManager).unwrap(), "\"property_manager\"");
-        assert_eq!(serde_json::to_string(&FolioRole::Landlord).unwrap(),        "\"landlord\"");
-        assert_eq!(serde_json::to_string(&FolioRole::Broker).unwrap(),          "\"broker\"");
+        assert_eq!(
+            serde_json::to_string(&FolioRole::PropertyManager).unwrap(),
+            "\"property_manager\""
+        );
+        assert_eq!(
+            serde_json::to_string(&FolioRole::Landlord).unwrap(),
+            "\"landlord\""
+        );
+        assert_eq!(
+            serde_json::to_string(&FolioRole::Broker).unwrap(),
+            "\"broker\""
+        );
     }
 }

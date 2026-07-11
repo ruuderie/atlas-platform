@@ -23,11 +23,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Query},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
@@ -84,8 +84,7 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 /// Unauthenticated routes — public web-form lead ingest.
 /// Rate-limited at the handler level (5 req/IP/60s).
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/folio/leads/ingest", post(ingest_lead))
+    Router::new().route("/api/folio/leads/ingest", post(ingest_lead))
 }
 
 // ── Tenant resolution ─────────────────────────────────────────────────────────
@@ -176,7 +175,7 @@ struct IngestLeadInput {
     // ── Honeypot (bot protection) ──────────────────────────────────────────
     /// Must be empty. Hidden with CSS `display:none` on web forms.
     #[serde(default)]
-    website_url: String,                // honeypot field name chosen to look legitimate
+    website_url: String, // honeypot field name chosen to look legitimate
 
     // ── Identity ───────────────────────────────────────────────────────────
     first_name: Option<String>,
@@ -203,7 +202,6 @@ struct IngestLeadResponse {
     lead_id: Uuid,
     status: &'static str,
 }
-
 
 async fn create_lead(
     Extension(db): Extension<DatabaseConnection>,
@@ -287,8 +285,8 @@ async fn advance_status(
     Json(body): Json<AdvanceStatusInput>,
 ) -> Result<impl axum::response::IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    let new_status = LeadStatus::try_from(body.status)
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    let new_status =
+        LeadStatus::try_from(body.status).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     let lead = LeadService::advance_status(&db, tenant_id, id, new_status)
         .await
         .map_err(|e| {
@@ -312,9 +310,13 @@ async fn qualify(
     let lead = LeadService::qualify(&db, tenant_id, id)
         .await
         .map_err(|e| {
-            if e.to_string().contains("not found") { StatusCode::NOT_FOUND }
-            else if e.to_string().contains("terminal") { StatusCode::UNPROCESSABLE_ENTITY }
-            else { StatusCode::INTERNAL_SERVER_ERROR }
+            if e.to_string().contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if e.to_string().contains("terminal") {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         })?;
     Ok(Json(lead))
 }
@@ -329,9 +331,13 @@ async fn disqualify(
     let lead = LeadService::disqualify(&db, tenant_id, id, body.reason)
         .await
         .map_err(|e| {
-            if e.to_string().contains("not found") { StatusCode::NOT_FOUND }
-            else if e.to_string().contains("terminal") { StatusCode::UNPROCESSABLE_ENTITY }
-            else { StatusCode::INTERNAL_SERVER_ERROR }
+            if e.to_string().contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if e.to_string().contains("terminal") {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         })?;
     Ok(Json(lead))
 }
@@ -355,9 +361,13 @@ async fn convert(
     )
     .await
     .map_err(|e| {
-        if e.to_string().contains("not found") { StatusCode::NOT_FOUND }
-        else if e.to_string().contains("terminal") { StatusCode::UNPROCESSABLE_ENTITY }
-        else { StatusCode::INTERNAL_SERVER_ERROR }
+        if e.to_string().contains("not found") {
+            StatusCode::NOT_FOUND
+        } else if e.to_string().contains("terminal") {
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     })?;
     Ok(Json(lead))
 }
@@ -391,9 +401,13 @@ async fn enroll_campaign(
     )
     .await
     .map_err(|e| {
-        if e.to_string().contains("not found") { StatusCode::NOT_FOUND }
-        else if e.to_string().contains("terminal") { StatusCode::UNPROCESSABLE_ENTITY }
-        else { StatusCode::INTERNAL_SERVER_ERROR }
+        if e.to_string().contains("not found") {
+            StatusCode::NOT_FOUND
+        } else if e.to_string().contains("terminal") {
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     })?;
     Ok((StatusCode::CREATED, Json(enrollment)))
 }
@@ -437,10 +451,14 @@ async fn ingest_lead(
     if !body.website_url.is_empty() {
         // Silent accept — do not create a lead. Bot gets no rejection signal.
         tracing::debug!(ip, "lead ingest: honeypot triggered");
-        return (StatusCode::OK, Json(IngestLeadResponse {
-            lead_id: Uuid::nil(),
-            status: "accepted",
-        })).into_response();
+        return (
+            StatusCode::OK,
+            Json(IngestLeadResponse {
+                lead_id: Uuid::nil(),
+                status: "accepted",
+            }),
+        )
+            .into_response();
     }
 
     // ── Tenant resolution ─────────────────────────────────────────────────────
@@ -481,7 +499,8 @@ async fn ingest_lead(
             postal_code: None,
         },
     )
-    .await {
+    .await
+    {
         Ok(l) => l,
         Err(e) => {
             tracing::error!(ip, error = %e, "lead ingest: create failed");
@@ -517,8 +536,12 @@ async fn ingest_lead(
         }
     }
 
-    (StatusCode::CREATED, Json(IngestLeadResponse {
-        lead_id: lead.id,
-        status: "created",
-    })).into_response()
+    (
+        StatusCode::CREATED,
+        Json(IngestLeadResponse {
+            lead_id: lead.id,
+            status: "created",
+        }),
+    )
+        .into_response()
 }

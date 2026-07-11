@@ -9,57 +9,62 @@
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerPropertySummary {
-    pub asset_id:                  Uuid,
-    pub asset_name:                String,
-    pub asset_type:                String,
-    pub address_line_1:            Option<String>,
-    pub active_leases:             usize,
-    pub open_maintenance:          usize,
-    pub open_violations:           usize,
-    pub revenue_this_month_cents:  i64,
+    pub asset_id: Uuid,
+    pub asset_name: String,
+    pub asset_type: String,
+    pub address_line_1: Option<String>,
+    pub active_leases: usize,
+    pub open_maintenance: usize,
+    pub open_violations: usize,
+    pub revenue_this_month_cents: i64,
     pub outstanding_balance_cents: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerLeaseEntry {
-    pub contract_id:          Uuid,
-    pub asset_id:             Option<Uuid>,
-    pub start_date:           String,
-    pub end_date:             Option<String>,
-    pub status:               String,
-    pub monthly_rent_cents:   Option<i64>,
-    pub currency:             String,
+    pub contract_id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub start_date: String,
+    pub end_date: Option<String>,
+    pub status: String,
+    pub monthly_rent_cents: Option<i64>,
+    pub currency: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OwnerMaintenanceSummary {
-    pub case_id:      Uuid,
-    pub asset_id:     Option<Uuid>,
-    pub subject:      String,
-    pub priority:     String,
-    pub status:       String,
-    pub created_at:   String,
+    pub case_id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub subject: String,
+    pub priority: String,
+    pub status: String,
+    pub created_at: String,
     pub completed_at: Option<String>,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchOwnerProperties, "/api")]
-pub async fn fetch_owner_properties() -> Result<Vec<OwnerPropertySummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_owner_properties(
+) -> Result<Vec<OwnerPropertySummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<OwnerPropertySummary>>(
-        "/api/folio/owner/properties", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/properties",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchOwnerLeases, "/api")]
@@ -69,29 +74,43 @@ pub async fn fetch_owner_leases() -> Result<Vec<OwnerLeaseEntry>, server_fn::err
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<OwnerLeaseEntry>>(
-        "/api/folio/owner/leases", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/leases",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[server(FetchOwnerMaintenance, "/api")]
-pub async fn fetch_owner_maintenance() -> Result<Vec<OwnerMaintenanceSummary>, server_fn::error::ServerFnError> {
+pub async fn fetch_owner_maintenance(
+) -> Result<Vec<OwnerMaintenanceSummary>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<Vec<OwnerMaintenanceSummary>>(
-        "/api/folio/owner/maintenance", &token, None,
-    ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+        "/api/folio/owner/maintenance",
+        &token,
+        None,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
-fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::error::ServerFnError> {
-    headers.get("cookie")
+fn session_token(
+    headers: &axum::http::HeaderMap,
+) -> Result<String, server_fn::error::ServerFnError> {
+    headers
+        .get("cookie")
         .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(';').find_map(|p| {
-            let p = p.trim();
-            p.strip_prefix("session=").map(|t| t.to_string())
-        }))
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
@@ -103,10 +122,10 @@ fn fmt_k(cents: i64) -> String {
 
 fn status_chip_class(status: &str) -> &'static str {
     match status.to_lowercase().as_str() {
-        "active" | "paid" | "resolved"  => "owner-chip--green",
-        "pending" | "open" | "submitted"=> "owner-chip--amber",
-        "overdue" | "escalated"         => "owner-chip--red",
-        _                               => "owner-chip--grey",
+        "active" | "paid" | "resolved" => "owner-chip--green",
+        "pending" | "open" | "submitted" => "owner-chip--amber",
+        "overdue" | "escalated" => "owner-chip--red",
+        _ => "owner-chip--grey",
     }
 }
 
@@ -114,12 +133,14 @@ fn status_chip_class(status: &str) -> &'static str {
 
 #[component]
 pub fn OwnerPropertyDetail() -> impl IntoView {
-    let params   = use_params_map();
-    let asset_id = params.get().get("id")
+    let params = use_params_map();
+    let asset_id = params
+        .get()
+        .get("id")
         .and_then(|s| Uuid::parse_str(&s).ok());
 
     let props_res = Resource::new(|| (), |_| fetch_owner_properties());
-    let leases_res= Resource::new(|| (), |_| fetch_owner_leases());
+    let leases_res = Resource::new(|| (), |_| fetch_owner_leases());
     let maint_res = Resource::new(|| (), |_| fetch_owner_maintenance());
 
     view! {

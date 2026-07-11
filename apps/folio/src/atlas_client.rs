@@ -1,6 +1,6 @@
 use once_cell::sync::Lazy;
 use reqwest::Client;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 
 static CLIENT: Lazy<Client> = Lazy::new(Client::new);
 
@@ -21,7 +21,12 @@ pub async fn fetch<T: DeserializeOwned>(path: &str) -> Result<T, String> {
 /// Unauthenticated POST — for public token-gated endpoints (PMC onboard, etc.)
 pub async fn post<B: Serialize, T: DeserializeOwned>(path: &str, body: &B) -> Result<T, String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
-    let res = CLIENT.post(&url).json(body).send().await.map_err(|e| e.to_string())?;
+    let res = CLIENT
+        .post(&url)
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         let status = res.status();
         let msg = res.text().await.unwrap_or_default();
@@ -44,7 +49,12 @@ pub async fn post_returning_session<B: Serialize, T: DeserializeOwned>(
     body: &B,
 ) -> Result<(T, Option<String>), String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
-    let res = CLIENT.post(&url).json(body).send().await.map_err(|e| e.to_string())?;
+    let res = CLIENT
+        .post(&url)
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         let status = res.status();
         let msg = res.text().await.unwrap_or_default();
@@ -169,8 +179,7 @@ pub async fn authenticated_put<B: Serialize, T: serde::de::DeserializeOwned>(
     }
     // Handle empty 204 bodies
     if res.status() == reqwest::StatusCode::NO_CONTENT {
-        return serde_json::from_value::<T>(serde_json::Value::Null)
-            .map_err(|_| String::new());
+        return serde_json::from_value::<T>(serde_json::Value::Null).map_err(|_| String::new());
     }
     res.json::<T>().await.map_err(|e| e.to_string())
 }
