@@ -28,6 +28,18 @@ pub struct LedgerEntry {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateVerificationBody {
+    pub request_type: String,
+    pub subject_type: String,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateVerificationResult {
+    pub id: Uuid,
+}
+
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchPlatformBillingLedger, "/api")]
@@ -40,6 +52,29 @@ pub async fn fetch_platform_billing_ledger(
     crate::atlas_client::authenticated_get::<Vec<LedgerEntry>>("/api/folio/ledger", &token, None)
         .await
         .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+}
+
+#[server(RequestAccountVerification, "/api")]
+pub async fn request_account_verification(
+    request_type: String,
+) -> Result<CreateVerificationResult, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = session_token(&headers)?;
+    let body = CreateVerificationBody {
+        request_type,
+        subject_type: "tenant".to_string(),
+        notes: None,
+    };
+    crate::atlas_client::authenticated_post::<CreateVerificationBody, CreateVerificationResult>(
+        "/api/folio/verification-requests",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
 #[cfg(feature = "ssr")]
@@ -69,8 +104,32 @@ fn fmt_usd(cents: i64) -> String {
 #[component]
 pub fn LandlordAccountBilling() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
+    let verif_busy = RwSignal::new(false);
+    let verif_msg: RwSignal<Option<(bool, String)>> = RwSignal::new(None);
 
     let ledger_res = Resource::new(move || refresh.get(), |_| fetch_platform_billing_ledger());
+
+    let submit_verification = move |request_type: &'static str| {
+        if verif_busy.get() {
+            return;
+        }
+        verif_busy.set(true);
+        verif_msg.set(None);
+        leptos::task::spawn_local(async move {
+            match request_account_verification(request_type.to_string()).await {
+                Ok(res) => {
+                    verif_msg.set(Some((
+                        true,
+                        format!("Verification request submitted ({})", res.id),
+                    )));
+                }
+                Err(e) => {
+                    verif_msg.set(Some((false, e.to_string())));
+                }
+            }
+            verif_busy.set(false);
+        });
+    };
 
     view! {
         <div class="main-area">
@@ -96,6 +155,42 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                 <div class="acct-plan-actions">
                     <button class="btn btn-ghost btn-sm" disabled=true title="Billing portal (Phase 7)">"Manage Plan"</button>
                 </div>
+            </div>
+
+            // ── G-06 Identity / business verification ──
+            <div class="acct-section">
+                <div class="acct-section-title">"Account Verification"</div>
+                <div class="acct-pm-row">
+                    <div class="acct-pm-card">
+                        <span class="acct-pm-icon">"✓"</span>
+                        <div>
+                            <div class="acct-pm-label">"Request verification"</div>
+                            <div class="acct-pm-sub">"Submit a business or identity verification request for platform review"</div>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button
+                                class="btn btn-primary btn-sm"
+                                disabled=move || verif_busy.get()
+                                on:click=move |_| submit_verification("business")
+                            >
+                                "Business"
+                            </button>
+                            <button
+                                class="btn btn-ghost btn-sm"
+                                disabled=move || verif_busy.get()
+                                on:click=move |_| submit_verification("identity")
+                            >
+                                "Identity"
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {move || verif_msg.get().map(|(ok, msg)| {
+                    let color = if ok { "var(--green, #16a34a)" } else { "var(--red, #dc2626)" };
+                    view! {
+                        <p style=format!("margin-top:0.75rem;font-size:0.875rem;color:{color}")>{msg}</p>
+                    }
+                })}
             </div>
 
             // ── Payment Methods ──

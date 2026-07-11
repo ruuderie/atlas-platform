@@ -228,10 +228,12 @@ async fn test_application_tax_verification_services() {
     let verif_id = VerificationService::create_verification_request(
         &db,
         tenant.id,
-        "identity",
+        crate::types::verification::VerificationRequestType::Identity,
+        crate::types::verification::VerificationSubjectType::User,
         Uuid::new_v4(),
         Uuid::new_v4(),
-        "queued",
+        crate::types::verification::VerificationStatus::Pending,
+        None,
     )
     .await
     .expect("verification failed");
@@ -395,17 +397,26 @@ async fn test_ai_task_and_verification_queue() {
     let verif = VerificationService::create_verification_request(
         &db,
         tenant.id,
-        "kyc",
+        crate::types::verification::VerificationRequestType::Identity,
+        crate::types::verification::VerificationSubjectType::User,
         Uuid::new_v4(),
         Uuid::new_v4(),
-        "queued",
+        crate::types::verification::VerificationStatus::Pending,
+        None,
     )
     .await
     .expect("verification");
 
-    VerificationService::complete_verification(&db, tenant.id, verif, "approved", None)
-        .await
-        .unwrap();
+    VerificationService::complete_verification(
+        &db,
+        tenant.id,
+        verif,
+        crate::types::verification::VerificationStatus::Approved,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 }
 
 // Smoke test confirming the full generics service layer is wired and callable

@@ -38,3 +38,30 @@ pub async fn reject_verification_request(
         .json(&serde_json::json!({ "reason": reason }));
     api_request(req).await
 }
+
+pub async fn add_verification_notes(
+    id: Uuid,
+    notes: String,
+) -> Result<VerificationRequestModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/verification-requests/{}/notes", id));
+    let req = client
+        .post(&url)
+        .json(&serde_json::json!({ "notes": notes }));
+    api_request(req).await
+}
+
+pub async fn request_verification_info(
+    id: Uuid,
+    message: Option<String>,
+) -> Result<VerificationRequestModel, String> {
+    let client = create_client();
+    let url = api_url(&format!(
+        "api/admin/verification-requests/{}/request-info",
+        id
+    ));
+    let req = client
+        .post(&url)
+        .json(&serde_json::json!({ "message": message }));
+    api_request(req).await
+}

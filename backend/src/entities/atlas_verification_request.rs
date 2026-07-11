@@ -28,6 +28,10 @@ pub struct Model {
     pub verified_value: Option<String>,
     pub expires_at: Option<chrono::NaiveDate>,
     pub created_at: DateTime<Utc>,
+    /// Verification category: business | identity | document (nullable for legacy rows).
+    pub request_type: Option<String>,
+    /// Internal reviewer notes (append-only text).
+    pub reviewer_notes: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

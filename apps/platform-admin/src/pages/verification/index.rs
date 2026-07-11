@@ -12,9 +12,9 @@ pub struct ChecklistItem {
 
 #[derive(Clone, Debug)]
 pub struct NoteHistoryRecord {
-    pub author: &'static str,
+    pub author: String,
     pub text: String,
-    pub timestamp: &'static str,
+    pub timestamp: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,6 +22,7 @@ enum QueueFilter {
     All,
     Pending,
     Review,
+    NeedsInfo,
     Approved,
     Rejected,
 }
@@ -32,6 +33,7 @@ impl QueueFilter {
             Self::All => None,
             Self::Pending => Some("pending".to_string()),
             Self::Review => Some("review".to_string()),
+            Self::NeedsInfo => Some("needs_info".to_string()),
             Self::Approved => Some("approved".to_string()),
             Self::Rejected => Some("rejected".to_string()),
         }
@@ -66,6 +68,7 @@ fn get_priority_color(age_days: u32, status: &str) -> &'static str {
     match status {
         "approved" => "var(--green)",
         "rejected" => "var(--text-muted)",
+        "needs_info" => "var(--amber)",
         _ if age_days >= 7 => "var(--red)",
         _ if age_days >= 4 => "var(--amber)",
         "review" => "var(--violet)",
@@ -89,6 +92,9 @@ fn get_status_badge_style(status: &str, req_type: &str) -> &'static str {
         "rejected" => {
             "color:var(--text-muted);border-color:var(--border-default);background:var(--bg-elevated)"
         }
+        "needs_info" => {
+            "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)"
+        }
         "review" => {
             "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)"
         }
@@ -100,6 +106,7 @@ fn get_icon_style(status: &str, req_type: &str) -> &'static str {
     match status {
         "approved" => "background:var(--green-dim)",
         "rejected" => "background:var(--bg-elevated)",
+        "needs_info" => "background:var(--amber-dim)",
         "review" => "background:var(--violet-dim)",
         _ => match req_type.to_lowercase().as_str() {
             "business" => "background:var(--red-dim)",
@@ -112,6 +119,7 @@ fn get_icon_style(status: &str, req_type: &str) -> &'static str {
 fn age_class(age_days: u32, status: &str) -> &'static str {
     match status {
         "approved" | "rejected" => "qi-age age-ok",
+        "needs_info" => "qi-age age-warn",
         _ if age_days >= 7 => "qi-age age-critical",
         _ if age_days >= 4 => "qi-age age-warn",
         _ => "qi-age age-ok",
@@ -122,32 +130,10 @@ fn age_text(age_days: u32, status: &str) -> String {
     match status {
         "approved" => "Done".to_string(),
         "rejected" => "Rejected".to_string(),
+        "needs_info" => "Needs info".to_string(),
         "review" => "Review".to_string(),
         _ if age_days >= 7 => format!("{}d overdue", age_days),
         _ => format!("{}d pending", age_days),
-    }
-}
-
-fn document_name(req_type: &str, entity_name: &str, index: u32) -> String {
-    let entity_slug = entity_name.replace(' ', "_");
-    match (req_type.to_lowercase().as_str(), index) {
-        ("identity", 0) => format!("Government_ID_{}.pdf", entity_slug),
-        ("identity", 1) => "Selfie_Verification_Scan.png".to_string(),
-        (_, 0) => format!("Business_Registration_{}.pdf", entity_slug),
-        (_, 1) => "EIN_Confirmation_SS4.pdf".to_string(),
-        (_, 2) => "Operating_Agreement_Signed.png".to_string(),
-        _ => format!("Supporting_Document_{}.pdf", index + 1),
-    }
-}
-
-fn doc_status(index: u32) -> (&'static str, &'static str) {
-    match index {
-        0 => ("⚠ Review", "color:var(--amber);border-color:var(--amber)"),
-        1 => ("✓ Verified", "color:var(--green);border-color:var(--green)"),
-        _ => (
-            "○ Pending",
-            "color:var(--text-muted);border-color:var(--border-default)",
-        ),
     }
 }
 
@@ -285,6 +271,46 @@ pub fn Verification() -> impl IntoView {
 
     let reviewer_notes = RwSignal::new(String::new());
     let note_history = RwSignal::new(Vec::<NoteHistoryRecord>::new());
+    let info_request_message = RwSignal::new(
+        "We need additional information to complete your verification. Please reply with the requested documents."
+            .to_string(),
+    );
+
+    // Sync persisted reviewer notes when selection changes
+    Effect::new(move |_| {
+        if let Some(req) = selected_request.get() {
+            let history = match req.reviewer_notes.as_ref() {
+                Some(raw) if !raw.trim().is_empty() => raw
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .map(|line| {
+                        let (timestamp, text) = if line.starts_with('[') {
+                            if let Some(end) = line.find(']') {
+                                (
+                                    line[1..end].to_string(),
+                                    line[end + 1..].trim().to_string(),
+                                )
+                            } else {
+                                ("—".to_string(), line.to_string())
+                            }
+                        } else {
+                            ("—".to_string(), line.to_string())
+                        };
+                        NoteHistoryRecord {
+                            author: "Reviewer".to_string(),
+                            text,
+                            timestamp,
+                        }
+                    })
+                    .rev()
+                    .collect(),
+                _ => Vec::new(),
+            };
+            note_history.set(history);
+        } else {
+            note_history.set(Vec::new());
+        }
+    });
 
     let show_approve_modal = RwSignal::new(false);
     let show_reject_modal = RwSignal::new(false);
@@ -296,19 +322,20 @@ pub fn Verification() -> impl IntoView {
         if text.trim().is_empty() {
             return;
         }
-
-        note_history.update(|h| {
-            h.insert(
-                0,
-                NoteHistoryRecord {
-                    author: "JD",
-                    text: text.clone(),
-                    timestamp: "Just now · UTC",
-                },
-            );
+        let Some(req) = selected_request.get() else {
+            return;
+        };
+        let req_id = req.id;
+        leptos::task::spawn_local(async move {
+            match crate::api::verification::add_verification_notes(req_id, text).await {
+                Ok(_) => {
+                    reviewer_notes.set(String::new());
+                    toast.show_toast("Success", "Review note saved.", "success");
+                    trigger_fetch.set(trigger_fetch.get() + 1);
+                }
+                Err(e) => toast.show_toast("Error", &e, "error"),
+            }
         });
-        reviewer_notes.set(String::new());
-        toast.show_toast("Success", "Review note added.", "success");
     };
 
     let handle_approve = move |_| {
@@ -395,7 +422,11 @@ pub fn Verification() -> impl IntoView {
                                                 .get()
                                                 .unwrap_or_default()
                                                 .iter()
-                                                .filter(|r| r.status == "pending" || r.status == "review")
+                                                .filter(|r| {
+                                                    r.status == "pending"
+                                                        || r.status == "review"
+                                                        || r.status == "needs_info"
+                                                })
                                                 .count();
                                             format!("{} Active", count)
                                         }}
@@ -413,6 +444,7 @@ pub fn Verification() -> impl IntoView {
                                 {filter_pill(QueueFilter::All, "All")}
                                 {filter_pill(QueueFilter::Pending, "Pending")}
                                 {filter_pill(QueueFilter::Review, "In Review")}
+                                {filter_pill(QueueFilter::NeedsInfo, "Needs Info")}
                                 {filter_pill(QueueFilter::Approved, "Approved")}
                                 {filter_pill(QueueFilter::Rejected, "Rejected")}
                             </div>
@@ -524,6 +556,7 @@ pub fn Verification() -> impl IntoView {
                             let header_state = match status_str.as_str() {
                                 "approved" => "Verification Approved".to_string(),
                                 "rejected" => "Verification Rejected".to_string(),
+                                "needs_info" => "Awaiting applicant response".to_string(),
                                 "review" => "Under active review".to_string(),
                                 _ if age >= 7 => format!("{} days — Critical", age),
                                 _ => format!("{} days pending — Action Required", age),
@@ -531,6 +564,7 @@ pub fn Verification() -> impl IntoView {
                             let header_state_style = match status_str.as_str() {
                                 "approved" => "color:var(--green);font-weight:600",
                                 "rejected" => "color:var(--red);font-weight:600",
+                                "needs_info" => "color:var(--amber);font-weight:600",
                                 "review" => "color:var(--violet);font-weight:600",
                                 _ if age >= 7 => "color:var(--red);font-weight:600",
                                 _ => "color:var(--amber);font-weight:600",
@@ -575,46 +609,80 @@ pub fn Verification() -> impl IntoView {
                                 <div class="rev-content">
                                     {move || match active_rev_tab.get() {
                                         ReviewTab::Documents => {
-                                            let count = request.document_count.max(3);
-                                            let r_type = type_label.clone();
-                                            let entity = entity_title.clone();
+                                            let attachment = request.attachment.clone();
+                                            let doc_count = request.document_count;
                                             let rejected_reason = request.rejection_reason.clone();
                                             let rejected = status_str == "rejected";
                                             view! {
                                                 <div>
                                                     <div class="verif-section-label">"Submitted Documents · G-02 Vault"</div>
-                                                    {(0..count).map(move |i| {
-                                                        let doc_name = document_name(&r_type, &entity, i);
-                                                        let format_type = if doc_name.ends_with(".png") { "PNG" } else { "PDF" };
-                                                        let (status_label, status_style) = doc_status(i);
-                                                        let size_mb = (4.2 - (i as f32 * 1.3)).max(0.7);
-
-                                                        view! {
-                                                            <div class="doc-card">
-                                                                <div class="doc-icon">{format_type}</div>
-                                                                <div class="doc-info">
-                                                                    <div class="doc-name">{doc_name}</div>
-                                                                    <div class="doc-meta">{format!("{:.1} MB · Uploaded · SHA-256 checksum verified", size_mb)}</div>
+                                                    {match attachment {
+                                                        Some(att) => {
+                                                            let doc_name = att
+                                                                .title
+                                                                .clone()
+                                                                .filter(|t| !t.is_empty())
+                                                                .unwrap_or_else(|| {
+                                                                    if att.url.is_empty() {
+                                                                        format!("Attachment {}", att.id)
+                                                                    } else {
+                                                                        att.url
+                                                                            .rsplit('/')
+                                                                            .next()
+                                                                            .unwrap_or("attachment")
+                                                                            .to_string()
+                                                                    }
+                                                                });
+                                                            let format_type = if att.mime_type.contains("png")
+                                                                || att.mime_type.contains("jpeg")
+                                                                || att.mime_type.contains("jpg")
+                                                            {
+                                                                "IMG"
+                                                            } else if att.mime_type.contains("pdf") {
+                                                                "PDF"
+                                                            } else if att.mime_type.is_empty() {
+                                                                "DOC"
+                                                            } else {
+                                                                "FILE"
+                                                            };
+                                                            let view_url = att.url.clone();
+                                                            let has_url = !view_url.is_empty();
+                                                            view! {
+                                                                <div class="doc-card">
+                                                                    <div class="doc-icon">{format_type}</div>
+                                                                    <div class="doc-info">
+                                                                        <div class="doc-name">{doc_name}</div>
+                                                                        <div class="doc-meta">{format!("id: {} · {}", att.id, if att.mime_type.is_empty() { "attached".to_string() } else { att.mime_type.clone() })}</div>
+                                                                    </div>
+                                                                    <div class="doc-actions">
+                                                                        <span class="doc-status" style="color:var(--amber);border-color:var(--amber)">"Attached"</span>
+                                                                        <Show when=move || has_url>
+                                                                            <a
+                                                                                class="btn btn-ghost btn-sm"
+                                                                                href=view_url.clone()
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                            >
+                                                                                "View ↗"
+                                                                            </a>
+                                                                        </Show>
+                                                                    </div>
                                                                 </div>
-                                                                <div class="doc-actions">
-                                                                    <span class="doc-status" style=status_style>{status_label}</span>
-                                                                    <button
-                                                                        class="btn btn-ghost btn-sm"
-                                                                        on:click=move |_| toast.show_toast("Document Viewer", "Loading document preview in secure sandbox...", "info")
-                                                                    >
-                                                                        "View ↗"
-                                                                    </button>
-                                                                </div>
-                                                            </div>
+                                                            }.into_any()
                                                         }
-                                                    }).collect_view()}
-
-                                                    <Show when=move || !rejected>
-                                                        <div class="verif-warn">
-                                                            <div class="verif-warn-title">"⚠ Document concern — Business Registration"</div>
-                                                            <div class="verif-warn-body">"The first document needs reviewer confirmation and one supporting document is still pending. Confirm whether the registration is current or request an updated document."</div>
-                                                        </div>
-                                                    </Show>
+                                                        None => view! {
+                                                            <div class="empty-state">
+                                                                <div class="empty-state-title">
+                                                                    {if doc_count == 0 {
+                                                                        "No documents attached"
+                                                                    } else {
+                                                                        "Attachment unavailable"
+                                                                    }}
+                                                                </div>
+                                                                <div class="empty-state-body">"This request has no vault attachment yet. Request more info if evidence is required."</div>
+                                                            </div>
+                                                        }.into_any(),
+                                                    }}
 
                                                     <Show when=move || rejected>
                                                         <div class="disq-panel">
@@ -762,28 +830,42 @@ pub fn Verification() -> impl IntoView {
                 <div class="modal-overlay open">
                     <div class="modal">
                         <div class="verif-section-label">"Request Additional Documents"</div>
-                        <div class="rev-meta">"The applicant will receive an email checklist link to supply the following items."</div>
-                        <label class="verif-section-label">"Recipient Email"</label>
-                        <input
-                            type="email"
-                            class="form-input"
-                            value=move || {
-                                selected_request
-                                    .get()
-                                    .map(|r| format!("applicant+{}@verification.atlasplatform.io", r.entity_name.to_lowercase().replace(' ', ".")))
-                                    .unwrap_or_else(|| "applicant@verification.atlasplatform.io".to_string())
-                            }
-                            disabled=true
-                        />
-                        <label class="verif-section-label">"Email Message Body"</label>
-                        <textarea class="rev-notes">
-                            "Hi,\n\nWe need additional information to complete your verification. Please reply with the requested documents.\n\n— Atlas Platform Team"
-                        </textarea>
+                        <div class="rev-meta">"Marks the request as needing more info and stores your message for the applicant."</div>
+                        <label class="verif-section-label">"Message"</label>
+                        <textarea
+                            class="rev-notes"
+                            placeholder="Describe what additional documents or details are required..."
+                            on:input=move |ev| info_request_message.set(event_target_value(&ev))
+                            prop:value=info_request_message
+                        ></textarea>
                         <div class="rev-actions">
                             <button class="btn btn-ghost" on:click=move |_| show_info_request_modal.set(false)>"Cancel"</button>
                             <button class="btn btn-primary" on:click=move |_| {
+                                let Some(req) = selected_request.get() else {
+                                    show_info_request_modal.set(false);
+                                    return;
+                                };
+                                let req_id = req.id;
+                                let message = info_request_message.get();
                                 show_info_request_modal.set(false);
-                                toast.show_toast("Success", "Request email sent to applicant.", "success");
+                                leptos::task::spawn_local(async move {
+                                    match crate::api::verification::request_verification_info(
+                                        req_id,
+                                        Some(message),
+                                    )
+                                    .await
+                                    {
+                                        Ok(_) => {
+                                            toast.show_toast(
+                                                "Success",
+                                                "Request marked as needs info.",
+                                                "success",
+                                            );
+                                            trigger_fetch.set(trigger_fetch.get() + 1);
+                                        }
+                                        Err(e) => toast.show_toast("Error", &e, "error"),
+                                    }
+                                });
                             }>"Send Request"</button>
                         </div>
                     </div>
