@@ -30,9 +30,9 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
             Ok(r) if r.status().is_success() => {
                 let data: serde_json::Value = r.json().await.unwrap_or_default();
                 if let Some(session_token) = data.get("token").and_then(|v| v.as_str()) {
-                    use leptos_axum::ResponseOptions;
-                    use leptos_axum::extract;
                     use axum::http::HeaderMap;
+                    use leptos_axum::extract;
+                    use leptos_axum::ResponseOptions;
                     let headers = extract::<HeaderMap>().await.unwrap_or_default();
                     let host = headers
                         .get("host")

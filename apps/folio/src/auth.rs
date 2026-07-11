@@ -1,6 +1,6 @@
 use leptos::prelude::*;
-pub use server_fn::error::ServerFnError;
 use serde::{Deserialize, Serialize};
+pub use server_fn::error::ServerFnError;
 
 // ── FolioRole — shared between SSR and WASM ───────────────────────────────────
 //
@@ -51,29 +51,29 @@ impl FolioRole {
     /// Frontend namespace path for this role.
     pub fn home_path(&self) -> &'static str {
         match self {
-            Self::Landlord        => "/l",
-            Self::Tenant          => "/t",
-            Self::StrGuest        => "/g",
-            Self::Vendor          => "/v",
+            Self::Landlord => "/l",
+            Self::Tenant => "/t",
+            Self::StrGuest => "/g",
+            Self::Vendor => "/v",
             Self::PropertyManager => "/pmc",
-            Self::Owner           => "/o",
-            Self::Cohost          => "/ch",
-            Self::Agent           => "/a",
-            Self::Broker          => "/b",
+            Self::Owner => "/o",
+            Self::Cohost => "/ch",
+            Self::Agent => "/a",
+            Self::Broker => "/b",
             Self::PropertyOwnerLite => "/po",
         }
     }
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Landlord        => "Property Manager",
-            Self::Tenant          => "Tenant Portal",
-            Self::StrGuest        => "Guest Portal",
-            Self::Vendor          => "Vendor Portal",
+            Self::Landlord => "Property Manager",
+            Self::Tenant => "Tenant Portal",
+            Self::StrGuest => "Guest Portal",
+            Self::Vendor => "Vendor Portal",
             Self::PropertyManager => "PMC Dashboard",
-            Self::Owner           => "Owner Portal",
-            Self::Cohost          => "Cohost Portal",
-            Self::Agent           => "Agent Portal",
-            Self::Broker          => "Broker Portal",
+            Self::Owner => "Owner Portal",
+            Self::Cohost => "Cohost Portal",
+            Self::Agent => "Agent Portal",
+            Self::Broker => "Broker Portal",
             Self::PropertyOwnerLite => "Property Owner Portal",
         }
     }
@@ -88,14 +88,14 @@ impl FolioRole {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SessionInfo {
-    pub user_id:             uuid::Uuid,
-    pub tenant_id:           Option<uuid::Uuid>,
-    pub email:               String,
-    pub display_name:        Option<String>,
-    pub folio_role:          FolioRole,
+    pub user_id: uuid::Uuid,
+    pub tenant_id: Option<uuid::Uuid>,
+    pub email: String,
+    pub display_name: Option<String>,
+    pub folio_role: FolioRole,
     /// True if the user has at least one registered passkey.
     #[serde(default)]
-    pub has_passkey:         bool,
+    pub has_passkey: bool,
     /// True when all required onboarding steps are complete for their instance.
     #[serde(default)]
     pub onboarding_complete: bool,
@@ -104,23 +104,25 @@ pub struct SessionInfo {
     pub wizard_steps_completed: usize,
     /// Total wizard steps for this instance (floor 7).
     #[serde(default = "default_wizard_total")]
-    pub wizard_steps_total:  usize,
+    pub wizard_steps_total: usize,
     /// True if the user previously dismissed the setup banner (persisted server-side).
     #[serde(default)]
-    pub wizard_dismissed:    bool,
+    pub wizard_dismissed: bool,
     /// True if the user (Landlord role) has at least one STR-eligible asset in their portfolio.
     /// When true, the STR nav sections (calendar, reservations, channels) are shown
     /// in the Landlord dashboard. This is an asset trait, NOT a role distinction.
     #[serde(default)]
-    pub has_str_assets:      bool,
+    pub has_str_assets: bool,
     /// Lease type for the user's active lease (Tenant role only): "ltr" | "str".
     /// Determines which tenant portal view is shown (full portal vs guest view).
     /// None if role != Tenant or no active lease found.
     #[serde(default)]
-    pub active_lease_type:   Option<String>,
+    pub active_lease_type: Option<String>,
 }
 
-fn default_wizard_total() -> usize { 7 }
+fn default_wizard_total() -> usize {
+    7
+}
 
 // ── Shared SSR token extractor ────────────────────────────────────────────────
 //
@@ -171,20 +173,22 @@ pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Option<String> {
     None
 }
 
-
 // ── Server functions ──────────────────────────────────────────────────────────
 
 #[cfg(feature = "ssr")]
-static SERVER_SESSION_CACHE: std::sync::OnceLock<moka::future::Cache<String, SessionInfo>> = std::sync::OnceLock::new();
+static SERVER_SESSION_CACHE: std::sync::OnceLock<moka::future::Cache<String, SessionInfo>> =
+    std::sync::OnceLock::new();
 
 #[cfg(feature = "ssr")]
 fn get_server_session_cache() -> moka::future::Cache<String, SessionInfo> {
-    SERVER_SESSION_CACHE.get_or_init(|| {
-        moka::future::Cache::builder()
-            .max_capacity(2000)
-            .time_to_live(std::time::Duration::from_secs(30)) // 30 seconds TTL
-            .build()
-    }).clone()
+    SERVER_SESSION_CACHE
+        .get_or_init(|| {
+            moka::future::Cache::builder()
+                .max_capacity(2000)
+                .time_to_live(std::time::Duration::from_secs(30)) // 30 seconds TTL
+                .build()
+        })
+        .clone()
 }
 
 #[cfg(not(feature = "ssr"))]
@@ -254,8 +258,8 @@ pub async fn check_session() -> Result<SessionInfo, ServerFnError> {
     use leptos_axum::extract;
 
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = extract_bearer_token(&headers)
-        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    let token =
+        extract_bearer_token(&headers).ok_or_else(|| ServerFnError::new("No session token"))?;
 
     #[cfg(feature = "ssr")]
     {
@@ -264,13 +268,10 @@ pub async fn check_session() -> Result<SessionInfo, ServerFnError> {
             return Ok(info);
         }
 
-        let info = crate::atlas_client::authenticated_get::<SessionInfo>(
-            "/api/folio/me",
-            &token,
-            None,
-        )
-        .await
-        .map_err(|e| ServerFnError::new(format!("Session check failed: {e}")))?;
+        let info =
+            crate::atlas_client::authenticated_get::<SessionInfo>("/api/folio/me", &token, None)
+                .await
+                .map_err(|e| ServerFnError::new(format!("Session check failed: {e}")))?;
 
         cache.insert(token, info.clone()).await;
         Ok(info)
@@ -306,13 +307,10 @@ pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
             "email": email,
             "redirect_url": redirect_url,
         });
-        crate::atlas_client::post::<_, serde_json::Value>(
-            "/api/auth/magic-link/request",
-            &payload,
-        )
-        .await
-        .map(|_| ())
-        .map_err(ServerFnError::new)
+        crate::atlas_client::post::<_, serde_json::Value>("/api/auth/magic-link/request", &payload)
+            .await
+            .map(|_| ())
+            .map_err(ServerFnError::new)
     }
     #[cfg(not(feature = "ssr"))]
     {
@@ -346,10 +344,10 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
 
         let payload = serde_json::json!({ "token": token });
 
-        let (_, session_token_opt) = crate::atlas_client::post_returning_session::<_, serde_json::Value>(
-            "/api/auth/magic-link/verify",
-            &payload,
-        )
+        let (_, session_token_opt) = crate::atlas_client::post_returning_session::<
+            _,
+            serde_json::Value,
+        >("/api/auth/magic-link/verify", &payload)
         .await
         .map_err(|e| ServerFnError::new(format!("Token verification failed: {e}")))?;
 
@@ -369,13 +367,9 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
         }
 
         // Fetch Folio identity using the captured session token directly.
-        crate::atlas_client::authenticated_get::<SessionInfo>(
-            "/api/folio/me",
-            &session_token,
-            None,
-        )
-        .await
-        .map_err(|e| ServerFnError::new(e))
+        crate::atlas_client::authenticated_get::<SessionInfo>("/api/folio/me", &session_token, None)
+            .await
+            .map_err(|e| ServerFnError::new(e))
     }
     #[cfg(not(feature = "ssr"))]
     {
@@ -402,7 +396,6 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
     Ok(())
 }
 
-
 // ── Unit tests ────────────────────────────────────────────────────────────────
 //
 // Note: extract_bearer_token is SSR-only (cfg(feature = "ssr")).
@@ -411,7 +404,7 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
 #[cfg(all(test, feature = "ssr"))]
 mod tests {
     use super::extract_bearer_token;
-    use axum::http::{HeaderMap, HeaderValue, header};
+    use axum::http::{header, HeaderMap, HeaderValue};
 
     fn headers_with(cookie: &str) -> HeaderMap {
         let mut h = HeaderMap::new();
@@ -495,4 +488,3 @@ mod tests {
         assert!(extract_bearer_token(&headers).is_none());
     }
 }
-

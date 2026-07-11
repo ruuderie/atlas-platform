@@ -4,15 +4,13 @@
 //! Uses `GET /api/admin/passkeys` and `DELETE /api/admin/passkeys/{id}`.
 
 use axum::{
+    Json, Router,
     extract::{Extension, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get},
-    Json, Router,
 };
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -45,8 +43,7 @@ pub async fn list_all_passkeys(
     Extension(_current_user): Extension<user::Model>,
     Query(params): Query<PasskeyAdminQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let mut query = passkey::Entity::find()
-        .order_by_desc(passkey::Column::CreatedAt);
+    let mut query = passkey::Entity::find().order_by_desc(passkey::Column::CreatedAt);
 
     if let Some(uid) = params.user_id {
         query = query.filter(passkey::Column::UserId.eq(uid));

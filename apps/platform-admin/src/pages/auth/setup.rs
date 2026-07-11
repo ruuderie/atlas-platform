@@ -1,9 +1,9 @@
+use crate::api::models::UserInfo;
+use crate::api::setup::{SetupInitializeRequest, get_setup_status};
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 use shared_ui::components::ui::button::Button;
 use shared_ui::components::ui::input::{Input, InputType};
-use crate::api::setup::{get_setup_status, SetupInitializeRequest};
-use crate::api::models::UserInfo;
 
 #[component]
 pub fn Setup() -> impl IntoView {
@@ -11,17 +11,17 @@ pub fn Setup() -> impl IntoView {
     let first_name = RwSignal::new("Platform".to_string());
     let last_name = RwSignal::new("Admin".to_string());
     let email = RwSignal::new("".to_string());
-    
+
     let error_message = RwSignal::new(None::<String>);
     let is_loading = RwSignal::new(false);
-    
+
     let session_id = RwSignal::new(String::new());
     let webauthn_options = RwSignal::new(None::<serde_json::Value>);
-    
+
     let set_user = use_context::<WriteSignal<Option<UserInfo>>>().expect("set_user context");
     let navigate = use_navigate();
     let navigate_ok = navigate.clone();
-    
+
     let query = leptos_router::hooks::use_query_map();
     let url_token = move || query.with(|q| q.get("token").unwrap_or_default());
 
@@ -59,7 +59,9 @@ pub fn Setup() -> impl IntoView {
             match client.post(&start_url).json(&req_data).send().await {
                 Ok(res) if res.status().is_success() => {
                     let text = res.text().await.unwrap_or_default();
-                    if let Ok((sid, opts)) = serde_json::from_str::<(String, serde_json::Value)>(&text) {
+                    if let Ok((sid, opts)) =
+                        serde_json::from_str::<(String, serde_json::Value)>(&text)
+                    {
                         session_id.set(sid);
                         webauthn_options.set(Some(opts));
                         step.set(2);
@@ -78,11 +80,13 @@ pub fn Setup() -> impl IntoView {
     });
 
     let handle_initialize_finish = Callback::new(move |_| {
-        if is_loading.get() { return; }
+        if is_loading.get() {
+            return;
+        }
         is_loading.set(true);
         error_message.set(None);
         let nav = navigate_ok.clone();
-        
+
         leptos::task::spawn_local(async move {
             let options = match webauthn_options.get() {
                 Some(opt) => opt,
@@ -92,7 +96,7 @@ pub fn Setup() -> impl IntoView {
                     return;
                 }
             };
-            
+
             // 1. Browser WebAuthn API
             let credential = match shared_ui::auth::passkey::start_registration(&options).await {
                 Ok(cred) => cred,
@@ -102,23 +106,26 @@ pub fn Setup() -> impl IntoView {
                     return;
                 }
             };
-            
+
             // 2. Finish Registration Atomically
             let client = reqwest::Client::new();
             let finish_url = crate::api::client::api_url("/setup/initialize-finish");
-            
+
             let finish_payload = serde_json::json!({
                 "session_id": session_id.get(),
                 "webauthn_response": credential
             });
-            
+
             match client.post(&finish_url).json(&finish_payload).send().await {
                 Ok(res) if res.status().is_success() => {
                     let text = res.text().await.unwrap_or_default();
-                    if let Ok(session) = serde_json::from_str::<crate::api::models::SessionResponse>(&text) {
+                    if let Ok(session) =
+                        serde_json::from_str::<crate::api::models::SessionResponse>(&text)
+                    {
                         if let Some(ref t) = session.token {
                             crate::api::client::set_auth_token(t);
-                            let _ = shared_ui::auth::atlas_auth::set_session_cookie(t.clone()).await;
+                            let _ =
+                                shared_ui::auth::atlas_auth::set_session_cookie(t.clone()).await;
                         }
                         set_user.set(session.user);
                         nav("/", Default::default());
@@ -131,7 +138,7 @@ pub fn Setup() -> impl IntoView {
                 }
                 Err(_) => error_message.set(Some("Finalize network error".into())),
             }
-            
+
             is_loading.set(false);
         });
     });
@@ -153,7 +160,7 @@ pub fn Setup() -> impl IntoView {
                 </div>
 
                 <div class="p-8 rounded-2xl bg-surface-container/30 border border-outline-variant/10 shadow-2xl backdrop-blur-xl">
-                    <Show 
+                    <Show
                         when=move || !is_already_setup.get()
                         fallback=|| view! {
                             <div class="text-center animate-fade-in py-8">
@@ -171,8 +178,8 @@ pub fn Setup() -> impl IntoView {
                             </div>
                         }
                     >
-                    <Show 
-                        when=move || !url_token().is_empty() 
+                    <Show
+                        when=move || !url_token().is_empty()
                         fallback=|| view! {
                             <div class="text-center animate-fade-in py-4">
                                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container/20 border border-error/30 mb-6">
@@ -226,9 +233,9 @@ pub fn Setup() -> impl IntoView {
                                     <Input r#type=InputType::Email placeholder="admin@foundry.local".to_string() bind_value=email />
                                 </div>
 
-                                <Button 
-                                    class="w-full mt-6 btn btn-primary".to_string() 
-                                    on:click=move |ev| handle_webauthn_start.run(ev) 
+                                <Button
+                                    class="w-full mt-6 btn btn-primary".to_string()
+                                    on:click=move |ev| handle_webauthn_start.run(ev)
                                 >
                                     {move || if is_loading.get() { "Preparing Passkey..." } else { "Create Admin & Continue" }}
                                 </Button>
@@ -241,16 +248,16 @@ pub fn Setup() -> impl IntoView {
                                     <h2 class="text-xl font-bold text-on-surface">"Secure Your Account"</h2>
                                     <p class="text-sm text-on-surface-variant mt-1">"Create a passkey (Face ID/Touch ID) to log in securely without needing your password in the future."</p>
                                 </div>
-                                
+
                                 <div class="bg-surface-container-high p-6 rounded-xl border border-outline-variant/30 text-center">
                                     <span class="material-symbols-outlined text-4xl text-primary mb-3">"fingerprint"</span>
                                     <h3 class="font-bold text-on-surface mb-2">"Passkey Ready"</h3>
                                     <p class="text-sm text-on-surface-variant">"Click below to generate your passkey natively via your browser."</p>
                                 </div>
 
-                                <Button 
-                                    class="w-full mt-6 btn btn-primary".to_string() 
-                                    on:click=move |ev| handle_initialize_finish.run(ev) 
+                                <Button
+                                    class="w-full mt-6 btn btn-primary".to_string()
+                                    on:click=move |ev| handle_initialize_finish.run(ev)
                                 >
                                     {move || if is_loading.get() { "Awaiting Challenge..." } else { "Generate Passkey & Finalize" }}
                                 </Button>

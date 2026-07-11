@@ -1,19 +1,19 @@
 #![allow(dead_code)]
+use crate::auth::{generate_jwt, generate_jwt_admin, hash_token, verify_password};
+use crate::entities::{session, user};
+use crate::models::session::{SessionResponse, UserInfo};
+use crate::models::user::UserLogin;
+use axum::extract::State;
 use axum::{
     extract::{Extension, Json, Path},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, Set, ActiveModelTrait, QueryFilter};
-use uuid::Uuid;
-use chrono::{Utc, Duration};
-use crate::entities::{session, user};
-use crate::auth::{generate_jwt, verify_password, generate_jwt_admin, hash_token};
-use crate::models::session::{UserInfo, SessionResponse};
-use crate::models::user::UserLogin;
-use axum::extract::State;
+use chrono::{Duration, Utc};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 use std::time::Instant;
+use uuid::Uuid;
 
 /// Builds the `Set-Cookie` header value for the session token.
 pub fn session_cookie_header(token: &str, max_age_secs: i64) -> String {
@@ -64,7 +64,7 @@ pub async fn create_session(
 pub async fn create_user_session(
     db: &DatabaseConnection,
     email: &str,
-    password: &str
+    password: &str,
 ) -> Result<SessionResponse, StatusCode> {
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
@@ -79,7 +79,9 @@ pub async fn create_user_session(
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    if !verify_password(password, &user.password_hash).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
+    if !verify_password(password, &user.password_hash)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
         tracing::warn!(
             event = "session.creation.failed",
             request_id = %request_id,
@@ -146,9 +148,10 @@ pub async fn create_session_for_user(
 
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
-        .filter(crate::entities::user_account::Column::Role.eq(
-            crate::entities::user_account::UserRole::PlatformSuperAdmin
-        ))
+        .filter(
+            crate::entities::user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .one(db)
         .await
         .unwrap_or(None)
@@ -158,7 +161,8 @@ pub async fn create_session_for_user(
         generate_jwt_admin(user)
     } else {
         generate_jwt(user)
-    }.map_err(|e| {
+    }
+    .map_err(|e| {
         tracing::error!("Token generation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -170,7 +174,7 @@ pub async fn create_session_for_user(
 
     let token_expiration = Utc::now() + Duration::hours(1);
     let refresh_token_expiration = Utc::now() + Duration::days(7);
-    
+
     let mut new_session = session::ActiveModel {
         id: Set(Uuid::new_v4()),
         user_id: Set(user.id),
@@ -193,7 +197,7 @@ pub async fn create_session_for_user(
 
     let integrity_hash = {
         let temp_model = session::Model {
-                    id: new_session.id.clone().unwrap(),
+            id: new_session.id.clone().unwrap(),
             user_id: user.id,
             bearer_token: bearer_token.clone(),
             refresh_token: refresh_token.clone(),
@@ -267,7 +271,7 @@ pub async fn validate_session(
         tracing::warn!("No session cookie or Authorization header found");
         StatusCode::UNAUTHORIZED
     })?;
-    
+
     // Look up session by bearer_token_hash (secure) with fallback to plaintext
     // for sessions created before migration m20260515_000001.
     let token_hash = hash_token(&token);
@@ -288,7 +292,7 @@ pub async fn validate_session(
             Ok(None) => {
                 tracing::warn!("No session found for token");
                 return Err(StatusCode::UNAUTHORIZED);
-            },
+            }
             Err(e) => {
                 tracing::error!("Database error when fetching session (fallback): {:?}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -307,19 +311,22 @@ pub async fn validate_session(
 
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
-    updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let user = match user::Entity::find_by_id(session.user_id)
-        .one(&db)
+    updated_session
+        .update(&db)
         .await
-    {
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let user = match user::Entity::find_by_id(session.user_id).one(&db).await {
         Ok(Some(user)) => user,
         Ok(None) => {
             tracing::warn!("User not found for session during validation");
             return Err(StatusCode::UNAUTHORIZED);
         }
         Err(e) => {
-            tracing::error!("Database error when finding user in session validation: {:?}", e);
+            tracing::error!(
+                "Database error when finding user in session validation: {:?}",
+                e
+            );
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
@@ -397,8 +404,10 @@ pub async fn revoke_session(
         );
     }
 
-    (StatusCode::NO_CONTENT,
-     [(header::SET_COOKIE, clear_session_cookie_header())])
+    (
+        StatusCode::NO_CONTENT,
+        [(header::SET_COOKIE, clear_session_cookie_header())],
+    )
         .into_response()
 }
 
@@ -434,59 +443,60 @@ pub async fn refresh_token(
     let request_id = uuid::Uuid::new_v4();
 
     let refresh_token = payload.refresh_token;
-    
+
     // Look up by refresh_token_hash with plaintext fallback for pre-migration sessions.
     let refresh_hash = hash_token(&refresh_token);
     let session = match session::Entity::find()
         .filter(session::Column::RefreshTokenHash.eq(&refresh_hash))
         .one(&db)
-        .await {
+        .await
+    {
+        Ok(Some(session)) => session,
+        Ok(None) => match session::Entity::find()
+            .filter(session::Column::RefreshToken.eq(&refresh_token))
+            .filter(session::Column::RefreshTokenHash.is_null())
+            .one(&db)
+            .await
+        {
             Ok(Some(session)) => session,
-            Ok(None) => match session::Entity::find()
-                .filter(session::Column::RefreshToken.eq(&refresh_token))
-                .filter(session::Column::RefreshTokenHash.is_null())
-                .one(&db)
-                .await {
-                    Ok(Some(session)) => session,
-                    Ok(None) => {
-                        tracing::warn!("No session found for refresh token");
-                        return Err(StatusCode::UNAUTHORIZED);
-                    },
-                    Err(e) => {
-                        tracing::error!("Database error when fetching session (fallback): {:?}", e);
-                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                    }
-                },
+            Ok(None) => {
+                tracing::warn!("No session found for refresh token");
+                return Err(StatusCode::UNAUTHORIZED);
+            }
             Err(e) => {
-                tracing::error!("Database error when fetching session: {:?}", e);
+                tracing::error!("Database error when fetching session (fallback): {:?}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
-        };
+        },
+        Err(e) => {
+            tracing::error!("Database error when fetching session: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     if session.refresh_token_expiration < Utc::now() {
         tracing::warn!("Refresh token has expired");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    let user = match user::Entity::find_by_id(session.user_id)
-        .one(&db)
-        .await {
-            Ok(Some(user)) => user,
-            Ok(None) => {
-                tracing::error!("User not found for session");
-                return Err(StatusCode::UNAUTHORIZED);
-            },
-            Err(e) => {
-                tracing::error!("Database error when finding user: {:?}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+    let user = match user::Entity::find_by_id(session.user_id).one(&db).await {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            tracing::error!("User not found for session");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+        Err(e) => {
+            tracing::error!("Database error when finding user: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
-        .filter(crate::entities::user_account::Column::Role.eq(
-            crate::entities::user_account::UserRole::PlatformSuperAdmin
-        ))
+        .filter(
+            crate::entities::user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .one(&db)
         .await
         .unwrap_or(None)
@@ -496,7 +506,8 @@ pub async fn refresh_token(
         generate_jwt_admin(&user)
     } else {
         generate_jwt(&user)
-    }.map_err(|e| {
+    }
+    .map_err(|e| {
         tracing::error!("Error generating new bearer token: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -523,7 +534,7 @@ pub async fn refresh_token(
 
     let refreshed_hash = {
         let temp = session::Model {
-                    id: session.id,
+            id: session.id,
             user_id: user.id,
             bearer_token: new_bearer_token.clone(),
             refresh_token: new_refresh_token.clone(),
@@ -566,7 +577,7 @@ pub async fn refresh_token(
                     })
                     .collect();
 
-            Ok(Json(SessionResponse { 
+            Ok(Json(SessionResponse {
                 user: Some(UserInfo {
                     id: user.id,
                     email: user.email,
@@ -574,8 +585,11 @@ pub async fn refresh_token(
                     last_name: user.last_name,
                     is_admin: is_platform_admin,
                     app_permissions,
-                }), token: new_bearer_token, refresh_token: new_refresh_token }))
-        },
+                }),
+                token: new_bearer_token,
+                refresh_token: new_refresh_token,
+            }))
+        }
         Err(e) => {
             tracing::error!("Error updating session: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -618,10 +632,7 @@ pub async fn exchange_impersonate_code(
         })?,
     );
 
-    Ok((
-        headers,
-        Json(ExchangeResponse { success: true }),
-    ))
+    Ok((headers, Json(ExchangeResponse { success: true })))
 }
 
 // ── Session list & targeted revoke ───────────────────────────────────────────
@@ -833,5 +844,9 @@ pub async fn revoke_all_other_sessions(
         count = revoked,
     );
 
-    (StatusCode::OK, Json(serde_json::json!({ "revoked": revoked }))).into_response()
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "revoked": revoked })),
+    )
+        .into_response()
 }

@@ -1,4 +1,3 @@
-
 #[derive(Clone, Debug)]
 pub struct AtlasAuthConfig {
     pub api_prefix: &'static str,

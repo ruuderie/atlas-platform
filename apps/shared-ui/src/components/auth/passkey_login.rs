@@ -1,7 +1,7 @@
+use crate::auth::passkey::start_authentication;
 use leptos::prelude::*;
 use reqwest::Client;
 use serde_json::json;
-use crate::auth::passkey::start_authentication;
 
 #[component]
 pub fn PasskeyLoginButton(
@@ -11,19 +11,21 @@ pub fn PasskeyLoginButton(
     #[prop(into)] on_error: Callback<String>,
 ) -> impl IntoView {
     let is_submitting = RwSignal::new(false);
-    
+
     let handle_passkey_login = move |ev: leptos::ev::MouseEvent| {
         ev.prevent_default();
-        if is_submitting.get() { return; }
-        
+        if is_submitting.get() {
+            return;
+        }
+
         let email_val = email.get();
 
         is_submitting.set(true);
         let api_url = api_base_url.clone();
-        
+
         leptos::task::spawn_local(async move {
             let client = Client::new();
-            
+
             // 1. Start Login
             // credentials_include is required so the browser sends the HttpOnly
             // SameSite=Strict session cookie on this cross-origin fetch. Without it
@@ -31,7 +33,7 @@ pub fn PasskeyLoginButton(
             // origin lookup fails, surfacing as "Network error".
             let start_url = format!("{}/start-login", api_url);
             let start_payload = json!({ "email": email_val });
-            
+
             #[cfg(target_arch = "wasm32")]
             let start_result = client
                 .post(&start_url)
@@ -47,7 +49,10 @@ pub fn PasskeyLoginButton(
                 Ok(res) => {
                     let text = res.text().await.unwrap_or_default();
                     leptos::logging::warn!("Passkey start-login failed: {}", text);
-                    on_error.run("No passkeys found for this account. Try signing in with a magic link.".to_string());
+                    on_error.run(
+                        "No passkeys found for this account. Try signing in with a magic link."
+                            .to_string(),
+                    );
                     is_submitting.set(false);
                     return;
                 }
@@ -57,8 +62,9 @@ pub fn PasskeyLoginButton(
                     return;
                 }
             };
-            
-            let session_id_opt = start_res.headers()
+
+            let session_id_opt = start_res
+                .headers()
                 .get("x-passkey-session")
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.to_string());
@@ -119,15 +125,20 @@ pub fn PasskeyLoginButton(
                     let text = res.text().await.unwrap_or_default();
                     leptos::logging::warn!("Passkey finish-login failed: {} - {}", status, text);
                     let err_msg = if text.trim().is_empty() {
-                        format!("Passkey verification failed (HTTP {}). Please try again.", status)
+                        format!(
+                            "Passkey verification failed (HTTP {}). Please try again.",
+                            status
+                        )
                     } else {
                         format!("Passkey verification failed: {}", text)
                     };
                     on_error.run(err_msg);
                 }
-                Err(_) => on_error.run("Network error during verification. Please check your connection.".to_string()),
+                Err(_) => on_error.run(
+                    "Network error during verification. Please check your connection.".to_string(),
+                ),
             }
-            
+
             is_submitting.set(false);
         });
     };

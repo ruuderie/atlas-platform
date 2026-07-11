@@ -9,9 +9,13 @@ pub fn get_atlas_api_url() -> String {
 pub fn get_atlas_api_url() -> String {
     let mut base_url = "http://api.localhost".to_string();
     if let Some(window) = web_sys::window() {
-        if let Ok(env_val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__")) {
+        if let Ok(env_val) =
+            js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__"))
+        {
             if !env_val.is_undefined() {
-                if let Ok(api_val) = js_sys::Reflect::get(&env_val, &wasm_bindgen::JsValue::from_str("API_BASE_URL")) {
+                if let Ok(api_val) =
+                    js_sys::Reflect::get(&env_val, &wasm_bindgen::JsValue::from_str("API_BASE_URL"))
+                {
                     if let Some(s) = api_val.as_string() {
                         if s != "__API_BASE_URL__" && !s.is_empty() {
                             base_url = s;
@@ -58,11 +62,15 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
             Ok(r) if r.status().is_success() => Ok("SUCCESS".to_string()),
             Ok(r) => {
                 leptos::logging::warn!("Magic link request failed: HTTP {}", r.status());
-                Err(ServerFnError::ServerError("Failed to request magic link".into()))
+                Err(ServerFnError::ServerError(
+                    "Failed to request magic link".into(),
+                ))
             }
             Err(e) => {
                 leptos::logging::error!("Magic link request error: {:?}", e);
-                Err(ServerFnError::ServerError("Failed to request magic link".into()))
+                Err(ServerFnError::ServerError(
+                    "Failed to request magic link".into(),
+                ))
             }
         }
     }
@@ -85,7 +93,9 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
     let res = req.send().await;
     match res {
         Ok(r) if r.status().is_success() => Ok("SUCCESS".to_string()),
-        _ => Err(ServerFnError::ServerError("Failed to request magic link".into()))
+        _ => Err(ServerFnError::ServerError(
+            "Failed to request magic link".into(),
+        )),
     }
 }
 
@@ -112,7 +122,8 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
         match res {
             Ok(r) if r.status().is_success() => {
                 // Proxy the Set-Cookie from the backend to the browser.
-                let cookie = r.headers()
+                let cookie = r
+                    .headers()
                     .get("set-cookie")
                     .and_then(|v| v.to_str().ok())
                     .map(|s| s.to_string());
@@ -132,7 +143,7 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
                     return Ok("SUCCESS".to_string());
                 }
                 Err(ServerFnError::ServerError("error_code:server_error".into()))
-            },
+            }
             Ok(r) => {
                 // Surface the structured error_code so the frontend TokenFailure enum
                 // can branch on Expired vs AlreadyUsed vs NotFound.
@@ -145,11 +156,11 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
                     "error_code:token_not_found"
                 };
                 Err(ServerFnError::ServerError(code.into()))
-            },
+            }
             Err(e) => {
                 leptos::logging::error!("Magic link verify error: {:?}", e);
                 Err(ServerFnError::ServerError("error_code:server_error".into()))
-            },
+            }
         }
     }
     #[cfg(not(feature = "ssr"))]
@@ -202,11 +213,19 @@ pub async fn check_has_passkey() -> Result<bool, ServerFnError> {
         use leptos_axum::extract;
 
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
 
         let url = format!("{}/api/passkeys/has-passkey", get_atlas_api_url());
         let client = reqwest::Client::new();
-        match client.get(&url).header("cookie", cookie_header).send().await {
+        match client
+            .get(&url)
+            .header("cookie", cookie_header)
+            .send()
+            .await
+        {
             Ok(r) if r.status().is_success() => {
                 let val: serde_json::Value = r.json().await.unwrap_or_default();
                 Ok(val["has_passkey"].as_bool().unwrap_or(true))
@@ -231,11 +250,18 @@ pub async fn check_session() -> Result<bool, ServerFnError> {
         use leptos_axum::extract;
 
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
 
         let url = format!("{}/api/auth/session/validate", get_atlas_api_url());
         let client = reqwest::Client::new();
-        let res = client.get(&url).header("cookie", cookie_header).send().await;
+        let res = client
+            .get(&url)
+            .header("cookie", cookie_header)
+            .send()
+            .await;
 
         match res {
             Ok(r) if r.status().is_success() => Ok(true),
@@ -257,7 +283,7 @@ pub async fn check_session() -> Result<bool, ServerFnError> {
     let res = req.send().await;
     match res {
         Ok(r) if r.status().is_success() => Ok(true),
-        _ => Ok(false)
+        _ => Ok(false),
     }
 }
 
@@ -303,8 +329,11 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
         use leptos_axum::extract;
 
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
-        
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
         let origin = if let Some(origin_val) = headers.get("origin").and_then(|v| v.to_str().ok()) {
             origin_val.to_string()
         } else {
@@ -322,28 +351,36 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
 
         let url = format!("{}/api/passkeys/start-register", get_atlas_api_url());
         let client = reqwest::Client::new();
-        let res = client.post(&url)
+        let res = client
+            .post(&url)
             .header("cookie", cookie_header)
             .header("origin", &origin)
             .send()
             .await;
 
         match res {
-            Ok(r) if r.status().is_success() => {
-                match r.json::<serde_json::Value>().await {
-                    Ok(val) => Ok(val),
-                    Err(e) => Err(ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))),
-                }
-            }
+            Ok(r) if r.status().is_success() => match r.json::<serde_json::Value>().await {
+                Ok(val) => Ok(val),
+                Err(e) => Err(ServerFnError::ServerError(format!(
+                    "Invalid JSON from backend: {:?}",
+                    e
+                ))),
+            },
             Ok(r) => {
                 let status = r.status();
                 let err_text = r.text().await.unwrap_or_default();
-                leptos::logging::warn!("Start passkey registration failed: HTTP {} - {}", status, err_text);
+                leptos::logging::warn!(
+                    "Start passkey registration failed: HTTP {} - {}",
+                    status,
+                    err_text
+                );
                 Err(ServerFnError::ServerError(err_text))
             }
             Err(e) => {
                 leptos::logging::error!("Start passkey registration error: {:?}", e);
-                Err(ServerFnError::ServerError("Failed to start passkey registration".into()))
+                Err(ServerFnError::ServerError(
+                    "Failed to start passkey registration".into(),
+                ))
             }
         }
     }
@@ -362,9 +399,14 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
     {
         req = req.fetch_credentials_include();
     }
-    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    let res = req
+        .send()
+        .await
+        .map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
     if res.status().is_success() {
-        res.json::<serde_json::Value>().await.map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
+        res.json::<serde_json::Value>()
+            .await
+            .map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
     } else {
         let text = res.text().await.unwrap_or_default();
         Err(ServerFnError::ServerError(text))
@@ -373,15 +415,20 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
 
 #[cfg(any(feature = "ssr", feature = "hydrate"))]
 #[server(FinishPasskeyRegistration, "/api")]
-pub async fn finish_passkey_registration(credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
+pub async fn finish_passkey_registration(
+    credential: serde_json::Value,
+) -> Result<serde_json::Value, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
         use axum::http::HeaderMap;
         use leptos_axum::extract;
 
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
-        
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
         let origin = if let Some(origin_val) = headers.get("origin").and_then(|v| v.to_str().ok()) {
             origin_val.to_string()
         } else {
@@ -399,7 +446,8 @@ pub async fn finish_passkey_registration(credential: serde_json::Value) -> Resul
 
         let url = format!("{}/api/passkeys/finish-register", get_atlas_api_url());
         let client = reqwest::Client::new();
-        let res = client.post(&url)
+        let res = client
+            .post(&url)
             .header("cookie", cookie_header)
             .header("origin", &origin)
             .json(&credential)
@@ -407,21 +455,28 @@ pub async fn finish_passkey_registration(credential: serde_json::Value) -> Resul
             .await;
 
         match res {
-            Ok(r) if r.status().is_success() => {
-                match r.json::<serde_json::Value>().await {
-                    Ok(val) => Ok(val),
-                    Err(e) => Err(ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))),
-                }
-            }
+            Ok(r) if r.status().is_success() => match r.json::<serde_json::Value>().await {
+                Ok(val) => Ok(val),
+                Err(e) => Err(ServerFnError::ServerError(format!(
+                    "Invalid JSON from backend: {:?}",
+                    e
+                ))),
+            },
             Ok(r) => {
                 let status = r.status();
                 let err_text = r.text().await.unwrap_or_default();
-                leptos::logging::warn!("Finish passkey registration failed: HTTP {} - {}", status, err_text);
+                leptos::logging::warn!(
+                    "Finish passkey registration failed: HTTP {} - {}",
+                    status,
+                    err_text
+                );
                 Err(ServerFnError::ServerError(err_text))
             }
             Err(e) => {
                 leptos::logging::error!("Finish passkey registration error: {:?}", e);
-                Err(ServerFnError::ServerError("Failed to finish passkey registration".into()))
+                Err(ServerFnError::ServerError(
+                    "Failed to finish passkey registration".into(),
+                ))
             }
         }
     }
@@ -446,7 +501,7 @@ pub async fn set_session_cookie(token: String) -> Result<(), ServerFnError> {
             .get("host")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
-        
+
         let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
 
         // Derive root domain for cross-subdomain scope (e.g. "dev.atlas.oply.co" → ".oply.co").
@@ -454,7 +509,7 @@ pub async fn set_session_cookie(token: String) -> Result<(), ServerFnError> {
         // fetch requests. Only applied on production HTTPS to avoid local-dev issues.
         let parts: Vec<&str> = host.split('.').collect();
         let domain_attr = if is_https && parts.len() >= 2 {
-            let root = parts[parts.len()-2..].join(".");
+            let root = parts[parts.len() - 2..].join(".");
             format!("; Domain=.{}", root)
         } else {
             "".to_string()
@@ -493,7 +548,9 @@ pub async fn set_session_cookie(_token: String) -> Result<(), ServerFnError> {
 }
 
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
-pub async fn finish_passkey_registration(credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
+pub async fn finish_passkey_registration(
+    credential: serde_json::Value,
+) -> Result<serde_json::Value, ServerFnError> {
     let url = format!("{}/api/passkeys/finish-register", get_atlas_api_url());
     #[allow(unused_mut)]
     let mut req = reqwest::Client::new().post(&url).json(&credential);
@@ -501,9 +558,14 @@ pub async fn finish_passkey_registration(credential: serde_json::Value) -> Resul
     {
         req = req.fetch_credentials_include();
     }
-    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    let res = req
+        .send()
+        .await
+        .map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
     if res.status().is_success() {
-        res.json::<serde_json::Value>().await.map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
+        res.json::<serde_json::Value>()
+            .await
+            .map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
     } else {
         let text = res.text().await.unwrap_or_default();
         Err(ServerFnError::ServerError(text))
@@ -526,21 +588,29 @@ pub async fn get_passkeys() -> Result<Vec<PasskeyInfo>, ServerFnError> {
     {
         use axum::http::HeaderMap;
         use leptos_axum::extract;
-        
+
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
 
         let url = format!("{}/api/passkeys", get_atlas_api_url());
         let client = reqwest::Client::new();
-        let res = client.get(&url).header("cookie", cookie_header).send().await;
+        let res = client
+            .get(&url)
+            .header("cookie", cookie_header)
+            .send()
+            .await;
 
         match res {
-            Ok(r) if r.status().is_success() => {
-                match r.json::<Vec<PasskeyInfo>>().await {
-                    Ok(val) => Ok(val),
-                    Err(e) => Err(ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))),
-                }
-            }
+            Ok(r) if r.status().is_success() => match r.json::<Vec<PasskeyInfo>>().await {
+                Ok(val) => Ok(val),
+                Err(e) => Err(ServerFnError::ServerError(format!(
+                    "Invalid JSON from backend: {:?}",
+                    e
+                ))),
+            },
             Ok(r) => {
                 let status = r.status();
                 let err_text = r.text().await.unwrap_or_default();
@@ -568,9 +638,14 @@ pub async fn get_passkeys() -> Result<Vec<PasskeyInfo>, ServerFnError> {
     {
         req = req.fetch_credentials_include();
     }
-    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    let res = req
+        .send()
+        .await
+        .map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
     if res.status().is_success() {
-        res.json::<Vec<PasskeyInfo>>().await.map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
+        res.json::<Vec<PasskeyInfo>>()
+            .await
+            .map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
     } else {
         let text = res.text().await.unwrap_or_default();
         Err(ServerFnError::ServerError(text))
@@ -584,13 +659,20 @@ pub async fn revoke_passkey(id: uuid::Uuid) -> Result<(), ServerFnError> {
     {
         use axum::http::HeaderMap;
         use leptos_axum::extract;
-        
+
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let cookie_header = headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
 
         let url = format!("{}/api/passkeys/{}", get_atlas_api_url(), id);
         let client = reqwest::Client::new();
-        let res = client.delete(&url).header("cookie", cookie_header).send().await;
+        let res = client
+            .delete(&url)
+            .header("cookie", cookie_header)
+            .send()
+            .await;
 
         match res {
             Ok(r) if r.status().is_success() => Ok(()),
@@ -602,7 +684,9 @@ pub async fn revoke_passkey(id: uuid::Uuid) -> Result<(), ServerFnError> {
             }
             Err(e) => {
                 leptos::logging::error!("Revoke passkey error: {:?}", e);
-                Err(ServerFnError::ServerError("Failed to revoke passkey".into()))
+                Err(ServerFnError::ServerError(
+                    "Failed to revoke passkey".into(),
+                ))
             }
         }
     }
@@ -621,7 +705,10 @@ pub async fn revoke_passkey(id: uuid::Uuid) -> Result<(), ServerFnError> {
     {
         req = req.fetch_credentials_include();
     }
-    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    let res = req
+        .send()
+        .await
+        .map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
     if res.status().is_success() {
         Ok(())
     } else {
@@ -629,4 +716,3 @@ pub async fn revoke_passkey(id: uuid::Uuid) -> Result<(), ServerFnError> {
         Err(ServerFnError::ServerError(text))
     }
 }
-

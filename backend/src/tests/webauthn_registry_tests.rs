@@ -8,7 +8,10 @@ mod tests {
 
     #[test]
     fn strips_single_subdomain() {
-        assert_eq!(effective_tld_plus_one("dev.buildwithruud.com"), "buildwithruud.com");
+        assert_eq!(
+            effective_tld_plus_one("dev.buildwithruud.com"),
+            "buildwithruud.com"
+        );
     }
 
     #[test]
@@ -18,7 +21,10 @@ mod tests {
 
     #[test]
     fn apex_domain_unchanged() {
-        assert_eq!(effective_tld_plus_one("buildwithruud.com"), "buildwithruud.com");
+        assert_eq!(
+            effective_tld_plus_one("buildwithruud.com"),
+            "buildwithruud.com"
+        );
     }
 
     #[test]
@@ -45,7 +51,10 @@ mod tests {
 
     #[test]
     fn multi_label_tld_com_au() {
-        assert_eq!(effective_tld_plus_one("shop.example.com.au"), "example.com.au");
+        assert_eq!(
+            effective_tld_plus_one("shop.example.com.au"),
+            "example.com.au"
+        );
     }
 
     #[test]
@@ -74,16 +83,17 @@ mod tests {
             assert!(
                 host.ends_with(&rp_id),
                 "rpId '{}' must be a suffix of origin host '{}'",
-                rp_id, host
+                rp_id,
+                host
             );
         }
     }
 
     #[test]
     fn test_print_passkey_auth_json_with_credential() {
-        use webauthn_rs::prelude::*;
         use url::Url;
-        
+        use webauthn_rs::prelude::*;
+
         let json_str = r#"{
             "cred": {
                 "cred_id": [1, 2, 3],
@@ -113,24 +123,25 @@ mod tests {
             }
         }"#;
         let p: Passkey = serde_json::from_str(json_str).unwrap();
-        let webauthn = WebauthnBuilder::new("example.com", &Url::parse("https://example.com").unwrap())
-            .unwrap()
-            .build()
-            .unwrap();
+        let webauthn =
+            WebauthnBuilder::new("example.com", &Url::parse("https://example.com").unwrap())
+                .unwrap()
+                .build()
+                .unwrap();
         let (_rcr, auth_state) = webauthn.start_passkey_authentication(&[]).unwrap();
         let mut auth_state_val = serde_json::to_value(&auth_state).unwrap();
-        
+
         let passkey_val = serde_json::to_value(&p).unwrap();
         // Extract the inner credential JSON from the Passkey wrapper
         let credential_val = passkey_val.get("cred").cloned().unwrap_or(passkey_val);
-        
+
         let ast = auth_state_val.get_mut("ast").unwrap();
         let credentials = ast.get_mut("credentials").unwrap();
         let arr = credentials.as_array_mut().unwrap();
         arr.push(credential_val);
-        
-        let _new_auth_state: PasskeyAuthentication = serde_json::from_value(auth_state_val).unwrap();
+
+        let _new_auth_state: PasskeyAuthentication =
+            serde_json::from_value(auth_state_val).unwrap();
         println!("PasskeyAuthentication deserialization with unwrapped credential succeeded!");
     }
 }
-

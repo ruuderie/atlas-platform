@@ -1,10 +1,10 @@
+use crate::auth::atlas_auth::server_fns::{
+    PasskeyInfo, finish_passkey_registration, get_passkeys, revoke_passkey,
+    start_passkey_registration,
+};
+use crate::auth::passkey::start_registration;
 use leptos::prelude::*;
 use reqwest::Client;
-use crate::auth::passkey::start_registration;
-use crate::auth::atlas_auth::server_fns::{
-    start_passkey_registration, finish_passkey_registration,
-    get_passkeys, revoke_passkey, PasskeyInfo
-};
 
 #[component]
 pub fn ManagePasskeys(
@@ -15,7 +15,7 @@ pub fn ManagePasskeys(
     let is_submitting = RwSignal::new(false);
     let message = RwSignal::new(String::new());
     let is_error = RwSignal::new(false);
-    
+
     let api_url_sig = api_base_url;
     let auth_token_str = auth_token;
 
@@ -52,13 +52,19 @@ pub fn ManagePasskeys(
                 match get_passkeys().await {
                     Ok(pks) => pks,
                     Err(e) => {
-                        leptos::logging::error!("ManagePasskeys: Server Function get_passkeys failed: {:?}", e);
+                        leptos::logging::error!(
+                            "ManagePasskeys: Server Function get_passkeys failed: {:?}",
+                            e
+                        );
                         Vec::new()
                     }
                 }
             } else {
                 // Direct CSR HTTP request flow
-                leptos::logging::log!("ManagePasskeys: Fetching passkeys via CSR HTTP request to {}", api_url);
+                leptos::logging::log!(
+                    "ManagePasskeys: Fetching passkeys via CSR HTTP request to {}",
+                    api_url
+                );
                 let client = Client::new();
                 #[cfg(target_arch = "wasm32")]
                 let mut req = client.get(&api_url).fetch_credentials_include();
@@ -74,13 +80,19 @@ pub fn ManagePasskeys(
                             let text = match res.text().await {
                                 Ok(t) => t,
                                 Err(e) => {
-                                    leptos::logging::error!("ManagePasskeys: Failed to get response text: {:?}", e);
+                                    leptos::logging::error!(
+                                        "ManagePasskeys: Failed to get response text: {:?}",
+                                        e
+                                    );
                                     return Vec::new();
                                 }
                             };
                             match serde_json::from_str::<Vec<PasskeyInfo>>(&text) {
                                 Ok(pks) => {
-                                    leptos::logging::log!("ManagePasskeys: Successfully deserialized {} passkeys", pks.len());
+                                    leptos::logging::log!(
+                                        "ManagePasskeys: Successfully deserialized {} passkeys",
+                                        pks.len()
+                                    );
                                     pks
                                 }
                                 Err(e) => {
@@ -103,7 +115,10 @@ pub fn ManagePasskeys(
                         }
                     }
                     Err(e) => {
-                        leptos::logging::error!("ManagePasskeys: Network request failed to send: {:?}", e);
+                        leptos::logging::error!(
+                            "ManagePasskeys: Network request failed to send: {:?}",
+                            e
+                        );
                         Vec::new()
                     }
                 }
@@ -121,7 +136,7 @@ pub fn ManagePasskeys(
         async move {
             message.set("Revoking passkey...".to_string());
             is_error.set(false);
-            
+
             let token = if auth_token_val.is_empty() || auth_token_val == "CSR_COOKIE_FLOW" {
                 #[cfg(target_arch = "wasm32")]
                 {
@@ -175,8 +190,10 @@ pub fn ManagePasskeys(
         let set_refetch_trigger = set_refetch_trigger.clone();
 
         async move {
-            if is_submitting.get() { return; }
-        
+            if is_submitting.get() {
+                return;
+            }
+
             is_submitting.set(true);
             is_error.set(false);
 
@@ -241,11 +258,13 @@ pub fn ManagePasskeys(
                 let start_url = format!("{}/start-register", api_url);
 
                 #[cfg(target_arch = "wasm32")]
-                let start_req = client.post(&start_url)
+                let start_req = client
+                    .post(&start_url)
                     .fetch_credentials_include()
                     .header("Authorization", format!("Bearer {}", token));
                 #[cfg(not(target_arch = "wasm32"))]
-                let start_req = client.post(&start_url)
+                let start_req = client
+                    .post(&start_url)
                     .header("Authorization", format!("Bearer {}", token));
 
                 let start_res = match start_req.send().await {
@@ -290,12 +309,14 @@ pub fn ManagePasskeys(
                 let finish_url = format!("{}/finish-register", api_url);
 
                 #[cfg(target_arch = "wasm32")]
-                let finish_req = client.post(&finish_url)
+                let finish_req = client
+                    .post(&finish_url)
                     .fetch_credentials_include()
                     .header("Authorization", format!("Bearer {}", token))
                     .json(&credential);
                 #[cfg(not(target_arch = "wasm32"))]
-                let finish_req = client.post(&finish_url)
+                let finish_req = client
+                    .post(&finish_url)
                     .header("Authorization", format!("Bearer {}", token))
                     .json(&credential);
 
@@ -316,7 +337,7 @@ pub fn ManagePasskeys(
                     }
                 }
             }
-            
+
             is_submitting.set(false);
         }
     });
@@ -334,7 +355,7 @@ pub fn ManagePasskeys(
             <p class="text-sm text-on-surface-variant mb-6">
                 "Use a passkey (Face ID, Touch ID, or a hardware key) to sign in securely without a password."
             </p>
-            
+
             {move || if !message.get().is_empty() {
                 let color_class = if is_error.get() { "bg-error-container/30 text-error border-error/20" } else { "bg-tertiary/10 text-tertiary border-tertiary/20" };
                 view! {
@@ -343,9 +364,9 @@ pub fn ManagePasskeys(
                     </div>
                 }.into_any()
             } else { view! { <span/> }.into_any() }}
-            
-            <button 
-                type="button" 
+
+            <button
+                type="button"
                 on:click=move |_| { do_register.dispatch(()); }
                 disabled=move || is_submitting.get()
                 class="inline-flex justify-center items-center py-2.5 px-4 font-bold rounded-xl bg-primary text-on-primary hover:bg-primary-dim focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-70 shadow-[0_0_15px_rgba(123,208,255,0.15)] hover:shadow-[0_0_20px_rgba(123,208,255,0.3)]"
@@ -375,13 +396,13 @@ pub fn ManagePasskeys(
                                         let pk_id = pk.id;
                                         let pk_name = pk.name.clone();
                                         let sign_count = pk.sign_count;
-                                        
+
                                         // Format date: YYYY-MM-DD
                                         let date_str = pk.created_at.format("%Y-%m-%d %H:%M").to_string();
                                         let last_used = pk.last_used_at
                                             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
                                             .unwrap_or_else(|| "Never".to_string());
-                                            
+
                                         view! {
                                             <div class="flex items-center justify-between p-4 bg-surface border border-outline-variant/30 rounded-xl hover:border-outline-variant/60 transition-all">
                                                 <div class="flex items-center gap-3">

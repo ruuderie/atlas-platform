@@ -1,26 +1,26 @@
-use leptos::prelude::*;
-use super::state::*;
 use super::server_fns::*;
+use super::state::*;
+use leptos::prelude::*;
 
 #[derive(Clone)]
 pub struct AtlasAuthState {
-    pub auth_state:       RwSignal<AuthState>,
-    pub use_email:        RwSignal<bool>,
-    pub email:            RwSignal<String>,
-    pub is_loading:       RwSignal<bool>,
+    pub auth_state: RwSignal<AuthState>,
+    pub use_email: RwSignal<bool>,
+    pub email: RwSignal<String>,
+    pub is_loading: RwSignal<bool>,
     /// True after a magic link has been successfully dispatched.
     /// Distinct from `error` — this is a positive outcome signal.
-    pub magic_link_sent:  RwSignal<bool>,
+    pub magic_link_sent: RwSignal<bool>,
     /// Set when an error occurs. Never set on success.
-    pub error:            RwSignal<Option<String>>,
-    pub countdown:        RwSignal<i32>,
-    pub from_magic_link:  RwSignal<bool>,
-    pub dispatch_login:   Action<(), ()>,
-    pub dispatch_logout:  Action<(), ()>,
+    pub error: RwSignal<Option<String>>,
+    pub countdown: RwSignal<i32>,
+    pub from_magic_link: RwSignal<bool>,
+    pub dispatch_login: Action<(), ()>,
+    pub dispatch_logout: Action<(), ()>,
     #[cfg(any(feature = "ssr", feature = "hydrate"))]
-    pub auth_resource:    Resource<Result<bool, ServerFnError>>,
+    pub auth_resource: Resource<Result<bool, ServerFnError>>,
     #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
-    pub auth_resource:    LocalResource<Result<bool, ServerFnError>>,
+    pub auth_resource: LocalResource<Result<bool, ServerFnError>>,
 }
 
 pub fn use_atlas_auth() -> AtlasAuthState {
@@ -51,7 +51,9 @@ pub fn use_atlas_auth() -> AtlasAuthState {
             error.set(Some("Email is required.".to_string()));
         }
         async move {
-            if !valid { return; }
+            if !valid {
+                return;
+            }
             match request_magic_link(email_val).await {
                 Ok(_) => {
                     magic_link_sent.set(true);
@@ -63,9 +65,12 @@ pub fn use_atlas_auth() -> AtlasAuthState {
                         while countdown.get_untracked() > 0 {
                             let (tx, rx) = futures::channel::oneshot::channel::<()>();
                             set_timeout_with_handle(
-                                move || { let _ = tx.send(()); },
+                                move || {
+                                    let _ = tx.send(());
+                                },
                                 Duration::from_secs(1),
-                            ).expect("failed to set timeout");
+                            )
+                            .expect("failed to set timeout");
                             rx.await.unwrap();
                             countdown.update(|c| *c -= 1);
                         }
@@ -73,7 +78,9 @@ pub fn use_atlas_auth() -> AtlasAuthState {
                 }
                 Err(e) => {
                     leptos::logging::error!("Magic link request error: {:?}", e);
-                    error.set(Some("Unable to send login link. Please try again.".to_string()));
+                    error.set(Some(
+                        "Unable to send login link. Please try again.".to_string(),
+                    ));
                 }
             }
             is_loading.set(false);

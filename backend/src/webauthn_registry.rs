@@ -1,9 +1,9 @@
 #![allow(dead_code, unused)]
-use webauthn_rs::prelude::*;
-use std::sync::Arc;
 use moka::future::Cache;
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use std::sync::Arc;
 use tracing::{info, warn};
+use webauthn_rs::prelude::*;
 
 use crate::entities::app_domain;
 
@@ -37,9 +37,7 @@ impl WebauthnRegistry {
         primary_rp_id: Option<String>,
     ) -> Self {
         Self {
-            cache: Cache::builder()
-                .max_capacity(max_capacity)
-                .build(),
+            cache: Cache::builder().max_capacity(max_capacity).build(),
             db,
             primary_host,
             primary_rp_id,
@@ -63,7 +61,10 @@ impl WebauthnRegistry {
         let origin_str = origin_url.as_str().trim_end_matches('/').to_string();
         self.cache.insert(origin_str.clone(), webauthn).await;
 
-        info!("Seeded WebauthnRegistry with platform origin: {}", origin_str);
+        info!(
+            "Seeded WebauthnRegistry with platform origin: {}",
+            origin_str
+        );
         Ok(())
     }
 
@@ -91,8 +92,8 @@ impl WebauthnRegistry {
                     return Err("Unauthorized origin".to_string());
                 }
 
-                let origin_url = Url::parse(&origin)
-                    .map_err(|_| "Invalid origin URL".to_string())?;
+                let origin_url =
+                    Url::parse(&origin).map_err(|_| "Invalid origin URL".to_string())?;
 
                 // Use strict host-bound rpId for custom domains/tenants, preserving
                 // environment and tenant isolation. The primary platform admin domain
@@ -100,8 +101,10 @@ impl WebauthnRegistry {
                 let host = origin_url
                     .host_str()
                     .ok_or_else(|| "No host in origin".to_string())?;
-                
-                let rp_id = if let (Some(prim_host), Some(prim_rp_id)) = (&self.primary_host, &self.primary_rp_id) {
+
+                let rp_id = if let (Some(prim_host), Some(prim_rp_id)) =
+                    (&self.primary_host, &self.primary_rp_id)
+                {
                     if host.eq_ignore_ascii_case(prim_host) {
                         prim_rp_id.clone()
                     } else {
@@ -195,4 +198,3 @@ pub fn effective_tld_plus_one(host: &str) -> String {
         Err(_) => host.to_string(),
     }
 }
-

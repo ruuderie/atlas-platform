@@ -121,13 +121,17 @@ extern "C" {
     /// `challenge_json` is the raw JSON string from `POST /api/passkeys/start-register`.
     /// Returns a Promise<String> resolving to the serialized credential JSON.
     #[wasm_bindgen::prelude::wasm_bindgen(catch)]
-    async fn webauthn_create_js(challenge_json: &str) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue>;
+    async fn webauthn_create_js(
+        challenge_json: &str,
+    ) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue>;
 
     /// Call the browser's `navigator.credentials.get()` API.
     /// `challenge_json` is the raw JSON string from `POST /api/passkeys/start-login`.
     /// Returns a Promise<String> resolving to the serialized assertion JSON.
     #[wasm_bindgen::prelude::wasm_bindgen(catch)]
-    async fn webauthn_get_js(challenge_json: &str) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue>;
+    async fn webauthn_get_js(
+        challenge_json: &str,
+    ) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue>;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

@@ -50,9 +50,14 @@ pub fn api_base_url() -> String {
     {
         // Client-side: read from window.__ENV__.API_BASE_URL injected at build time
         if let Some(window) = web_sys::window() {
-            if let Ok(env_val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__")) {
+            if let Ok(env_val) =
+                js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__"))
+            {
                 if !env_val.is_undefined() {
-                    if let Ok(api_val) = js_sys::Reflect::get(&env_val, &wasm_bindgen::JsValue::from_str("API_BASE_URL")) {
+                    if let Ok(api_val) = js_sys::Reflect::get(
+                        &env_val,
+                        &wasm_bindgen::JsValue::from_str("API_BASE_URL"),
+                    ) {
                         if let Some(s) = api_val.as_string() {
                             if s != "__API_BASE_URL__" && !s.is_empty() {
                                 return s.trim_end_matches('/').to_string();
@@ -165,32 +170,30 @@ pub async fn fetch_my_accounts(
 #[component]
 pub fn AuthProvider(children: Children) -> impl IntoView {
     let auth_state = shared_ui::auth::atlas_auth::use_atlas_auth();
-    
+
     // Token param is None — auth is fully cookie-based now.
     // The server functions read the session cookie from the request context.
     let user_resource = Resource::new(
         move || auth_state.auth_resource.get(),
-        move |session_status| async move { 
+        move |session_status| async move {
             match session_status {
                 Some(Ok(true)) => fetch_current_user(None).await,
-                _ => Ok(None)
+                _ => Ok(None),
             }
         },
     );
 
     let accounts_resource = Resource::new(
         move || auth_state.auth_resource.get(),
-        move |session_status| async move { 
+        move |session_status| async move {
             match session_status {
                 Some(Ok(true)) => fetch_my_accounts(None).await,
-                _ => Ok(vec![])
+                _ => Ok(vec![]),
             }
         },
     );
 
-    let is_logged_in = Signal::derive(move || {
-        matches!(user_resource.get(), Some(Ok(Some(_))))
-    });
+    let is_logged_in = Signal::derive(move || matches!(user_resource.get(), Some(Ok(Some(_)))));
 
     let auth_context = AuthContext {
         user: user_resource,

@@ -1,6 +1,6 @@
+use crate::api::models::UserInfo;
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
-use crate::api::models::UserInfo;
 
 #[component]
 pub fn MagicLogin() -> impl IntoView {
@@ -8,10 +8,10 @@ pub fn MagicLogin() -> impl IntoView {
     let token = move || query.with(|q| q.get("token").unwrap_or_default());
 
     let (error, set_error) = signal(None::<String>);
-    
+
     let set_user = use_context::<WriteSignal<Option<UserInfo>>>().expect("set_user context");
     let navigate = use_navigate();
-    
+
     // We clone these for async task
     let navigate_target = navigate.clone();
     let set_user_task = set_user.clone();
@@ -33,13 +33,22 @@ pub fn MagicLogin() -> impl IntoView {
                     let _ = shared_ui::auth::atlas_auth::set_session_cookie(token_str).await;
                     if let Ok(user_info) = crate::api::auth::get_session().await {
                         set_user_task_inner.set(Some(user_info.clone()));
-                        
+
                         // Check if they need passkey setup
                         let email_encoded = urlencoding::encode(&user_info.email);
-                        let flow_url = crate::api::client::api_url(&format!("/api/auth/flow/{}", email_encoded));
-                        
-                        if let Ok(flow_res) = crate::api::client::api_request::<serde_json::Value>(reqwest::Client::new().get(&flow_url)).await {
-                            if let Some(true) = flow_res.get("has_passkey").and_then(|v| v.as_bool()) {
+                        let flow_url = crate::api::client::api_url(&format!(
+                            "/api/auth/flow/{}",
+                            email_encoded
+                        ));
+
+                        if let Ok(flow_res) = crate::api::client::api_request::<serde_json::Value>(
+                            reqwest::Client::new().get(&flow_url),
+                        )
+                        .await
+                        {
+                            if let Some(true) =
+                                flow_res.get("has_passkey").and_then(|v| v.as_bool())
+                            {
                                 nav("/", Default::default());
                             } else {
                                 nav("/settings?register_passkey=true", Default::default());

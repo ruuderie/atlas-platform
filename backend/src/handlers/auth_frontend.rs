@@ -1,26 +1,29 @@
 #![allow(dead_code)]
 use axum::{
-    extract::{State, Query, Extension, Json},
+    Router,
+    extract::{Extension, Json, Query, State},
     http::{StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, TransactionTrait};
-use serde::Deserialize;
-use serde_json::json;
-use uuid::Uuid;
-use std::time::Instant;
-use std::time::Duration as StdDuration;
-use chrono::{Utc, Duration};
+use chrono::{Duration, Utc};
 use moka::future::Cache;
 use once_cell::sync::Lazy;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+    TransactionTrait,
+};
+use serde::Deserialize;
+use serde_json::json;
+use std::time::Duration as StdDuration;
+use std::time::Instant;
+use uuid::Uuid;
 
-use crate::entities::{magic_link_token, user, account, user_account, outbox_job, platform_invite};
 use crate::auth::verify_password;
+use crate::entities::{account, magic_link_token, outbox_job, platform_invite, user, user_account};
 use crate::handlers::sessions::create_user_session;
-use crate::metrics;  // Prometheus metrics
+use crate::metrics; // Prometheus metrics
 
 static MAGIC_LINK_REQUEST_CACHE: Lazy<Cache<String, bool>> = Lazy::new(|| {
     Cache::builder()
@@ -56,8 +59,7 @@ pub fn public_routes() -> Router<DatabaseConnection> {
 }
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/me", get(get_me))
+    Router::new().route("/api/me", get(get_me))
 }
 
 #[derive(serde::Serialize)]
@@ -76,7 +78,12 @@ pub async fn get_auth_flow(
         .filter(user::Column::Email.eq(&email))
         .one(&db)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database Error".to_string(),
+            )
+        })?;
 
     let has_passkey = if let Some(user_mod) = user_model {
         let passkeys = crate::entities::passkey::Entity::find()
@@ -103,7 +110,10 @@ pub async fn verify_email(
     State(_db): State<DatabaseConnection>,
     Query(_query): Query<VerifyEmailQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    Ok((StatusCode::OK, Json(json!({"message": "Email verified successfully"}))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({"message": "Email verified successfully"})),
+    ))
 }
 
 pub async fn login(
@@ -135,12 +145,20 @@ pub async fn login(
     }
 
     if !user.is_active {
-        return Err((StatusCode::UNAUTHORIZED, "Account is inactive. Please verify your email.".to_string()));
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Account is inactive. Please verify your email.".to_string(),
+        ));
     }
 
     let session_response = create_user_session(&db, &credentials.email, &credentials.password)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create session".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to create session".to_string(),
+            )
+        })?;
 
     tracing::info!(
         event = "auth.login.success",
@@ -167,11 +185,17 @@ pub async fn get_me(
 }
 
 pub async fn webauthn_register_start() -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::NOT_IMPLEMENTED, "WebAuthn not fully implemented yet"))
+    Ok((
+        StatusCode::NOT_IMPLEMENTED,
+        "WebAuthn not fully implemented yet",
+    ))
 }
 
 pub async fn webauthn_auth_start() -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::NOT_IMPLEMENTED, "WebAuthn not fully implemented yet"))
+    Ok((
+        StatusCode::NOT_IMPLEMENTED,
+        "WebAuthn not fully implemented yet",
+    ))
 }
 
 #[derive(Deserialize)]
@@ -208,7 +232,10 @@ pub async fn request_magic_link(
         .unwrap_or("unknown")
         .to_string();
 
-    if let Err(status) = rate_limiter.check_auth_rate_limit(&ip, &payload.email).await {
+    if let Err(status) = rate_limiter
+        .check_auth_rate_limit(&ip, &payload.email)
+        .await
+    {
         tracing::warn!(
             event = "magic_link.rate_limited",
             request_id = %request_id,
@@ -242,29 +269,38 @@ pub async fn request_magic_link(
         crate::metrics::MAGIC_LINK_DUPLICATES_PREVENTED
             .with_label_values(&["unknown", &app_instance_id])
             .inc();
-        return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        return Ok((
+            StatusCode::OK,
+            Json(json!({"message": "If the email exists, a magic link has been sent."})),
+        ));
     }
     // Claim the cache key immediately to close the concurrency/race window
-    MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
+    MAGIC_LINK_REQUEST_CACHE
+        .insert(cache_key.clone(), true)
+        .await;
 
     let user_model = match user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
         .one(&db)
-        .await {
-            Ok(u) => u,
-            Err(e) => {
-                tracing::error!("Error finding user: {:?}", e);
-                MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+        .await
+    {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::error!("Error finding user: {:?}", e);
+            MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     let validated_redirect_url_data = if let Some(ref url_str) = payload.redirect_url {
         match url::Url::parse(url_str) {
             Ok(parsed) => {
                 let scheme = parsed.scheme();
                 if scheme != "https" && scheme != "http" {
-                    tracing::warn!("Magic link request: redirect_url has non-http scheme '{}' — rejecting", scheme);
+                    tracing::warn!(
+                        "Magic link request: redirect_url has non-http scheme '{}' — rejecting",
+                        scheme
+                    );
                     MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
                     return Err(StatusCode::BAD_REQUEST);
                 }
@@ -283,7 +319,9 @@ pub async fn request_magic_link(
 
                 let env = std::env::var("ENVIRONMENT").unwrap_or_default();
                 let is_dev = env == "development" || env == "dev";
-                if domain_record.is_none() && !(is_dev && (host == "localhost" || host.starts_with("127."))) {
+                if domain_record.is_none()
+                    && !(is_dev && (host == "localhost" || host.starts_with("127.")))
+                {
                     tracing::warn!(
                         "Magic link request: redirect_url host '{}' not in app_domains — rejecting",
                         host
@@ -298,32 +336,53 @@ pub async fn request_magic_link(
                 let mut resolved_tenant_id = Uuid::nil();
                 if let Some(domain) = domain_record {
                     resolved_app_instance_id = domain.app_instance_id.to_string();
-                    if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
+                    if let Ok(Some(app_inst)) =
+                        crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id)
+                            .one(&db)
+                            .await
+                    {
                         resolved_tenant_id = app_inst.tenant_id;
                         // "property_management" is the canonical app_type for Folio instances.
                         // The legacy value "folio" is kept for backward compat.
                         if app_inst.app_type.eq_ignore_ascii_case("folio")
-                            || app_inst.app_type.eq_ignore_ascii_case("property_management")
+                            || app_inst
+                                .app_type
+                                .eq_ignore_ascii_case("property_management")
                         {
                             is_folio = true;
                         }
-                        if let Ok(Some(tenant)) = crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id).one(&db).await {
+                        if let Ok(Some(tenant)) =
+                            crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id)
+                                .one(&db)
+                                .await
+                        {
                             // Prefer page_title (the operator-controlled display name) over
                             // the internal tenant slug.  This is what shows in magic-link
                             // emails and browser titles. Falls back to tenant.name if unset.
                             tenant_name = Some(
-                                tenant.page_title
+                                tenant
+                                    .page_title
                                     .filter(|s| !s.is_empty())
-                                    .unwrap_or(tenant.name)
+                                    .unwrap_or(tenant.name),
                             );
                         }
                     }
                 }
 
-                Some((url_str.clone(), tenant_name, resolved_app_instance_id, resolved_tenant_id, is_folio))
+                Some((
+                    url_str.clone(),
+                    tenant_name,
+                    resolved_app_instance_id,
+                    resolved_tenant_id,
+                    is_folio,
+                ))
             }
             Err(e) => {
-                tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
+                tracing::warn!(
+                    "Magic link request: invalid redirect_url '{}': {:?}",
+                    url_str,
+                    e
+                );
                 MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
                 return Err(StatusCode::BAD_REQUEST);
             }
@@ -332,10 +391,13 @@ pub async fn request_magic_link(
         None
     };
 
-    let (validated_redirect_url, tenant_name_opt, final_app_instance_id, tenant_id, is_folio) = match validated_redirect_url_data {
-        Some((url, name_opt, app_id, t_id, folio)) => (Some(url), name_opt, app_id, t_id, folio),
-        None => (None, None, app_instance_id, Uuid::nil(), false),
-    };
+    let (validated_redirect_url, tenant_name_opt, final_app_instance_id, tenant_id, is_folio) =
+        match validated_redirect_url_data {
+            Some((url, name_opt, app_id, t_id, folio)) => {
+                (Some(url), name_opt, app_id, t_id, folio)
+            }
+            None => (None, None, app_instance_id, Uuid::nil(), false),
+        };
 
     if let Some(user_mod) = user_model {
         // IDEMPOTENCY GUARD — Layer 2: PostgreSQL transaction-scoped advisory lock.
@@ -394,7 +456,8 @@ pub async fn request_magic_link(
                 vec![lock_key.into()],
             ),
         )
-        .await {
+        .await
+        {
             Ok(r) => r,
             Err(e) => {
                 tracing::error!("Advisory lock query failed: {:?}", e);
@@ -422,7 +485,10 @@ pub async fn request_magic_link(
             crate::metrics::MAGIC_LINK_DUPLICATES_PREVENTED
                 .with_label_values(&["unknown", &final_app_instance_id])
                 .inc();
-            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+            return Ok((
+                StatusCode::OK,
+                Json(json!({"message": "If the email exists, a magic link has been sent."})),
+            ));
         }
 
         // Lock acquired — this pod is the sole handler for this user right now.
@@ -462,7 +528,10 @@ pub async fn request_magic_link(
                 crate::metrics::MAGIC_LINK_DUPLICATES_PREVENTED
                     .with_label_values(&["unknown", &final_app_instance_id])
                     .inc();
-                return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+                return Ok((
+                    StatusCode::OK,
+                    Json(json!({"message": "If the email exists, a magic link has been sent."})),
+                ));
             }
         }
 
@@ -499,7 +568,8 @@ pub async fn request_magic_link(
                 ],
             ),
         )
-        .await {
+        .await
+        {
             Ok(r) => r,
             Err(e) => {
                 tracing::error!("Error upserting magic link token: {:?}", e);
@@ -614,7 +684,10 @@ pub async fn request_magic_link(
         MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
     }
 
-    Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({"message": "If the email exists, a magic link has been sent."})),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -636,7 +709,12 @@ pub async fn verify_magic_link(
         .filter(magic_link_token::Column::Token.eq(&payload.token))
         .one(&db)
         .await
-        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+        .map_err(|_e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database Error".to_string(),
+            )
+        })?;
 
     let magic_link = match magic_link_opt {
         Some(m) => m,
@@ -648,7 +726,10 @@ pub async fn verify_magic_link(
                 duration_ms = start.elapsed().as_millis()
             );
             // Structured error code for frontend enum
-            return Err((StatusCode::UNAUTHORIZED, "error_code:token_not_found".to_string()));
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                "error_code:token_not_found".to_string(),
+            ));
         }
     };
 
@@ -660,7 +741,10 @@ pub async fn verify_magic_link(
             reason = "token_already_used",
             duration_ms = start.elapsed().as_millis()
         );
-        return Err((StatusCode::UNAUTHORIZED, "error_code:token_already_used".to_string()));
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "error_code:token_already_used".to_string(),
+        ));
     }
 
     if magic_link.expires_at < Utc::now() {
@@ -671,13 +755,21 @@ pub async fn verify_magic_link(
             reason = "token_expired",
             duration_ms = start.elapsed().as_millis()
         );
-        return Err((StatusCode::UNAUTHORIZED, "error_code:token_expired".to_string()));
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "error_code:token_expired".to_string(),
+        ));
     }
 
     let user_mod = user::Entity::find_by_id(magic_link.user_id)
         .one(&db)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database Error".to_string(),
+            )
+        })?
         .ok_or((StatusCode::UNAUTHORIZED, "User not found".to_string()))?;
 
     if let Some(target_tenant_id) = payload.tenant_id {
@@ -685,14 +777,24 @@ pub async fn verify_magic_link(
             .filter(user_account::Column::UserId.eq(user_mod.id))
             .all(&db)
             .await
-            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
-            
+            .map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database Error".to_string(),
+                )
+            })?;
+
         let mut has_access = false;
         for ua in user_accounts {
             let acc = account::Entity::find_by_id(ua.account_id)
                 .one(&db)
                 .await
-                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+                .map_err(|_| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Database Error".to_string(),
+                    )
+                })?;
             if let Some(acc) = acc {
                 if acc.tenant_id == target_tenant_id {
                     has_access = true;
@@ -700,7 +802,7 @@ pub async fn verify_magic_link(
                 }
             }
         }
-        
+
         if !has_access {
             tracing::warn!(
                 event = "magic_link.verify.failed",
@@ -709,7 +811,10 @@ pub async fn verify_magic_link(
                 tenant_id = %target_tenant_id,
                 reason = "tenant_access_denied"
             );
-            return Err((StatusCode::UNAUTHORIZED, "User does not have access to this tenant".to_string()));
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                "User does not have access to this tenant".to_string(),
+            ));
         }
     }
 
@@ -735,7 +840,7 @@ pub async fn verify_magic_link(
     //   2. Look up the role_profile_id for the app_role slug
     //   3. Upsert into atlas_user_app_roles (ON CONFLICT DO NOTHING — idempotent)
     {
-        use sea_orm::{ConnectionTrait, QueryOrder, Order};
+        use sea_orm::{ConnectionTrait, Order, QueryOrder};
 
         let invite_row = platform_invite::Entity::find()
             .filter(platform_invite::Column::Email.eq(&user_mod.email))
@@ -746,7 +851,9 @@ pub async fn verify_magic_link(
             .unwrap_or(None);
 
         if let Some(invite) = invite_row {
-            if let (Some(app_role_slug), Some(instance_id)) = (&invite.app_role, invite.app_instance_id) {
+            if let (Some(app_role_slug), Some(instance_id)) =
+                (&invite.app_role, invite.app_instance_id)
+            {
                 // Resolve tenant_id from app_instance
                 let tenant_id_opt: Option<Uuid> = db
                     .query_one(sea_orm::Statement::from_sql_and_values(
@@ -827,7 +934,9 @@ pub async fn verify_magic_link(
                     // so the service layer can filter queries to only the granted assets.
                     // ON CONFLICT DO NOTHING — idempotent re-invite.
                     if let Some(asset_ids_json) = &invite.asset_ids {
-                        if let Ok(asset_ids) = serde_json::from_value::<Vec<Uuid>>(asset_ids_json.clone()) {
+                        if let Ok(asset_ids) =
+                            serde_json::from_value::<Vec<Uuid>>(asset_ids_json.clone())
+                        {
                             for asset_id in &asset_ids {
                                 let _ = db
                                     .execute(sea_orm::Statement::from_sql_and_values(
@@ -903,5 +1012,6 @@ pub async fn verify_magic_link(
         StatusCode::OK,
         [(header::SET_COOKIE, cookie)],
         Json(session_response),
-    ).into_response())
+    )
+        .into_response())
 }

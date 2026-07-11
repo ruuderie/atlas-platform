@@ -1,10 +1,10 @@
-use leptos::prelude::*;
-use leptos_router::hooks::use_navigate;
-use shared_ui::components::ui::input::{Input, InputType};
 use crate::api::models::UserInfo;
 use crate::api::setup::{get_setup_status, purge_admin};
-use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
+use leptos::prelude::*;
+use leptos_router::hooks::use_navigate;
 use shared_ui::auth::atlas_auth::use_atlas_auth;
+use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
+use shared_ui::components::ui::input::{Input, InputType};
 
 #[component]
 pub fn Login() -> impl IntoView {
@@ -13,7 +13,7 @@ pub fn Login() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     let navigate = use_navigate();
     let is_purging = RwSignal::new(false);
-    
+
     // Setup status check
     let navigate_setup = navigate.clone();
     leptos::task::spawn_local(async move {
@@ -40,7 +40,11 @@ pub fn Login() -> impl IntoView {
                     return;
                 }
             }
-            toast.show_toast("Auth", "Validated passkey, but session handshake failed.", "error");
+            toast.show_toast(
+                "Auth",
+                "Validated passkey, but session handshake failed.",
+                "error",
+            );
         });
     });
 
@@ -56,7 +60,9 @@ pub fn Login() -> impl IntoView {
         let toast = toast_purge.clone();
         leptos::task::spawn_local(async move {
             match purge_admin().await {
-                Ok(_) => { navigate("/setup", Default::default()); }
+                Ok(_) => {
+                    navigate("/setup", Default::default());
+                }
                 Err(e) => {
                     toast.show_toast("Auth Error", &e, "error");
                     is_purging.set(false);
@@ -480,7 +486,7 @@ pub fn Login() -> impl IntoView {
             }
             "
         </style>
-        
+
         <div class="login-shell">
             // Left panel: Brand
             <div class="login-brand">
@@ -489,7 +495,7 @@ pub fn Login() -> impl IntoView {
                     <span class="login-brand-wordmark">"Atlas Platform"</span>
                     <span class="login-brand-badge">"Admin"</span>
                 </div>
-                
+
                 <div class="login-brand-hero">
                     <div class="login-brand-h">"Command your "<br/><em>"entire operation."</em></div>
                     <div class="login-brand-sub">
@@ -510,16 +516,16 @@ pub fn Login() -> impl IntoView {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="login-brand-footer">
                     "© 2026 Atlas Platform"
                 </div>
             </div>
-            
+
             // Right panel: Form
             <div class="login-form-panel">
                 <div class="login-form-box">
-                    
+
                     <Show
                         when=move || is_sent.get()
                         fallback=move || view! {
@@ -528,30 +534,30 @@ pub fn Login() -> impl IntoView {
                                     <h2 class="login-step-title">"Admin Sign In"</h2>
                                     <p class="login-step-sub">"Super-admin access only. All sessions are logged and audited."</p>
                                 </div>
-                                
+
                                 {move || auth.error.get().map(|msg| view! {
                                     <div class="login-alert login-alert-error">
                                         <span class="login-alert-icon">"✕"</span>
                                         <span>{msg}</span>
                                     </div>
                                 })}
-                                
+
                                 {move || if auth.use_email.get() {
                                     view! {
                                         <div class="space-y-4">
                                             <div class="login-f-group">
                                                 <label class="login-f-label">"Work Email"</label>
                                                 <div class="login-f-input-wrapper">
-                                                    <Input 
-                                                        r#type=InputType::Email 
+                                                    <Input
+                                                        r#type=InputType::Email
                                                         placeholder="admin@atlasplatform.io".to_string()
-                                                        bind_value=auth.email 
+                                                        bind_value=auth.email
                                                     />
                                                 </div>
                                             </div>
-                                            
-                                            <button 
-                                                class="login-btn-primary" 
+
+                                            <button
+                                                class="login-btn-primary"
                                                 on:click=move |ev| {
                                                     ev.prevent_default();
                                                     if auth.is_loading.get_untracked()
@@ -567,19 +573,19 @@ pub fn Login() -> impl IntoView {
                                                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="mr-1 inline">
                                                     <path d="M2 4l6 5 6-5M2 4h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/>
                                                 </svg>
-                                                {move || if auth.is_loading.get() { 
-                                                    "Evaluating Node...".to_string() 
+                                                {move || if auth.is_loading.get() {
+                                                    "Evaluating Node...".to_string()
                                                 } else if auth.countdown.get() > 0 {
                                                     format!("Resend in {}s", auth.countdown.get())
-                                                } else { 
-                                                    "Send Magic Link".to_string() 
+                                                } else {
+                                                    "Send Magic Link".to_string()
                                                 }}
                                             </button>
-                                            
+
                                             <div class="login-divider"><span>"or sign in with"</span></div>
-                                            
-                                            <button 
-                                                class="login-btn-secondary" 
+
+                                            <button
+                                                class="login-btn-secondary"
                                                 on:click=move |ev| { ev.prevent_default(); auth.use_email.set(false); auth.error.set(None); }
                                             >
                                                 "← Back to Passkey"
@@ -590,18 +596,18 @@ pub fn Login() -> impl IntoView {
                                     view! {
                                         <div class="space-y-4">
                                             <div class="py-2">
-                                                <PasskeyLoginButton 
+                                                <PasskeyLoginButton
                                                     api_base_url=crate::api::client::api_url("/api/passkeys")
                                                     email=RwSignal::new("".to_string())
                                                     on_success=handle_passkey_success.clone()
                                                     on_error=handle_passkey_error.clone()
                                                 />
                                             </div>
-                                            
+
                                             <div class="login-divider"><span>"or sign in with"</span></div>
-                                            
-                                            <button 
-                                                class="login-btn-secondary" 
+
+                                            <button
+                                                class="login-btn-secondary"
                                                 on:click=move |ev| { ev.prevent_default(); auth.use_email.set(true); }
                                             >
                                                 "Use Email Instead"
@@ -609,18 +615,18 @@ pub fn Login() -> impl IntoView {
                                         </div>
                                     }.into_any()
                                 }}
-                                
+
                                 <div class="login-security-note">
                                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <path d="M8 1L2 4v4c0 3.5 2.5 6.5 6 7.5C14 14.5 14 11.5 14 8V4L8 1z"/>
                                     </svg>
                                     <span>"Passwordless only. No passwords are stored. Sessions expire in 24h."</span>
                                 </div>
-                                
+
                                 <div class=if cfg!(debug_assertions) { "mt-6" } else { "hidden" }>
-                                    <button 
-                                        class="login-btn-danger" 
-                                        on:click=move |ev| handle_purge_admin.run(ev) 
+                                    <button
+                                        class="login-btn-danger"
+                                        on:click=move |ev| handle_purge_admin.run(ev)
                                         disabled=move || is_purging.get()
                                     >
                                         {move || if is_purging.get() { "Purging..." } else { "Purge Admin (Dev)" }}
@@ -637,13 +643,13 @@ pub fn Login() -> impl IntoView {
                             <p class="login-ml-sent-sub">
                                 "The link expires in "<strong style="color:var(--text)">"15 minutes"</strong>" and can only be used once. After clicking it you'll be signed in automatically."
                             </p>
-                            
+
                             <div class="login-form-footer">
                                 "Wrong address? "<a href="#" on:click=handle_start_over>"← Start over"</a>
                                 " · "
                                 <a href="#" on:click=handle_resend>"Resend link"</a>
                             </div>
-                            
+
                             <div class="login-security-note">
                                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <circle cx="8" cy="8" r="6"/><path d="M8 5v4M8 11v.5"/>
@@ -652,7 +658,7 @@ pub fn Login() -> impl IntoView {
                             </div>
                         </div>
                     </Show>
-                    
+
                 </div>
             </div>
         </div>

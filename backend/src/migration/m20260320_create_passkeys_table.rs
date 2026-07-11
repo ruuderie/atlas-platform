@@ -11,20 +11,23 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Passkey::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(Passkey::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Passkey::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Passkey::UserId).uuid().not_null())
                     .col(ColumnDef::new(Passkey::CredentialId).binary().not_null())
                     .col(ColumnDef::new(Passkey::PublicKey).binary().not_null())
                     .col(ColumnDef::new(Passkey::SignCount).integer().not_null())
                     .col(ColumnDef::new(Passkey::Name).string().not_null())
                     .col(ColumnDef::new(Passkey::LastUsedAt).timestamp_with_time_zone())
-                    .col(ColumnDef::new(Passkey::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Passkey::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Passkey::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Passkey::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_passkey_user_id")
@@ -46,7 +49,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-            
+
         manager
             .create_index(
                 Index::create()

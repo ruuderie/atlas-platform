@@ -7,19 +7,19 @@
 //
 // HYDRATION WARNING:
 // If the buttons/tabs on this panel suddenly become unclickable, DO NOT try
-// to "fix" it by making this component `position:fixed` or `z-index:70`. 
-// The unclickability is almost certainly caused by a WASM/HTML hydration 
-// mismatch due to aggressive CDN caching (e.g., Cloudflare serving an old 
+// to "fix" it by making this component `position:fixed` or `z-index:70`.
+// The unclickability is almost certainly caused by a WASM/HTML hydration
+// mismatch due to aggressive CDN caching (e.g., Cloudflare serving an old
 // anchor.js bundle against new HTML).
-// 
+//
 // To fix unclickable buttons, bust the WASM cache by incrementing the
 // `output-name` in Cargo.toml (e.g., "anchor-v3").
 // ============================================================================
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
-use crate::auth::atlas_auth::{use_atlas_auth, verify_magic_link, set_session_cookie};
 use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
+use crate::auth::atlas_auth::{set_session_cookie, use_atlas_auth, verify_magic_link};
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
 #[derive(Clone, PartialEq)]
@@ -48,15 +48,12 @@ enum TokenState {
 /// Every app using this gets the complete auth flow for free.
 #[component]
 pub fn AtlasLoginPanel(
-    #[prop(into, default = "Atlas".into())]
-    app_title: String,
-    #[prop(into, optional)]
-    on_authenticated: Option<Callback<()>>,
+    #[prop(into, default = "Atlas".into())] app_title: String,
+    #[prop(into, optional)] on_authenticated: Option<Callback<()>>,
     /// Clean URL to navigate to after token exchange. Defaults to /admin.
     #[prop(into, default = "/admin".into())]
     success_path: String,
-    #[prop(default = false)]
-    skip_reload: bool,
+    #[prop(default = false)] skip_reload: bool,
 ) -> impl IntoView {
     let query = use_query_map();
     let token_in_url = query.with_untracked(|q| q.get("token").filter(|t| !t.is_empty()));
@@ -122,10 +119,12 @@ fn token_view(
     // The on_authenticated callback (if any) still fires first so callers can
     // perform any synchronous side-effects before the navigation happens.
     let _clean2 = success_path.clone();
-    let on_ok  = on_authenticated.clone();
+    let on_ok = on_authenticated.clone();
     Effect::new(move |_| {
         if matches!(resource.get(), Some(TokenState::Success)) {
-            if let Some(cb) = &on_ok { cb.run(()); }
+            if let Some(cb) = &on_ok {
+                cb.run(());
+            }
             if !skip_reload {
                 navigate(&_clean2, Default::default());
             }
@@ -227,12 +226,12 @@ fn token_view(
 
 // ── Normal login panel (no token) ────────────────────────────────────────────
 fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl IntoView {
-    let auth           = use_atlas_auth();
-    let email_sig      = auth.email;
+    let auth = use_atlas_auth();
+    let email_sig = auth.email;
     let is_loading_sig = auth.is_loading;
-    let countdown_sig  = auth.countdown;
-    let ml_sent_sig    = auth.magic_link_sent;
-    let error_sig      = auth.error;
+    let countdown_sig = auth.countdown;
+    let ml_sent_sig = auth.magic_link_sent;
+    let error_sig = auth.error;
     let dispatch_login = auth.dispatch_login;
 
     // Default to email/magic-link tab when arriving via ?mode=email — e.g. after a
@@ -257,7 +256,9 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                 }
                 Err(e) => {
                     leptos::logging::error!("Failed to set passkey session cookie: {:?}", e);
-                    error_sig.set(Some("Failed to complete passkey sign-in. Please try again.".to_string()));
+                    error_sig.set(Some(
+                        "Failed to complete passkey sign-in. Please try again.".to_string(),
+                    ));
                 }
             }
         });
@@ -288,7 +289,6 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
     // See file header for hydration/cache-busting instructions if buttons break.
     let page = "flex:1;width:100%;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
     let card = "width:100%;max-width:420px;height:440px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
-
 
     view! {
         <div style=page>

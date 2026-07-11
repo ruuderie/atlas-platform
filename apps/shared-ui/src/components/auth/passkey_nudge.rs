@@ -1,6 +1,6 @@
-use leptos::prelude::*;
-use crate::components::auth::passkey_manager::ManagePasskeys;
 use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
+use crate::components::auth::passkey_manager::ManagePasskeys;
+use leptos::prelude::*;
 
 /// A dismissable nudge banner that prompts the user to register a passkey after
 /// magic-link login. Universal across all Atlas apps.
