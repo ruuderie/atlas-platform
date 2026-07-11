@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::app::GlobalToast;
+use leptos::prelude::*;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
 #[component]
@@ -15,7 +15,7 @@ pub fn CategoryCreate() -> impl IntoView {
         let n = name.get();
         let d = description.get();
         let a = is_active.get();
-        
+
         let t = toast.clone();
         let nav = navigate.clone();
 
@@ -25,7 +25,7 @@ pub fn CategoryCreate() -> impl IntoView {
                 return;
             }
 
-            use crate::api::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+            use crate::api::client::{ApiErrorResponse, api_url, create_client, with_credentials};
             use serde_json::json;
 
             // CreateCategory: { name, description, is_active, is_custom, tenant_id?, parent_category_id? }
@@ -74,7 +74,7 @@ pub fn CategoryCreate() -> impl IntoView {
             >
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Category Name"</label>
-                    <input type="text" 
+                    <input type="text"
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                         placeholder="e.g. Restaurants"
                         prop:value=move || name.get()
@@ -84,7 +84,7 @@ pub fn CategoryCreate() -> impl IntoView {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Description"</label>
-                    <textarea 
+                    <textarea
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                         placeholder="Describe the purpose of this category"
                         rows="3"
@@ -92,9 +92,9 @@ pub fn CategoryCreate() -> impl IntoView {
                         on:input=move |ev| description.set(event_target_value(&ev))
                     ></textarea>
                 </div>
-                
+
                 <div class="flex items-center gap-3 mt-4">
-                    <input type="checkbox" 
+                    <input type="checkbox"
                         id="is_active"
                         prop:checked=move || is_active.get()
                         on:change=move |ev| is_active.set(event_target_checked(&ev))

@@ -1,67 +1,102 @@
-use leptos::prelude::*;
+use crate::api::admin::{get_all_platform_apps, get_tenant_stats};
 use crate::api::analytics::{get_business_kpis, get_engagement};
-use crate::api::admin::{get_tenant_stats, get_all_platform_apps};
 use crate::api::verification::get_verification_requests;
+use leptos::prelude::*;
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 fn app_type_emoji(slug: &str) -> &'static str {
     match slug {
-        "anchor"                        => "⚓",
+        "anchor" => "⚓",
         "property_management" | "folio" => "🏠",
-        "network_instance" | "network"  => "🔗",
-        "str"                           => "🏖️",
-        _                               => "📦",
+        "network_instance" | "network" => "🔗",
+        "str" => "🏖️",
+        _ => "📦",
     }
 }
 
 fn app_type_label(slug: &str) -> &'static str {
     match slug {
-        "anchor"                        => "Anchor CMS",
+        "anchor" => "Anchor CMS",
         "property_management" | "folio" => "Folio PM",
-        "network_instance" | "network"  => "Network",
-        "str"                           => "Atlas STR",
-        _                               => "App",
+        "network_instance" | "network" => "Network",
+        "str" => "Atlas STR",
+        _ => "App",
     }
 }
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
-    let kpis_res    = LocalResource::new(|| async move { get_business_kpis().await.unwrap_or_default() });
-    let engagement_res = LocalResource::new(|| async move { get_engagement().await.unwrap_or_default() });
-    let tenants_res = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
-    let apps_res    = LocalResource::new(|| async move { get_all_platform_apps().await.unwrap_or_default() });
+    let kpis_res =
+        LocalResource::new(|| async move { get_business_kpis().await.unwrap_or_default() });
+    let engagement_res =
+        LocalResource::new(|| async move { get_engagement().await.unwrap_or_default() });
+    let tenants_res =
+        LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let apps_res =
+        LocalResource::new(|| async move { get_all_platform_apps().await.unwrap_or_default() });
     let verification_res = LocalResource::new(|| async move {
-        get_verification_requests(None, None).await.unwrap_or_default()
+        get_verification_requests(None, None)
+            .await
+            .unwrap_or_default()
     });
 
     // ── Derived KPI signals ───────────────────────────────────────────────────
-    let mrr         = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.value);
-    let mrr_prev    = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.previous_value);
-    let active_subs = Signal::derive(move || kpis_res.get().unwrap_or_default().active_subscriptions.value);
-    let total_users = Signal::derive(move || engagement_res.get().unwrap_or_default().total_users.value);
-    let active_listings = Signal::derive(move || engagement_res.get().unwrap_or_default().active_listings.value);
+    let mrr = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.value);
+    let mrr_prev = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.previous_value);
+    let active_subs = Signal::derive(move || {
+        kpis_res
+            .get()
+            .unwrap_or_default()
+            .active_subscriptions
+            .value
+    });
+    let total_users =
+        Signal::derive(move || engagement_res.get().unwrap_or_default().total_users.value);
+    let active_listings = Signal::derive(move || {
+        engagement_res
+            .get()
+            .unwrap_or_default()
+            .active_listings
+            .value
+    });
 
     let mrr_str = move || {
         let val = mrr.get();
-        if val <= 0.0        { "—".to_string() }
-        else if val >= 1000.0 { format!("${:.1}k", val / 1000.0) }
-        else                  { format!("${:.0}", val) }
+        if val <= 0.0 {
+            "—".to_string()
+        } else if val >= 1000.0 {
+            format!("${:.1}k", val / 1000.0)
+        } else {
+            format!("${:.0}", val)
+        }
     };
 
     let mrr_delta_str = move || {
-        let cur = mrr.get(); let prev = mrr_prev.get();
-        if prev <= 0.0 || cur <= 0.0 { "—".to_string() }
-        else { format!("{:+.1}% MoM", ((cur - prev) / prev) * 100.0) }
+        let cur = mrr.get();
+        let prev = mrr_prev.get();
+        if prev <= 0.0 || cur <= 0.0 {
+            "—".to_string()
+        } else {
+            format!("{:+.1}% MoM", ((cur - prev) / prev) * 100.0)
+        }
     };
 
     let active_tenants_str = move || {
         let v = active_subs.get();
-        if v <= 0.0 { "—".to_string() } else { format!("{:.0}", v) }
+        if v <= 0.0 {
+            "—".to_string()
+        } else {
+            format!("{:.0}", v)
+        }
     };
 
     let tenant_count_str = move || {
         let n = tenants_res.get().unwrap_or_default().len();
-        if n == 0 { "—".to_string() } else { n.to_string() }
+        if n == 0 {
+            "—".to_string()
+        } else {
+            n.to_string()
+        }
     };
 
     view! {

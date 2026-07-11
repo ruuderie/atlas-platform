@@ -1,31 +1,33 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
+use shared_ui::components::card::Card;
+use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::related_list::RelatedList;
 use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use shared_ui::components::properties_editor::PropertiesEditor;
-use shared_ui::components::card::Card;
 
 #[component]
 pub fn TemplateDetail() -> impl IntoView {
     let params = use_params_map();
     let template_id = move || params.with(|p| p.get("id").unwrap_or_default());
-    
+
     let template_id_str = StoredValue::new(template_id());
 
     let listings_res = LocalResource::new(move || async move {
         let tid = template_id_str.get_value();
-        crate::api::listings::get_listings(&tid).await.unwrap_or_default()
+        crate::api::listings::get_listings(&tid)
+            .await
+            .unwrap_or_default()
     });
     let template_schema = RwSignal::new(Some(serde_json::json!({
         "License Number": "Text",
         "Emergency Phone": "String",
         "Years in Business": "Number"
     })));
-    
+
     view! {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 pt-8 pb-12 px-6">
             <header class="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-border pb-4">
@@ -46,7 +48,7 @@ pub fn TemplateDetail() -> impl IntoView {
                     <Button variant=ButtonVariant::Outline>"Edit Data"</Button>
                 </div>
             </header>
-            
+
             <div class="grid grid-cols-1 gap-6">
                 <Card class="bg-card border-border shadow-sm p-6".to_string()>
                     <PropertiesEditor properties=template_schema />

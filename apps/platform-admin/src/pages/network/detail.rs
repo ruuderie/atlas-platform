@@ -1,12 +1,11 @@
+use crate::api::admin::{
+    add_app_domain as api_add_domain, get_app_domains, get_public_config,
+    remove_app_domain as api_remove_domain, resume_instance, suspend_instance,
+    update_branding_config, update_public_config,
+};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
-use crate::api::admin::{
-    get_app_domains, add_app_domain as api_add_domain, remove_app_domain as api_remove_domain,
-    suspend_instance, resume_instance,
-    get_public_config, update_public_config,
-    update_branding_config,
-};
 
 #[component]
 pub fn NetworkDetail() -> impl IntoView {
@@ -23,15 +22,15 @@ pub fn NetworkDetail() -> impl IntoView {
     let is_suspended = RwSignal::new(false);
 
     // ── Editable settings (initialised empty; set from resource when loaded) ──
-    let name     = RwSignal::new(String::new());
-    let slug     = RwSignal::new(String::new());
-    let cap_ltr  = RwSignal::new(false);
-    let cap_str  = RwSignal::new(false);
+    let name = RwSignal::new(String::new());
+    let slug = RwSignal::new(String::new());
+    let cap_ltr = RwSignal::new(false);
+    let cap_str = RwSignal::new(false);
     let cap_vendor = RwSignal::new(false);
     let currency = RwSignal::new("USD".to_string());
 
     // Theme branding (editable, not persisted yet)
-    let theme_mode    = RwSignal::new("dark-slate".to_string());
+    let theme_mode = RwSignal::new("dark-slate".to_string());
     let primary_color = RwSignal::new("#0A84FF".to_string());
     let selected_font = RwSignal::new("inter".to_string());
 
@@ -53,12 +52,17 @@ pub fn NetworkDetail() -> impl IntoView {
     Effect::new(move |_| {
         if let Some(Some(cfg)) = config_res.get() {
             if slug.get().is_empty() {
-                slug.set(cfg.public_slug.clone().unwrap_or_else(|| cfg.app_slug.clone()));
+                slug.set(
+                    cfg.public_slug
+                        .clone()
+                        .unwrap_or_else(|| cfg.app_slug.clone()),
+                );
             }
             if name.get().is_empty() {
                 name.set(cfg.app_slug.clone());
             }
-            let suspended = cfg.instance_status == "suspended" || cfg.instance_status == "Suspended";
+            let suspended =
+                cfg.instance_status == "suspended" || cfg.instance_status == "Suspended";
             is_suspended.set(suspended);
         }
     });
@@ -74,9 +78,10 @@ pub fn NetworkDetail() -> impl IntoView {
 
     // ── Syndicated tenants: use tenant-stats until NI-scoped endpoint lands ──
     let tenants_res = LocalResource::new(|| async move {
-        crate::api::admin::get_tenant_stats().await.unwrap_or_default()
+        crate::api::admin::get_tenant_stats()
+            .await
+            .unwrap_or_default()
     });
-
 
     // ── Actions ───────────────────────────────────────────────────────────────
     let toggle_status = move |_| {
@@ -87,15 +92,35 @@ pub fn NetworkDetail() -> impl IntoView {
             if suspended {
                 leptos::task::spawn_local(async move {
                     match resume_instance(id).await {
-                        Ok(_) => { is_suspended.set(false); toast2.show_toast("Network Status", "Network instance resumed.", "success"); }
-                        Err(e) => { toast2.show_toast("Error", &e, "error"); }
+                        Ok(_) => {
+                            is_suspended.set(false);
+                            toast2.show_toast(
+                                "Network Status",
+                                "Network instance resumed.",
+                                "success",
+                            );
+                        }
+                        Err(e) => {
+                            toast2.show_toast("Error", &e, "error");
+                        }
                     }
                 });
             } else {
                 leptos::task::spawn_local(async move {
-                    match suspend_instance(id, "Manual suspension via admin panel.".to_string()).await {
-                        Ok(_) => { is_suspended.set(true); toast2.show_toast("Network Status", "Network instance suspended.", "warning"); }
-                        Err(e) => { toast2.show_toast("Error", &e, "error"); }
+                    match suspend_instance(id, "Manual suspension via admin panel.".to_string())
+                        .await
+                    {
+                        Ok(_) => {
+                            is_suspended.set(true);
+                            toast2.show_toast(
+                                "Network Status",
+                                "Network instance suspended.",
+                                "warning",
+                            );
+                        }
+                        Err(e) => {
+                            toast2.show_toast("Error", &e, "error");
+                        }
                     }
                 });
             }
@@ -106,14 +131,24 @@ pub fn NetworkDetail() -> impl IntoView {
 
     let add_domain_action = move |_| {
         let domain_str = new_domain.get().trim().to_string();
-        if domain_str.is_empty() { return; }
+        if domain_str.is_empty() {
+            return;
+        }
         let id_str = instance_id();
         let toast2 = toast.clone();
         let domain_clone = domain_str.clone();
         leptos::task::spawn_local(async move {
             match api_add_domain(id_str, domain_clone).await {
-                Ok(_) => { toast2.show_toast("Domain Added", "Custom domain added. DNS propagation may take up to 24h.", "success"); }
-                Err(e) => { toast2.show_toast("Error", &e, "error"); }
+                Ok(_) => {
+                    toast2.show_toast(
+                        "Domain Added",
+                        "Custom domain added. DNS propagation may take up to 24h.",
+                        "success",
+                    );
+                }
+                Err(e) => {
+                    toast2.show_toast("Error", &e, "error");
+                }
             }
         });
         new_domain.set(String::new());
@@ -137,7 +172,11 @@ pub fn NetworkDetail() -> impl IntoView {
             match update_public_config(id, Some(slug_val), None).await {
                 Ok(cfg) => {
                     slug.set(cfg.public_slug.unwrap_or_else(|| cfg.app_slug));
-                    toast.show_toast("Settings Saved", "Public slug updated successfully.", "success");
+                    toast.show_toast(
+                        "Settings Saved",
+                        "Public slug updated successfully.",
+                        "success",
+                    );
                 }
                 Err(e) => {
                     toast.show_toast("Save Failed", &e, "error");
@@ -160,18 +199,21 @@ pub fn NetworkDetail() -> impl IntoView {
             };
             let theme = theme_mode.get();
             let color = primary_color.get();
-            let font  = selected_font.get();
+            let font = selected_font.get();
             saving_branding.set(true);
             let toast3 = toast2.clone();
             leptos::task::spawn_local(async move {
-                match update_branding_config(
-                    id,
-                    Some(theme),
-                    Some(color),
-                    Some(font),
-                ).await {
-                    Ok(_) => { toast3.show_toast("Branding Saved", "Theme, color, and font persisted to instance config.", "success"); }
-                    Err(e) => { toast3.show_toast("Save Failed", &e, "error"); }
+                match update_branding_config(id, Some(theme), Some(color), Some(font)).await {
+                    Ok(_) => {
+                        toast3.show_toast(
+                            "Branding Saved",
+                            "Theme, color, and font persisted to instance config.",
+                            "success",
+                        );
+                    }
+                    Err(e) => {
+                        toast3.show_toast("Save Failed", &e, "error");
+                    }
                 }
                 saving_branding.set(false);
             });
@@ -223,7 +265,7 @@ pub fn NetworkDetail() -> impl IntoView {
                     </div>
                 </div>
                 <div>
-                    <button 
+                    <button
                         class=move || {
                             if is_suspended.get() {
                                 "btn btn-primary".to_string()
@@ -241,31 +283,31 @@ pub fn NetworkDetail() -> impl IntoView {
 
             // ── Navigation Tabs Bar ──
             <div class="tab-bar">
-                <button 
+                <button
                     class=move || if active_tab.get() == "overview" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("overview".to_string())
                 >
                     "Overview & Settings"
                 </button>
-                <button 
+                <button
                     class=move || if active_tab.get() == "domains" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("domains".to_string())
                 >
                     "Domains & SSL"
                 </button>
-                <button 
+                <button
                     class=move || if active_tab.get() == "tenants" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("tenants".to_string())
                 >
                     "Syndicated Tenants"
                 </button>
-                <button 
+                <button
                     class=move || if active_tab.get() == "branding" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("branding".to_string())
                 >
                     "Theme & Branding"
                 </button>
-                <button 
+                <button
                     class=move || if active_tab.get() == "telemetry" { "tab active" } else { "tab" }
                     on:click=move |_| active_tab.set("telemetry".to_string())
                 >
@@ -275,7 +317,7 @@ pub fn NetworkDetail() -> impl IntoView {
 
             // ── Tab Panes ──
             <div class="bg-surface-container-low border-x border-b border-outline-variant/20 p-6 rounded-b-2xl min-h-[360px]">
-                
+
                 // Tab Pane 1: Overview & Settings
                 <Show when=move || active_tab.get() == "overview">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -284,8 +326,8 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Instance Info"</h3>
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Network Name"</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         prop:value=name
                                         on:input=move |ev| name.set(event_target_value(&ev))
@@ -293,8 +335,8 @@ pub fn NetworkDetail() -> impl IntoView {
                                 </div>
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Subdomain Routing Slug"</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         prop:value=slug
                                         on:input=move |ev| slug.set(event_target_value(&ev))
@@ -304,16 +346,16 @@ pub fn NetworkDetail() -> impl IntoView {
 
                             <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20 space-y-3">
                                 <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Instance Capabilities"</h3>
-                                
+
                                 <div class="flex items-center justify-between py-2 border-b border-outline-variant/10">
                                     <div class="flex flex-col gap-0.5">
                                         <span class="text-xs font-bold text-on-surface">"Long-Term Rentals (LTR)"</span>
                                         <span class="text-[10px] text-on-surface-variant/70">"Enable landlord syndications, leasing files, and unit directories."</span>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            class="sr-only peer" 
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only peer"
                                             prop:checked=cap_ltr
                                             on:change=move |ev| cap_ltr.set(event_target_checked(&ev))
                                         />
@@ -327,9 +369,9 @@ pub fn NetworkDetail() -> impl IntoView {
                                         <span class="text-[10px] text-on-surface-variant/70">"Enable short-stay vacation postings and calendar reservations."</span>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            class="sr-only peer" 
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only peer"
                                             prop:checked=cap_str
                                             on:change=move |ev| cap_str.set(event_target_checked(&ev))
                                         />
@@ -343,9 +385,9 @@ pub fn NetworkDetail() -> impl IntoView {
                                         <span class="text-[10px] text-on-surface-variant/70">"Expose maintenance repair dispatch and syndicated contractor bookings."</span>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            class="sr-only peer" 
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only peer"
                                             prop:checked=cap_vendor
                                             on:change=move |ev| cap_vendor.set(event_target_checked(&ev))
                                         />
@@ -377,7 +419,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                 </div>
                                 <div class="space-y-1.5 pt-2">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Primary Currency"</label>
-                                    <select 
+                                    <select
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         on:change=move |ev| currency.set(event_target_value(&ev))
                                     >
@@ -407,10 +449,10 @@ pub fn NetworkDetail() -> impl IntoView {
                     <div class="space-y-6">
                         <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20 space-y-4">
                             <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Custom Domain Mappings"</h3>
-                            
+
                             <div class="flex gap-2 max-w-md">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     class="flex-1 bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                     placeholder="e.g. rent.mynetwork.com"
                                     prop:value=new_domain
@@ -439,7 +481,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                                     <td class="p-3 font-mono text-on-surface font-semibold">{dom.clone()}</td>
                                                     <td class="p-3 font-mono text-on-surface-variant">"app.atlas-platform.com"</td>
                                                     <td class="p-3 text-right">
-                                                        <button 
+                                                        <button
                                                             class="btn btn-ghost btn-icon btn-sm"
                                                             style="color:var(--error)"
                                                             on:click=move |_| {
@@ -468,7 +510,7 @@ pub fn NetworkDetail() -> impl IntoView {
                             <div class="bg-surface-container/50 border border-outline-variant/20 p-4 rounded-lg text-xs leading-relaxed space-y-1">
                                 <p class="font-bold text-on-surface">"DNS Configuration Instructions"</p>
                                 <p class="text-on-surface-variant">
-                                    "To map a custom domain to this network instance, configure a CNAME record with your DNS provider pointing to: " 
+                                    "To map a custom domain to this network instance, configure a CNAME record with your DNS provider pointing to: "
                                     <strong class="text-primary font-mono bg-primary/10 border border-primary/20 px-1 py-0.5 rounded ml-1">"app.atlas-platform.com"</strong>
                                 </p>
                             </div>
@@ -525,7 +567,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="space-y-1.5">
                                         <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Branding Theme Style"</label>
-                                        <select 
+                                        <select
                                             class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                             on:change=move |ev| theme_mode.set(event_target_value(&ev))
                                         >
@@ -537,14 +579,14 @@ pub fn NetworkDetail() -> impl IntoView {
                                     <div class="space-y-1.5">
                                         <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Primary Brand Color"</label>
                                         <div class="flex gap-2">
-                                            <input 
-                                                type="color" 
+                                            <input
+                                                type="color"
                                                 class="w-8 h-8 rounded border border-outline-variant/30 bg-transparent cursor-pointer"
                                                 prop:value=primary_color
                                                 on:input=move |ev| primary_color.set(event_target_value(&ev))
                                             />
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 class="flex-1 bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 outline-none font-mono"
                                                 prop:value=primary_color
                                                 on:input=move |ev| primary_color.set(event_target_value(&ev))
@@ -558,7 +600,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Typography & Typography Scale"</h3>
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Primary Display Font"</label>
-                                    <select 
+                                    <select
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         on:change=move |ev| selected_font.set(event_target_value(&ev))
                                     >

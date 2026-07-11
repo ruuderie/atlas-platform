@@ -1,7 +1,7 @@
+use crate::api::admin::{PasskeyAdminModel, get_all_passkeys, revoke_passkey_admin};
+use crate::app::GlobalToast;
 use leptos::prelude::*;
 use uuid::Uuid;
-use crate::api::admin::{get_all_passkeys, revoke_passkey_admin, PasskeyAdminModel};
-use crate::app::GlobalToast;
 
 #[component]
 pub fn SecurityPasskeys() -> impl IntoView {
@@ -36,8 +36,7 @@ pub fn SecurityPasskeys() -> impl IntoView {
         } else {
             pks.into_iter()
                 .filter(|pk| {
-                    pk.user_email.to_lowercase().contains(&q)
-                        || pk.name.to_lowercase().contains(&q)
+                    pk.user_email.to_lowercase().contains(&q) || pk.name.to_lowercase().contains(&q)
                 })
                 .collect()
         }

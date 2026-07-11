@@ -1,7 +1,7 @@
-use super::client::{api_url, create_client, with_credentials, api_request};
+use super::client::{api_request, api_url, create_client, with_credentials};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ── Models ─────────────────────────────────────────────────────────────────────
 

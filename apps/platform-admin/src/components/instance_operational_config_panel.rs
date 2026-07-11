@@ -10,9 +10,9 @@
 //! All writes go to:
 //!   PATCH /api/admin/app-instances/{id}/operational-config
 
+use crate::api::admin::{PublicConfigResponse, update_operational_config};
 use leptos::prelude::*;
 use uuid::Uuid;
-use crate::api::admin::{update_operational_config, PublicConfigResponse};
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -31,16 +31,28 @@ pub fn InstanceOperationalConfigPanel(
 
     // ── Local signals seeded from the current config ──────────────────────────
     let folio_mode = RwSignal::new(
-        config.as_ref().map(|c| c.folio_mode.clone()).unwrap_or_else(|| "standard".into()),
+        config
+            .as_ref()
+            .map(|c| c.folio_mode.clone())
+            .unwrap_or_else(|| "standard".into()),
     );
     let billing_tier = RwSignal::new(
-        config.as_ref().map(|c| c.billing_tier.clone()).unwrap_or_else(|| "starter".into()),
+        config
+            .as_ref()
+            .map(|c| c.billing_tier.clone())
+            .unwrap_or_else(|| "starter".into()),
     );
     let tenant_portal = RwSignal::new(
-        config.as_ref().map(|c| c.tenant_portal_enabled).unwrap_or(false),
+        config
+            .as_ref()
+            .map(|c| c.tenant_portal_enabled)
+            .unwrap_or(false),
     );
     let vendor_portal = RwSignal::new(
-        config.as_ref().map(|c| c.vendor_portal_enabled).unwrap_or(false),
+        config
+            .as_ref()
+            .map(|c| c.vendor_portal_enabled)
+            .unwrap_or(false),
     );
 
     let saving = RwSignal::new(false);
@@ -54,7 +66,11 @@ pub fn InstanceOperationalConfigPanel(
     let handle_save = move |_| {
         let t = toast.clone();
         let id = instance_id;
-        let mode = if is_folio { folio_mode.get() } else { "standard".to_string() };
+        let mode = if is_folio {
+            folio_mode.get()
+        } else {
+            "standard".to_string()
+        };
         let tier = billing_tier.get();
         // Portal flags are only meaningful for Folio — send false for other types
         let tp = if is_folio { tenant_portal.get() } else { false };
@@ -62,13 +78,7 @@ pub fn InstanceOperationalConfigPanel(
 
         saving.set(true);
         leptos::task::spawn_local(async move {
-            match update_operational_config(
-                id,
-                Some(mode),
-                Some(tier),
-                Some(tp),
-                Some(vp),
-            ).await {
+            match update_operational_config(id, Some(mode), Some(tier), Some(tp), Some(vp)).await {
                 Ok(_) => t.show_toast("Saved", "Operational config updated.", "success"),
                 Err(e) => t.show_toast("Error", &format!("Save failed: {}", e), "error"),
             }

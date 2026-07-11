@@ -3,11 +3,11 @@
 //! Manages municipal permits (G-16), contracts (G-11), and PostGIS spatial geo-zones (G-01).
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use chrono::Utc;
 use sea_orm::{
@@ -17,14 +17,28 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{atlas_contract, atlas_regulatory_registration, geo_service_area, tenant, user};
+use crate::entities::{
+    atlas_contract, atlas_regulatory_registration, geo_service_area, tenant, user,
+};
 
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/admin/compliance/permits", get(list_permits).post(create_permit))
-        .route("/api/admin/compliance/permits/{id}/verify", post(verify_permit))
-        .route("/api/admin/compliance/geo-zones", get(list_geo_zones).post(create_geo_zone))
-        .route("/api/admin/compliance/contracts", get(list_contracts).post(create_contract))
+        .route(
+            "/api/admin/compliance/permits",
+            get(list_permits).post(create_permit),
+        )
+        .route(
+            "/api/admin/compliance/permits/{id}/verify",
+            post(verify_permit),
+        )
+        .route(
+            "/api/admin/compliance/geo-zones",
+            get(list_geo_zones).post(create_geo_zone),
+        )
+        .route(
+            "/api/admin/compliance/contracts",
+            get(list_contracts).post(create_contract),
+        )
 }
 
 // ── Models ────────────────────────────────────────────────────────────────────
@@ -84,7 +98,7 @@ pub struct ContractResponse {
 pub struct CreateContractInput {
     pub contract_type: String,
     pub signee_tenant_id: Option<Uuid>,
-    pub start_date: String,   // "YYYY-MM-DD"
+    pub start_date: String, // "YYYY-MM-DD"
     pub end_date: Option<String>,
     pub vault_file: Option<String>,
 }
@@ -121,7 +135,7 @@ fn wkt_to_svg_points(wkt: &str) -> String {
     if parts.is_empty() {
         return String::new();
     }
-    
+
     let len = parts.len();
     let iter_len = if len > 1 && parts[0] == parts[len - 1] {
         len - 1
@@ -229,7 +243,10 @@ pub async fn create_permit(
         ..Default::default()
     };
 
-    new_permit.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    new_permit
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let status_class = "tag tag-ok".to_string();
     let res = PermitResponse {
@@ -259,7 +276,10 @@ pub async fn verify_permit(
 
     let mut active: atlas_regulatory_registration::ActiveModel = permit.into();
     active.status = Set("✓ Verified".to_string());
-    active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::OK)
 }
@@ -279,7 +299,10 @@ pub async fn list_geo_zones(
             let points = m.geom.as_deref().map(wkt_to_svg_points).unwrap_or_default();
             GeoZoneResponse {
                 key: m.id.to_string(),
-                name: m.label.clone().unwrap_or_else(|| "Unnamed Zone".to_string()),
+                name: m
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| "Unnamed Zone".to_string()),
                 region: m.owner_entity_type.clone(),
                 listings: "12 listings".to_string(), // Stub count
                 status: "SRID 4326 (Valid)".to_string(),

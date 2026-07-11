@@ -1,30 +1,40 @@
-use leptos::prelude::*;
 use crate::api::networks::grant_syndication;
 use crate::api::networks::revoke_syndication;
+use leptos::prelude::*;
 
 #[component]
 pub fn SyndicationManager() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     // Modal states
     let show_grant_modal = RwSignal::new(false);
     let show_revoke_modal = RwSignal::new(false);
-    
+
     // Selected target to revoke
     let revoke_target = RwSignal::new("leira Rentals".to_string());
-    
+
     // Select dropdown in grant modal
     let selected_grant_instance = RwSignal::new("".to_string());
 
     let handle_grant = move |_| {
         let instance = selected_grant_instance.get();
-        if instance.is_empty() { return; }
+        if instance.is_empty() {
+            return;
+        }
         show_grant_modal.set(false);
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
             match grant_syndication(&instance).await {
-                Ok(_) => t_toast.show_toast("Syndication Granted", &format!("Syndication access granted to {}.", instance), "success"),
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to grant syndication: {}", e), "error"),
+                Ok(_) => t_toast.show_toast(
+                    "Syndication Granted",
+                    &format!("Syndication access granted to {}.", instance),
+                    "success",
+                ),
+                Err(e) => t_toast.show_toast(
+                    "Error",
+                    &format!("Failed to grant syndication: {}", e),
+                    "error",
+                ),
             }
         });
     };
@@ -35,8 +45,16 @@ pub fn SyndicationManager() -> impl IntoView {
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
             match revoke_syndication(&target).await {
-                Ok(_) => t_toast.show_toast("Syndication Revoked", &format!("Access for {} has been revoked.", target), "info"),
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to revoke syndication: {}", e), "error"),
+                Ok(_) => t_toast.show_toast(
+                    "Syndication Revoked",
+                    &format!("Access for {} has been revoked.", target),
+                    "info",
+                ),
+                Err(e) => t_toast.show_toast(
+                    "Error",
+                    &format!("Failed to revoke syndication: {}", e),
+                    "error",
+                ),
             }
         });
     };
@@ -50,7 +68,7 @@ pub fn SyndicationManager() -> impl IntoView {
                     <p class="page-subtitle">"Control which network instances a tenant's listings appear on"</p>
                 </div>
                 <div class="page-header-actions">
-                    <button 
+                    <button
                         class="btn btn-ghost btn-sm"
                         on:click=move |_| {
                             let window = web_sys::window().unwrap();
@@ -59,7 +77,7 @@ pub fn SyndicationManager() -> impl IntoView {
                     >
                         "← Back to tenant"
                     </button>
-                    <button 
+                    <button
                         class="btn btn-primary"
                         on:click=move |_| show_grant_modal.set(true)
                     >
@@ -128,7 +146,7 @@ pub fn SyndicationManager() -> impl IntoView {
                     </div>
                     <div class="grant-actions">
                         <button class="btn btn-ghost btn-sm" on:click=move |_| { let _ = web_sys::window().unwrap().location().set_href("/apps"); }>"View Synced Listings"</button>
-                        <button 
+                        <button
                             class="btn btn-sm btn-reject"
                             style="border-color:var(--red);color:var(--red);"
                             on:click=move |_| {
@@ -168,7 +186,7 @@ pub fn SyndicationManager() -> impl IntoView {
                     </div>
                     <div class="grant-actions">
                         <button class="btn btn-ghost btn-sm" on:click=move |_| { let _ = web_sys::window().unwrap().location().set_href("/apps"); }>"View Synced Listings"</button>
-                        <button 
+                        <button
                             class="btn btn-sm btn-reject"
                             style="border-color:var(--red);color:var(--red);"
                             on:click=move |_| {
@@ -206,10 +224,10 @@ pub fn SyndicationManager() -> impl IntoView {
                 <div class="modal">
                     <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;color:var(--text-primary);">"Grant Syndication Access"</h3>
                     <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">"Select a network instance to syndicate Oakwood PM's listings to."</p>
-                    
+
                     <div style="margin-bottom:20px;">
                         <label class="form-label">"Network Instance"</label>
-                        <select 
+                        <select
                             class="form-select"
                             on:change=move |ev| selected_grant_instance.set(event_target_value(&ev))
                         >
@@ -238,7 +256,7 @@ pub fn SyndicationManager() -> impl IntoView {
 
                     <div style="display:flex;justify-content:flex-end;gap:8px;">
                         <button class="btn btn-ghost" on:click=move |_| show_revoke_modal.set(false)>"Cancel"</button>
-                        <button 
+                        <button
                             class="btn"
                             style="background:transparent;border-color:var(--red);color:var(--red);"
                             on:click=handle_revoke

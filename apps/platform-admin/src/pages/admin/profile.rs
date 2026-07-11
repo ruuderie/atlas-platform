@@ -1,17 +1,18 @@
-use leptos::prelude::*;
-use uuid::Uuid;
+use crate::api::admin::{list_my_sessions, revoke_all_other_sessions, revoke_session_by_id};
+use crate::api::developer::{
+    CreateApiTokenRequest, CreateWebhookRequest, create_api_token, create_webhook_endpoint,
+    delete_webhook_endpoint, list_api_tokens, list_webhook_endpoints, revoke_api_token,
+};
+use crate::api::files::{
+    create_file_record, get_admin_presign, put_to_presigned_url, set_user_avatar,
+};
+use crate::api::models::CreateFileInput;
 use crate::api::models::UserInfo;
 use crate::api::profile::update_email;
-use crate::api::developer::{
-    list_api_tokens, create_api_token, revoke_api_token,
-    list_webhook_endpoints, create_webhook_endpoint, delete_webhook_endpoint,
-    CreateApiTokenRequest, CreateWebhookRequest,
-};
-use crate::api::admin::{list_my_sessions, revoke_session_by_id, revoke_all_other_sessions};
-use crate::api::files::{get_admin_presign, put_to_presigned_url, create_file_record, set_user_avatar};
-use crate::api::models::CreateFileInput;
 use crate::app::GlobalToast;
+use leptos::prelude::*;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
+use uuid::Uuid;
 
 #[component]
 pub fn Settings() -> impl IntoView {
@@ -30,7 +31,9 @@ pub fn Settings() -> impl IntoView {
         use wasm_bindgen::JsCast;
         let input: web_sys::HtmlInputElement = ev.target().unwrap().dyn_into().unwrap();
         let files = input.files().unwrap();
-        if files.length() == 0 { return; }
+        if files.length() == 0 {
+            return;
+        }
         let file = files.item(0).unwrap();
         let name = file.name();
         let mime = file.type_();
@@ -68,7 +71,9 @@ pub fn Settings() -> impl IntoView {
                 storage_path: presign.file_key.clone(),
                 is_anonymous: false,
                 user_id: user_id.clone().map(|id| id.to_string()),
-            }).await {
+            })
+            .await
+            {
                 Ok(r) => r,
                 Err(e) => {
                     toast2.show_toast("Error", &format!("File record failed: {}", e), "error");
@@ -119,14 +124,14 @@ pub fn Settings() -> impl IntoView {
     });
 
     // New API key form state
-    let new_key_name   = RwSignal::new(String::new());
-    let new_key_scope  = RwSignal::new("read-write".to_string());
-    let is_gen_key     = RwSignal::new(false);
+    let new_key_name = RwSignal::new(String::new());
+    let new_key_scope = RwSignal::new("read-write".to_string());
+    let is_gen_key = RwSignal::new(false);
     let created_secret = RwSignal::new(Option::<String>::None);
 
     // New webhook form state
-    let new_hook_url    = RwSignal::new(String::new());
-    let is_add_hook     = RwSignal::new(false);
+    let new_hook_url = RwSignal::new(String::new());
+    let is_add_hook = RwSignal::new(false);
 
     // Modal control signals
     let (show_mfa_modal, set_show_mfa_modal) = signal(false);
@@ -165,16 +170,24 @@ pub fn Settings() -> impl IntoView {
             if let Some(mut user_info) = u {
                 user_info.first_name = first;
                 user_info.last_name = last;
-                
+
                 if email != user_info.email {
                     match update_email(email.clone()).await {
                         Ok(_) => {
                             user_info.email = email;
                             su.set(Some(user_info));
-                            t.show_toast("Success", "Profile and email updated successfully.", "success");
+                            t.show_toast(
+                                "Success",
+                                "Profile and email updated successfully.",
+                                "success",
+                            );
                         }
                         Err(e) => {
-                            t.show_toast("Error", &format!("Failed to update email: {}", e), "error");
+                            t.show_toast(
+                                "Error",
+                                &format!("Failed to update email: {}", e),
+                                "error",
+                            );
                         }
                     }
                 } else {
@@ -185,10 +198,10 @@ pub fn Settings() -> impl IntoView {
         });
     };
 
-
-
     let record_name = move || {
-        user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Jamie Delaney".to_string())
+        user.get()
+            .map(|u| format!("{} {}", u.first_name, u.last_name))
+            .unwrap_or_else(|| "Jamie Delaney".to_string())
     };
 
     let initials = move || {
@@ -328,8 +341,8 @@ pub fn Settings() -> impl IntoView {
                                         <span class="card-title">"Passkeys & Biometrics"</span>
                                     </div>
                                     <div class="card-body">
-                                        <ManagePasskeys 
-                                            api_base_url=Signal::derive(move || crate::api::client::api_url("/api/passkeys")) 
+                                        <ManagePasskeys
+                                            api_base_url=Signal::derive(move || crate::api::client::api_url("/api/passkeys"))
                                             auth_token="CSR_COOKIE_FLOW".to_string()
                                             auto_register=false
                                         />
@@ -382,8 +395,8 @@ pub fn Settings() -> impl IntoView {
                                             <div class="notif-label">"Lead converted"</div>
                                             <div class="notif-sub">"When a lead is atomically converted to Account/Contact/Opportunity"</div>
                                         </div>
-                                        <div 
-                                            class=move || format!("toggle {}", if lead_converted_notif.get() { "" } else { "off" }) 
+                                        <div
+                                            class=move || format!("toggle {}", if lead_converted_notif.get() { "" } else { "off" })
                                             on:click=move |_| lead_converted_notif.update(|v| *v = !*v)
                                         ></div>
                                     </div>
@@ -392,8 +405,8 @@ pub fn Settings() -> impl IntoView {
                                             <div class="notif-label">"Invoice overdue"</div>
                                             <div class="notif-sub">"When a tenant invoice passes its due date"</div>
                                         </div>
-                                        <div 
-                                            class=move || format!("toggle {}", if invoice_overdue_notif.get() { "" } else { "off" }) 
+                                        <div
+                                            class=move || format!("toggle {}", if invoice_overdue_notif.get() { "" } else { "off" })
                                             on:click=move |_| invoice_overdue_notif.update(|v| *v = !*v)
                                         ></div>
                                     </div>
@@ -402,8 +415,8 @@ pub fn Settings() -> impl IntoView {
                                             <div class="notif-label">"G-27 anomaly detected"</div>
                                             <div class="notif-sub">"When a scorecard dimension has |z| > 2.0"</div>
                                         </div>
-                                        <div 
-                                            class=move || format!("toggle {}", if anomaly_detected_notif.get() { "" } else { "off" }) 
+                                        <div
+                                            class=move || format!("toggle {}", if anomaly_detected_notif.get() { "" } else { "off" })
                                             on:click=move |_| anomaly_detected_notif.update(|v| *v = !*v)
                                         ></div>
                                     </div>
@@ -412,8 +425,8 @@ pub fn Settings() -> impl IntoView {
                                             <div class="notif-label">"New tenant subscription"</div>
                                             <div class="notif-sub">"When a tenant starts or upgrades a billing plan"</div>
                                         </div>
-                                        <div 
-                                            class=move || format!("toggle {}", if tenant_sub_notif.get() { "" } else { "off" }) 
+                                        <div
+                                            class=move || format!("toggle {}", if tenant_sub_notif.get() { "" } else { "off" })
                                             on:click=move |_| tenant_sub_notif.update(|v| *v = !*v)
                                         ></div>
                                     </div>
@@ -422,8 +435,8 @@ pub fn Settings() -> impl IntoView {
                                             <div class="notif-label">"Verification queue item"</div>
                                             <div class="notif-sub">"When a new G-06 verification request is submitted"</div>
                                         </div>
-                                        <div 
-                                            class=move || format!("toggle {}", if queue_item_notif.get() { "" } else { "off" }) 
+                                        <div
+                                            class=move || format!("toggle {}", if queue_item_notif.get() { "" } else { "off" })
                                             on:click=move |_| queue_item_notif.update(|v| *v = !*v)
                                         ></div>
                                     </div>
@@ -432,8 +445,8 @@ pub fn Settings() -> impl IntoView {
                                             <div class="notif-label">"User login from new IP"</div>
                                             <div class="notif-sub">"Security: when any admin logs in from an unrecognized IP"</div>
                                         </div>
-                                        <div 
-                                            class=move || format!("toggle {}", if new_ip_notif.get() { "" } else { "off" }) 
+                                        <div
+                                            class=move || format!("toggle {}", if new_ip_notif.get() { "" } else { "off" })
                                             on:click=move |_| new_ip_notif.update(|v| *v = !*v)
                                         ></div>
                                     </div>

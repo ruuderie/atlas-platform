@@ -1,3 +1,5 @@
+use crate::api::categories::get_categories;
+use crate::api::models::PlatformAppModel;
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
@@ -5,22 +7,29 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::categories::get_categories;
-use crate::api::models::PlatformAppModel;
 
 #[component]
 pub fn Categories() -> impl IntoView {
     let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
-    
+
     // Create query tracking signals similar to platform_admins.rs
     let active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active dir");
-    let (selected_network, set_selected_network) = signal(active_network.get().map(|u| u.to_string()).unwrap_or_default());
-    
+    let (selected_network, set_selected_network) = signal(
+        active_network
+            .get()
+            .map(|u| u.to_string())
+            .unwrap_or_default(),
+    );
+
     // Use Resource for reactive network fetching
     let cats_res = LocalResource::new(move || {
         let current_dir = selected_network.get();
         async move {
-            let filter = if current_dir.is_empty() { None } else { Some(current_dir) };
+            let filter = if current_dir.is_empty() {
+                None
+            } else {
+                Some(current_dir)
+            };
             get_categories(filter).await.unwrap_or_default()
         }
     });
@@ -50,7 +59,7 @@ pub fn Categories() -> impl IntoView {
                                         key=|dir| dir.tenant_id.clone()
                                         children=move |dir| {
                                             view! {
-                                                <option 
+                                                <option
                                                     value=dir.tenant_id.to_string()
                                                     selected=move || selected_network.get() == dir.tenant_id.to_string()
                                                 >
@@ -90,7 +99,7 @@ pub fn Categories() -> impl IntoView {
                                 let status_class = if item.is_active { "text-primary bg-primary/10" } else { "text-muted-foreground bg-muted" };
                                 let status_text = if item.is_active { "Active" } else { "Inactive" };
                                 let slug = item.slug.clone().unwrap_or_default();
-                                
+
                                 view! {
                                     <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted group">
                                         <DataTableCell class="p-4 align-middle text-muted-foreground w-12 text-center">

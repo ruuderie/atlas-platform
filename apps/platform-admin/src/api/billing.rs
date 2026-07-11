@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_url, create_client, api_request};
+use crate::api::client::{api_get, api_request, api_url, create_client};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -50,23 +50,39 @@ pub struct TenantSubscriptionDetail {
 }
 
 pub async fn get_tenant_subscription(tenant_id: &str) -> Result<TenantSubscriptionDetail, String> {
-    api_get(&format!("api/admin/billing/tenant/{}/subscription", tenant_id)).await
+    api_get(&format!(
+        "api/admin/billing/tenant/{}/subscription",
+        tenant_id
+    ))
+    .await
 }
 
 pub async fn list_billing_plans() -> Result<Vec<BillingPlanModel>, String> {
     api_get("api/admin/billing/plans").await
 }
 
-pub async fn suspend_subscription(tenant_id: &str, subscription_id: &str) -> Result<serde_json::Value, String> {
+pub async fn suspend_subscription(
+    tenant_id: &str,
+    subscription_id: &str,
+) -> Result<serde_json::Value, String> {
     let client = create_client();
-    let url = api_url(&format!("api/admin/billing/tenant/{}/subscription/{}/suspend", tenant_id, subscription_id));
+    let url = api_url(&format!(
+        "api/admin/billing/tenant/{}/subscription/{}/suspend",
+        tenant_id, subscription_id
+    ));
     let req = client.post(&url);
     api_request(req).await
 }
 
-pub async fn reactivate_subscription(tenant_id: &str, subscription_id: &str) -> Result<serde_json::Value, String> {
+pub async fn reactivate_subscription(
+    tenant_id: &str,
+    subscription_id: &str,
+) -> Result<serde_json::Value, String> {
     let client = create_client();
-    let url = api_url(&format!("api/admin/billing/tenant/{}/subscription/{}/reactivate", tenant_id, subscription_id));
+    let url = api_url(&format!(
+        "api/admin/billing/tenant/{}/subscription/{}/reactivate",
+        tenant_id, subscription_id
+    ));
     let req = client.post(&url);
     api_request(req).await
 }
@@ -77,10 +93,17 @@ pub struct IssueCreditInput {
     pub reason: String,
 }
 
-pub async fn issue_credit(tenant_id: &str, amount_cents: i64, reason: String) -> Result<serde_json::Value, String> {
+pub async fn issue_credit(
+    tenant_id: &str,
+    amount_cents: i64,
+    reason: String,
+) -> Result<serde_json::Value, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/billing/tenant/{}/credits", tenant_id));
-    let req = client.post(&url).json(&IssueCreditInput { amount_cents, reason });
+    let req = client.post(&url).json(&IssueCreditInput {
+        amount_cents,
+        reason,
+    });
     api_request(req).await
 }
 
@@ -90,10 +113,17 @@ pub struct GenerateInvoiceInput {
     pub period: String,
 }
 
-pub async fn generate_invoice(tenant_id: &str, amount_cents: i64, period: String) -> Result<serde_json::Value, String> {
+pub async fn generate_invoice(
+    tenant_id: &str,
+    amount_cents: i64,
+    period: String,
+) -> Result<serde_json::Value, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/billing/tenant/{}/invoices", tenant_id));
-    let req = client.post(&url).json(&GenerateInvoiceInput { amount_cents, period });
+    let req = client.post(&url).json(&GenerateInvoiceInput {
+        amount_cents,
+        period,
+    });
     api_request(req).await
 }
 
@@ -130,7 +160,10 @@ pub async fn create_billing_plan(input: BillingPlanInput) -> Result<serde_json::
 }
 
 /// `PUT /api/admin/billing/plans/{id}`
-pub async fn update_billing_plan(plan_id: &str, input: BillingPlanInput) -> Result<serde_json::Value, String> {
+pub async fn update_billing_plan(
+    plan_id: &str,
+    input: BillingPlanInput,
+) -> Result<serde_json::Value, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/billing/plans/{}", plan_id));
     let req = client.put(&url).json(&input);

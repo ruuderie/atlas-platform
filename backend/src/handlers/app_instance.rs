@@ -1,20 +1,19 @@
 #![allow(dead_code)]
+use crate::entities::app_instance::{self, Entity as AppInstanceEntity};
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    Json,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
-use crate::entities::app_instance::{self, Entity as AppInstanceEntity};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use uuid::Uuid;
-use chrono::Utc;
 use std::fs;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateAppInstancePayload {
@@ -36,8 +35,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 /// State-free public route definitions.
 /// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/app-instances/{tenant_id}/{app_type}", get(get_app_instance))
+    Router::new().route(
+        "/api/app-instances/{tenant_id}/{app_type}",
+        get(get_app_instance),
+    )
 }
 
 /// Legacy state-finalized constructor. Used by api.rs during transition period.
@@ -74,9 +75,12 @@ pub async fn get_app_instance(
             .all(&db)
             .await
             .unwrap_or_default();
-            
-        let mut merged_settings = inst.settings.take().unwrap_or_else(|| serde_json::json!({}));
-        
+
+        let mut merged_settings = inst
+            .settings
+            .take()
+            .unwrap_or_else(|| serde_json::json!({}));
+
         if let Some(obj) = merged_settings.as_object_mut() {
             for setting in tenant_settings {
                 let val_str = setting.value.as_str();
@@ -89,11 +93,11 @@ pub async fn get_app_instance(
                 } else {
                     serde_json::Value::String(setting.value)
                 };
-                
+
                 obj.insert(setting.key, json_val);
             }
         }
-        
+
         inst.settings = Some(merged_settings);
         Ok(Json(inst))
     } else {
@@ -121,7 +125,10 @@ pub async fn create_app_instance(
 
     let inserted = new_instance.insert(&db).await.map_err(|e| {
         tracing::error!("Error creating App Instance: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create app instance".into())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create app instance".into(),
+        )
     })?;
 
     Ok((StatusCode::CREATED, Json(inserted)))

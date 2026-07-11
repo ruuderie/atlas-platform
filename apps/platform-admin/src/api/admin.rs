@@ -1,6 +1,6 @@
+use super::client::{api_url, create_client, with_credentials};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use super::client::{api_url, create_client, with_credentials};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct UserModel {
@@ -20,13 +20,15 @@ pub async fn get_users(network_id: Option<Uuid>) -> Result<Vec<UserModel>, Strin
     } else {
         api_url("api/admin/users")
     };
-    
+
     let req = client.get(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-        
+
     if res.status().is_success() {
-        res.json::<Vec<UserModel>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<UserModel>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(res.text().await.unwrap_or_default())
     }
@@ -35,11 +37,11 @@ pub async fn get_users(network_id: Option<Uuid>) -> Result<Vec<UserModel>, Strin
 pub async fn toggle_admin(id: Uuid) -> Result<UserModel, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/users/{}/toggle-admin", id));
-    
+
     let req = client.post(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-        
+
     if res.status().is_success() {
         res.json::<UserModel>().await.map_err(|e| e.to_string())
     } else {
@@ -50,11 +52,11 @@ pub async fn toggle_admin(id: Uuid) -> Result<UserModel, String> {
 pub async fn get_app_domains(instance_id: String) -> Result<Vec<String>, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/platform/apps/{}/domains", instance_id));
-    
+
     let req = client.get(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-        
+
     if res.status().is_success() {
         res.json::<Vec<String>>().await.map_err(|e| e.to_string())
     } else {
@@ -65,15 +67,15 @@ pub async fn get_app_domains(instance_id: String) -> Result<Vec<String>, String>
 pub async fn add_app_domain(instance_id: String, domain_name: String) -> Result<(), String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/platform/apps/{}/domains", instance_id));
-    
+
     let payload = serde_json::json!({
         "domain_name": domain_name
     });
-    
+
     let req = client.post(&url).json(&payload);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-        
+
     if res.status().is_success() {
         Ok(())
     } else {
@@ -83,12 +85,15 @@ pub async fn add_app_domain(instance_id: String, domain_name: String) -> Result<
 
 pub async fn remove_app_domain(instance_id: String, domain_name: String) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("api/admin/platform/apps/{}/domains/{}", instance_id, domain_name));
-    
+    let url = api_url(&format!(
+        "api/admin/platform/apps/{}/domains/{}",
+        instance_id, domain_name
+    ));
+
     let req = client.delete(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-        
+
     if res.status().is_success() {
         Ok(())
     } else {
@@ -101,9 +106,9 @@ pub async fn remove_app_domain(instance_id: String, domain_name: String) -> Resu
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct DnsInstructions {
     pub record_type: String, // "CNAME"
-    pub name:        String, // the custom domain itself
-    pub value:       String, // platform CNAME target
-    pub note:        String, // human-readable instructions
+    pub name: String,        // the custom domain itself
+    pub value: String,       // platform CNAME target
+    pub note: String,        // human-readable instructions
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -169,7 +174,11 @@ pub async fn get_instance_stats(id: Uuid) -> Result<InstanceStatsResponse, Strin
     crate::api::client::api_get(&format!("api/admin/app-instances/{}/stats", id)).await
 }
 
-pub async fn update_public_config(id: Uuid, public_slug: Option<String>, custom_domain: Option<String>) -> Result<PublicConfigResponse, String> {
+pub async fn update_public_config(
+    id: Uuid,
+    public_slug: Option<String>,
+    custom_domain: Option<String>,
+) -> Result<PublicConfigResponse, String> {
     let client = crate::api::client::create_client();
     let url = crate::api::client::api_url(&format!("api/admin/app-instances/{}/public-config", id));
     let payload = serde_json::json!({
@@ -190,7 +199,10 @@ pub async fn update_operational_config(
     vendor_portal_enabled: Option<bool>,
 ) -> Result<PublicConfigResponse, String> {
     let client = crate::api::client::create_client();
-    let url = crate::api::client::api_url(&format!("api/admin/app-instances/{}/operational-config", id));
+    let url = crate::api::client::api_url(&format!(
+        "api/admin/app-instances/{}/operational-config",
+        id
+    ));
     let payload = serde_json::json!({
         "folio_mode": folio_mode,
         "billing_tier": billing_tier,
@@ -211,7 +223,10 @@ pub async fn update_branding_config(
     branding_font: Option<String>,
 ) -> Result<PublicConfigResponse, String> {
     let client = crate::api::client::create_client();
-    let url = crate::api::client::api_url(&format!("api/admin/app-instances/{}/operational-config", id));
+    let url = crate::api::client::api_url(&format!(
+        "api/admin/app-instances/{}/operational-config",
+        id
+    ));
     let payload = serde_json::json!({
         "branding_theme": branding_theme,
         "branding_color": branding_color,
@@ -228,7 +243,11 @@ pub async fn suspend_instance(id: Uuid, reason: String) -> Result<(), String> {
     let req = client.post(&url).json(&payload);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 pub async fn resume_instance(id: Uuid) -> Result<(), String> {
@@ -237,10 +256,20 @@ pub async fn resume_instance(id: Uuid) -> Result<(), String> {
     let req = client.post(&url);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
-pub async fn upsert_module(tenant_id: Uuid, module_type: &str, is_enabled: bool, display_name: Option<String>, sort_order: Option<i32>) -> Result<(), String> {
+pub async fn upsert_module(
+    tenant_id: Uuid,
+    module_type: &str,
+    is_enabled: bool,
+    display_name: Option<String>,
+    sort_order: Option<i32>,
+) -> Result<(), String> {
     let client = crate::api::client::create_client();
     let url = crate::api::client::api_url(&format!("api/platform/tenants/{}/modules", tenant_id));
     let payload = serde_json::json!({
@@ -252,7 +281,11 @@ pub async fn upsert_module(tenant_id: Uuid, module_type: &str, is_enabled: bool,
     let req = client.post(&url).json(&payload);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 pub async fn get_admin_modules() -> Result<Vec<AdminModuleConfig>, String> {
@@ -265,7 +298,11 @@ pub async fn impersonate_user(user_id: Uuid) -> Result<(), String> {
     let req = client.post(&url);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 /// Fetch per-tenant stats (profile count, listing count, ad purchase count).
@@ -276,19 +313,25 @@ pub async fn get_tenant_stats() -> Result<Vec<crate::api::models::TenantStatMode
 
 /// Fetch all provisioned app instances with their tenant and domain info.
 /// Calls `GET /api/admin/platform/apps`.
-pub async fn get_all_platform_apps() -> Result<Vec<crate::api::models::PlatformAppSummary>, String> {
+pub async fn get_all_platform_apps() -> Result<Vec<crate::api::models::PlatformAppSummary>, String>
+{
     crate::api::client::api_get("api/admin/platform/apps").await
 }
 
 /// Link a client deployment to a CRM Account (or unlink by passing account_id=None).
 /// Calls `PUT /api/admin/platform/apps/{tenant_id}/account`.
-pub async fn link_deployment_account(tenant_id: &str, account_id: Option<&str>) -> Result<(), String> {
+pub async fn link_deployment_account(
+    tenant_id: &str,
+    account_id: Option<&str>,
+) -> Result<(), String> {
     use serde_json::json;
     let body = json!({ "account_id": account_id });
     crate::api::client::api_put::<_, serde_json::Value>(
         &format!("api/admin/platform/apps/{}/account", tenant_id),
         &body,
-    ).await.map(|_| ())
+    )
+    .await
+    .map(|_| ())
 }
 
 /// Set the operational purpose label for an internal deployment.
@@ -300,7 +343,9 @@ pub async fn set_deployment_purpose(tenant_id: &str, purpose: Option<&str>) -> R
     crate::api::client::api_put::<_, serde_json::Value>(
         &format!("api/admin/platform/apps/{}/purpose", tenant_id),
         &body,
-    ).await.map(|_| ())
+    )
+    .await
+    .map(|_| ())
 }
 
 /// Fetch CRM accounts for the account search picker.
@@ -328,13 +373,17 @@ pub async fn get_all_transactions() -> Result<Vec<crate::api::models::Transactio
 /// Fetch all platform_support threads (operator inbox).
 /// status: "open" | "closed" | "all"  (default: "open")
 /// Calls `GET /api/admin/support/threads?status=open`
-pub async fn get_support_threads(status: &str) -> Result<Vec<crate::api::models::SupportThreadSummary>, String> {
+pub async fn get_support_threads(
+    status: &str,
+) -> Result<Vec<crate::api::models::SupportThreadSummary>, String> {
     crate::api::client::api_get(&format!("api/admin/support/threads?status={status}")).await
 }
 
 /// Fetch a single support thread with full message history.
 /// Calls `GET /api/admin/support/threads/{id}`
-pub async fn get_support_thread(id: String) -> Result<crate::api::models::SupportThreadDetail, String> {
+pub async fn get_support_thread(
+    id: String,
+) -> Result<crate::api::models::SupportThreadDetail, String> {
     crate::api::client::api_get(&format!("api/admin/support/threads/{id}")).await
 }
 
@@ -342,11 +391,15 @@ pub async fn get_support_thread(id: String) -> Result<crate::api::models::Suppor
 /// Calls `POST /api/admin/support/threads/{id}/reply`
 pub async fn send_support_reply(id: String, content: String) -> Result<(), String> {
     #[derive(serde::Serialize)]
-    struct Payload { content: String }
+    struct Payload {
+        content: String,
+    }
     crate::api::client::api_post::<_, serde_json::Value>(
         &format!("api/admin/support/threads/{id}/reply"),
         &Payload { content },
-    ).await.map(|_| ())
+    )
+    .await
+    .map(|_| ())
 }
 
 /// Close / resolve a support thread.
@@ -357,7 +410,9 @@ pub async fn close_support_thread(id: String) -> Result<(), String> {
     crate::api::client::api_put::<_, serde_json::Value>(
         &format!("api/admin/support/threads/{id}/close"),
         &Empty {},
-    ).await.map(|_| ())
+    )
+    .await
+    .map(|_| ())
 }
 
 /// Legacy CRM case stubs — kept for backward compatibility with older pages.
@@ -373,12 +428,16 @@ pub async fn get_admin_case(id: String) -> Result<crate::api::models::CaseModel,
 }
 
 #[allow(dead_code)]
-pub async fn update_case_status(id: String, status: String) -> Result<crate::api::models::CaseModel, String> {
+pub async fn update_case_status(
+    id: String,
+    status: String,
+) -> Result<crate::api::models::CaseModel, String> {
     #[derive(serde::Serialize)]
-    struct Payload { status: String }
+    struct Payload {
+        status: String,
+    }
     crate::api::client::api_put(&format!("api/admin/cases/{}", id), &Payload { status }).await
 }
-
 
 // ============================================================
 // FEATURE FLAGS
@@ -392,26 +451,35 @@ pub async fn get_admin_flags() -> Result<Vec<crate::api::models::FeatureFlagMode
 
 /// Create a new feature flag.
 /// Calls `POST /api/admin/flags`
-pub async fn create_flag(input: crate::api::models::CreateFlagInput) -> Result<crate::api::models::FeatureFlagModel, String> {
+pub async fn create_flag(
+    input: crate::api::models::CreateFlagInput,
+) -> Result<crate::api::models::FeatureFlagModel, String> {
     crate::api::client::api_post("api/admin/flags", &input).await
 }
 
 /// Update a feature flag (enabled state, rollout %, etc).
 /// Calls `PUT /api/admin/flags/{key}`
-pub async fn update_flag(key: String, input: crate::api::models::UpdateFlagInput) -> Result<crate::api::models::FeatureFlagModel, String> {
+pub async fn update_flag(
+    key: String,
+    input: crate::api::models::UpdateFlagInput,
+) -> Result<crate::api::models::FeatureFlagModel, String> {
     crate::api::client::api_put(&format!("api/admin/flags/{}", key), &input).await
 }
 
 /// Add or replace a per-tenant NI override for a flag.
 /// Calls `POST /api/admin/flags/{key}/overrides`
-pub async fn add_flag_override(key: String, input: crate::api::models::CreateFlagOverrideInput) -> Result<crate::api::models::FlagOverrideModel, String> {
+pub async fn add_flag_override(
+    key: String,
+    input: crate::api::models::CreateFlagOverrideInput,
+) -> Result<crate::api::models::FlagOverrideModel, String> {
     crate::api::client::api_post(&format!("api/admin/flags/{}/overrides", key), &input).await
 }
 
 /// Remove a per-tenant NI override from a flag.
 /// Calls `DELETE /api/admin/flags/{key}/overrides/{tenant_id}`
 pub async fn remove_flag_override(key: String, tenant_id: String) -> Result<(), String> {
-    crate::api::client::api_delete(&format!("api/admin/flags/{}/overrides/{}", key, tenant_id)).await
+    crate::api::client::api_delete(&format!("api/admin/flags/{}/overrides/{}", key, tenant_id))
+        .await
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -445,7 +513,10 @@ pub async fn get_permits() -> Result<Vec<PermitModel>, String> {
 
 pub async fn create_permit(name: String, license: String) -> Result<PermitModel, String> {
     #[derive(Serialize)]
-    struct Payload { name: String, license: String }
+    struct Payload {
+        name: String,
+        license: String,
+    }
     crate::api::client::api_post("api/admin/compliance/permits", &Payload { name, license }).await
 }
 
@@ -455,17 +526,37 @@ pub async fn verify_permit(id: Uuid) -> Result<(), String> {
     let req = client.post(&url);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 pub async fn get_geo_zones() -> Result<Vec<GeoZoneModel>, String> {
     crate::api::client::api_get("api/admin/compliance/geo-zones").await
 }
 
-pub async fn create_geo_zone(name: String, region: String, points: String) -> Result<GeoZoneModel, String> {
+pub async fn create_geo_zone(
+    name: String,
+    region: String,
+    points: String,
+) -> Result<GeoZoneModel, String> {
     #[derive(Serialize)]
-    struct Payload { name: String, region: String, points: String }
-    crate::api::client::api_post("api/admin/compliance/geo-zones", &Payload { name, region, points }).await
+    struct Payload {
+        name: String,
+        region: String,
+        points: String,
+    }
+    crate::api::client::api_post(
+        "api/admin/compliance/geo-zones",
+        &Payload {
+            name,
+            region,
+            points,
+        },
+    )
+    .await
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -494,7 +585,11 @@ pub async fn abort_ai_task(id: String) -> Result<(), String> {
     let req = client.post(&url);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 pub async fn rerun_ai_task(id: String) -> Result<(), String> {
@@ -503,7 +598,11 @@ pub async fn rerun_ai_task(id: String) -> Result<(), String> {
     let req = client.post(&url);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -552,7 +651,11 @@ pub async fn resend_invite(id: Uuid) -> Result<(), String> {
     let req = client.post(&url);
     let req = crate::api::client::with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 // ============================================================
@@ -596,8 +699,15 @@ pub async fn create_contract(
     }
     crate::api::client::api_post(
         "api/admin/compliance/contracts",
-        &Payload { contract_type, signee_tenant_id: None, start_date, end_date, vault_file },
-    ).await
+        &Payload {
+            contract_type,
+            signee_tenant_id: None,
+            start_date,
+            end_date,
+            vault_file,
+        },
+    )
+    .await
 }
 
 // ============================================================
@@ -633,7 +743,11 @@ pub async fn revoke_passkey_admin(id: Uuid) -> Result<(), String> {
     let url = crate::api::client::api_url(&format!("api/admin/passkeys/{}", id));
     let req = crate::api::client::with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 // ============================================================
@@ -647,7 +761,11 @@ pub async fn end_ab_test(test_id: Uuid) -> Result<(), String> {
     let url = crate::api::client::api_url(&format!("api/admin/ab-tests/{}/end", test_id));
     let req = crate::api::client::with_credentials(client.post(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 // ============================================================
@@ -738,7 +856,9 @@ pub async fn list_campaigns() -> Result<Vec<CampaignModel>, String> {
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
-        res.json::<Vec<CampaignModel>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<CampaignModel>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(res.text().await.unwrap_or_default())
     }
@@ -771,24 +891,30 @@ pub async fn create_campaign(input: CreateCampaignInput) -> Result<CampaignModel
 }
 
 /// GET /api/admin/campaigns/:id/enrollments — list members enrolled in a campaign.
-pub async fn list_campaign_members(campaign_id: uuid::Uuid) -> Result<Vec<CampaignEnrollmentModel>, String> {
+pub async fn list_campaign_members(
+    campaign_id: uuid::Uuid,
+) -> Result<Vec<CampaignEnrollmentModel>, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/campaigns/{}/enrollments", campaign_id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
-        res.json::<Vec<CampaignEnrollmentModel>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<CampaignEnrollmentModel>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(res.text().await.unwrap_or_default())
     }
 }
 
 /// PUT /api/admin/campaigns/:id/status — transition campaign status.
-pub async fn update_campaign_status(id: uuid::Uuid, status: String) -> Result<CampaignModel, String> {
+pub async fn update_campaign_status(
+    id: uuid::Uuid,
+    status: String,
+) -> Result<CampaignModel, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/campaigns/{}/status", id));
-    let req = with_credentials(client.put(&url))
-        .json(&serde_json::json!({ "status": status }));
+    let req = with_credentials(client.put(&url)).json(&serde_json::json!({ "status": status }));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
         res.json::<CampaignModel>().await.map_err(|e| e.to_string())
@@ -798,13 +924,19 @@ pub async fn update_campaign_status(id: uuid::Uuid, status: String) -> Result<Ca
 }
 
 /// Enroll a batch of leads into a campaign by lead ID.
-pub async fn enroll_leads(campaign_id: uuid::Uuid, lead_ids: Vec<uuid::Uuid>) -> Result<serde_json::Value, String> {
+pub async fn enroll_leads(
+    campaign_id: uuid::Uuid,
+    lead_ids: Vec<uuid::Uuid>,
+) -> Result<serde_json::Value, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/campaigns/{}/enroll-leads", campaign_id));
-    let req = with_credentials(client.post(&url)).json(&serde_json::json!({ "lead_ids": lead_ids }));
+    let req =
+        with_credentials(client.post(&url)).json(&serde_json::json!({ "lead_ids": lead_ids }));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
-        res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+        res.json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(res.text().await.unwrap_or_default())
     }
@@ -812,9 +944,11 @@ pub async fn enroll_leads(campaign_id: uuid::Uuid, lead_ids: Vec<uuid::Uuid>) ->
 
 /// Returns the download URL for the campaign member CSV export.
 pub fn campaign_export_url(campaign_id: uuid::Uuid) -> String {
-    api_url(&format!("api/admin/campaigns/{}/enrollments/export.csv", campaign_id))
+    api_url(&format!(
+        "api/admin/campaigns/{}/enrollments/export.csv",
+        campaign_id
+    ))
 }
-
 
 // ============================================================
 // SESSION MANAGEMENT

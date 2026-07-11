@@ -11,11 +11,13 @@ use shared_ui::components::ui::table::{
 pub fn NetworkTypeDetail() -> impl IntoView {
     let params = use_params_map();
     let type_id = move || params.with(|p| p.get("id").unwrap_or_default());
-    
-    let dirs_res = LocalResource::new(move || async move { 
-        crate::api::networks::get_networks().await.unwrap_or_default() 
+
+    let dirs_res = LocalResource::new(move || async move {
+        crate::api::networks::get_networks()
+            .await
+            .unwrap_or_default()
     });
-    
+
     view! {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 pt-8 pb-12 px-6">
             <header class="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-border pb-4">
@@ -36,7 +38,7 @@ pub fn NetworkTypeDetail() -> impl IntoView {
                     <Button variant=ButtonVariant::Outline>"Edit Setup"</Button>
                 </div>
             </header>
-            
+
             <RelatedList
                 title="Dependent Networks".to_string()
                 description="Networks currently configured to use this type.".to_string()

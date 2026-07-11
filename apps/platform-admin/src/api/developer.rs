@@ -1,6 +1,6 @@
+use super::client::{api_request, api_url, create_client, with_credentials};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use super::client::{api_url, create_client, with_credentials, api_request};
 
 // --- Models ---
 
@@ -69,21 +69,33 @@ pub struct WebhookDelivery {
 // --- Methods ---
 
 pub async fn list_api_tokens(tenant_id: Uuid) -> Result<Vec<ApiToken>, String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/api-tokens", tenant_id));
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/api-tokens",
+        tenant_id
+    ));
     let client = create_client();
     let req = client.get(&url);
     api_request(req).await
 }
 
-pub async fn create_api_token(tenant_id: Uuid, request: CreateApiTokenRequest) -> Result<CreateApiTokenResponse, String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/api-tokens", tenant_id));
+pub async fn create_api_token(
+    tenant_id: Uuid,
+    request: CreateApiTokenRequest,
+) -> Result<CreateApiTokenResponse, String> {
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/api-tokens",
+        tenant_id
+    ));
     let client = create_client();
     let req = client.post(&url).json(&request);
     api_request(req).await
 }
 
 pub async fn revoke_api_token(tenant_id: Uuid, token_id: Uuid) -> Result<(), String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/api-tokens/{}", tenant_id, token_id));
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/api-tokens/{}",
+        tenant_id, token_id
+    ));
     let client = create_client();
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
@@ -95,21 +107,33 @@ pub async fn revoke_api_token(tenant_id: Uuid, token_id: Uuid) -> Result<(), Str
 }
 
 pub async fn list_webhook_endpoints(tenant_id: Uuid) -> Result<Vec<WebhookEndpoint>, String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/webhooks", tenant_id));
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/webhooks",
+        tenant_id
+    ));
     let client = create_client();
     let req = client.get(&url);
     api_request(req).await
 }
 
-pub async fn create_webhook_endpoint(tenant_id: Uuid, request: CreateWebhookRequest) -> Result<WebhookEndpoint, String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/webhooks", tenant_id));
+pub async fn create_webhook_endpoint(
+    tenant_id: Uuid,
+    request: CreateWebhookRequest,
+) -> Result<WebhookEndpoint, String> {
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/webhooks",
+        tenant_id
+    ));
     let client = create_client();
     let req = client.post(&url).json(&request);
     api_request(req).await
 }
 
 pub async fn delete_webhook_endpoint(tenant_id: Uuid, endpoint_id: Uuid) -> Result<(), String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/webhooks/{}", tenant_id, endpoint_id));
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/webhooks/{}",
+        tenant_id, endpoint_id
+    ));
     let client = create_client();
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
@@ -121,7 +145,10 @@ pub async fn delete_webhook_endpoint(tenant_id: Uuid, endpoint_id: Uuid) -> Resu
 }
 
 pub async fn list_webhook_deliveries(tenant_id: Uuid) -> Result<Vec<WebhookDelivery>, String> {
-    let url = api_url(&format!("/api/admin/developer/tenant/{}/webhook-deliveries", tenant_id));
+    let url = api_url(&format!(
+        "/api/admin/developer/tenant/{}/webhook-deliveries",
+        tenant_id
+    ));
     let client = create_client();
     let req = client.get(&url);
     api_request(req).await

@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
-use shared_ui::components::ui::button::Button;
 use shared_ui::components::icon::Icon;
+use shared_ui::components::ui::button::Button;
 
 #[component]
 pub fn UpsellBanner(
@@ -22,12 +22,12 @@ pub fn UpsellBanner(
                 </div>
             </div>
             <div class="flex-shrink-0">
-                <Button 
+                <Button
                     on:click=move |e| {
                         // Track impression/click for analytics
                         on_click.run(e);
                     }
-                    variant=shared_ui::components::ui::button::ButtonVariant::Default 
+                    variant=shared_ui::components::ui::button::ButtonVariant::Default
                     class="whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white"
                 >
                     {cta_text}
@@ -41,14 +41,14 @@ pub fn UpsellBanner(
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
-    
+
     wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test]
     fn test_upsell_banner_renders_attributes() {
         let _ = leptos::task::spawn_local(async {
             let _el = view! {
-                <UpsellBanner 
+                <UpsellBanner
                     title="Premium Features".to_string()
                     description="Unlock your potential.".to_string()
                     cta_text="Upgrade".to_string()

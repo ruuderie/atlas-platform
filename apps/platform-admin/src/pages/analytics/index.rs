@@ -1,34 +1,38 @@
+use crate::api::admin::{CreateCampaignInput, create_campaign, get_tenant_stats};
+use crate::api::analytics::{get_billing_summary, get_business_kpis};
 use leptos::prelude::*;
-use crate::api::analytics::{get_business_kpis, get_billing_summary};
-use crate::api::admin::{get_tenant_stats, create_campaign, CreateCampaignInput};
 
 #[component]
 pub fn Analytics() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     // Tab switching state
     let active_tab = RwSignal::new("p-overview".to_string());
-    
+
     // Modals
     let show_campaign_modal = RwSignal::new(false);
-    
+
     // Dropdown filters
     let selected_range = RwSignal::new("June 2026".to_string());
     let selected_tenant = RwSignal::new("All Tenants".to_string());
-    
+
     // Campaign form states
     let campaign_name = RwSignal::new(String::new());
     let campaign_type = RwSignal::new("email".to_string());
     let campaign_goal = RwSignal::new("lead_capture".to_string());
     let campaign_budget = RwSignal::new("500000".to_string());
-    
+
     // Resources fetching real backend metrics
     let refresh = RwSignal::new(0u32);
     let analytics_error: RwSignal<Option<String>> = RwSignal::new(None);
     let business_kpis = LocalResource::new(move || async move {
         let _ = refresh.get();
         let res = get_business_kpis().await;
-        if let Err(ref e) = res { analytics_error.set(Some(e.clone())); } else { analytics_error.set(None); }
+        if let Err(ref e) = res {
+            analytics_error.set(Some(e.clone()));
+        } else {
+            analytics_error.set(None);
+        }
         res
     });
     let billing_summary = LocalResource::new(move || async move {
@@ -51,7 +55,7 @@ pub fn Analytics() -> impl IntoView {
                     </div>
                 </div>
                 <div class="page-actions">
-                    <select 
+                    <select
                         class="bg-surface-container-high border border-outline-variant/30 text-on-surface text-xs rounded-lg p-2 outline-none cursor-pointer focus:border-primary"
                         on:change=move |ev| selected_range.set(event_target_value(&ev))
                         prop:value=selected_range
@@ -62,7 +66,7 @@ pub fn Analytics() -> impl IntoView {
                         <option value="Q2 2026">"Q2 2026"</option>
                         <option value="YTD 2026">"YTD 2026"</option>
                     </select>
-                    <select 
+                    <select
                         class="bg-surface-container-high border border-outline-variant/30 text-on-surface text-xs rounded-lg p-2 outline-none cursor-pointer focus:border-primary"
                         on:change=move |ev| selected_tenant.set(event_target_value(&ev))
                         prop:value=selected_tenant
@@ -73,7 +77,7 @@ pub fn Analytics() -> impl IntoView {
                             view! { <option value=n.clone()>{n.clone()}</option> }
                         }).collect_view()}
                     </select>
-                    <button 
+                    <button
                         class="btn btn-ghost"
                         on:click=move |_| refresh.update(|n| *n += 1)
                     >
@@ -82,7 +86,7 @@ pub fn Analytics() -> impl IntoView {
                         </svg>
                         "Refresh"
                     </button>
-                    <button 
+                    <button
                         class="btn btn-ghost"
                         on:click=move |_| toast.show_toast("Export Queue", "Analytics CSV export triggered.", "success")
                     >
@@ -186,7 +190,7 @@ pub fn Analytics() -> impl IntoView {
                         let id_class = id.clone();
                         let id_click = id.clone();
                         view! {
-                            <button 
+                            <button
                                 class=move || if active_tab.get() == id_class { "tab active" } else { "tab" }
                                 on:click=move |_| active_tab.set(id_click.clone())
                             >
@@ -454,7 +458,7 @@ pub fn Analytics() -> impl IntoView {
                                         <Suspense fallback=move || view! { <tr><td colspan="4" class="p-4 text-center text-on-surface-variant">"Loading exemptions registry..."</td></tr> }>
                                             {move || billing_summary.get().map(|res| match res {
                                                 Ok(data) => view! {
-                                                    <For 
+                                                    <For
                                                         each=move || data.exemptions.clone()
                                                         key=|ex| format!("{}_{}", ex.tenant_name, ex.app_slug)
                                                         children=move |ex| view! {
@@ -1014,14 +1018,14 @@ pub fn Analytics() -> impl IntoView {
                         <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_campaign_modal.set(false)>"✕"</button>
                         <h3 class="text-lg font-bold mb-2">"New Marketing Campaign"</h3>
                         <p class="text-on-surface-variant text-xs mb-6">"Provision a new marketing target inside the campaigns scheduler database tracker."</p>
-                        
+
                         <div class="space-y-4 mb-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Campaign Name"</label>
-                                    <input 
-                                        type="text" 
-                                        class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary" 
+                                    <input
+                                        type="text"
+                                        class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary"
                                         placeholder="e.g. FMCSA Outreach Jul"
                                         on:input=move |ev| campaign_name.set(event_target_value(&ev))
                                         prop:value=campaign_name
@@ -1029,7 +1033,7 @@ pub fn Analytics() -> impl IntoView {
                                 </div>
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Campaign Type"</label>
-                                    <select 
+                                    <select
                                         class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none cursor-pointer focus:border-primary"
                                         on:change=move |ev| campaign_type.set(event_target_value(&ev))
                                         prop:value=campaign_type
@@ -1044,7 +1048,7 @@ pub fn Analytics() -> impl IntoView {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Campaign Goal"</label>
-                                    <select 
+                                    <select
                                         class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none cursor-pointer focus:border-primary"
                                         on:change=move |ev| campaign_goal.set(event_target_value(&ev))
                                         prop:value=campaign_goal
@@ -1056,9 +1060,9 @@ pub fn Analytics() -> impl IntoView {
                                 </div>
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Budget (cents)"</label>
-                                    <input 
-                                        type="number" 
-                                        class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary" 
+                                    <input
+                                        type="number"
+                                        class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary"
                                         placeholder="500000"
                                         on:input=move |ev| campaign_budget.set(event_target_value(&ev))
                                         prop:value=campaign_budget
@@ -1069,7 +1073,7 @@ pub fn Analytics() -> impl IntoView {
 
                         <div class="flex justify-end gap-3">
                             <button class="btn btn-ghost" on:click=move |_| show_campaign_modal.set(false)>"Cancel"</button>
-                            <button 
+                            <button
                                 class="btn btn-primary"
                                 on:click=move |_| {
                                     let name = campaign_name.get();

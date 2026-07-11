@@ -10,21 +10,21 @@ pub struct Partner {
 }
 
 #[component]
-pub fn RecommendedPartners(
-    #[prop(default = vec![])] partners: Vec<Partner>,
-) -> impl IntoView {
+pub fn RecommendedPartners(#[prop(default = vec![])] partners: Vec<Partner>) -> impl IntoView {
     // Default fallback partners if none provided
     let display_partners = if partners.is_empty() {
         vec![
             Partner {
                 name: "Atlas Intake Pros".to_string(),
-                description: "Dedicated 24/7 legal receptionists to answer your leads instantly.".to_string(),
+                description: "Dedicated 24/7 legal receptionists to answer your leads instantly."
+                    .to_string(),
                 url: "/admin/partners/intake-pros".to_string(),
                 icon: "lucide-headset".to_string(),
             },
             Partner {
                 name: "Local SEO Optimizer".to_string(),
-                description: "Gain organic visibility and stop paying for individual leads.".to_string(),
+                description: "Gain organic visibility and stop paying for individual leads."
+                    .to_string(),
                 url: "/admin/partners/local-seo".to_string(),
                 icon: "lucide-trending-up".to_string(),
             },
@@ -53,8 +53,8 @@ pub fn RecommendedPartners(
                     key=|partner: &Partner| partner.name.clone()
                     children=move |partner: Partner| {
                         view! {
-                            <a 
-                                href=partner.url.clone() 
+                            <a
+                                href=partner.url.clone()
                                 class="group block p-3 rounded-md hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
                             >
                                 <div class="flex items-start gap-3">

@@ -1,23 +1,25 @@
 #![allow(dead_code, unused)]
 use crate::entities::{
-    user,user_account, tenant, listing, ad_purchase, 
-    profile, account, session,request_log
+    account, ad_purchase, listing, profile, request_log, session, tenant, user, user_account,
 };
+use crate::models::ad_purchase::AdStatus;
+use crate::models::listing::ListingStatus;
+use crate::models::user::UserAdminView;
 use axum::{
-    extract::{Extension, Json, Path, State, Query},
+    extract::{Extension, Json, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use sea_orm::{DatabaseConnection, EntityTrait,QuerySelect, QueryFilter,Order, ColumnTrait,QueryOrder, Set, ActiveModelTrait, PaginatorTrait};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Order, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, Set,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::models::listing::ListingStatus;
-use crate::models::user::UserAdminView;
-use crate::models::ad_purchase::AdStatus;
 
-use std::collections::HashMap;
 use crate::handlers::listings;
 use crate::models::session::{SessionResponse, UserInfo};
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
 pub struct UpdateUserInput {
@@ -83,39 +85,35 @@ pub struct ActivityReport {
 
 #[derive(Serialize)]
 pub struct PlatformAppModel {
-    pub tenant_id:            String,
-    pub instance_id:          String,
-    pub name:                 String,
-    pub app_type:             String,
-    pub domain:               String,
+    pub tenant_id: String,
+    pub instance_id: String,
+    pub name: String,
+    pub app_type: String,
+    pub domain: String,
     /// From atlas_app_deployment_config.mode ("standard" | "internal_operator").
     /// Defaults to "standard" when no deployment config row exists.
-    pub mode:                 String,
+    pub mode: String,
     /// From atlas_app_deployment_config.instance_status ("active" | "suspended" | "archived").
     /// Falls back to tenant.site_status when no config row exists.
-    pub site_status:          String,
-    pub description:          String,
+    pub site_status: String,
+    pub description: String,
     /// FK to atlas_accounts.id — set when the admin links a deployment to a CRM Account.
     /// None = not yet linked. Rendered as a "View Account" link on the Clients page.
-    pub platform_account_id:  Option<String>,
+    pub platform_account_id: Option<String>,
     /// Operational purpose from config JSONB ("demo"|"test"|"staging"|"managed_service").
     /// None for Standard mode client deployments.
-    pub purpose:              Option<String>,
+    pub purpose: Option<String>,
     /// The live custom_domain from atlas_app_deployment_config.
     /// None = no custom domain assigned. When set, takes precedence over `domain` for display.
-    pub custom_domain:        Option<String>,
+    pub custom_domain: Option<String>,
 }
-
-
-
-
 
 pub async fn get_platform_apps(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    use crate::entities::{tenant, app_instance, app_domain, atlas_app_deployment_config};
+    use crate::entities::{app_domain, app_instance, atlas_app_deployment_config, tenant};
     use sea_orm::ColumnTrait;
 
     let instances = app_instance::Entity::find()
@@ -142,7 +140,9 @@ pub async fn get_platform_apps(
                 .await
                 .unwrap_or_default();
 
-            let domain_name = domains.into_iter().next()
+            let domain_name = domains
+                .into_iter()
+                .next()
                 .map(|d| d.domain_name)
                 .unwrap_or_else(|| format!("{}.atlas.app", tenant_model.name));
 
@@ -158,19 +158,21 @@ pub async fn get_platform_apps(
             let mode = deployment
                 .as_ref()
                 .map(|d| match d.mode {
-                    atlas_app_deployment_config::AppDeploymentMode::InternalOperator =>
-                        "internal_operator".to_string(),
-                    atlas_app_deployment_config::AppDeploymentMode::Standard =>
-                        "standard".to_string(),
+                    atlas_app_deployment_config::AppDeploymentMode::InternalOperator => {
+                        "internal_operator".to_string()
+                    }
+                    atlas_app_deployment_config::AppDeploymentMode::Standard => {
+                        "standard".to_string()
+                    }
                 })
                 .unwrap_or_else(|| "standard".to_string());
 
             let site_status = deployment
                 .as_ref()
                 .map(|d| match d.instance_status {
-                    atlas_app_deployment_config::AppInstanceStatus::Active   => "active",
+                    atlas_app_deployment_config::AppInstanceStatus::Active => "active",
                     atlas_app_deployment_config::AppInstanceStatus::Suspended => "suspended",
-                    atlas_app_deployment_config::AppInstanceStatus::Archived  => "archived",
+                    atlas_app_deployment_config::AppInstanceStatus::Archived => "archived",
                 })
                 .unwrap_or(tenant_model.site_status.as_str())
                 .to_string();
@@ -188,19 +190,17 @@ pub async fn get_platform_apps(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            let custom_domain = deployment
-                .as_ref()
-                .and_then(|d| d.custom_domain.clone());
+            let custom_domain = deployment.as_ref().and_then(|d| d.custom_domain.clone());
 
             result.push(PlatformAppModel {
-                tenant_id:           tenant_model.id.to_string(),
-                instance_id:         instance.id.to_string(),
-                name:                tenant_model.name.clone(),
-                app_type:            instance.app_type.clone(),
-                domain:              domain_name,
+                tenant_id: tenant_model.id.to_string(),
+                instance_id: instance.id.to_string(),
+                name: tenant_model.name.clone(),
+                app_type: instance.app_type.clone(),
+                domain: domain_name,
                 mode,
                 site_status,
-                description:         tenant_model.description.clone(),
+                description: tenant_model.description.clone(),
                 platform_account_id,
                 purpose,
                 custom_domain,
@@ -236,11 +236,13 @@ pub async fn link_deployment_account_inner(
     tenant_id: &str,
     account_id: Option<&str>,
 ) -> Result<(), String> {
-    use crate::entities::atlas_app_deployment_config::{self, ActiveModel, AppDeploymentMode, FolioMode, AppInstanceStatus};
+    use crate::entities::atlas_app_deployment_config::{
+        self, ActiveModel, AppDeploymentMode, AppInstanceStatus, FolioMode,
+    };
     use sea_orm::{ActiveValue::Set, IntoActiveModel};
 
-    let tenant_uuid = uuid::Uuid::parse_str(tenant_id)
-        .map_err(|e| format!("Invalid tenant_id UUID: {}", e))?;
+    let tenant_uuid =
+        uuid::Uuid::parse_str(tenant_id).map_err(|e| format!("Invalid tenant_id UUID: {}", e))?;
     let account_uuid: Option<uuid::Uuid> = account_id
         .map(|s| uuid::Uuid::parse_str(s).map_err(|e| format!("Invalid account_id UUID: {}", e)))
         .transpose()?;
@@ -258,25 +260,29 @@ pub async fn link_deployment_account_inner(
         Some(row) => {
             let mut active: ActiveModel = row.into_active_model();
             active.platform_account_id = Set(account_uuid);
-            active.update(db).await
+            active
+                .update(db)
+                .await
                 .map_err(|e| format!("Failed to update platform_account_id: {}", e))?;
         }
         None => {
             let new_row = ActiveModel {
-                id:                  Set(uuid::Uuid::new_v4()),
-                tenant_id:           Set(tenant_uuid),
-                app_slug:            Set(app_slug),
-                mode:                Set(AppDeploymentMode::Standard),
-                config:              Set(serde_json::json!({})),
-                folio_mode:          Set(FolioMode::Standard),
-                public_slug:         Set(None),
-                custom_domain:       Set(None),
-                instance_status:     Set(AppInstanceStatus::Active),
+                id: Set(uuid::Uuid::new_v4()),
+                tenant_id: Set(tenant_uuid),
+                app_slug: Set(app_slug),
+                mode: Set(AppDeploymentMode::Standard),
+                config: Set(serde_json::json!({})),
+                folio_mode: Set(FolioMode::Standard),
+                public_slug: Set(None),
+                custom_domain: Set(None),
+                instance_status: Set(AppInstanceStatus::Active),
                 platform_account_id: Set(account_uuid),
-                created_at:          Set(chrono::Utc::now().into()),
-                updated_at:          Set(chrono::Utc::now().into()),
+                created_at: Set(chrono::Utc::now().into()),
+                updated_at: Set(chrono::Utc::now().into()),
             };
-            new_row.insert(db).await
+            new_row
+                .insert(db)
+                .await
                 .map_err(|e| format!("Failed to create deployment config: {}", e))?;
         }
     }
@@ -291,16 +297,13 @@ pub async fn link_deployment_account(
     Json(body): Json<LinkAccountInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let account_id_str: Option<String> = body.account_id.map(|u| u.to_string());
-    link_deployment_account_inner(
-        &db,
-        &tenant_id.to_string(),
-        account_id_str.as_deref(),
-    ).await
-    .map(|_| StatusCode::NO_CONTENT)
-    .map_err(|e| {
-        tracing::error!("link_deployment_account failed: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })
+    link_deployment_account_inner(&db, &tenant_id.to_string(), account_id_str.as_deref())
+        .await
+        .map(|_| StatusCode::NO_CONTENT)
+        .map_err(|e| {
+            tracing::error!("link_deployment_account failed: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 /// Body for `PUT /api/admin/platform/apps/{tenant_id}/purpose`
@@ -323,10 +326,14 @@ pub async fn set_deployment_purpose(
     Path(tenant_id): Path<Uuid>,
     Json(body): Json<SetPurposeInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    use crate::entities::atlas_app_deployment_config::{self, ActiveModel, AppDeploymentMode, FolioMode, AppInstanceStatus};
+    use crate::entities::atlas_app_deployment_config::{
+        self, ActiveModel, AppDeploymentMode, AppInstanceStatus, FolioMode,
+    };
     use sea_orm::{ActiveValue::Set, IntoActiveModel};
 
-    let app_slug = body.app_slug.unwrap_or_else(|| "property_management".to_string());
+    let app_slug = body
+        .app_slug
+        .unwrap_or_else(|| "property_management".to_string());
 
     let existing = atlas_app_deployment_config::Entity::find()
         .filter(atlas_app_deployment_config::Column::TenantId.eq(tenant_id))
@@ -338,9 +345,7 @@ pub async fn set_deployment_purpose(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let validate_purpose = |p: &str| {
-        matches!(p, "demo" | "test" | "staging" | "managed_service")
-    };
+    let validate_purpose = |p: &str| matches!(p, "demo" | "test" | "staging" | "managed_service");
 
     // Reject invalid values early
     if let Some(ref p) = body.purpose {
@@ -354,8 +359,12 @@ pub async fn set_deployment_purpose(
             // Merge purpose key into existing config
             let mut config = row.config.clone();
             match body.purpose {
-                Some(ref p) => { config["purpose"] = serde_json::json!(p); }
-                None        => { config.as_object_mut().map(|m| m.remove("purpose")); }
+                Some(ref p) => {
+                    config["purpose"] = serde_json::json!(p);
+                }
+                None => {
+                    config.as_object_mut().map(|m| m.remove("purpose"));
+                }
             }
             let mut active: ActiveModel = row.into_active_model();
             active.config = Set(config);
@@ -368,21 +377,21 @@ pub async fn set_deployment_purpose(
             // Create config row with just the purpose set
             let config = match body.purpose {
                 Some(ref p) => serde_json::json!({"purpose": p}),
-                None        => serde_json::json!({}),
+                None => serde_json::json!({}),
             };
             let new_row = ActiveModel {
-                id:                  Set(Uuid::new_v4()),
-                tenant_id:           Set(tenant_id),
-                app_slug:            Set(app_slug),
-                mode:                Set(AppDeploymentMode::InternalOperator),
-                config:              Set(config),
-                folio_mode:          Set(FolioMode::Standard),
-                public_slug:         Set(None),
-                custom_domain:       Set(None),
-                instance_status:     Set(AppInstanceStatus::Active),
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(tenant_id),
+                app_slug: Set(app_slug),
+                mode: Set(AppDeploymentMode::InternalOperator),
+                config: Set(config),
+                folio_mode: Set(FolioMode::Standard),
+                public_slug: Set(None),
+                custom_domain: Set(None),
+                instance_status: Set(AppInstanceStatus::Active),
                 platform_account_id: Set(None),
-                created_at:          Set(chrono::Utc::now().into()),
-                updated_at:          Set(chrono::Utc::now().into()),
+                created_at: Set(chrono::Utc::now().into()),
+                updated_at: Set(chrono::Utc::now().into()),
             };
             new_row.insert(&db).await.map_err(|e| {
                 tracing::error!("Failed to create deployment config: {}", e);
@@ -413,7 +422,7 @@ pub async fn get_app_domains(
             tracing::error!("Error fetching app domains: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    
+
     let domain_strings: Vec<String> = domains.into_iter().map(|d| d.domain_name).collect();
     Ok(Json(domain_strings))
 }
@@ -425,13 +434,17 @@ pub async fn add_app_domain(
     Json(input): Json<AppDomainInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
     use crate::entities::app_domain;
-    
+
     // Abstract Edge Infrastructure Hook - Connects to Cloudflare Custom Hostname API (or alternative)
     if let Err(e) = crate::services::dns::provision_domain(&input.domain_name).await {
-        tracing::error!("DNS Edge provisioning failed for domain {}: {}", input.domain_name, e);
+        tracing::error!(
+            "DNS Edge provisioning failed for domain {}: {}",
+            input.domain_name,
+            e
+        );
         return Err(StatusCode::BAD_GATEWAY);
     }
-    
+
     let new_domain = app_domain::ActiveModel {
         id: Set(Uuid::new_v4()),
         app_instance_id: Set(instance_id),
@@ -457,11 +470,14 @@ pub async fn remove_app_domain(
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
+
     if let Some(d) = domain {
-        app_domain::Entity::delete_by_id(d.id).exec(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        app_domain::Entity::delete_by_id(d.id)
+            .exec(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
-    
+
     Ok(StatusCode::OK)
 }
 
@@ -483,10 +499,10 @@ pub async fn get_listing(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
-    Path(listing_id ): Path<Uuid >,
+    Path(listing_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let extension_db = Extension(db);
-    let path = Path(listing_id );
+    let path = Path(listing_id);
 
     let listing = listings::get_listing_by_id(extension_db, path).await?;
     Ok(listing)
@@ -569,7 +585,6 @@ pub async fn list_users(
     Ok(Json(users))
 }
 
-
 pub async fn get_user(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
@@ -582,15 +597,15 @@ pub async fn get_user(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
-    
-    let mut user_admin_view = UserAdminView{
+
+    let mut user_admin_view = UserAdminView {
         user: user.clone(),
         user_accounts: Vec::new(),
         profiles: Vec::new(),
         networks: Vec::new(),
         login_history: Vec::new(),
     };
-    
+
     let user_accounts = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(user_id))
         .all(&db)
@@ -598,7 +613,10 @@ pub async fn get_user(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     user_admin_view.user_accounts = user_accounts.clone();
     user_admin_view.user = user.clone();
-    let user_accounts_ids: Vec<Uuid> = user_accounts.iter().map(|user_account| user_account.account_id).collect();
+    let user_accounts_ids: Vec<Uuid> = user_accounts
+        .iter()
+        .map(|user_account| user_account.account_id)
+        .collect();
     let profiles = profile::Entity::find()
         .filter(profile::Column::AccountId.is_in(user_accounts_ids.clone()))
         .all(&db)
@@ -644,7 +662,10 @@ pub async fn update_user(
         user.email = Set(email);
     }
 
-    let updated_user = user.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_user = user
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(updated_user))
 }
@@ -655,7 +676,6 @@ pub async fn delete_user(
     Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     user::Entity::delete_by_id(user_id)
         .exec(&db)
         .await
@@ -689,7 +709,8 @@ pub async fn toggle_admin(
     if !caller_is_admin {
         tracing::warn!(
             "Non-admin user {} attempted to toggle admin status for user {}",
-            current_user.id, user_id
+            current_user.id,
+            user_id
         );
         return Err(StatusCode::FORBIDDEN);
     }
@@ -773,9 +794,12 @@ pub async fn get_all_network_stats(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    use crate::entities::{app_instance};
+    use crate::entities::app_instance;
 
-    let networks = tenant::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let networks = tenant::Entity::find()
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut stats = Vec::new();
     for dir in networks {
@@ -851,7 +875,6 @@ pub async fn get_network_stats(
     Extension(_current_session): Extension<session::Model>,
     Path(tenant_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     let network = tenant::Entity::find_by_id(tenant_id)
         .one(&db)
         .await
@@ -869,7 +892,6 @@ pub async fn get_network_stats(
         .count(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
 
     // filter by profile.network id
     let ad_purchase_count = ad_purchase::Entity::find()
@@ -910,7 +932,6 @@ pub async fn list_pending_listings(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     let pending_listings = listing::Entity::find()
         .filter(listing::Column::Status.eq(ListingStatus::Pending))
         .all(&db)
@@ -926,7 +947,6 @@ pub async fn approve_listing(
     Extension(_current_session): Extension<session::Model>,
     Path(listing_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     let mut listing: listing::ActiveModel = listing::Entity::find_by_id(listing_id)
         .one(&db)
         .await
@@ -936,7 +956,10 @@ pub async fn approve_listing(
 
     listing.status = Set(ListingStatus::Approved);
 
-    let updated_listing = listing.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_listing = listing
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(updated_listing))
 }
@@ -956,7 +979,10 @@ pub async fn reject_listing(
 
     listing.status = Set(ListingStatus::Rejected);
 
-    let updated_listing = listing.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_listing = listing
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(updated_listing))
 }
@@ -966,8 +992,10 @@ pub async fn get_ad_purchase_stats(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
-    let total_purchases = ad_purchase::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total_purchases = ad_purchase::Entity::find()
+        .count(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let active_purchases = ad_purchase::Entity::find()
         .filter(ad_purchase::Column::Status.eq(AdStatus::Active))
@@ -997,7 +1025,6 @@ pub async fn list_active_ad_purchases(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     let active_purchases = ad_purchase::Entity::find()
         .filter(ad_purchase::Column::Status.eq(AdStatus::Active))
         .all(&db)
@@ -1013,7 +1040,6 @@ pub async fn get_ad_purchase(
     Extension(_current_session): Extension<session::Model>,
     Path(purchase_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     let purchase = ad_purchase::Entity::find_by_id(purchase_id)
         .one(&db)
         .await
@@ -1028,13 +1054,16 @@ pub async fn list_ad_purchases(
     Extension(current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    tracing::info!("Attempting to list ad purchases for user: {:?}", current_user.id);
+    tracing::info!(
+        "Attempting to list ad purchases for user: {:?}",
+        current_user.id
+    );
 
     match ad_purchase::Entity::find().all(&db).await {
         Ok(purchases) => {
             tracing::info!("Successfully fetched {} ad purchases", purchases.len());
             Ok(Json(purchases))
-        },
+        }
         Err(e) => {
             tracing::error!("Failed to fetch ad purchases: {:?}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -1047,7 +1076,6 @@ pub async fn cancel_ad_purchase(
     Extension(_current_session): Extension<session::Model>,
     Path(purchase_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     let mut purchase: ad_purchase::ActiveModel = ad_purchase::Entity::find_by_id(purchase_id)
         .one(&db)
         .await
@@ -1057,7 +1085,10 @@ pub async fn cancel_ad_purchase(
 
     purchase.status = Set(AdStatus::Cancelled.to_string());
 
-    let updated_purchase = purchase.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_purchase = purchase
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(updated_purchase))
 }
@@ -1067,8 +1098,10 @@ pub async fn get_user_statistics(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
-    let total_users = user::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total_users = user::Entity::find()
+        .count(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let active_users = user::Entity::find()
         .filter(user::Column::IsActive.eq(true))
         .count(&db)
@@ -1077,7 +1110,10 @@ pub async fn get_user_statistics(
 
     // Admin count is now via user_account role, not user.is_admin field.
     let total_admins = user_account::Entity::find()
-        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .filter(
+            user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .count(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -1096,8 +1132,10 @@ pub async fn get_account_statistics(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
-    let total_accounts = account::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total_accounts = account::Entity::find()
+        .count(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let active_accounts = account::Entity::find()
         .filter(account::Column::IsActive.eq(true))
         .count(&db)
@@ -1117,8 +1155,10 @@ pub async fn get_listing_statistics(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
-    let total_listings = listing::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total_listings = listing::Entity::find()
+        .count(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let active_listings = listing::Entity::find()
         .filter(listing::Column::Status.eq(ListingStatus::Approved))
         .count(&db)
@@ -1138,8 +1178,10 @@ pub async fn get_ad_purchase_statistics(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
-    let total_purchases = ad_purchase::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total_purchases = ad_purchase::Entity::find()
+        .count(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let active_purchases = ad_purchase::Entity::find()
         .filter(ad_purchase::Column::Status.eq(AdStatus::Active))
         .count(&db)
@@ -1176,7 +1218,7 @@ pub async fn get_activity_report(
             .limit(5)
             .all(&db)
             .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;  
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let recent_ad_purchases = ad_purchase::Entity::find()
             .order_by(ad_purchase::Column::CreatedAt, Order::Desc)
@@ -1198,7 +1240,7 @@ pub async fn get_activity_report(
             .all(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
+
         let recent_accounts = account::Entity::find()
             .order_by(account::Column::CreatedAt, Order::Desc)
             .limit(5)
@@ -1214,7 +1256,6 @@ pub async fn get_activity_report(
             recent_accounts,
         };
     };
-    
 
     Ok(Json(report))
 }
@@ -1224,7 +1265,6 @@ pub async fn get_revenue_report(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-
     // Fetch revenue data total ad purchases by month
     let revenue_data = {
         let _ad_purchases = ad_purchase::Entity::find()
@@ -1233,7 +1273,7 @@ pub async fn get_revenue_report(
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let revenue_data: HashMap<String, f64> = HashMap::new();
-        
+
         // ... populate revenue_data ...
 
         revenue_data
@@ -1254,9 +1294,9 @@ struct ImpersonationCodeInfo {
     expires_at: chrono::DateTime<chrono::Utc>,
 }
 
-static IMPERSONATION_CODES: once_cell::sync::Lazy<std::sync::Mutex<std::collections::HashMap<String, ImpersonationCodeInfo>>> = once_cell::sync::Lazy::new(|| {
-    std::sync::Mutex::new(std::collections::HashMap::new())
-});
+static IMPERSONATION_CODES: once_cell::sync::Lazy<
+    std::sync::Mutex<std::collections::HashMap<String, ImpersonationCodeInfo>>,
+> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
 
 pub fn create_impersonation_code(jwt: String) -> String {
     let code = format!("imp_code_{}", uuid::Uuid::new_v4());
@@ -1287,17 +1327,23 @@ pub async fn impersonate_user(
     Extension(_current_session): Extension<session::Model>,
     Path(target_user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    
     // Verify the caller is a global platform admin via user_account role.
     let is_caller_admin = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(current_user.id))
-        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .filter(
+            user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .one(&db)
         .await
         .unwrap_or(None)
         .is_some();
     if !is_caller_admin {
-        tracing::warn!("Non-admin user {} attempted to impersonate {}", current_user.id, target_user_id);
+        tracing::warn!(
+            "Non-admin user {} attempted to impersonate {}",
+            current_user.id,
+            target_user_id
+        );
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -1309,8 +1355,8 @@ pub async fn impersonate_user(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // 3. Generate an impersonation JWT containing the impersonator_id claim
-    let token = crate::auth::generate_impersonation_jwt(&target_user, &current_user.id)
-        .map_err(|e| {
+    let token =
+        crate::auth::generate_impersonation_jwt(&target_user, &current_user.id).map_err(|e| {
             tracing::error!("Failed to generate impersonation token: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;

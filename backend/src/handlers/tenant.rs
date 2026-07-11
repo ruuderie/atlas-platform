@@ -1,18 +1,17 @@
 #![allow(dead_code)]
+use crate::entities::tenant_setting::{self, Entity as TenantSetting};
+use crate::models::tenant::{CreateTenant, TenantModel, UpdateTenant};
+use crate::services::tenant::TenantService;
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    Json,
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
-use crate::entities::tenant_setting::{self, Entity as TenantSetting};
-use crate::models::tenant::{TenantModel, CreateTenant, UpdateTenant};
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use crate::services::tenant::TenantService;
 
 /// State-free public route definitions.
 /// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
@@ -51,17 +50,12 @@ pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection
 pub async fn get_tenants(
     State(db): State<DatabaseConnection>,
 ) -> Result<(StatusCode, Json<Vec<TenantModel>>), StatusCode> {
-    let tenants = TenantService::list_tenants(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let tenants = TenantService::list_tenants(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let models: Vec<TenantModel> = tenants
-        .into_iter()
-        .map(TenantModel::from)
-        .collect();
+    let models: Vec<TenantModel> = tenants.into_iter().map(TenantModel::from).collect();
 
     Ok((StatusCode::OK, Json(models)))
 }
@@ -89,7 +83,7 @@ pub async fn lookup_tenant_by_domain(
     State(_db): State<DatabaseConnection>,
 ) -> Result<(StatusCode, Json<TenantModel>), StatusCode> {
     let _domain = params.get("domain").ok_or(StatusCode::BAD_REQUEST)?;
-    
+
     // In multi-tenant architecture, AppDomain identifies the tenant.
     // For now, simulated by getting the first tenant (Will replace when lookup logic finishes)
     // We just return a 404 for now until app_domain entity logic is fully built
@@ -146,7 +140,10 @@ pub struct ProvisionAdminPayload {
     pub last_name: String,
 }
 
-#[deprecated(since = "0.1.0", note = "Use POST /api/admin/tenants/provision instead")]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use POST /api/admin/tenants/provision instead"
+)]
 pub async fn provision_admin(
     Path(tenant_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
@@ -155,7 +152,10 @@ pub async fn provision_admin(
     use crate::entities::user;
     use crate::services::auth_service::AuthService;
 
-    tracing::warn!("Hit deprecated endpoint /api/tenants/{}/provision-admin", tenant_id);
+    tracing::warn!(
+        "Hit deprecated endpoint /api/tenants/{}/provision-admin",
+        tenant_id
+    );
 
     // 1. Check if user exists
     let existing_user = user::Entity::find()
@@ -181,17 +181,20 @@ pub async fn provision_admin(
             updated_at: Set(Utc::now()),
             ..Default::default()
         };
-        let u = new_user.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
+        let u = new_user
+            .insert(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
         // Phase 2: Create a user_account as Owner for this tenant
         // First, find the account associated with the tenant
-        use crate::entities::{user_account, account};
+        use crate::entities::{account, user_account};
         let account = account::Entity::find()
             .filter(account::Column::TenantId.eq(tenant_id))
             .one(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            
+
         if let Some(account) = account {
             let new_user_account = user_account::ActiveModel {
                 id: Set(Uuid::new_v4()),
@@ -204,7 +207,7 @@ pub async fn provision_admin(
             };
             let _ = new_user_account.insert(&db).await;
         }
-        
+
         u.id
     };
 
@@ -269,7 +272,10 @@ pub async fn upsert_tenant_setting(
             active.is_encrypted = Set(enc);
         }
         active.updated_at = Set(Utc::now());
-        let updated = active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let updated = active
+            .update(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok((StatusCode::OK, Json(updated)))
     } else {
         let new_setting = tenant_setting::ActiveModel {
@@ -281,7 +287,10 @@ pub async fn upsert_tenant_setting(
             updated_at: Set(Utc::now()),
             created_at: Set(Utc::now()),
         };
-        let inserted = new_setting.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let inserted = new_setting
+            .insert(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok((StatusCode::CREATED, Json(inserted)))
     }
 }

@@ -1,5 +1,5 @@
+use crate::api::seeds::{SeedPackInfo, apply_seed_pack, get_seed_packs};
 use leptos::prelude::*;
-use crate::api::seeds::{SeedPackInfo, get_seed_packs, apply_seed_pack};
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SEED PACK CARD
@@ -113,11 +113,10 @@ fn SeedPackCard(
 pub fn SeedPicker(app_instance_id: String) -> impl IntoView {
     let ai = app_instance_id.clone();
 
-    let packs: LocalResource<Result<Vec<SeedPackInfo>, String>> =
-        LocalResource::new(move || {
-            let ai = ai.clone();
-            async move { get_seed_packs(&ai).await }
-        });
+    let packs: LocalResource<Result<Vec<SeedPackInfo>, String>> = LocalResource::new(move || {
+        let ai = ai.clone();
+        async move { get_seed_packs(&ai).await }
+    });
 
     let ai_id = app_instance_id.clone();
 

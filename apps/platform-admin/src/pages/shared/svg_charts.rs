@@ -1,7 +1,6 @@
 use leptos::prelude::*;
 use std::cmp::max;
 
-
 #[allow(dead_code)]
 #[component]
 pub fn SvgLineChart(
@@ -18,7 +17,11 @@ pub fn SvgLineChart(
 
         let max_val = vals.iter().cloned().fold(0.0_f32, f32::max);
         let min_val = vals.iter().cloned().fold(f32::INFINITY, f32::min);
-        let range = if max_val - min_val > 0.0 { max_val - min_val } else { 1.0 };
+        let range = if max_val - min_val > 0.0 {
+            max_val - min_val
+        } else {
+            1.0
+        };
 
         let x_step = width / (max(vals.len() - 1, 1) as f32);
 
@@ -26,7 +29,7 @@ pub fn SvgLineChart(
         for (i, &val) in vals.iter().enumerate() {
             let cx = i as f32 * x_step;
             // Invert Y axis for SVG (0 is top)
-            let cy = height - ((val - min_val) / range * height * 0.8) - (height * 0.1); 
+            let cy = height - ((val - min_val) / range * height * 0.8) - (height * 0.1);
 
             if i == 0 {
                 d.push_str(&format!("M {} {} ", cx, cy));
@@ -75,7 +78,7 @@ mod tests {
 
         for (i, &val) in data.iter().enumerate() {
             let cx = i as f32 * x_step;
-            let cy = height - ((val - min_val) / range * height * 0.8) - (height * 0.1); 
+            let cy = height - ((val - min_val) / range * height * 0.8) - (height * 0.1);
             if i == 0 {
                 expected_d.push_str(&format!("M {} {} ", cx, cy));
             } else {

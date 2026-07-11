@@ -1,11 +1,10 @@
-use leptos::prelude::*;
-use uuid::Uuid;
 use crate::api::admin::{
-    get_users, toggle_admin, UserModel, impersonate_user,
-    get_invites, create_invite, revoke_invite, resend_invite, InviteModel, CreateInviteInput,
-    get_audit_logs, get_tenant_stats,
+    CreateInviteInput, InviteModel, UserModel, create_invite, get_audit_logs, get_invites,
+    get_tenant_stats, get_users, impersonate_user, resend_invite, revoke_invite, toggle_admin,
 };
 use crate::app::GlobalToast;
+use leptos::prelude::*;
+use uuid::Uuid;
 
 #[component]
 pub fn PlatformAdmins() -> impl IntoView {
@@ -15,7 +14,7 @@ pub fn PlatformAdmins() -> impl IntoView {
     // UI state
     let active_tab = RwSignal::new("users".to_string());
     let refetch_trigger = RwSignal::new(0);
-    
+
     // Filters
     let search_query = RwSignal::new(String::new());
     let role_filter = RwSignal::new("All Roles".to_string());
@@ -23,52 +22,46 @@ pub fn PlatformAdmins() -> impl IntoView {
     let status_filter = RwSignal::new("All Statuses".to_string());
 
     // Modals
-    let show_invite_modal  = RwSignal::new(false);
-    let invite_step        = RwSignal::new(1u8);      // 1 = Who, 2 = Access
-    let show_manage_modal  = RwSignal::new(None::<UserModel>);
+    let show_invite_modal = RwSignal::new(false);
+    let invite_step = RwSignal::new(1u8); // 1 = Who, 2 = Access
+    let show_manage_modal = RwSignal::new(None::<UserModel>);
 
     // Invite form — Step 1: Who
-    let invite_display_name   = RwSignal::new(String::new());
-    let invite_email          = RwSignal::new(String::new());
-    let invite_personal_msg   = RwSignal::new(String::new());
+    let invite_display_name = RwSignal::new(String::new());
+    let invite_email = RwSignal::new(String::new());
+    let invite_personal_msg = RwSignal::new(String::new());
 
     // Invite form — Step 2: Access
-    let invite_platform_role  = RwSignal::new("Admin".to_string());
-    let invite_app_role       = RwSignal::new(String::new());
-    let invite_tenant         = RwSignal::new(String::new());
-    let invite_app_instance   = RwSignal::new(String::new()); // Uuid as string
-    let invite_target_url     = RwSignal::new(String::new());
-    let invite_expires_days   = RwSignal::new(7i64);
-    let invite_sending        = RwSignal::new(false);
-    let invite_sent_to        = RwSignal::new(None::<String>); // email of last sent
+    let invite_platform_role = RwSignal::new("Admin".to_string());
+    let invite_app_role = RwSignal::new(String::new());
+    let invite_tenant = RwSignal::new(String::new());
+    let invite_app_instance = RwSignal::new(String::new()); // Uuid as string
+    let invite_target_url = RwSignal::new(String::new());
+    let invite_expires_days = RwSignal::new(7i64);
+    let invite_sending = RwSignal::new(false);
+    let invite_sent_to = RwSignal::new(None::<String>); // email of last sent
 
     // Live invitations resource
     let invites_refetch = RwSignal::new(0);
     let invites_res = LocalResource::new(move || {
         let _ = invites_refetch.get();
-        async move {
-            get_invites().await.unwrap_or_default()
-        }
+        async move { get_invites().await.unwrap_or_default() }
     });
 
     // Resource hooks for actual users
     let users_res = LocalResource::new(move || {
         let n = active_network.get();
         let _ = refetch_trigger.get();
-        async move {
-            get_users(n).await.unwrap_or_default()
-        }
+        async move { get_users(n).await.unwrap_or_default() }
     });
 
     // Audit log resource (loaded lazily when audit tab is active)
-    let audit_logs_res = LocalResource::new(|| async move {
-        get_audit_logs().await.unwrap_or_default()
-    });
+    let audit_logs_res =
+        LocalResource::new(|| async move { get_audit_logs().await.unwrap_or_default() });
 
     // Tenant list for the invite modal dropdown
-    let tenants_for_invite = LocalResource::new(|| async move {
-        get_tenant_stats().await.unwrap_or_default()
-    });
+    let tenants_for_invite =
+        LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
     // Impersonate
     let handle_impersonate = move |id: Uuid| {
@@ -76,7 +69,11 @@ pub fn PlatformAdmins() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match impersonate_user(id).await {
                 Ok(_) => {
-                    t_toast.show_toast("Success", "Impersonation session initiated. Redirecting...", "success");
+                    t_toast.show_toast(
+                        "Success",
+                        "Impersonation session initiated. Redirecting...",
+                        "success",
+                    );
                     gloo_timers::future::TimeoutFuture::new(1000).await;
                     let _ = web_sys::window().unwrap().location().assign("/");
                 }
@@ -93,7 +90,11 @@ pub fn PlatformAdmins() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match toggle_admin(id).await {
                 Ok(updated) => {
-                    t_toast.show_toast("Success", &format!("Updated admin status for {}", updated.email), "success");
+                    t_toast.show_toast(
+                        "Success",
+                        &format!("Updated admin status for {}", updated.email),
+                        "success",
+                    );
                     refetch_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
@@ -112,32 +113,52 @@ pub fn PlatformAdmins() -> impl IntoView {
             return;
         }
         invite_sending.set(true);
-        let display_name   = invite_display_name.get();
-        let personal_msg   = invite_personal_msg.get();
-        let platform_role  = invite_platform_role.get();
-        let app_role       = invite_app_role.get();
-        let tenant         = invite_tenant.get();
-        let app_instance   = invite_app_instance.get();
-        let target_url     = invite_target_url.get();
-        let expires_days   = invite_expires_days.get();
-        let t_toast        = toast.clone();
+        let display_name = invite_display_name.get();
+        let personal_msg = invite_personal_msg.get();
+        let platform_role = invite_platform_role.get();
+        let app_role = invite_app_role.get();
+        let tenant = invite_tenant.get();
+        let app_instance = invite_app_instance.get();
+        let target_url = invite_target_url.get();
+        let expires_days = invite_expires_days.get();
+        let t_toast = toast.clone();
 
         let input = CreateInviteInput {
-            email:           email.clone(),
-            display_name:    if display_name.trim().is_empty() { None } else { Some(display_name.trim().to_string()) },
-            role:            platform_role,
-            app_role:        if app_role.trim().is_empty() { None } else { Some(app_role.trim().to_string()) },
+            email: email.clone(),
+            display_name: if display_name.trim().is_empty() {
+                None
+            } else {
+                Some(display_name.trim().to_string())
+            },
+            role: platform_role,
+            app_role: if app_role.trim().is_empty() {
+                None
+            } else {
+                Some(app_role.trim().to_string())
+            },
             tenant,
             app_instance_id: uuid::Uuid::parse_str(&app_instance).ok(),
-            target_app_url:  if target_url.trim().is_empty() { None } else { Some(target_url.trim().to_string()) },
-            personal_message:if personal_msg.trim().is_empty() { None } else { Some(personal_msg.trim().to_string()) },
-            expires_days:    Some(expires_days),
+            target_app_url: if target_url.trim().is_empty() {
+                None
+            } else {
+                Some(target_url.trim().to_string())
+            },
+            personal_message: if personal_msg.trim().is_empty() {
+                None
+            } else {
+                Some(personal_msg.trim().to_string())
+            },
+            expires_days: Some(expires_days),
         };
 
         leptos::task::spawn_local(async move {
             match create_invite(input).await {
                 Ok(_) => {
-                    t_toast.show_toast("Invitation sent", &format!("Magic link dispatched to {}", email), "success");
+                    t_toast.show_toast(
+                        "Invitation sent",
+                        &format!("Magic link dispatched to {}", email),
+                        "success",
+                    );
                     invite_sent_to.set(Some(email.clone()));
                     invites_refetch.update(|v| *v += 1);
                     // reset form
@@ -150,13 +171,16 @@ pub fn PlatformAdmins() -> impl IntoView {
                     invite_step.set(1);
                 }
                 Err(e) => {
-                    t_toast.show_toast("Error", &format!("Failed to send invitation: {}", e), "error");
+                    t_toast.show_toast(
+                        "Error",
+                        &format!("Failed to send invitation: {}", e),
+                        "error",
+                    );
                 }
             }
             invite_sending.set(false);
         });
     };
-
 
     // Revoke Invite helper
     let handle_revoke_invite = move |id: Uuid, email: String| {
@@ -164,11 +188,19 @@ pub fn PlatformAdmins() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match revoke_invite(id).await {
                 Ok(_) => {
-                    t_toast.show_toast("Warning", &format!("Invitation to {} revoked.", email), "warn");
+                    t_toast.show_toast(
+                        "Warning",
+                        &format!("Invitation to {} revoked.", email),
+                        "warn",
+                    );
                     invites_refetch.update(|v| *v += 1);
                 }
                 Err(e) => {
-                    t_toast.show_toast("Error", &format!("Failed to revoke invitation: {}", e), "error");
+                    t_toast.show_toast(
+                        "Error",
+                        &format!("Failed to revoke invitation: {}", e),
+                        "error",
+                    );
                 }
             }
         });
@@ -180,11 +212,19 @@ pub fn PlatformAdmins() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match resend_invite(id).await {
                 Ok(_) => {
-                    t_toast.show_toast("Success", &format!("Invitation resent to {}", email), "success");
+                    t_toast.show_toast(
+                        "Success",
+                        &format!("Invitation resent to {}", email),
+                        "success",
+                    );
                     invites_refetch.update(|v| *v += 1);
                 }
                 Err(e) => {
-                    t_toast.show_toast("Error", &format!("Failed to resend invitation: {}", e), "error");
+                    t_toast.show_toast(
+                        "Error",
+                        &format!("Failed to resend invitation: {}", e),
+                        "error",
+                    );
                 }
             }
         });
@@ -236,13 +276,13 @@ pub fn PlatformAdmins() -> impl IntoView {
 
         // Tab Bar
         <div class="tab-bar">
-            <button 
+            <button
                 class=move || if active_tab.get() == "users" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("users".to_string())
             >
                 "All Users"
             </button>
-            <button 
+            <button
                 class=move || if active_tab.get() == "invites" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("invites".to_string())
             >
@@ -251,13 +291,13 @@ pub fn PlatformAdmins() -> impl IntoView {
                     {move || format!("  {}", invites_res.get().map(|list| list.len()).unwrap_or(0))}
                 </span>
             </button>
-            <button 
+            <button
                 class=move || if active_tab.get() == "roles" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("roles".to_string())
             >
                 "Roles & Permissions"
             </button>
-            <button 
+            <button
                 class=move || if active_tab.get() == "audit" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("audit".to_string())
             >
@@ -273,7 +313,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                     <div class="section-header" style="flex-wrap:wrap;gap:8px">
                         <input
                             class="form-input"
-                            style="flex:1;min-width:180px;max-width:280px" 
+                            style="flex:1;min-width:180px;max-width:280px"
                             placeholder="Search name or email…"
                             prop:value=search_query
                             on:input=move |ev| search_query.set(event_target_value(&ev))
@@ -430,7 +470,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                         </thead>
                         <tbody>
                             {move || invites_res.get().map(|invites| view! {
-                                <For 
+                                <For
                                     each=move || invites.clone()
                                     key=|i: &InviteModel| i.id.clone()
                                     children=move |invite| {
@@ -447,13 +487,13 @@ pub fn PlatformAdmins() -> impl IntoView {
                                                 <td class="muted">{invite.sent}</td>
                                                 <td class="muted amber">{invite.expires}</td>
                                                 <td style="display:flex;gap:4px;">
-                                                    <button 
+                                                    <button
                                                         class="btn btn-ghost btn-sm"
                                                         on:click=move |_| handle_resend_invite(invite_id, email_clone.clone())
                                                     >
                                                         "Resend"
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         class="btn btn-ghost btn-sm"
                                                         on:click=move |_| handle_revoke_invite(invite_id2, email_clone2.clone())
                                                     >

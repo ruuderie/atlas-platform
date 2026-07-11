@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::api::client::{api_get, api_url, create_client, with_credentials};
+use serde::{Deserialize, Serialize};
 
 // ──────────────────────────────────────────────────────────────────────────────
 // TYPES (mirror backend SeedPackInfo / SeedApplyResponse)
@@ -48,7 +48,9 @@ pub async fn apply_seed_pack(
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status().is_success() {
-        res.json::<SeedApplyResponse>().await.map_err(|e| e.to_string())
+        res.json::<SeedApplyResponse>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(format!("HTTP {}", res.status()))
     }

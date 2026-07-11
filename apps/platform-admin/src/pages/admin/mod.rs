@@ -1,7 +1,7 @@
-pub mod users;
-pub mod profile;
-pub mod integrations;
+pub mod ai_tasks;
 pub mod compliance;
 pub mod developer;
-pub mod ai_tasks;
+pub mod integrations;
+pub mod profile;
 pub mod security;
+pub mod users;

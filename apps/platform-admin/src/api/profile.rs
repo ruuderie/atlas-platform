@@ -1,4 +1,4 @@
-use crate::api::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+use crate::api::client::{ApiErrorResponse, api_url, create_client, with_credentials};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,25 +19,36 @@ pub async fn update_email(new_email: String) -> Result<(), String> {
     let req = client.put(&url).json(&payload);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    
+
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(res.json::<ApiErrorResponse>().await.map(|e| e.message.unwrap_or("Failed".into())).unwrap_or("Failed".into()))
+        Err(res
+            .json::<ApiErrorResponse>()
+            .await
+            .map(|e| e.message.unwrap_or("Failed".into()))
+            .unwrap_or("Failed".into()))
     }
 }
 
 pub async fn update_password(current_password: String, new_password: String) -> Result<(), String> {
-    let payload = UpdatePasswordRequest { current_password, new_password };
+    let payload = UpdatePasswordRequest {
+        current_password,
+        new_password,
+    };
     let client = create_client();
     let url = api_url("/api/profile/password");
     let req = client.put(&url).json(&payload);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    
+
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(res.json::<ApiErrorResponse>().await.map(|e| e.message.unwrap_or("Failed".into())).unwrap_or("Failed".into()))
+        Err(res
+            .json::<ApiErrorResponse>()
+            .await
+            .map(|e| e.message.unwrap_or("Failed".into()))
+            .unwrap_or("Failed".into()))
     }
 }

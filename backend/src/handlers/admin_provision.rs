@@ -1,36 +1,44 @@
 use axum::{
+    Json,
     extract::{Extension, State},
     http::StatusCode,
-    Json,
 };
+use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
     TransactionTrait,
 };
-use serde_json::{json, Value};
-use uuid::Uuid;
-use chrono::Utc;
+use serde_json::{Value, json};
 use url::Url;
+use uuid::Uuid;
 use validator::Validate;
 
-use std::sync::Arc;
-use crate::entities::{tenant, account, app_instance, app_domain, user, user_account, atlas_app_deployment_config};
+use crate::atlas_apps::core_platform::CorePlatformApp;
+use crate::entities::{
+    account, app_domain, app_instance, atlas_app_deployment_config, tenant, user, user_account,
+};
 use crate::handlers::passkeys::WebauthnState;
 use crate::middleware::DynamicCorsRegistry;
 use crate::models::provision::{ProvisionTenantPayload, ProvisionTenantResponse, validate_domain};
 use crate::services::auth_service::AuthService;
 use crate::services::ingress_provisioner::IngressProvisioner;
-use crate::atlas_apps::core_platform::CorePlatformApp;
 use crate::traits::atlas_app::AtlasApp;
+use std::sync::Arc;
 
 // ── Error helpers ─────────────────────────────────────────────────────────────
 
 fn bad_request(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
-    (StatusCode::BAD_REQUEST, Json(json!({ "message": msg.into() })))
+    (
+        StatusCode::BAD_REQUEST,
+        Json(json!({ "message": msg.into() })),
+    )
 }
 
 fn internal(msg: impl std::fmt::Display) -> (StatusCode, Json<Value>) {
-    (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": msg.to_string() })))
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(json!({ "message": msg.to_string() })),
+    )
 }
 
 fn conflict(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
@@ -38,41 +46,49 @@ fn conflict(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
 }
 
 fn forbidden(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
-    (StatusCode::FORBIDDEN, Json(json!({ "message": msg.into() })))
+    (
+        StatusCode::FORBIDDEN,
+        Json(json!({ "message": msg.into() })),
+    )
 }
 
 async fn verify_dns_txt_record(domain: &str, tenant_slug: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
-    let url = format!("https://cloudflare-dns.com/dns-query?name={}&type=TXT", domain);
-    
-    let res = client.get(&url)
+    let url = format!(
+        "https://cloudflare-dns.com/dns-query?name={}&type=TXT",
+        domain
+    );
+
+    let res = client
+        .get(&url)
         .header("Accept", "application/dns-json")
         .send()
         .await
         .map_err(|e| format!("Failed to send DoH request: {}", e))?;
-        
+
     if !res.status().is_success() {
         return Err(format!("Cloudflare DoH returned status {}", res.status()));
     }
-    
+
     #[derive(serde::Deserialize)]
     struct DohAnswer {
         data: String,
     }
-    
+
     #[derive(serde::Deserialize)]
     struct DohResponse {
         #[serde(rename = "Answer")]
         answer: Option<Vec<DohAnswer>>,
     }
-    
-    let dns_res: DohResponse = res.json()
+
+    let dns_res: DohResponse = res
+        .json()
         .await
         .map_err(|e| format!("Failed to parse DoH JSON: {}", e))?;
-        
+
     let expected_txt = format!("\"atlas-verification={}\"", tenant_slug);
     let expected_txt_unquoted = format!("atlas-verification={}", tenant_slug);
-    
+
     if let Some(answers) = dns_res.answer {
         for ans in answers {
             let trimmed = ans.data.trim();
@@ -81,7 +97,7 @@ async fn verify_dns_txt_record(domain: &str, tenant_slug: &str) -> Result<(), St
             }
         }
     }
-    
+
     Err(format!(
         "TXT record 'atlas-verification={}' not found for '{}'",
         tenant_slug, domain
@@ -116,7 +132,6 @@ pub async fn provision_tenant(
     Extension(user): Extension<user::Model>,
     Json(payload): Json<ProvisionTenantPayload>,
 ) -> Result<(StatusCode, Json<ProvisionTenantResponse>), (StatusCode, Json<Value>)> {
-
     // ── 0. Auth guard ──────────────────────────────────────────────────────────
     // The auth_middleware already enforces PlatformSuperAdmin for all /api/admin
     // routes. Here we additionally fetch the user_account row to confirm the role
@@ -135,16 +150,17 @@ pub async fn provision_tenant(
     }
 
     // ── 1. Validate payload fields ─────────────────────────────────────────────
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| bad_request(format!("Validation error: {e}")))?;
 
-    validate_domain(&payload.domain)
-        .map_err(|e| bad_request(e))?;
+    validate_domain(&payload.domain).map_err(|e| bad_request(e))?;
 
     // Determine which apps to provision. Defaults to ["anchor"] when omitted.
     // Any non-empty subset of canonical app IDs is accepted.  Callers provisioning
     // Folio-only tenants should pass apps: ["property_management"] explicitly.
-    let apps: Vec<String> = payload.apps
+    let apps: Vec<String> = payload
+        .apps
         .clone()
         .unwrap_or_else(|| vec!["anchor".to_string()]);
 
@@ -171,7 +187,8 @@ pub async fn provision_tenant(
         .map_err(|e| internal(e))?;
     if existing_tenant.is_some() {
         return Err(conflict(format!(
-            "A tenant with slug '{}' already exists", payload.tenant_name
+            "A tenant with slug '{}' already exists",
+            payload.tenant_name
         )));
     }
 
@@ -182,19 +199,20 @@ pub async fn provision_tenant(
         .map_err(|e| internal(e))?;
     if existing_domain.is_some() {
         return Err(conflict(format!(
-            "Domain '{}' is already registered to another app instance", payload.domain
+            "Domain '{}' is already registered to another app instance",
+            payload.domain
         )));
     }
 
     // ── 2b. DNS TXT record challenge verification ──────────────────────────────
     let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string());
-    
+
     // If the payload explicitly defines bypass_dns_verification, use that.
     // Otherwise, default to bypassing in development or for localhost.
-    let bypass = payload.bypass_dns_verification.unwrap_or_else(|| {
-        env == "development" || payload.domain == "localhost"
-    });
-    
+    let bypass = payload
+        .bypass_dns_verification
+        .unwrap_or_else(|| env == "development" || payload.domain == "localhost");
+
     if bypass {
         tracing::info!(
             event = "provision.dns_verification.bypass",
@@ -270,14 +288,16 @@ pub async fn provision_tenant(
         // immediately after provisioning without relying on lazy-seed paths.
         let deployment_slug = format!("{}-{}", app_type, &instance_id.to_string()[..8]);
         let new_config = atlas_app_deployment_config::ActiveModel {
-            id:              sea_orm::ActiveValue::Set(instance_id), // same UUID as app_instance
-            tenant_id:       sea_orm::ActiveValue::Set(tenant_id),
-            app_slug:        sea_orm::ActiveValue::Set(app_type.clone()),
-            public_slug:     sea_orm::ActiveValue::Set(Some(deployment_slug)),
-            custom_domain:   sea_orm::ActiveValue::Set(None),
-            instance_status: sea_orm::ActiveValue::Set(atlas_app_deployment_config::AppInstanceStatus::Active),
-            folio_mode:      sea_orm::ActiveValue::Set(atlas_app_deployment_config::FolioMode::Standard),
-            config:          sea_orm::ActiveValue::Set(serde_json::json!({ "billing_tier": "starter" })),
+            id: sea_orm::ActiveValue::Set(instance_id), // same UUID as app_instance
+            tenant_id: sea_orm::ActiveValue::Set(tenant_id),
+            app_slug: sea_orm::ActiveValue::Set(app_type.clone()),
+            public_slug: sea_orm::ActiveValue::Set(Some(deployment_slug)),
+            custom_domain: sea_orm::ActiveValue::Set(None),
+            instance_status: sea_orm::ActiveValue::Set(
+                atlas_app_deployment_config::AppInstanceStatus::Active,
+            ),
+            folio_mode: sea_orm::ActiveValue::Set(atlas_app_deployment_config::FolioMode::Standard),
+            config: sea_orm::ActiveValue::Set(serde_json::json!({ "billing_tier": "starter" })),
             ..Default::default()
         };
         new_config.insert(&txn).await.map_err(|e| internal(e))?;
@@ -326,7 +346,10 @@ pub async fn provision_tenant(
             domain_name: Set(folio_domain.clone()),
             created_at: Set(now),
         };
-        new_folio_domain.insert(&txn).await.map_err(|e| internal(e))?;
+        new_folio_domain
+            .insert(&txn)
+            .await
+            .map_err(|e| internal(e))?;
         tracing::info!(event = "provision.app_domain.created.folio", tenant_id = %tenant_id, domain = %folio_domain);
         created_folio_domain = Some(folio_domain);
     }
@@ -345,7 +368,10 @@ pub async fn provision_tenant(
             domain_name: Set(network_domain.clone()),
             created_at: Set(now),
         };
-        new_network_domain.insert(&txn).await.map_err(|e| internal(e))?;
+        new_network_domain
+            .insert(&txn)
+            .await
+            .map_err(|e| internal(e))?;
         tracing::info!(event = "provision.app_domain.created.network", tenant_id = %tenant_id, domain = %network_domain);
         created_network_domain = Some(network_domain);
     }
@@ -392,7 +418,10 @@ pub async fn provision_tenant(
         created_at: Set(now),
         updated_at: Set(now),
     };
-    new_user_account.insert(&txn).await.map_err(|e| internal(e))?;
+    new_user_account
+        .insert(&txn)
+        .await
+        .map_err(|e| internal(e))?;
 
     // ── 4. COMMIT ──────────────────────────────────────────────────────────────
     txn.commit().await.map_err(|e| internal(e))?;
@@ -403,7 +432,8 @@ pub async fn provision_tenant(
     // signatures are satisfied. Each step uses ON CONFLICT DO NOTHING.
 
     // 5a. CMS scaffolding (default home page + header menu)
-    CorePlatformApp.provision(&db, tenant_id)
+    CorePlatformApp
+        .provision(&db, tenant_id)
         .await
         .map_err(|e| internal(format!("CMS provisioning failed: {e}")))?;
 
@@ -418,7 +448,8 @@ pub async fn provision_tenant(
     // 5b2. Folio PM templates + scorecard deployments (when property_management provisioned)
     if folio_instance_id.is_some() {
         use crate::atlas_apps::folio::FolioApp;
-        FolioApp.provision(&db, tenant_id)
+        FolioApp
+            .provision(&db, tenant_id)
             .await
             .map_err(|e| internal(format!("Folio scorecard provision failed: {e}")))?;
     }
@@ -463,12 +494,14 @@ pub async fn provision_tenant(
 
     // 5e. Trigger ingress and TLS automation via K8s Sidecar
     // Use the first app in the provisioned list as the primary route target.
-    let primary_app_slug = apps.first().map(String::as_str).unwrap_or("property_management");
-    if let Err(e) = ingress_provisioner.provision_domain(
-        &payload.tenant_name,
-        &payload.domain,
-        primary_app_slug,
-    ).await {
+    let primary_app_slug = apps
+        .first()
+        .map(String::as_str)
+        .unwrap_or("property_management");
+    if let Err(e) = ingress_provisioner
+        .provision_domain(&payload.tenant_name, &payload.domain, primary_app_slug)
+        .await
+    {
         tracing::error!(
             event       = "provision.ingress.failed",
             tenant_slug = %payload.tenant_name,
@@ -480,11 +513,10 @@ pub async fn provision_tenant(
     }
 
     if let Some(ref folio_domain) = created_folio_domain {
-        if let Err(e) = ingress_provisioner.provision_domain(
-            &payload.tenant_name,
-            folio_domain,
-            "property_management",
-        ).await {
+        if let Err(e) = ingress_provisioner
+            .provision_domain(&payload.tenant_name, folio_domain, "property_management")
+            .await
+        {
             tracing::error!(
                 event       = "provision.ingress.failed",
                 tenant_slug = %payload.tenant_name,
@@ -497,11 +529,10 @@ pub async fn provision_tenant(
     }
 
     if let Some(ref network_domain) = created_network_domain {
-        if let Err(e) = ingress_provisioner.provision_domain(
-            &payload.tenant_name,
-            network_domain,
-            "network_instance",
-        ).await {
+        if let Err(e) = ingress_provisioner
+            .provision_domain(&payload.tenant_name, network_domain, "network_instance")
+            .await
+        {
             tracing::error!(
                 event       = "provision.ingress.failed",
                 tenant_slug = %payload.tenant_name,
@@ -518,7 +549,10 @@ pub async fn provision_tenant(
         .await
         .map_err(|(status, msg)| (status, Json(json!({ "message": msg }))))?;
 
-    let setup_url = format!("https://{}/setup-passkey?token={}", payload.domain, setup_token.token);
+    let setup_url = format!(
+        "https://{}/setup-passkey?token={}",
+        payload.domain, setup_token.token
+    );
 
     // Fire-and-forget setup email — do not block the response on email delivery
     {
@@ -544,7 +578,8 @@ pub async fn provision_tenant(
             let _ = crate::handlers::communications::send_email_handler(
                 axum::extract::State(db_clone),
                 axum::Json(email_payload),
-            ).await;
+            )
+            .await;
         });
     }
 
@@ -569,7 +604,9 @@ pub async fn provision_tenant(
                 &db_link,
                 &tenant_id_str,
                 Some(account_id_str.as_str()),
-            ).await {
+            )
+            .await
+            {
                 tracing::warn!(
                     event = "provision.link_account.failed",
                     tenant_id = %tenant_id_str,
@@ -586,10 +623,13 @@ pub async fn provision_tenant(
         });
     }
 
-    Ok((StatusCode::CREATED, Json(ProvisionTenantResponse {
-        tenant_id,
-        account_id,
-        domain: payload.domain,
-        setup_url,
-    })))
+    Ok((
+        StatusCode::CREATED,
+        Json(ProvisionTenantResponse {
+            tenant_id,
+            account_id,
+            domain: payload.domain,
+            setup_url,
+        }),
+    ))
 }

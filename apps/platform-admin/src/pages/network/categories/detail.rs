@@ -1,3 +1,6 @@
+use crate::api::categories::get_categories;
+use crate::api::listings::get_listings;
+use crate::api::templates::get_templates;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
@@ -6,9 +9,6 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::categories::get_categories;
-use crate::api::templates::get_templates;
-use crate::api::listings::get_listings;
 
 #[component]
 pub fn CategoryDetail() -> impl IntoView {
@@ -20,7 +20,9 @@ pub fn CategoryDetail() -> impl IntoView {
     let cats_res = LocalResource::new(move || {
         let id = cat_id.get();
         async move {
-            get_categories(None).await.unwrap_or_default()
+            get_categories(None)
+                .await
+                .unwrap_or_default()
                 .into_iter()
                 .filter(|c| c.parent_category_id.as_deref() == Some(id.as_str()))
                 .collect::<Vec<_>>()
@@ -31,7 +33,9 @@ pub fn CategoryDetail() -> impl IntoView {
     let tpls_res = LocalResource::new(move || {
         let id = cat_id.get();
         async move {
-            get_templates().await.unwrap_or_default()
+            get_templates()
+                .await
+                .unwrap_or_default()
                 .into_iter()
                 .filter(|t| t.category_id == id)
                 .collect::<Vec<_>>()
@@ -41,9 +45,7 @@ pub fn CategoryDetail() -> impl IntoView {
     // Listings in this category (using cat_id as network_id filter)
     let lsts_res = LocalResource::new(move || {
         let id = cat_id.get();
-        async move {
-            get_listings(&id).await.unwrap_or_default()
-        }
+        async move { get_listings(&id).await.unwrap_or_default() }
     });
 
     view! {
@@ -66,7 +68,7 @@ pub fn CategoryDetail() -> impl IntoView {
                     <Button variant=ButtonVariant::Outline>"Edit Data"</Button>
                 </div>
             </header>
-            
+
             <div class="grid grid-cols-1 gap-6">
                 <RelatedList
                     title="Sub-Categories".to_string()

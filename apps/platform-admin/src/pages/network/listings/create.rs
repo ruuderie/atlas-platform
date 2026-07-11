@@ -1,9 +1,9 @@
+use crate::api::listings::create_listing;
+use crate::api::models::{ListingCreate, PlatformAppModel, UserInfo};
+use crate::app::GlobalToast;
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
-use crate::api::models::{ListingCreate, PlatformAppModel, UserInfo};
-use crate::api::listings::create_listing;
-use crate::app::GlobalToast;
 
 #[component]
 pub fn ListingCreate() -> impl IntoView {
@@ -54,7 +54,11 @@ pub fn ListingCreate() -> impl IntoView {
                     nav("/listings", Default::default());
                 }
                 Err(e) => {
-                    toast.show_toast("Error", &format!("Failed to create listing: {}", e), "error");
+                    toast.show_toast(
+                        "Error",
+                        &format!("Failed to create listing: {}", e),
+                        "error",
+                    );
                 }
             }
             set_is_submitting.set(false);
@@ -68,7 +72,7 @@ pub fn ListingCreate() -> impl IntoView {
                 <h2 class="text-3xl font-bold tracking-tight text-foreground">"Create Listing"</h2>
                 <p class="text-muted-foreground mt-2">"Publish a new listing and assign it to a network network."</p>
             </header>
-            
+
             <Card class="p-8 bg-card border border-border shadow-sm".to_string()>
                 <form class="space-y-6" on:submit=handle_submit>
                     <div class="space-y-2 flex flex-col">
@@ -110,7 +114,7 @@ pub fn ListingCreate() -> impl IntoView {
                                 <option value="Real Estate">"Real Estate"</option>
                             </select>
                         </div>
-                        
+
                         <div class="space-y-2 flex flex-col">
                             <label class="text-sm font-medium text-foreground">"Assign to Network"</label>
                             <select

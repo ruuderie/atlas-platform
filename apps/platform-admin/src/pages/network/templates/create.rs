@@ -1,6 +1,6 @@
-use leptos::prelude::*;
-use crate::app::GlobalToast;
 use crate::api::categories::get_categories;
+use crate::app::GlobalToast;
+use leptos::prelude::*;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
 #[component]
@@ -8,25 +8,24 @@ pub fn TemplateCreate() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
     let toast = use_context::<GlobalToast>().expect("GlobalToast not found");
 
-    let name          = RwSignal::new(String::new());
-    let description   = RwSignal::new(String::new());
+    let name = RwSignal::new(String::new());
+    let description = RwSignal::new(String::new());
     let template_type = RwSignal::new("General".to_string());
-    let is_active     = RwSignal::new(true);
-    let category_id   = RwSignal::new(String::new()); // set from picker
+    let is_active = RwSignal::new(true);
+    let category_id = RwSignal::new(String::new()); // set from picker
 
     // Load real categories so the user can pick one
-    let categories_res = LocalResource::new(|| async move {
-        get_categories(None).await.unwrap_or_default()
-    });
+    let categories_res =
+        LocalResource::new(|| async move { get_categories(None).await.unwrap_or_default() });
 
     let submit_action = Action::new_local(move |_: &()| {
-        let n  = name.get();
-        let d  = description.get();
+        let n = name.get();
+        let d = description.get();
         let tt = template_type.get();
-        let a  = is_active.get();
+        let a = is_active.get();
         let cid = category_id.get();
 
-        let t   = toast.clone();
+        let t = toast.clone();
         let nav = navigate.clone();
 
         async move {
@@ -39,7 +38,7 @@ pub fn TemplateCreate() -> impl IntoView {
                 return;
             }
 
-            use crate::api::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+            use crate::api::client::{ApiErrorResponse, api_url, create_client, with_credentials};
             use serde_json::json;
 
             // CreateTemplate: { name, description, template_type, is_active, category_id, tenant_id }
@@ -54,13 +53,16 @@ pub fn TemplateCreate() -> impl IntoView {
             });
 
             let client = create_client();
-            let url    = api_url("/api/admin/templates");
-            let req    = with_credentials(client.post(&url).json(&payload));
+            let url = api_url("/api/admin/templates");
+            let req = with_credentials(client.post(&url).json(&payload));
 
             match req.send().await {
                 Ok(res) if res.status().is_success() => {
                     t.show_toast("Success", "Template created.", "success");
-                    nav("/network/templates", leptos_router::NavigateOptions::default());
+                    nav(
+                        "/network/templates",
+                        leptos_router::NavigateOptions::default(),
+                    );
                 }
                 Ok(res) => {
                     if let Ok(err) = res.json::<ApiErrorResponse>().await {

@@ -1,8 +1,8 @@
-use leptos::prelude::*;
-use leptos::ev;
-use ev::KeyboardEvent;
-use crate::api::search::search_global;
 use crate::api::models::SearchResult;
+use crate::api::search::search_global;
+use ev::KeyboardEvent;
+use leptos::ev;
+use leptos::prelude::*;
 use uuid::Uuid;
 
 #[component]
@@ -54,7 +54,7 @@ pub fn Omnibar() -> impl IntoView {
             "Listing" => format!("/network/listings/{}", entity_id),
             "Deal" => format!("/crm/deal/{}", entity_id),
             "Network" => format!("/apps/{}", entity_id),
-            _ => "#".to_string()
+            _ => "#".to_string(),
         }
     };
 
@@ -64,7 +64,7 @@ pub fn Omnibar() -> impl IntoView {
             "Listing" => "store",
             "Deal" => "handshake",
             "Network" => "schema",
-            _ => "search"
+            _ => "search",
         }
     };
 
@@ -74,7 +74,7 @@ pub fn Omnibar() -> impl IntoView {
                  on:click=move |_| set_is_open.set(false)
             >
                 <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-                
+
                 <div class="relative w-full max-w-2xl bg-[#06122d]/90 backdrop-blur-xl border border-[#7bd0ff]/20 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden flex flex-col"
                      on:click=move |e| e.stop_propagation()
                 >
@@ -109,7 +109,7 @@ pub fn Omnibar() -> impl IntoView {
                                     let icon = map_entity_icon(&res.entity_type);
                                     let title = res.metadata.get("title").and_then(|v: &serde_json::Value| v.as_str()).unwrap_or("Unknown").to_string();
                                     let subtitle = res.metadata.get("subtitle").and_then(|v: &serde_json::Value| v.as_str()).unwrap_or(&res.entity_type).to_string();
-                                    
+
                                     view! {
                                         <a href=url class="flex items-center px-4 py-3 hover:bg-[#7bd0ff]/10 transition-colors group" on:click=move |_| set_is_open.set(false)>
                                             <div class="w-10 h-10 rounded-lg bg-[#002867]/30 flex items-center justify-center mr-4 group-hover:bg-[#7bd0ff]/20">

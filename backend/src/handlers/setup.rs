@@ -1,27 +1,30 @@
 #![allow(dead_code)]
 use axum::{
-    extract::{Json, State, Extension},
+    Router,
+    extract::{Extension, Json, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, ColumnTrait, QueryFilter, ActiveModelTrait, Set, PaginatorTrait, TransactionTrait};
+use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    Set, TransactionTrait,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
-use chrono::Utc;
 
+use crate::auth::hash_password;
 use crate::entities::user;
 use crate::entities::{passkey, user_account};
-use crate::auth::hash_password;
-use crate::handlers::sessions::create_passwordless_session;
+use crate::handlers::communications::{SendEmailPayload, send_email_handler};
 use crate::handlers::passkeys::WebauthnState;
-use webauthn_rs::prelude::*;
-use once_cell::sync::Lazy;
+use crate::handlers::sessions::create_passwordless_session;
 use moka::future::Cache;
+use once_cell::sync::Lazy;
 use std::time::Duration;
-use crate::handlers::communications::{send_email_handler, SendEmailPayload};
+use webauthn_rs::prelude::*;
 
 #[derive(Serialize)]
 pub struct SetupStatusResponse {
@@ -62,7 +65,10 @@ pub async fn get_setup_status(
 ) -> Result<Json<SetupStatusResponse>, StatusCode> {
     // Admin status is now a role in user_account, not a field on the user entity.
     let admin_count = user_account::Entity::find()
-        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .filter(
+            user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .count(&db)
         .await
         .map_err(|e| {
@@ -85,48 +91,80 @@ pub async fn webauthn_start(
         if !expected_token.trim().is_empty() {
             let provided = req.init_token.clone().unwrap_or_default();
             if provided.is_empty() || provided != expected_token {
-                return Err((StatusCode::UNAUTHORIZED, Json(json!({ 
-                    "message": "Invalid or missing initialization token." 
-                }))));
+                return Err((
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "message": "Invalid or missing initialization token."
+                    })),
+                ));
             }
         }
     }
 
     // Check admin count via user_account role instead of the removed user.is_admin field.
     let admin_count = user_account::Entity::find()
-        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .filter(
+            user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .count(&db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() }))))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": e.to_string() })),
+            )
+        })?;
 
     if admin_count > 0 {
-        return Err((StatusCode::FORBIDDEN, Json(json!({ "message": "System is already initialized" }))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({ "message": "System is already initialized" })),
+        ));
     }
 
     let user_unique_id = Uuid::new_v4();
 
     // Use the platform's primary origin for the setup flow.
     // The setup endpoint is served from the admin origin which is seeded at startup.
-    let platform_origin = std::env::var("ANCHOR_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
-    let webauthn = webauthn_state.registry.get_or_create(&platform_origin).await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("WebAuthn registry error: {e}") }))))?;
+    let platform_origin =
+        std::env::var("ANCHOR_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let webauthn = webauthn_state
+        .registry
+        .get_or_create(&platform_origin)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": format!("WebAuthn registry error: {e}") })),
+            )
+        })?;
 
-    let (ccr, reg_state) = webauthn.start_passkey_registration(
-        user_unique_id,
-        req.email.as_str(),
-        req.email.as_str(),
-        None
-    ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("WebAuthn error: {:?}", e) }))))?;
+    let (ccr, reg_state) = webauthn
+        .start_passkey_registration(user_unique_id, req.email.as_str(), req.email.as_str(), None)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": format!("WebAuthn error: {:?}", e) })),
+            )
+        })?;
 
-    webauthn_state.reg_state.insert(user_unique_id, reg_state).await;
-    
-    SETUP_CACHE.insert(user_unique_id, SetupSessionPayload {
-        email: req.email,
-        first_name: req.first_name,
-        last_name: req.last_name,
-        init_token: req.init_token,
-    }).await;
+    webauthn_state
+        .reg_state
+        .insert(user_unique_id, reg_state)
+        .await;
+
+    SETUP_CACHE
+        .insert(
+            user_unique_id,
+            SetupSessionPayload {
+                email: req.email,
+                first_name: req.first_name,
+                last_name: req.last_name,
+                init_token: req.init_token,
+            },
+        )
+        .await;
 
     Ok(Json((user_unique_id, ccr)))
 }
@@ -142,38 +180,65 @@ pub async fn initialize_finish(
     Extension(webauthn_state): Extension<WebauthnState>,
     Json(req): Json<InitializeFinishRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    
-    let setup_payload = SETUP_CACHE.get(&req.session_id).await
-        .ok_or((StatusCode::BAD_REQUEST, Json(json!({ "message": "Setup session expired or invalid" }))))?;
+    let setup_payload = SETUP_CACHE.get(&req.session_id).await.ok_or((
+        StatusCode::BAD_REQUEST,
+        Json(json!({ "message": "Setup session expired or invalid" })),
+    ))?;
 
-    let reg_state = webauthn_state.reg_state.get(&req.session_id).await
-        .ok_or((StatusCode::BAD_REQUEST, Json(json!({ "message": "Registration challenge expired" }))))?;
+    let reg_state = webauthn_state.reg_state.get(&req.session_id).await.ok_or((
+        StatusCode::BAD_REQUEST,
+        Json(json!({ "message": "Registration challenge expired" })),
+    ))?;
 
     // Check admin count via user_account role.
     let admin_count = user_account::Entity::find()
-        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .filter(
+            user_account::Column::Role
+                .eq(crate::entities::user_account::UserRole::PlatformSuperAdmin),
+        )
         .count(&db)
         .await
         .unwrap_or(0);
     if admin_count > 0 {
-        return Err((StatusCode::FORBIDDEN, Json(json!({ "message": "System already initialized" }))));
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({ "message": "System already initialized" })),
+        ));
     }
 
     // Resolve the setup-flow Webauthn instance via the registry (same origin as webauthn_start).
-    let platform_origin = std::env::var("ANCHOR_ORIGIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
-    let webauthn = webauthn_state.registry.get_or_create(&platform_origin).await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("WebAuthn registry error: {e}") }))))?;
+    let platform_origin =
+        std::env::var("ANCHOR_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let webauthn = webauthn_state
+        .registry
+        .get_or_create(&platform_origin)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": format!("WebAuthn registry error: {e}") })),
+            )
+        })?;
 
-    let passkey_reg = webauthn.finish_passkey_registration(&req.webauthn_response, &reg_state)
-        .map_err(|e| (StatusCode::BAD_REQUEST, Json(json!({ "message": format!("Registration failed: {:?}", e) }))))?;
+    let passkey_reg = webauthn
+        .finish_passkey_registration(&req.webauthn_response, &reg_state)
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "message": format!("Registration failed: {:?}", e) })),
+            )
+        })?;
 
     let random_pwd = hash_password(&Uuid::new_v4().to_string()).unwrap();
 
     // Start transaction
-    let txn = db.begin().await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() }))))?;
-    
+    let txn = db.begin().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "message": e.to_string() })),
+        )
+    })?;
+
     // Create Admin user — is_admin removed from user entity; admin status tracked via user_account role.
     let new_user = user::ActiveModel {
         id: Set(req.session_id),
@@ -188,10 +253,15 @@ pub async fn initialize_finish(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
-    
+
     match new_user.insert(&txn).await {
-        Ok(_) => {},
-        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() })))),
+        Ok(_) => {}
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": e.to_string() })),
+            ));
+        }
     }
 
     // Grant PlatformSuperAdmin role — is_admin was removed from the user entity.
@@ -205,8 +275,13 @@ pub async fn initialize_finish(
         updated_at: Set(Utc::now()),
     };
     match platform_role.insert(&txn).await {
-        Ok(_) => {},
-        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() })))),
+        Ok(_) => {}
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": e.to_string() })),
+            ));
+        }
     }
 
     // Create Passkey
@@ -215,9 +290,12 @@ pub async fn initialize_finish(
         id: Set(Uuid::new_v4()),
         user_id: Set(req.session_id),
         credential_id: Set(credential_id.to_vec()),
-        public_key: Set(
-            serde_json::to_vec(&passkey_reg)
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("Passkey serialisation failed: {e}") }))))?),
+        public_key: Set(serde_json::to_vec(&passkey_reg).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": format!("Passkey serialisation failed: {e}") })),
+            )
+        })?),
         sign_count: Set(0),
         name: Set("System Admin Passkey".to_string()),
         last_used_at: Set(None),
@@ -226,29 +304,51 @@ pub async fn initialize_finish(
     };
 
     match passkey_model.insert(&txn).await {
-        Ok(_) => {},
-        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() })))),
+        Ok(_) => {}
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": e.to_string() })),
+            ));
+        }
     }
 
-    txn.commit().await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() }))))?;
+    txn.commit().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "message": e.to_string() })),
+        )
+    })?;
 
     webauthn_state.reg_state.invalidate(&req.session_id).await;
     SETUP_CACHE.invalidate(&req.session_id).await;
-    
-    tracing::info!("Created first system admin user and passkey: {}", req.session_id);
+
+    tracing::info!(
+        "Created first system admin user and passkey: {}",
+        req.session_id
+    );
 
     // Provide welcome session
     let session_response = create_passwordless_session(&db, &setup_payload.email)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Failed to auto-authenticate after initialization" }))))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "message": "Failed to auto-authenticate after initialization" })),
+            )
+        })?;
 
     // Auto-dispatch verification email to let them know it's fully active
-    let frontend_url = std::env::var("ADMIN_URL").unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
+    let frontend_url =
+        std::env::var("ADMIN_URL").unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
     let email_payload = SendEmailPayload {
         tenant_id: Uuid::nil(),
         to_email: setup_payload.email.clone(),
         subject: "Welcome to Atlas Platform!".to_string(),
-        body_html: format!("<h2>Atlas Platform Initialized</h2><p>Your administrator profile has been successfully generated and bound to your WebAuthn passkey.</p><br><a href=\"{0}/login\">Access the Platform</a>", frontend_url),
+        body_html: format!(
+            "<h2>Atlas Platform Initialized</h2><p>Your administrator profile has been successfully generated and bound to your WebAuthn passkey.</p><br><a href=\"{0}/login\">Access the Platform</a>",
+            frontend_url
+        ),
         attachments: Vec::new(),
     };
     let _ = send_email_handler(State(db.clone()), Json(email_payload)).await;

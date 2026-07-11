@@ -1,11 +1,11 @@
-use leptos::prelude::*;
 use crate::api::models::TemplateModel;
 use crate::api::templates::get_templates;
+use leptos::prelude::*;
 
 #[component]
 pub fn Templates() -> impl IntoView {
     let (templates, set_templates) = signal(Vec::<TemplateModel>::new());
-    
+
     Effect::new(move |_| {
         leptos::task::spawn_local(async move {
             if let Ok(data) = get_templates().await {

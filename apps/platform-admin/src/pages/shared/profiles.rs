@@ -1,11 +1,14 @@
+use crate::api::admin::{CreateInviteInput, create_invite};
+use crate::api::provision::{ProvisionAdminPayload, provision_admin};
 use leptos::prelude::*;
+use leptos_router::hooks::use_params_map;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
-use shared_ui::components::ui::table::{Table as DataTable, TableHeader as DataTableHeader, TableRow as DataTableRow, TableHead as DataTableHead, TableBody as DataTableBody, TableCell as DataTableCell};
-use leptos_router::hooks::use_params_map;
 use shared_ui::components::ui::label::Label;
-use crate::api::provision::{provision_admin, ProvisionAdminPayload};
-use crate::api::admin::{create_invite, CreateInviteInput};
+use shared_ui::components::ui::table::{
+    Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
+    TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
+};
 
 #[component]
 pub fn ProfilesPanel() -> impl IntoView {
@@ -16,16 +19,17 @@ pub fn ProfilesPanel() -> impl IntoView {
     let (show_invite, set_show_invite) = signal(false);
     let (show_provision, set_show_provision) = signal(false);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
-    
+
     let invite_email = RwSignal::new("".to_string());
-    
+
     let provision_email = RwSignal::new("".to_string());
     let provision_first_name = RwSignal::new("".to_string());
     let provision_last_name = RwSignal::new("".to_string());
     let is_provisioning = RwSignal::new(false);
     let provision_setup_url = RwSignal::new(None::<String>);
 
-    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>().expect("dirs context");
+    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>()
+        .expect("dirs context");
 
     let tenant_id_sig = Signal::derive(move || {
         let current_id = site_id();
@@ -42,7 +46,11 @@ pub fn ProfilesPanel() -> impl IntoView {
         let sid = site_id_str.clone();
         move || {
             let sid = sid.clone();
-            async move { crate::api::admin::get_users(uuid::Uuid::parse_str(&sid).ok()).await.unwrap_or_default() }
+            async move {
+                crate::api::admin::get_users(uuid::Uuid::parse_str(&sid).ok())
+                    .await
+                    .unwrap_or_default()
+            }
         }
     });
 
@@ -65,42 +73,54 @@ pub fn ProfilesPanel() -> impl IntoView {
                 target_app_url: None,
                 personal_message: None,
                 expires_days: Some(7),
-            }).await {
-                Ok(_) => t.show_toast("Invite Sent", &format!("Invite sent to {}.", email), "success"),
+            })
+            .await
+            {
+                Ok(_) => t.show_toast(
+                    "Invite Sent",
+                    &format!("Invite sent to {}.", email),
+                    "success",
+                ),
                 Err(e) => t.show_toast("Error", &format!("Invite failed: {e}"), "error"),
             }
         });
     };
 
     let handle_provision = move |_| {
-        if is_provisioning.get() { return; }
-        
+        if is_provisioning.get() {
+            return;
+        }
+
         let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
         let email = provision_email.get().trim().to_string();
         let first = provision_first_name.get().trim().to_string();
         let last = provision_last_name.get().trim().to_string();
-        
+
         if email.is_empty() || first.is_empty() || last.is_empty() {
             toast.show_toast("Validation", "All credentials are required.", "error");
             return;
         }
-        
+
         let t_id_opt = tenant_id_sig.get();
         if t_id_opt.is_none() {
-            toast.show_toast("Error", "Could not retrieve active Tenant ID context.", "error");
+            toast.show_toast(
+                "Error",
+                "Could not retrieve active Tenant ID context.",
+                "error",
+            );
             return;
         }
         let tenant_id = t_id_opt.unwrap();
-        
+
         is_provisioning.set(true);
         toast.show_toast("Provisioning", "Seeding tenant administrator...", "info");
-        
+
         let payload = ProvisionAdminPayload {
             email,
             first_name: first,
             last_name: last,
         };
-        
+
         leptos::task::spawn_local(async move {
             match provision_admin(tenant_id, payload).await {
                 Ok(res) => {
@@ -221,7 +241,7 @@ pub fn ProfilesPanel() -> impl IntoView {
                             set_show_provision.set(false);
                             provision_setup_url.set(None);
                         }>"✕"</button>
-                        
+
                         {move || if let Some(url) = provision_setup_url.get() {
                             view! {
                                 <div class="space-y-4">
@@ -233,10 +253,10 @@ pub fn ProfilesPanel() -> impl IntoView {
                                         "A secure, passwordless-first onboarding credential has been registered. Share the setup link below with the user."
                                     </p>
                                     <div class="space-y-2 mt-4">
-                                        <input 
-                                            type="text" 
-                                            value=url.clone() 
-                                            readonly=true 
+                                        <input
+                                            type="text"
+                                            value=url.clone()
+                                            readonly=true
                                             class="w-full bg-muted font-mono text-xs px-3 py-2 rounded border border-border outline-none select-all text-foreground"
                                         />
                                         <Button variant=ButtonVariant::Default class="w-full justify-center".to_string() on:click=move |_| {

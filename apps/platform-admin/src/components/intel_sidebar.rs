@@ -1,6 +1,6 @@
-use leptos::prelude::*;
 use crate::api::admin::get_ai_tasks;
 use crate::api::verification::get_verification_requests;
+use leptos::prelude::*;
 
 /// Right-column intelligence sidebar shown only on the Command Center (/).
 ///
@@ -9,11 +9,11 @@ use crate::api::verification::get_verification_requests;
 /// shows an explicit empty state rather than fake numbers.
 #[component]
 pub fn IntelSidebar() -> impl IntoView {
-    let tasks_res = LocalResource::new(|| async move {
-        get_ai_tasks().await.unwrap_or_default()
-    });
+    let tasks_res = LocalResource::new(|| async move { get_ai_tasks().await.unwrap_or_default() });
     let verification_res = LocalResource::new(|| async move {
-        get_verification_requests(None, None).await.unwrap_or_default()
+        get_verification_requests(None, None)
+            .await
+            .unwrap_or_default()
     });
 
     view! {

@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use crate::api::models::PlatformAppModel;
+use std::collections::BTreeMap;
 
 /// Groups a flat list of PlatformAppModels by their `tenant_id`.
 /// Returns a BTreeMap where:

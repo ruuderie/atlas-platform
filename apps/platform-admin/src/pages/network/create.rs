@@ -3,29 +3,29 @@ use leptos::prelude::*;
 #[component]
 pub fn NetworkCreate() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     // Wizard step state: 1 to 3
     let current_step = RwSignal::new(1);
-    
+
     // Inputs state
     let name = RwSignal::new("".to_string());
     let slug = RwSignal::new("".to_string());
     let domain = RwSignal::new("".to_string());
-    
+
     // Capabilities state
     let cap_ltr = RwSignal::new(true);
     let cap_str = RwSignal::new(false);
     let cap_vendor = RwSignal::new(true);
-    
+
     // Markets state
     let market_chi = RwSignal::new(true);
     let market_mia = RwSignal::new(false);
     let market_rio = RwSignal::new(false);
-    
+
     // Currency & templates
     let currency = RwSignal::new("USD".to_string());
     let template = RwSignal::new("standard".to_string());
-    
+
     // Seeding state
     let seed_categories = RwSignal::new(true);
     let seed_templates = RwSignal::new(true);
@@ -36,7 +36,11 @@ pub fn NetworkCreate() -> impl IntoView {
         if dir == 1 {
             if current == 1 {
                 if name.get().trim().is_empty() || slug.get().trim().is_empty() {
-                    toast.show_toast("Validation Error", "Please fill out the Network Name and Slug Path.", "error");
+                    toast.show_toast(
+                        "Validation Error",
+                        "Please fill out the Network Name and Slug Path.",
+                        "error",
+                    );
                     return;
                 }
             }
@@ -85,9 +89,9 @@ pub fn NetworkCreate() -> impl IntoView {
                 <div class=move || {
                     let active = current_step.get() == 1;
                     let completed = current_step.get() > 1;
-                    format!("flex items-center gap-2.5 {}", 
-                        if active { "text-primary font-bold" } 
-                        else if completed { "text-emerald-400 font-bold" } 
+                    format!("flex items-center gap-2.5 {}",
+                        if active { "text-primary font-bold" }
+                        else if completed { "text-emerald-400 font-bold" }
                         else { "text-on-surface-variant/60 font-medium" }
                     )
                 }>
@@ -105,13 +109,13 @@ pub fn NetworkCreate() -> impl IntoView {
                     <span class="text-xs">"Identity & Host"</span>
                 </div>
                 <div class=move || format!("flex-1 h-px mx-4 {}", if current_step.get() > 1 { "bg-primary" } else { "bg-outline-variant/20" })></div>
-                
+
                 <div class=move || {
                     let active = current_step.get() == 2;
                     let completed = current_step.get() > 2;
-                    format!("flex items-center gap-2.5 {}", 
-                        if active { "text-primary font-bold" } 
-                        else if completed { "text-emerald-400 font-bold" } 
+                    format!("flex items-center gap-2.5 {}",
+                        if active { "text-primary font-bold" }
+                        else if completed { "text-emerald-400 font-bold" }
                         else { "text-on-surface-variant/60 font-medium" }
                     )
                 }>
@@ -132,8 +136,8 @@ pub fn NetworkCreate() -> impl IntoView {
 
                 <div class=move || {
                     let active = current_step.get() == 3;
-                    format!("flex items-center gap-2.5 {}", 
-                        if active { "text-primary font-bold" } 
+                    format!("flex items-center gap-2.5 {}",
+                        if active { "text-primary font-bold" }
                         else { "text-on-surface-variant/60 font-medium" }
                     )
                 }>
@@ -158,8 +162,8 @@ pub fn NetworkCreate() -> impl IntoView {
                         <div class="space-y-6">
                             <div class="space-y-1.5">
                                 <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Network Instance Name"</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
                                     placeholder="e.g. London Luxury Stays"
                                     prop:value=name
@@ -170,8 +174,8 @@ pub fn NetworkCreate() -> impl IntoView {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"URL Slug Path"</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
                                         placeholder="e.g. london-luxury"
                                         prop:value=slug
@@ -181,8 +185,8 @@ pub fn NetworkCreate() -> impl IntoView {
                                 </div>
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Custom Domain (Optional)"</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
                                         placeholder="e.g. directory.londonluxury.com"
                                         prop:value=domain
@@ -199,16 +203,16 @@ pub fn NetworkCreate() -> impl IntoView {
                         <div class="space-y-6">
                             <div class="space-y-3">
                                 <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Supported Capabilities"</label>
-                                
+
                                 <div class="flex items-center justify-between bg-surface-container p-4 rounded-xl border border-outline-variant/20 hover:border-outline-variant/40 transition-colors">
                                     <div class="flex flex-col gap-0.5">
                                         <span class="text-xs font-bold text-on-surface">"Long-Term Rentals (LTR)"</span>
                                         <span class="text-[10px] text-on-surface-variant/70">"Enable landlord postings, standard leases, and applicant background checks."</span>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            class="sr-only peer" 
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only peer"
                                             prop:checked=cap_ltr
                                             on:change=move |ev| cap_ltr.set(event_target_checked(&ev))
                                         />
@@ -222,9 +226,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                         <span class="text-[10px] text-on-surface-variant/70">"Enable vacation rental listings, calendar bookings, and nights-based check-in."</span>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            class="sr-only peer" 
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only peer"
                                             prop:checked=cap_str
                                             on:change=move |ev| cap_str.set(event_target_checked(&ev))
                                         />
@@ -238,9 +242,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                         <span class="text-[10px] text-on-surface-variant/70">"Connect local service providers (plumbers, cleaning) for syndicated work orders."</span>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            class="sr-only peer" 
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only peer"
                                             prop:checked=cap_vendor
                                             on:change=move |ev| cap_vendor.set(event_target_checked(&ev))
                                         />
@@ -254,9 +258,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Served Markets"</label>
                                     <div class="grid grid-cols-3 gap-2">
                                         <label class="cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                class="sr-only peer" 
+                                            <input
+                                                type="checkbox"
+                                                class="sr-only peer"
                                                 prop:checked=market_chi
                                                 on:change=move |ev| market_chi.set(event_target_checked(&ev))
                                             />
@@ -265,9 +269,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                             </div>
                                         </label>
                                         <label class="cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                class="sr-only peer" 
+                                            <input
+                                                type="checkbox"
+                                                class="sr-only peer"
                                                 prop:checked=market_mia
                                                 on:change=move |ev| market_mia.set(event_target_checked(&ev))
                                             />
@@ -276,9 +280,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                             </div>
                                         </label>
                                         <label class="cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                class="sr-only peer" 
+                                            <input
+                                                type="checkbox"
+                                                class="sr-only peer"
                                                 prop:checked=market_rio
                                                 on:change=move |ev| market_rio.set(event_target_checked(&ev))
                                             />
@@ -291,7 +295,7 @@ pub fn NetworkCreate() -> impl IntoView {
 
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Primary Currency"</label>
-                                    <select 
+                                    <select
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         on:change=move |ev| currency.set(event_target_value(&ev))
                                     >
@@ -310,7 +314,7 @@ pub fn NetworkCreate() -> impl IntoView {
                         <div class="space-y-6">
                             <div class="space-y-1.5">
                                 <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Layout Template"</label>
-                                <select 
+                                <select
                                     class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                     on:change=move |ev| template.set(event_target_value(&ev))
                                 >
@@ -322,12 +326,12 @@ pub fn NetworkCreate() -> impl IntoView {
 
                             <div class="space-y-3">
                                 <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Default Seeding Packages"</label>
-                                
+
                                 <div class="bg-surface-container rounded-xl border border-outline-variant/20 overflow-hidden divide-y divide-outline-variant/10 text-xs">
                                     <label class="flex items-start gap-3 p-4 cursor-pointer hover:bg-surface-container-high/40 transition-colors">
-                                        <input 
-                                            type="checkbox" 
-                                            class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-0.5" 
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-0.5"
                                             prop:checked=seed_categories
                                             on:change=move |ev| seed_categories.set(event_target_checked(&ev))
                                         />
@@ -338,9 +342,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                     </label>
 
                                     <label class="flex items-start gap-3 p-4 cursor-pointer hover:bg-surface-container-high/40 transition-colors">
-                                        <input 
-                                            type="checkbox" 
-                                            class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-0.5" 
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-0.5"
                                             prop:checked=seed_templates
                                             on:change=move |ev| seed_templates.set(event_target_checked(&ev))
                                         />
@@ -351,9 +355,9 @@ pub fn NetworkCreate() -> impl IntoView {
                                     </label>
 
                                     <label class="flex items-start gap-3 p-4 cursor-pointer hover:bg-surface-container-high/40 transition-colors">
-                                        <input 
-                                            type="checkbox" 
-                                            class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-0.5" 
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4 mt-0.5"
                                             prop:checked=seed_demo
                                             on:change=move |ev| seed_demo.set(event_target_checked(&ev))
                                         />
@@ -370,13 +374,13 @@ pub fn NetworkCreate() -> impl IntoView {
 
                 // Wizard Footer
                 <div class="px-8 py-4 bg-surface-container-high/20 border-t border-outline-variant/20 flex justify-between items-center">
-                    <button 
+                    <button
                         class="btn btn-ghost"
                         on:click=move |_| move_step(-1)
                     >
                         {move || if current_step.get() == 1 { "Cancel" } else { "Back" }}
                     </button>
-                    <button 
+                    <button
                         class="btn btn-primary"
                         on:click=move |_| move_step(1)
                     >

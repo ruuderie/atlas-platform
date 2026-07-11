@@ -19,30 +19,33 @@ pub struct AiTaskItem {
 #[component]
 pub fn AiTasks() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     // Global Queue Pause state
     let queue_paused = RwSignal::new(false);
-    
+
     // Tasks list database state
     let tasks_trigger = RwSignal::new(0);
     let tasks_res = LocalResource::new(move || {
         tasks_trigger.get();
         async move {
             let list = crate::api::admin::get_ai_tasks().await.unwrap_or_default();
-            let items: Vec<AiTaskItem> = list.into_iter().map(|t| AiTaskItem {
-                id: t.id,
-                task_type: t.task_type,
-                entity: t.entity,
-                status: RwSignal::new(t.status),
-                status_class: RwSignal::new(t.status_class),
-                runtime: RwSignal::new(t.runtime),
-                tokens: RwSignal::new(t.tokens),
-                completed: RwSignal::new(t.completed),
-                model: t.model,
-                params: t.params,
-                initial_logs: t.initial_logs,
-                streamable: t.streamable,
-            }).collect();
+            let items: Vec<AiTaskItem> = list
+                .into_iter()
+                .map(|t| AiTaskItem {
+                    id: t.id,
+                    task_type: t.task_type,
+                    entity: t.entity,
+                    status: RwSignal::new(t.status),
+                    status_class: RwSignal::new(t.status_class),
+                    runtime: RwSignal::new(t.runtime),
+                    tokens: RwSignal::new(t.tokens),
+                    completed: RwSignal::new(t.completed),
+                    model: t.model,
+                    params: t.params,
+                    initial_logs: t.initial_logs,
+                    streamable: t.streamable,
+                })
+                .collect();
             items
         }
     });
@@ -61,17 +64,15 @@ pub fn AiTasks() -> impl IntoView {
     let search_query = RwSignal::new("".to_string());
     let selected_task_id = RwSignal::new(None::<String>);
     let detail_tab = RwSignal::new("console".to_string());
-    
+
     // Console log lines state (can append dynamically during streaming)
     let console_logs = RwSignal::new(Vec::<String>::new());
     let streaming_active = RwSignal::new(false);
-    
+
     // Find active selection item
     let selected_item = Signal::derive(move || {
         let sid = selected_task_id.get();
-        sid.and_then(|id| {
-            tasks_data.get().iter().find(|t| t.id == id).cloned()
-        })
+        sid.and_then(|id| tasks_data.get().iter().find(|t| t.id == id).cloned())
     });
 
     // Handle selection change
@@ -80,8 +81,8 @@ pub fn AiTasks() -> impl IntoView {
             selected_task_id.set(Some(task_id.clone()));
             console_logs.set(t.initial_logs.clone());
             detail_tab.set("console".to_string());
-            
-        // If the selected task is Running and streamable, poll the logs endpoint every 2s
+
+            // If the selected task is Running and streamable, poll the logs endpoint every 2s
             if t.status.get() == "Running" && t.streamable {
                 streaming_active.set(true);
                 let logs_signal = console_logs;
@@ -186,7 +187,11 @@ pub fn AiTasks() -> impl IntoView {
             }
             if count > 0 {
                 tasks_trigger.set(tasks_trigger.get() + 1);
-                t_toast.show_toast("Success", &format!("Re-enqueued {} failed tasks.", count), "success");
+                t_toast.show_toast(
+                    "Success",
+                    &format!("Re-enqueued {} failed tasks.", count),
+                    "success",
+                );
             } else {
                 t_toast.show_toast("Info", "No failed tasks found.", "info");
             }
@@ -197,15 +202,19 @@ pub fn AiTasks() -> impl IntoView {
     let filtered_tasks = Signal::derive(move || {
         let filter = active_filter.get();
         let query = search_query.get().to_lowercase();
-        
-        tasks_data.get().into_iter().filter(|t| {
-            let matches_status = filter == "all" || t.status.get() == filter;
-            let matches_query = query.is_empty() 
-                || t.id.to_lowercase().contains(&query)
-                || t.task_type.to_lowercase().contains(&query)
-                || t.entity.to_lowercase().contains(&query);
-            matches_status && matches_query
-        }).collect::<Vec<_>>()
+
+        tasks_data
+            .get()
+            .into_iter()
+            .filter(|t| {
+                let matches_status = filter == "all" || t.status.get() == filter;
+                let matches_query = query.is_empty()
+                    || t.id.to_lowercase().contains(&query)
+                    || t.task_type.to_lowercase().contains(&query)
+                    || t.entity.to_lowercase().contains(&query);
+                matches_status && matches_query
+            })
+            .collect::<Vec<_>>()
     });
 
     view! {
@@ -217,7 +226,7 @@ pub fn AiTasks() -> impl IntoView {
                     <p class="page-subtitle">"Background processor metrics, completions, and prompt logs · G-08"</p>
                 </div>
                 <div class="page-actions">
-                    <button 
+                    <button
                         on:click=toggle_pause
                         class=move || if queue_paused.get() { "btn btn-primary" } else { "btn btn-ghost" }
                     >
@@ -284,7 +293,7 @@ pub fn AiTasks() -> impl IntoView {
                             let active_cls = sid.clone();
                             let click_cls = sid.clone();
                             view! {
-                                <button 
+                                <button
                                     on:click=move |_| active_filter.set(click_cls.clone())
                                     class=move || if active_filter.get() == active_cls { "pill active" } else { "pill" }
                                 >
@@ -303,9 +312,9 @@ pub fn AiTasks() -> impl IntoView {
                 </div>
                 <div class="relative shrink-0 w-64">
                     <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/60 text-sm">"search"</span>
-                    <input 
-                        type="text" 
-                        placeholder="Search key, entity..." 
+                    <input
+                        type="text"
+                        placeholder="Search key, entity..."
                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-8 pr-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-on-surface-variant/40"
                         on:input=move |ev| search_query.set(event_target_value(&ev))
                         prop:value=search_query
@@ -445,19 +454,19 @@ pub fn AiTasks() -> impl IntoView {
             </div>
 
             // Sliding drawer details panel
-            <div 
+            <div
                 class=move || if selected_task_id.get().is_some() { "panel-backdrop open" } else { "panel-backdrop" }
                 on:click=move |_| selected_task_id.set(None)
                 style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s;"
             ></div>
-            <div 
+            <div
                 class=move || if selected_task_id.get().is_some() { "detail-panel open" } else { "detail-panel" }
                 style="position: fixed; top: 0; right: -560px; width: 560px; height: 100vh; background: var(--bg-surface); border-left: 1px solid rgba(255,255,255,0.08); z-index: 400; display: flex; flex-direction: column; transition: right 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94); overflow: hidden;"
             >
                 {move || selected_item.get().map(|item| {
                     let item_val = StoredValue::new(item);
                     let is_running = Signal::derive(move || item_val.with_value(|v| v.status.get() == "Running"));
-                    
+
                     view! {
                         <div class="panel-header" style="padding: 16px 20px 0; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
                             <div class="panel-header-top" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
@@ -465,19 +474,19 @@ pub fn AiTasks() -> impl IntoView {
                                     <div class="panel-title-text font-mono" style="font-size: 18px; font-weight: 700; color: #E8EAF0;">{item_val.with_value(|v| v.id.clone())}</div>
                                     <div class="panel-subtitle-text" style="font-size: 12.5px; color: #8B92A8; margin-top: 3px;">{item_val.with_value(|v| v.task_type.clone())} " · " {item_val.with_value(|v| v.entity.clone())}</div>
                                 </div>
-                                <button 
-                                    class="panel-close" 
+                                <button
+                                    class="panel-close"
                                     on:click=move |_| selected_task_id.set(None)
                                     style="width: 28px; height: 28px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); background: transparent; color: #525A72; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;"
                                 >
                                     "✕"
                                 </button>
                             </div>
-                            
+
                             <div class="panel-actions" style="display: flex; align-items: center; gap: 6px; padding-bottom: 12px;">
                                 {move || if is_running.get() {
                                     view! {
-                                        <button 
+                                        <button
                                             on:click=move |_| handle_abort(item_val.get_value())
                                             class="btn btn-danger btn-sm"
                                         >
@@ -486,7 +495,7 @@ pub fn AiTasks() -> impl IntoView {
                                     }.into_any()
                                 } else {
                                     view! {
-                                        <button 
+                                        <button
                                             on:click=move |_| handle_rerun(item_val.get_value())
                                             class="btn btn-primary btn-sm"
                                         >
@@ -497,13 +506,13 @@ pub fn AiTasks() -> impl IntoView {
                             </div>
 
                             <div class="tab-bar">
-                                <button 
+                                <button
                                     class=move || if detail_tab.get() == "console" { "tab active" } else { "tab" }
                                     on:click=move |_| detail_tab.set("console".to_string())
                                 >
                                     "Console Output Logs"
                                 </button>
-                                <button 
+                                <button
                                     class=move || if detail_tab.get() == "details" { "tab active" } else { "tab" }
                                     on:click=move |_| detail_tab.set("details".to_string())
                                 >
@@ -515,9 +524,9 @@ pub fn AiTasks() -> impl IntoView {
                         <div class="panel-content" style="flex: 1; overflow-y: auto; padding: 16px 20px;">
                             <Show when=move || detail_tab.get() == "console">
                                 <div class="terminal-box" style="background: #05070B; border: 1.5px solid rgba(255,255,255,0.14); border-radius: 6px; padding: 14px; font-family: monospace; font-size: 11.5px; color: #39FF14; line-height: 1.6; height: 320px; overflow-y: auto;">
-                                    <For 
-                                        each=move || console_logs.get() 
-                                        key=|line| line.clone() 
+                                    <For
+                                        each=move || console_logs.get()
+                                        key=|line| line.clone()
                                         children=move |line| {
                                             let cls = if line.contains("[SUCCESS]") { "text-emerald-400" }
                                                 else if line.contains("[WARNING]") { "text-amber-400" }
@@ -542,7 +551,7 @@ pub fn AiTasks() -> impl IntoView {
                             <Show when=move || detail_tab.get() == "details">
                                 <div class="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
                                     <div class="col-span-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2">"Execution Metadata"</div>
-                                    
+
                                     <div class="space-y-1">
                                         <span class="text-xs text-on-surface-variant">"Model Context"</span>
                                         <p class="font-medium text-on-surface">{item_val.with_value(|v| v.model.clone())}</p>
@@ -559,7 +568,7 @@ pub fn AiTasks() -> impl IntoView {
                                         <span class="text-xs text-on-surface-variant">"Trigger Source"</span>
                                         <p class="font-medium text-on-surface">"OutboxWorker queue"</p>
                                     </div>
-                                    
+
                                     <div class="col-span-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2 mt-4">"Parameters"</div>
                                     <div class="col-span-2">
                                         <span class="text-xs text-on-surface-variant block mb-2">"JSON Payload"</span>

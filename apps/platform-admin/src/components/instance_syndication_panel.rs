@@ -5,8 +5,8 @@
 use leptos::prelude::*;
 
 use crate::api::syndication::{
-    list_syndication_links, list_syndication_offers, revoke_syndication_link,
-    create_syndication_link, CreateLinkInput,
+    CreateLinkInput, create_syndication_link, list_syndication_links, list_syndication_offers,
+    revoke_syndication_link,
 };
 
 // ── Active links for this specific instance ───────────────────────────────────
@@ -34,7 +34,11 @@ pub fn InstanceSyndicationPanel(instance_id: String) -> impl IntoView {
     let t1 = toast.clone();
     let handle_revoke = move |id: String, is_mandatory: bool| {
         if is_mandatory {
-            t1.show_toast("Cannot Revoke", "Mandatory links cannot be revoked on subsidised tiers.", "error");
+            t1.show_toast(
+                "Cannot Revoke",
+                "Mandatory links cannot be revoked on subsidised tiers.",
+                "error",
+            );
             return;
         }
         let t = t1.clone();
@@ -139,7 +143,9 @@ pub fn AvailableOffersPanel(instance_id: String) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let offers_res = LocalResource::new(move || async {
-        list_syndication_offers().await.unwrap_or_default()
+        list_syndication_offers()
+            .await
+            .unwrap_or_default()
             .into_iter()
             .filter(|o| o.self_service_allowed && !o.is_retired())
             .collect::<Vec<_>>()

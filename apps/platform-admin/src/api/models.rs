@@ -25,22 +25,32 @@ impl LaunchMode {
     /// Human-friendly label shown in the platform-admin UI.
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Active    => "Active",
-            Self::Waitlist  => "Waitlist",
-            Self::PreOrder  => "Pre-Order",
+            Self::Active => "Active",
+            Self::Waitlist => "Waitlist",
+            Self::PreOrder => "Pre-Order",
             Self::PreLaunch => "Pre-Launch",
-            Self::Draft     => "Draft",
+            Self::Draft => "Draft",
         }
     }
 
     /// Badge CSS class for the variants table.
     pub fn badge_class(&self) -> &'static str {
         match self {
-            Self::Active    => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-            Self::Waitlist  => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20",
-            Self::PreOrder  => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20",
-            Self::PreLaunch => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20",
-            Self::Draft     => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-outline-variant/20 text-on-surface-variant border border-outline-variant/20",
+            Self::Active => {
+                "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+            }
+            Self::Waitlist => {
+                "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"
+            }
+            Self::PreOrder => {
+                "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20"
+            }
+            Self::PreLaunch => {
+                "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20"
+            }
+            Self::Draft => {
+                "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-outline-variant/20 text-on-surface-variant border border-outline-variant/20"
+            }
         }
     }
 }
@@ -66,9 +76,9 @@ impl LocalizationStatus {
     pub fn badge_label(&self) -> Option<&'static str> {
         match self {
             Self::AiLocalized => Some("AI"),
-            Self::Manual      => Some("Manual"),
-            Self::Pending     => Some("Pending"),
-            Self::Base        => None,
+            Self::Manual => Some("Manual"),
+            Self::Pending => Some("Pending"),
+            Self::Base => None,
         }
     }
 
@@ -76,9 +86,9 @@ impl LocalizationStatus {
     pub fn badge_class(&self) -> Option<&'static str> {
         match self {
             Self::AiLocalized => Some("bg-violet-500/10 text-violet-400 border-violet-500/20"),
-            Self::Manual      => Some("bg-sky-500/10 text-sky-400 border-sky-500/20"),
-            Self::Pending     => Some("bg-amber-500/10 text-amber-400 border-amber-500/20"),
-            Self::Base        => None,
+            Self::Manual => Some("bg-sky-500/10 text-sky-400 border-sky-500/20"),
+            Self::Pending => Some("bg-amber-500/10 text-amber-400 border-amber-500/20"),
+            Self::Base => None,
         }
     }
 }
@@ -96,9 +106,9 @@ impl CopyStrategy {
     /// Human-friendly label shown in the variants table.
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Localized    => "Source Content",
-            Self::BaseCopy     => "Base Copy",
-            Self::AiGenerated  => "AI ✦ Auto-Trans",
+            Self::Localized => "Source Content",
+            Self::BaseCopy => "Base Copy",
+            Self::AiGenerated => "AI ✦ Auto-Trans",
         }
     }
 }
@@ -135,7 +145,6 @@ pub struct UserInfo {
     pub last_name: String,
     pub is_admin: bool,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionResponse {
@@ -248,14 +257,14 @@ impl AccountType {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Organization => "Org",
-            Self::Individual   => "Ind.",
+            Self::Individual => "Ind.",
         }
     }
 
     pub fn badge_class(&self) -> &'static str {
         match self {
             Self::Organization => "tag tag-org",
-            Self::Individual   => "tag tag-ind",
+            Self::Individual => "tag tag-ind",
         }
     }
 
@@ -278,18 +287,18 @@ pub enum AccountStatus {
 impl AccountStatus {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Active    => "Active",
-            Self::Prospect  => "Prospect",
+            Self::Active => "Active",
+            Self::Prospect => "Prospect",
             Self::Suspended => "Suspended",
-            Self::Archived  => "Archived",
+            Self::Archived => "Archived",
         }
     }
 
     /// Returns the CSS custom-property color for the status dot / value.
     pub fn color(&self) -> &'static str {
         match self {
-            Self::Active              => "var(--green)",
-            Self::Prospect            => "var(--amber)",
+            Self::Active => "var(--green)",
+            Self::Prospect => "var(--amber)",
             Self::Suspended | Self::Archived => "var(--red)",
         }
     }
@@ -301,40 +310,40 @@ impl AccountStatus {
 /// the same snake_case string representation used by the backend handler.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AccountModel {
-    pub id:               String,
-    pub name:             String,
-    pub account_type:     AccountType,
-    pub status:           AccountStatus,
+    pub id: String,
+    pub name: String,
+    pub account_type: AccountType,
+    pub status: AccountStatus,
 
     // Identity
-    pub dba_name:         Option<String>,
-    pub website:          Option<String>,
-    pub domain:           Option<String>,
+    pub dba_name: Option<String>,
+    pub website: Option<String>,
+    pub domain: Option<String>,
 
     // Company contact channels
-    pub company_phone:    Option<String>,
-    pub company_email:    Option<String>,
+    pub company_phone: Option<String>,
+    pub company_email: Option<String>,
 
     // Firmographics
-    pub industry:         Option<String>,
-    pub company_type:     Option<String>,  // "public" | "private" | "government" | "nonprofit"
-    pub num_employees:    Option<i32>,
-    pub annual_revenue:   Option<f64>,
+    pub industry: Option<String>,
+    pub company_type: Option<String>, // "public" | "private" | "government" | "nonprofit"
+    pub num_employees: Option<i32>,
+    pub annual_revenue: Option<f64>,
     pub year_established: Option<i16>,
 
     // Address
-    pub street_address:   Option<String>,
-    pub city:             Option<String>,
-    pub state:            Option<String>,
-    pub postal_code:      Option<String>,
-    pub country:          Option<String>,
+    pub street_address: Option<String>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub postal_code: Option<String>,
+    pub country: Option<String>,
 
     // Import attribution
-    pub data_source:      Option<String>,
+    pub data_source: Option<String>,
 
     // Timestamps
-    pub created_at:       Option<String>,
-    pub updated_at:       Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 /// Lightweight account record for the platform admin CRM account search picker
@@ -342,10 +351,10 @@ pub struct AccountModel {
 /// clients page does not need to pull the full firmographic payload.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AccountSummary {
-    pub id:         String,
-    pub name:       String,
-    pub is_active:  bool,
-    pub tenant_id:  String,
+    pub id: String,
+    pub name: String,
+    pub is_active: bool,
+    pub tenant_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -577,45 +586,46 @@ pub struct TenantSettingResponse {
 /// MillionVerifier; they are read-only from the UI.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ContactModel {
-    pub id:              String,
-    pub account_id:      String,
+    pub id: String,
+    pub account_id: String,
 
     // Name
-    pub first_name:      Option<String>,
-    pub last_name:       Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     /// Server-derived display name — first + last, or full_name if set directly
-    pub full_name:       Option<String>,
-    pub preferred_name:  Option<String>,
+    pub full_name: Option<String>,
+    pub preferred_name: Option<String>,
 
     // Professional context
-    pub title:           Option<String>,
-    pub department:      Option<String>,
-    pub is_primary:      bool,
+    pub title: Option<String>,
+    pub department: Option<String>,
+    pub is_primary: bool,
 
     // Contact channels
-    pub email:           Option<String>,
-    pub email_verified:  bool,
-    pub phone:           Option<String>,
-    pub phone_verified:  bool,
-    pub whatsapp:        Option<String>,
-    pub telegram:        Option<String>,
-    pub linkedin_url:    Option<String>,
-    pub twitter:         Option<String>,
-    pub instagram:       Option<String>,
-    pub avatar_url:      Option<String>,
+    pub email: Option<String>,
+    pub email_verified: bool,
+    pub phone: Option<String>,
+    pub phone_verified: bool,
+    pub whatsapp: Option<String>,
+    pub telegram: Option<String>,
+    pub linkedin_url: Option<String>,
+    pub twitter: Option<String>,
+    pub instagram: Option<String>,
+    pub avatar_url: Option<String>,
 
     // Import attribution
-    pub data_source:     Option<String>,
+    pub data_source: Option<String>,
 
     // Timestamps
-    pub created_at:      Option<String>,
-    pub updated_at:      Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 /// Convenience accessor — returns the best available display name.
 impl ContactModel {
     pub fn display_name(&self) -> &str {
-        self.full_name.as_deref()
+        self.full_name
+            .as_deref()
             .or(self.preferred_name.as_deref())
             .or(self.first_name.as_deref())
             .unwrap_or("Unnamed Contact")
@@ -624,20 +634,19 @@ impl ContactModel {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateContact {
-    pub first_name:   Option<String>,
-    pub last_name:    Option<String>,
-    pub full_name:    Option<String>,
-    pub title:        Option<String>,
-    pub department:   Option<String>,
-    pub email:        Option<String>,
-    pub phone:        Option<String>,
-    pub whatsapp:     Option<String>,
-    pub telegram:     Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub full_name: Option<String>,
+    pub title: Option<String>,
+    pub department: Option<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub whatsapp: Option<String>,
+    pub telegram: Option<String>,
     pub linkedin_url: Option<String>,
     /// atlas_accounts.id — required for all new contacts
-    pub account_id:   Option<String>,
+    pub account_id: Option<String>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrmNote {
@@ -813,7 +822,6 @@ pub struct VerificationRequestModel {
     pub rejection_reason: Option<String>,
 }
 
-
 // ==== TENANT / PLATFORM ADMIN REGISTRY ====
 
 /// Returned by `GET /api/admin/tenant-stats` (one row per tenant).
@@ -839,23 +847,23 @@ pub struct TenantStatModel {
 /// Returned by `GET /api/admin/platform/apps` (one row per app instance).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformAppSummary {
-    pub tenant_id:           String,
-    pub instance_id:         String,
-    pub name:                String,
-    pub app_type:            String,
-    pub domain:              String,
+    pub tenant_id: String,
+    pub instance_id: String,
+    pub name: String,
+    pub app_type: String,
+    pub domain: String,
     /// "standard" | "internal_operator". Defaults to "standard" when no deployment config exists.
-    pub mode:                String,
+    pub mode: String,
     /// From deployment config instance_status, falls back to tenant.site_status.
-    pub site_status:         String,
-    pub description:         String,
+    pub site_status: String,
+    pub description: String,
     /// Set when the operator links this deployment to a CRM Account. Enables "View Account" action.
     pub platform_account_id: Option<String>,
     /// For InternalOperator instances: "demo" | "test" | "staging" | "managed_service".
-    pub purpose:             Option<String>,
+    pub purpose: Option<String>,
     /// Live custom_domain from atlas_app_deployment_config. Takes precedence over `domain` for display.
     #[serde(default)]
-    pub custom_domain:       Option<String>,
+    pub custom_domain: Option<String>,
 }
 
 // ==== BILLING ====
@@ -1041,28 +1049,28 @@ pub struct AdminAbTestWithVariantsModel {
 /// Returned by `GET /api/admin/support/threads`.
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct SupportThreadSummary {
-    pub id:              String,
-    pub tenant_id:       String,
-    pub entity_id:       String,   // submitting user's ID
-    pub is_active:       bool,
-    pub created_at:      String,
-    pub last_message:    Option<String>,
-    pub last_at:         Option<String>,
-    pub message_count:   u64,
-    pub submitter_name:  Option<String>,
+    pub id: String,
+    pub tenant_id: String,
+    pub entity_id: String, // submitting user's ID
+    pub is_active: bool,
+    pub created_at: String,
+    pub last_message: Option<String>,
+    pub last_at: Option<String>,
+    pub message_count: u64,
+    pub submitter_name: Option<String>,
     pub submitter_email: Option<String>,
 }
 
 /// A single message in a support thread.
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct SupportMessageRow {
-    pub id:             String,
+    pub id: String,
     pub sender_user_id: Option<String>,
-    pub sender_name:    Option<String>,
-    pub message_type:   String,   // "text" | "system" | "operator_reply"
-    pub content:        String,
-    pub created_at:     String,
-    pub is_operator:    bool,
+    pub sender_name: Option<String>,
+    pub message_type: String, // "text" | "system" | "operator_reply"
+    pub content: String,
+    pub created_at: String,
+    pub is_operator: bool,
 }
 
 /// Full detail for one support thread, including message history.
@@ -1070,16 +1078,16 @@ pub struct SupportMessageRow {
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct SupportThreadDetail {
     // Flattened fields from ThreadSummary
-    pub id:              String,
-    pub tenant_id:       String,
-    pub entity_id:       String,
-    pub is_active:       bool,
-    pub created_at:      String,
-    pub last_message:    Option<String>,
-    pub last_at:         Option<String>,
-    pub message_count:   u64,
-    pub submitter_name:  Option<String>,
+    pub id: String,
+    pub tenant_id: String,
+    pub entity_id: String,
+    pub is_active: bool,
+    pub created_at: String,
+    pub last_message: Option<String>,
+    pub last_at: Option<String>,
+    pub message_count: u64,
+    pub submitter_name: Option<String>,
     pub submitter_email: Option<String>,
     // Thread messages
-    pub messages:        Vec<SupportMessageRow>,
+    pub messages: Vec<SupportMessageRow>,
 }

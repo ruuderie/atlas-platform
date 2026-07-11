@@ -14,7 +14,7 @@ pub fn Integrations() -> impl IntoView {
     let selected_delivery_id = RwSignal::new(None::<String>);
     let refetch_trigger = RwSignal::new(0);
     let panel_tab = RwSignal::new("payload".to_string());
-    
+
     // Modal states
     let show_key_modal = RwSignal::new(false);
     let show_revoke_modal = RwSignal::new(None::<String>);
@@ -48,14 +48,16 @@ pub fn Integrations() -> impl IntoView {
         }
     });
 
-
-
     // Helper: test single integration connection
     let handle_test_connection = move |service: &'static str| {
         let t = toast.clone();
         leptos::task::spawn_local(async move {
             gloo_timers::future::TimeoutFuture::new(600).await;
-            t.show_toast("Success", &format!("{} connection test successful.", service.to_uppercase()), "success");
+            t.show_toast(
+                "Success",
+                &format!("{} connection test successful.", service.to_uppercase()),
+                "success",
+            );
         });
     };
 
@@ -70,13 +72,20 @@ pub fn Integrations() -> impl IntoView {
         let tenant = active_network.get();
         let scope = new_key_scope.get();
         let t_toast = toast.clone();
-        
+
         leptos::task::spawn_local(async move {
             if let Some(tenant_id) = tenant {
                 // Perform real API call
                 let name = new_key_name.get();
-                let name = if name.trim().is_empty() { "API Key".to_string() } else { name };
-                let req = CreateApiTokenRequest { name, scopes: vec![scope] };
+                let name = if name.trim().is_empty() {
+                    "API Key".to_string()
+                } else {
+                    name
+                };
+                let req = CreateApiTokenRequest {
+                    name,
+                    scopes: vec![scope],
+                };
                 match create_api_token(tenant_id, req).await {
                     Ok(resp) => {
                         generated_secret_key.set(Some(resp.secret));
@@ -96,13 +105,17 @@ pub fn Integrations() -> impl IntoView {
         let tenant = active_network.get();
         let t_toast = toast.clone();
         let target_id = id.clone();
-        
+
         leptos::task::spawn_local(async move {
             if let Some(tenant_id) = tenant {
                 if let Ok(parsed_id) = Uuid::parse_str(&target_id) {
                     match revoke_api_token(tenant_id, parsed_id).await {
                         Ok(_) => {
-                            t_toast.show_toast("Success", "Credential revoked successfully.", "success");
+                            t_toast.show_toast(
+                                "Success",
+                                "Credential revoked successfully.",
+                                "success",
+                            );
                             refetch_trigger.update(|v| *v += 1);
                         }
                         Err(e) => t_toast.show_toast("Error", &format!("Failed: {}", e), "error"),
@@ -115,14 +128,12 @@ pub fn Integrations() -> impl IntoView {
         });
     };
 
-
-
     let selected_delivery = Signal::derive(move || {
         let sid = selected_delivery_id.get();
         sid.and_then(|id| {
-            webhooks_res.get().and_then(|deliveries| {
-                deliveries.into_iter().find(|w| w.id.to_string() == id)
-            })
+            webhooks_res
+                .get()
+                .and_then(|deliveries| deliveries.into_iter().find(|w| w.id.to_string() == id))
         })
     });
 
@@ -135,7 +146,7 @@ pub fn Integrations() -> impl IntoView {
                 <p class="page-subtitle">"Manage platform-wide API connections and webhook dispatch systems"</p>
             </div>
             <div class="page-actions">
-                <button 
+                <button
                     on:click=move |_| {
                         new_key_name.set(String::new());
                         new_key_scope.set("read:leads".to_string());
@@ -183,19 +194,19 @@ pub fn Integrations() -> impl IntoView {
 
         // Tabs
         <div class="tab-bar">
-            <button 
+            <button
                 class=move || if active_tab.get() == "services" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("services".to_string())
             >
                 "Platform Services"
             </button>
-            <button 
+            <button
                 class=move || if active_tab.get() == "webhooks" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("webhooks".to_string())
             >
                 "Webhook Logs"
             </button>
-            <button 
+            <button
                 class=move || if active_tab.get() == "credentials" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("credentials".to_string())
             >
@@ -359,7 +370,7 @@ pub fn Integrations() -> impl IntoView {
                                                 <td><span class="tag tag-ok">"Active"</span></td>
                                                 <td class="muted">{key.created_at.clone().unwrap_or_else(|| "-".to_string())}</td>
                                                 <td>
-                                                    <button 
+                                                    <button
                                                         on:click=move |_| show_revoke_modal.set(Some(kid_clone.clone()))
                                                         class="btn btn-ghost btn-sm"
                                                         style="color:var(--red)"
@@ -385,11 +396,11 @@ pub fn Integrations() -> impl IntoView {
         </Show>
 
         // Webhook detail panel overlay drawer
-        <div 
+        <div
             class=move || if selected_delivery_id.get().is_some() { "panel-backdrop open" } else { "panel-backdrop" }
             on:click=move |_| selected_delivery_id.set(None)
         ></div>
-        <div 
+        <div
             class=move || if selected_delivery_id.get().is_some() { "detail-panel open" } else { "detail-panel" }
         >
             {move || selected_delivery.get().map(|evt| {
@@ -476,7 +487,7 @@ pub fn Integrations() -> impl IntoView {
                 <div class="bg-surface w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
                     <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_key_modal.set(false)>"✕"</button>
                     <h3 class="text-xl font-semibold mb-2">"Generate Client API Credential"</h3>
-                    
+
                     <Show when=move || generated_secret_key.get().is_none() fallback=move || {
                         let key = generated_secret_key.get().unwrap_or_default();
                         view! {
@@ -484,7 +495,7 @@ pub fn Integrations() -> impl IntoView {
                                 <p class="text-xs text-on-surface-variant">"SAVE THIS SECRET KEY. IT WILL NOT BE SHOWN AGAIN."</p>
                                 <div class="flex items-center gap-2 bg-surface-dim p-3 rounded-lg border border-white/5 font-mono text-sm text-emerald-400 justify-between">
                                     <span class="truncate pr-4">{key.clone()}</span>
-                                    <button 
+                                    <button
                                         on:click=move |_| {
                                             let _ = web_sys::window().unwrap().navigator().clipboard().write_text(&key);
                                             toast.show_toast("Success", "Key copied to clipboard.", "success");
@@ -495,12 +506,12 @@ pub fn Integrations() -> impl IntoView {
                                     </button>
                                 </div>
                                 <div class="flex justify-end pt-2">
-                                    <button 
+                                    <button
                                         on:click=move |_| {
                                             show_key_modal.set(false);
                                             new_key_name.set(String::new());
                                             refetch_trigger.update(|v| *v += 1);
-                                        } 
+                                        }
                                         class="btn btn-primary"
                                     >
                                         "Done"
@@ -513,8 +524,8 @@ pub fn Integrations() -> impl IntoView {
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
                                 <div class="n-form-row">
                                     <label class="n-form-label">"Client Name"</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         class="n-form-input"
                                         placeholder="e.g. Ruud Ledger Exporter"
                                         prop:value=new_key_name
@@ -523,7 +534,7 @@ pub fn Integrations() -> impl IntoView {
                                 </div>
                                 <div class="n-form-row">
                                     <label class="n-form-label">"Scope Privilege Level"</label>
-                                    <select 
+                                    <select
                                         class="n-form-select"
                                         on:change=move |ev| new_key_scope.set(event_target_value(&ev))
                                     >
@@ -568,4 +579,3 @@ pub fn Integrations() -> impl IntoView {
         </div> // end main-canvas
     }
 }
-

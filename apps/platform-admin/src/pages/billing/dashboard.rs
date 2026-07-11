@@ -1,9 +1,9 @@
+use crate::api::admin::{get_all_transactions, get_billing_plans, get_tenant_stats};
+use crate::api::analytics::{get_billing_summary, get_business_kpis};
 use leptos::prelude::*;
-use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
+use shared_ui::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-use crate::api::admin::{get_billing_plans, get_all_transactions, get_tenant_stats};
-use crate::api::analytics::{get_billing_summary, get_business_kpis};
 
 #[component]
 pub fn BillingDashboard() -> impl IntoView {
@@ -36,7 +36,11 @@ pub fn BillingDashboard() -> impl IntoView {
 
     // Derived style helpers
     let tab_class = move |tab_id: &str| {
-        if active_tab.get() == tab_id { "tab active" } else { "tab" }
+        if active_tab.get() == tab_id {
+            "tab active"
+        } else {
+            "tab"
+        }
     };
 
     // ── Real data resources ──
@@ -45,8 +49,14 @@ pub fn BillingDashboard() -> impl IntoView {
     let billing_summary = LocalResource::new(move || async move {
         let _ = refresh.get();
         match get_billing_summary().await {
-            Ok(v) => { data_error.set(None); Some(v) }
-            Err(e) => { data_error.set(Some(format!("Billing summary: {}", e))); None }
+            Ok(v) => {
+                data_error.set(None);
+                Some(v)
+            }
+            Err(e) => {
+                data_error.set(Some(format!("Billing summary: {}", e)));
+                None
+            }
         }
     });
     let business_kpis = LocalResource::new(move || async move {
@@ -66,7 +76,6 @@ pub fn BillingDashboard() -> impl IntoView {
         get_tenant_stats().await.unwrap_or_default()
     });
 
-
     // Handle Form actions
     let handle_new_subscription = move |_| {
         let tenant = new_sub_tenant.get();
@@ -75,7 +84,10 @@ pub fn BillingDashboard() -> impl IntoView {
 
         toast.show_toast(
             "Success",
-            &format!("Subscription for {} ({}) on plan '{}' created.", tenant, product, plan),
+            &format!(
+                "Subscription for {} ({}) on plan '{}' created.",
+                tenant, product, plan
+            ),
             "success",
         );
         show_new_sub_modal.set(false);
@@ -86,11 +98,16 @@ pub fn BillingDashboard() -> impl IntoView {
         let amount = log_payment_amount.get();
         let reference = log_payment_ref.get();
 
-        if amount.is_empty() { return; }
+        if amount.is_empty() {
+            return;
+        }
 
         toast.show_toast(
             "Success",
-            &format!("Manual payment of ${} logged for {}. Ref: {}", amount, tenant, reference),
+            &format!(
+                "Manual payment of ${} logged for {}. Ref: {}",
+                amount, tenant, reference
+            ),
             "success",
         );
         log_payment_amount.set("".to_string());
@@ -102,7 +119,9 @@ pub fn BillingDashboard() -> impl IntoView {
         let tenant = exempt_tenant.get();
         let reason = exempt_reason.get();
 
-        if tenant.is_empty() { return; }
+        if tenant.is_empty() {
+            return;
+        }
 
         toast.show_toast(
             "Success",
@@ -758,4 +777,3 @@ pub fn BillingDashboard() -> impl IntoView {
         </div>
     }
 }
-

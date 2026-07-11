@@ -1,25 +1,21 @@
-use axum::{
-    extract::{State, Query},
-    http::StatusCode,
-    Json,
-};
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait,
-    QueryOrder, QuerySelect, sea_query::Expr, PaginatorTrait,
-};
-use serde::{Deserialize, Serialize};
 use crate::entities::{
-    platform_metrics_daily,
+    atlas_app_deployment_config, atlas_ledger_entry,
     atlas_subscription::{self, SubscriptionStatus},
-    user_account,
-    listing,
-    atlas_ledger_entry,
-    tenant,
-    atlas_app_deployment_config,
+    listing, platform_metrics_daily, tenant, user_account,
+};
+use axum::{
+    Json,
+    extract::{Query, State},
+    http::StatusCode,
 };
 use chrono::{NaiveDate, Utc};
 use moka::future::Cache;
 use once_cell::sync::Lazy;
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    QuerySelect, sea_query::Expr,
+};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 static ANALYTICS_CACHE: Lazy<Cache<String, String>> = Lazy::new(|| {
@@ -66,16 +62,15 @@ pub struct EngagementResponse {
 
 /// Sum a `platform_metrics_daily` metric key for a specific date (used for
 /// time-series KPIs that are pre-aggregated by the metrics pipeline).
-async fn fetch_daily_metric_sum(
-    db: &DatabaseConnection,
-    metric_key: &str,
-    date: NaiveDate,
-) -> f32 {
+async fn fetch_daily_metric_sum(db: &DatabaseConnection, metric_key: &str, date: NaiveDate) -> f32 {
     platform_metrics_daily::Entity::find()
         .filter(platform_metrics_daily::Column::MetricKey.eq(metric_key))
         .filter(platform_metrics_daily::Column::Date.eq(date))
         .select_only()
-        .column_as(Expr::col(platform_metrics_daily::Column::MetricValue).sum(), "sum")
+        .column_as(
+            Expr::col(platform_metrics_daily::Column::MetricValue).sum(),
+            "sum",
+        )
         .into_tuple::<Option<f32>>()
         .one(db)
         .await
@@ -108,7 +103,10 @@ pub async fn get_business_kpis(
     let yesterday = today.pred_opt().unwrap_or(today);
 
     // Current active subscription set
-    let active_subs: Vec<_> = all_subs.iter().filter(|s| s.status == SubscriptionStatus::Active).collect();
+    let active_subs: Vec<_> = all_subs
+        .iter()
+        .filter(|s| s.status == SubscriptionStatus::Active)
+        .collect();
     let active_count = active_subs.len() as f32;
 
     // MRR = sum of monthly price in dollars for all active subscriptions
@@ -126,7 +124,10 @@ pub async fn get_business_kpis(
     let net_cents: Option<i64> = atlas_ledger_entry::Entity::find()
         .filter(atlas_ledger_entry::Column::Status.eq("settled"))
         .select_only()
-        .column_as(Expr::col(atlas_ledger_entry::Column::NetAmountCents).sum(), "sum")
+        .column_as(
+            Expr::col(atlas_ledger_entry::Column::NetAmountCents).sum(),
+            "sum",
+        )
         .into_tuple::<Option<i64>>()
         .one(&db)
         .await
@@ -160,7 +161,9 @@ pub async fn get_business_kpis(
     };
 
     if let Ok(json_str) = serde_json::to_string(&response) {
-        ANALYTICS_CACHE.insert("business_kpis".to_string(), json_str).await;
+        ANALYTICS_CACHE
+            .insert("business_kpis".to_string(), json_str)
+            .await;
     }
 
     Ok(Json(response))
@@ -174,14 +177,16 @@ pub async fn get_engagement(
         .filter(user_account::Column::IsActive.eq(true))
         .count(&db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))? as f32;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        as f32;
 
     // Active listings
     let active_listings = listing::Entity::find()
         .filter(listing::Column::IsActive.eq(true))
         .count(&db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))? as f32;
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        as f32;
 
     Ok(Json(EngagementResponse {
         total_users: KpiData {
@@ -209,7 +214,10 @@ pub async fn get_trends(
         .filter(platform_metrics_daily::Column::Date.gte(cutoff_date))
         .select_only()
         .column(platform_metrics_daily::Column::Date)
-        .column_as(Expr::col(platform_metrics_daily::Column::MetricValue).sum(), "sum")
+        .column_as(
+            Expr::col(platform_metrics_daily::Column::MetricValue).sum(),
+            "sum",
+        )
         .group_by(platform_metrics_daily::Column::Date)
         .order_by_asc(platform_metrics_daily::Column::Date)
         .into_tuple()
@@ -271,11 +279,11 @@ pub async fn get_billing_summary(
 
     for sub in &all_subs {
         match sub.status {
-            SubscriptionStatus::Active    => active    += 1,
-            SubscriptionStatus::Trial     => trial     += 1,
-            SubscriptionStatus::PastDue   => grace     += 1,
+            SubscriptionStatus::Active => active += 1,
+            SubscriptionStatus::Trial => trial += 1,
+            SubscriptionStatus::PastDue => grace += 1,
             SubscriptionStatus::Suspended => suspended += 1,
-            SubscriptionStatus::Canceled  => canceled  += 1,
+            SubscriptionStatus::Canceled => canceled += 1,
         }
     }
 
@@ -293,7 +301,10 @@ pub async fn get_billing_summary(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let total_ledger = all_ledger.len();
-    let settled_count = all_ledger.iter().filter(|e| e.status == "settled" || e.status == "paid").count();
+    let settled_count = all_ledger
+        .iter()
+        .filter(|e| e.status == "settled" || e.status == "paid")
+        .count();
     let collection_success_rate = if total_ledger > 0 {
         (settled_count as f32 / total_ledger as f32) * 100.0
     } else {
@@ -330,11 +341,7 @@ pub async fn get_billing_summary(
             .map(|c| c.app_slug)
             .unwrap_or_else(|| "folio".to_string());
 
-        let lost_revenue = format!(
-            "${}.{:02}/mo",
-            sub.price_cents / 100,
-            sub.price_cents % 100,
-        );
+        let lost_revenue = format!("${}.{:02}/mo", sub.price_cents / 100, sub.price_cents % 100,);
         let reason = sub
             .billing_exemption_reason
             .clone()

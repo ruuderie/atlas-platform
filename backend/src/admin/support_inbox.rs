@@ -13,16 +13,16 @@
 //!   PUT  /api/admin/support/threads/{id}/close  — mark thread closed
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post, put},
-    Router,
 };
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    Order, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, Order,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -33,10 +33,10 @@ use crate::entities::{atlas_ws_message, atlas_ws_room, user};
 
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/admin/support/threads",             get(list_threads))
-        .route("/api/admin/support/threads/{id}",        get(get_thread))
-        .route("/api/admin/support/threads/{id}/reply",  post(reply_thread))
-        .route("/api/admin/support/threads/{id}/close",  put(close_thread))
+        .route("/api/admin/support/threads", get(list_threads))
+        .route("/api/admin/support/threads/{id}", get(get_thread))
+        .route("/api/admin/support/threads/{id}/reply", post(reply_thread))
+        .route("/api/admin/support/threads/{id}/close", put(close_thread))
 }
 
 // ── Query params ──────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
 struct ListQuery {
     /// "open" | "closed" | "all" (default: "open")
     status: Option<String>,
-    limit:  Option<u64>,
+    limit: Option<u64>,
     offset: Option<u64>,
 }
 
@@ -53,36 +53,36 @@ struct ListQuery {
 
 #[derive(Debug, Serialize)]
 struct ThreadSummary {
-    id:              Uuid,
-    tenant_id:       Uuid,
+    id: Uuid,
+    tenant_id: Uuid,
     /// The submitting user's ID (stored as entity_id on the room)
-    entity_id:       Uuid,
-    is_active:       bool,
-    created_at:      DateTime<Utc>,
-    last_message:    Option<String>,
-    last_at:         Option<DateTime<Utc>>,
-    message_count:   u64,
-    submitter_name:  Option<String>,
+    entity_id: Uuid,
+    is_active: bool,
+    created_at: DateTime<Utc>,
+    last_message: Option<String>,
+    last_at: Option<DateTime<Utc>>,
+    message_count: u64,
+    submitter_name: Option<String>,
     submitter_email: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 struct ThreadDetail {
     #[serde(flatten)]
-    summary:  ThreadSummary,
+    summary: ThreadSummary,
     messages: Vec<MessageRow>,
 }
 
 #[derive(Debug, Serialize, Clone)]
 struct MessageRow {
-    id:             Uuid,
+    id: Uuid,
     sender_user_id: Option<Uuid>,
-    sender_name:    Option<String>,
+    sender_name: Option<String>,
     /// "text" | "system" | "operator_reply"
-    message_type:   String,
-    content:        String,
-    created_at:     DateTime<Utc>,
-    is_operator:    bool,
+    message_type: String,
+    content: String,
+    created_at: DateTime<Utc>,
+    is_operator: bool,
 }
 
 // ── Input models ──────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ async fn list_threads(
     Query(q): Query<ListQuery>,
 ) -> impl IntoResponse {
     let status = q.status.as_deref().unwrap_or("open");
-    let limit  = q.limit.unwrap_or(50).min(200);
+    let limit = q.limit.unwrap_or(50).min(200);
     let offset = q.offset.unwrap_or(0);
 
     let mut query = atlas_ws_room::Entity::find()
@@ -160,15 +160,17 @@ async fn get_thread(
         .into_iter()
         .map(|m| {
             let is_op = m.message_type == "operator_reply";
-            let name = m.sender_user_id.and_then(|uid| user_names.get(&uid).cloned());
+            let name = m
+                .sender_user_id
+                .and_then(|uid| user_names.get(&uid).cloned());
             MessageRow {
-                id:             m.id,
+                id: m.id,
                 sender_user_id: m.sender_user_id,
-                sender_name:    name,
-                is_operator:    is_op,
-                message_type:   m.message_type,
-                content:        m.content,
-                created_at:     m.created_at,
+                sender_name: name,
+                is_operator: is_op,
+                message_type: m.message_type,
+                content: m.content,
+                created_at: m.created_at,
             }
         })
         .collect();
@@ -179,14 +181,14 @@ async fn get_thread(
 
     let detail = ThreadDetail {
         summary: ThreadSummary {
-            id:              room.id,
-            tenant_id:       room.tenant_id,
-            entity_id:       room.entity_id,
-            is_active:       room.is_active,
-            created_at:      room.created_at,
-            last_message:    last.as_ref().map(|m| truncate(&m.content, 120)),
-            last_at:         last.map(|m| m.created_at),
-            message_count:   count,
+            id: room.id,
+            tenant_id: room.tenant_id,
+            entity_id: room.entity_id,
+            is_active: room.is_active,
+            created_at: room.created_at,
+            last_message: last.as_ref().map(|m| truncate(&m.content, 120)),
+            last_at: last.map(|m| m.created_at),
+            message_count: count,
             submitter_name,
             submitter_email,
         },
@@ -199,10 +201,10 @@ async fn get_thread(
 // ── POST /api/admin/support/threads/:id/reply ────────────────────────────────
 
 async fn reply_thread(
-    Extension(db):   Extension<DatabaseConnection>,
+    Extension(db): Extension<DatabaseConnection>,
     Extension(user): Extension<user::Model>,
-    Path(room_id):   Path<Uuid>,
-    Json(body):      Json<ReplyInput>,
+    Path(room_id): Path<Uuid>,
+    Json(body): Json<ReplyInput>,
 ) -> impl IntoResponse {
     if body.content.trim().is_empty() {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -217,14 +219,14 @@ async fn reply_thread(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     let msg = atlas_ws_message::ActiveModel {
-        id:                 Set(Uuid::new_v4()),
-        room_id:            Set(room_id),
-        sender_user_id:     Set(Some(user.id)),
-        message_type:       Set("operator_reply".to_string()),
-        content:            Set(body.content.trim().to_string()),
+        id: Set(Uuid::new_v4()),
+        room_id: Set(room_id),
+        sender_user_id: Set(Some(user.id)),
+        message_type: Set("operator_reply".to_string()),
+        content: Set(body.content.trim().to_string()),
         translated_content: Set(None),
-        attachment_id:      Set(None),
-        created_at:         Set(Utc::now()),
+        attachment_id: Set(None),
+        created_at: Set(Utc::now()),
         ..Default::default()
     };
     let created = msg.insert(&db).await.map_err(|e| {
@@ -260,14 +262,14 @@ async fn close_thread(
 
     // Append a system event message so the user sees it in their thread too
     let sys = atlas_ws_message::ActiveModel {
-        id:                 Set(Uuid::new_v4()),
-        room_id:            Set(room_id),
-        sender_user_id:     Set(None),
-        message_type:       Set("system".to_string()),
-        content:            Set("This support thread has been closed by the platform team.".to_string()),
+        id: Set(Uuid::new_v4()),
+        room_id: Set(room_id),
+        sender_user_id: Set(None),
+        message_type: Set("system".to_string()),
+        content: Set("This support thread has been closed by the platform team.".to_string()),
         translated_content: Set(None),
-        attachment_id:      Set(None),
-        created_at:         Set(Utc::now()),
+        attachment_id: Set(None),
+        created_at: Set(Utc::now()),
         ..Default::default()
     };
     let _ = sys.insert(&db).await;
@@ -301,14 +303,14 @@ async fn enrich_rooms(
         let (submitter_name, submitter_email) = resolve_submitter(db, room.entity_id).await;
 
         summaries.push(ThreadSummary {
-            id:              room.id,
-            tenant_id:       room.tenant_id,
-            entity_id:       room.entity_id,
-            is_active:       room.is_active,
-            created_at:      room.created_at,
-            last_message:    last.as_ref().map(|m| truncate(&m.content, 120)),
-            last_at:         last.map(|m| m.created_at),
-            message_count:   count,
+            id: room.id,
+            tenant_id: room.tenant_id,
+            entity_id: room.entity_id,
+            is_active: room.is_active,
+            created_at: room.created_at,
+            last_message: last.as_ref().map(|m| truncate(&m.content, 120)),
+            last_at: last.map(|m| m.created_at),
+            message_count: count,
             submitter_name,
             submitter_email,
         });
@@ -318,10 +320,15 @@ async fn enrich_rooms(
     Ok(summaries)
 }
 
-async fn resolve_submitter(db: &DatabaseConnection, user_id: Uuid) -> (Option<String>, Option<String>) {
+async fn resolve_submitter(
+    db: &DatabaseConnection,
+    user_id: Uuid,
+) -> (Option<String>, Option<String>) {
     match user::Entity::find_by_id(user_id).one(db).await {
         Ok(Some(u)) => {
-            let name = format!("{} {}", u.first_name, u.last_name).trim().to_string();
+            let name = format!("{} {}", u.first_name, u.last_name)
+                .trim()
+                .to_string();
             let name = if name.is_empty() { None } else { Some(name) };
             (name, Some(u.email))
         }
@@ -329,7 +336,10 @@ async fn resolve_submitter(db: &DatabaseConnection, user_id: Uuid) -> (Option<St
     }
 }
 
-async fn fetch_user_names(db: &DatabaseConnection, ids: &[Uuid]) -> std::collections::HashMap<Uuid, String> {
+async fn fetch_user_names(
+    db: &DatabaseConnection,
+    ids: &[Uuid],
+) -> std::collections::HashMap<Uuid, String> {
     if ids.is_empty() {
         return Default::default();
     }
@@ -341,8 +351,14 @@ async fn fetch_user_names(db: &DatabaseConnection, ids: &[Uuid]) -> std::collect
         Ok(users) => users
             .into_iter()
             .map(|u| {
-                let name = format!("{} {}", u.first_name, u.last_name).trim().to_string();
-                let name = if name.is_empty() { u.username.clone() } else { name };
+                let name = format!("{} {}", u.first_name, u.last_name)
+                    .trim()
+                    .to_string();
+                let name = if name.is_empty() {
+                    u.username.clone()
+                } else {
+                    name
+                };
                 (u.id, name)
             })
             .collect(),

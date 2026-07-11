@@ -1,8 +1,11 @@
-use crate::api::client::{api_url, api_request, create_client};
+use crate::api::client::{api_request, api_url, create_client};
 use crate::api::models::SearchResult;
 use uuid::Uuid;
 
-pub async fn search_global(query: &str, tenant_id: Option<Uuid>) -> Result<Vec<SearchResult>, String> {
+pub async fn search_global(
+    query: &str,
+    tenant_id: Option<Uuid>,
+) -> Result<Vec<SearchResult>, String> {
     if query.trim().is_empty() {
         return Ok(Vec::new());
     }

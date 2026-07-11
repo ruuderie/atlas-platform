@@ -1,17 +1,21 @@
+use crate::api::admin::{CreateInviteInput, create_invite};
+use crate::api::onboarding::{
+    OnboardingStatusResponse, OnboardingStepStatus, complete_step, dismiss_wizard,
+    get_onboarding_status, skip_step,
+};
 use leptos::prelude::*;
 use uuid::Uuid;
-use crate::api::onboarding::{
-    OnboardingStatusResponse, OnboardingStepStatus,
-    get_onboarding_status, skip_step, complete_step, dismiss_wizard,
-};
-use crate::api::admin::{create_invite, CreateInviteInput};
 
 // ── Step indicator dot — left rail ───────────────────────────────────────────
 
 #[component]
 fn StepDot(is_complete: bool, is_current: bool, is_required: bool) -> impl IntoView {
     let (bg, border, inner) = if is_complete {
-        ("#22c55e", "#22c55e", view! { <span style="font-size:12px;color:#fff;">"✓"</span> }.into_any())
+        (
+            "#22c55e",
+            "#22c55e",
+            view! { <span style="font-size:12px;color:#fff;">"✓"</span> }.into_any(),
+        )
     } else if is_current {
         ("rgba(99,102,241,.2)", "#6366f1", view! { <div style="width:8px;height:8px;border-radius:50%;background:#818cf8;"></div> }.into_any())
     } else if is_required {
@@ -37,10 +41,7 @@ fn StepDot(is_complete: bool, is_current: bool, is_required: bool) -> impl IntoV
 // ──────────────────────────────────────────────────────────────────────────────
 
 #[component]
-fn IdentityStep(
-    app_instance_id: String,
-    on_complete: Callback<()>,
-) -> impl IntoView {
+fn IdentityStep(app_instance_id: String, on_complete: Callback<()>) -> impl IntoView {
     let site_title = RwSignal::new(String::new());
     let tagline = RwSignal::new(String::new());
     let saving = RwSignal::new(false);
@@ -84,11 +85,10 @@ fn IdentityStep(
             // 2. Save tagline (optional — only if user provided one)
             if !tag.trim().is_empty() {
                 let tl_payload = serde_json::json!({"key": "site_tagline", "value": tag});
-                let tl_res = crate::api::client::with_credentials(
-                    client.post(&base).json(&tl_payload)
-                )
-                .send()
-                .await;
+                let tl_res =
+                    crate::api::client::with_credentials(client.post(&base).json(&tl_payload))
+                        .send()
+                        .await;
                 if let Err(e) = tl_res {
                     // Tagline failure is non-fatal — warn but still advance
                     leptos::logging::warn!("Failed to save tagline: {}", e);
@@ -144,10 +144,7 @@ fn IdentityStep(
 }
 
 #[component]
-fn DomainStep(
-    app_instance_id: String,
-    on_complete: Callback<()>,
-) -> impl IntoView {
+fn DomainStep(app_instance_id: String, on_complete: Callback<()>) -> impl IntoView {
     let domain = RwSignal::new(String::new());
     let saving = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
@@ -179,8 +176,7 @@ fn DomainStep(
                     // A 409 means the domain record already exists, but we must
                     // verify it belongs to THIS app_instance — not another tenant.
                     // The backend returns {app_instance_id: "..."} in the 409 body.
-                    let body: serde_json::Value =
-                        r.json().await.unwrap_or(serde_json::Value::Null);
+                    let body: serde_json::Value = r.json().await.unwrap_or(serde_json::Value::Null);
                     let owner = body
                         .get("app_instance_id")
                         .and_then(|v| v.as_str())
@@ -390,11 +386,11 @@ impl Default for InviteRow {
 /// Roles surfaced in the invite dropdown.
 /// These are Folio-side roles; the platform passes them through as `app_role`.
 const FOLIO_ROLES: &[(&str, &str)] = &[
-    ("owner",    "Owner"),
-    ("manager",  "Manager"),
+    ("owner", "Owner"),
+    ("manager", "Manager"),
     ("landlord", "Landlord"),
-    ("vendor",   "Vendor"),
-    ("viewer",   "View only"),
+    ("vendor", "Vendor"),
+    ("viewer", "View only"),
 ];
 
 #[component]
@@ -406,11 +402,11 @@ fn InviteTeamStep(
 ) -> impl IntoView {
     // List of invite rows — start with a single blank row
     let rows: RwSignal<Vec<InviteRow>> = RwSignal::new(vec![InviteRow::default()]);
-    let submitting   = RwSignal::new(false);
-    let error_msg    = RwSignal::new(String::new());
-    let sent_count   = RwSignal::new(0usize);
+    let submitting = RwSignal::new(false);
+    let error_msg = RwSignal::new(String::new());
+    let sent_count = RwSignal::new(0usize);
 
-    let ai  = StoredValue::new(app_instance_id.clone());
+    let ai = StoredValue::new(app_instance_id.clone());
     let tid = StoredValue::new(tenant_id.clone());
 
     let add_row = move |_: web_sys::MouseEvent| {
@@ -418,19 +414,24 @@ fn InviteTeamStep(
     };
 
     let remove_row = move |idx: usize| {
-        rows.update(|v| { if v.len() > 1 { v.remove(idx); } });
+        rows.update(|v| {
+            if v.len() > 1 {
+                v.remove(idx);
+            }
+        });
     };
 
     let submit = move |_: web_sys::MouseEvent| {
         let current_rows = rows.get();
-        let valid: Vec<_> = current_rows.into_iter()
+        let valid: Vec<_> = current_rows
+            .into_iter()
             .filter(|r| !r.email.trim().is_empty())
             .collect();
         if valid.is_empty() {
             error_msg.set("Add at least one email address.".to_string());
             return;
         }
-        let ai_val  = ai.get_value();
+        let ai_val = ai.get_value();
         let tid_val = tid.get_value();
         submitting.set(true);
         error_msg.set(String::new());
@@ -444,18 +445,26 @@ fn InviteTeamStep(
             for row in valid {
                 let input = CreateInviteInput {
                     email: row.email.trim().to_string(),
-                    display_name: if row.display_name.is_empty() { None } else { Some(row.display_name.clone()) },
+                    display_name: if row.display_name.is_empty() {
+                        None
+                    } else {
+                        Some(row.display_name.clone())
+                    },
                     // Platform role defaults to "member" — app_role carries the Folio persona.
                     role: "member".to_string(),
                     app_role: Some(row.app_role.clone()),
                     tenant: tid_val.clone(),
                     app_instance_id: instance_id,
                     target_app_url: None,
-                    personal_message: if row.personal_message.is_empty() { None } else { Some(row.personal_message.clone()) },
+                    personal_message: if row.personal_message.is_empty() {
+                        None
+                    } else {
+                        Some(row.personal_message.clone())
+                    },
                     expires_days: Some(7),
                 };
                 match create_invite(input).await {
-                    Ok(_)  => ok += 1,
+                    Ok(_) => ok += 1,
                     Err(e) => errors.push(format!("{}: {}", row.email, e)),
                 }
             }
@@ -716,22 +725,22 @@ fn GenericCustomStep(
 #[component]
 fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoView {
     use leptos_router::components::A;
-    
+
     let email = RwSignal::new(String::new());
     let first_name = RwSignal::new(String::new());
     let last_name = RwSignal::new(String::new());
     let is_submitting = RwSignal::new(false);
     let setup_url = RwSignal::new(Option::<String>::None);
     let error = RwSignal::new(Option::<String>::None);
-    
+
     let tid = tenant_id.clone();
-    
+
     let provision_action = Action::new_local(move |_: &()| {
         let e = email.get();
         let f = first_name.get();
         let l = last_name.get();
         let tid = tid.clone();
-        
+
         async move {
             if e.is_empty() || f.is_empty() || l.is_empty() {
                 error.set(Some("All fields are required.".to_string()));
@@ -739,7 +748,7 @@ fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoVi
             }
             is_submitting.set(true);
             error.set(None);
-            
+
             let url = crate::api::client::api_url(&format!("api/tenants/{}/provision-admin", tid));
             let payload = serde_json::json!({
                 "email": e,
@@ -750,7 +759,7 @@ fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoVi
             let res = crate::api::client::with_credentials(client.post(&url).json(&payload))
                 .send()
                 .await;
-                
+
             is_submitting.set(false);
             match res {
                 Ok(r) if r.status().is_success() => {
@@ -779,7 +788,7 @@ fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoVi
                     "All required setup steps are complete. Your app is ready to go."
                 </p>
             </div>
-            
+
             {move || if let Some(url) = setup_url.get() {
                 view! {
                     <div class="bg-green-50 text-green-800 p-4 rounded-lg text-left mt-4 border border-green-200">
@@ -848,8 +857,7 @@ fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoVi
 pub fn OnboardingWizard(
     app_instance_id: String,
     tenant_id: String,
-    #[prop(optional)]
-    on_dismiss: Option<Callback<()>>,
+    #[prop(optional)] on_dismiss: Option<Callback<()>>,
 ) -> impl IntoView {
     let ai = app_instance_id.clone();
     let status: LocalResource<Result<OnboardingStatusResponse, String>> =

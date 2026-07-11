@@ -1,3 +1,4 @@
+use crate::api::admin::get_all_platform_apps;
 /// # Internal Instances — Ops View
 ///
 /// Route: /internal-instances
@@ -9,43 +10,59 @@
 /// Filters to `mode = InternalOperator` via the backend `GET /api/admin/platform/apps`
 /// response. Standard paying-client deployments are shown in /clients.
 use leptos::prelude::*;
-use crate::api::admin::get_all_platform_apps;
 
 fn status_style(s: &str) -> &'static str {
     match s {
-        "active"       => "color:var(--green)",
+        "active" => "color:var(--green)",
         "provisioning" => "color:var(--cobalt)",
-        "beta"         => "color:var(--amber)",
-        "suspended"    => "color:var(--error)",
-        _              => "color:var(--text-muted)",
+        "beta" => "color:var(--amber)",
+        "suspended" => "color:var(--error)",
+        _ => "color:var(--text-muted)",
     }
 }
 
 fn app_badge_style(t: &str) -> &'static str {
     match t {
-        "property_management" | "folio" => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
-        "anchor"   => "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)",
+        "property_management" | "folio" => {
+            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"
+        }
+        "anchor" => "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)",
         "meridian" => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
-        _          => "color:var(--text-muted);border-color:var(--border-default)",
+        _ => "color:var(--text-muted);border-color:var(--border-default)",
     }
 }
 
 fn app_label(t: &str) -> &'static str {
     match t {
         "property_management" | "folio" => "Folio",
-        "anchor"   => "Anchor",
+        "anchor" => "Anchor",
         "meridian" => "Meridian",
-        _          => "App",
+        _ => "App",
     }
 }
 
 fn purpose_badge(p: &str) -> (&'static str, &'static str) {
     match p {
-        "demo"            => ("Demo",            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"),
-        "test"            => ("Test",            "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)"),
-        "staging"         => ("Staging",         "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)"),
-        "managed_service" => ("Managed Service", "color:var(--green);border-color:var(--green);background:var(--green-dim)"),
-        _                 => ("Internal",        "color:var(--text-muted);border-color:var(--border-default)"),
+        "demo" => (
+            "Demo",
+            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
+        ),
+        "test" => (
+            "Test",
+            "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
+        ),
+        "staging" => (
+            "Staging",
+            "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)",
+        ),
+        "managed_service" => (
+            "Managed Service",
+            "color:var(--green);border-color:var(--green);background:var(--green-dim)",
+        ),
+        _ => (
+            "Internal",
+            "color:var(--text-muted);border-color:var(--border-default)",
+        ),
     }
 }
 
@@ -57,8 +74,14 @@ pub fn InternalInstancesPage() -> impl IntoView {
     let apps_res = LocalResource::new(move || async move {
         let _ = refresh.get();
         match get_all_platform_apps().await {
-            Ok(v) => { error_msg.set(None); v }
-            Err(e) => { error_msg.set(Some(e)); vec![] }
+            Ok(v) => {
+                error_msg.set(None);
+                v
+            }
+            Err(e) => {
+                error_msg.set(Some(e));
+                vec![]
+            }
         }
     });
 
@@ -93,28 +116,31 @@ pub fn InternalInstancesPage() -> impl IntoView {
 
         // Map UI alias to backend canonical app_type value.
         let canonical_app_type = match app_type.as_str() {
-            "folio"    => "property_management",
+            "folio" => "property_management",
             "meridian" => "meridian",
-            _          => "anchor",
+            _ => "anchor",
         };
 
         // Build a minimal provision payload. Internal instances don't need a
         // real admin user — use a platform sentinel email that the backend accepts.
         let payload = crate::api::provision::ProvisionTenantPayload {
-            tenant_name:    name.trim().to_lowercase().replace(' ', "-"),
-            display_name:   name.trim().to_string(),
-            domain:         if domain.trim().is_empty() {
-                                // Use *.dev.atlas.oply.co — covered by the wildcard cert
-                                // already provisioned in the k3s ingress. Custom domains
-                                // require a separate ingress manifest + cert-manager cert.
-                                format!("{}.dev.atlas.oply.co", name.trim().to_lowercase().replace(' ', "-"))
-                            } else {
-                                domain.trim().to_string()
-                            },
-            admin_email:    "dawns_ponies.5i@icloud.com".to_string(),
+            tenant_name: name.trim().to_lowercase().replace(' ', "-"),
+            display_name: name.trim().to_string(),
+            domain: if domain.trim().is_empty() {
+                // Use *.dev.atlas.oply.co — covered by the wildcard cert
+                // already provisioned in the k3s ingress. Custom domains
+                // require a separate ingress manifest + cert-manager cert.
+                format!(
+                    "{}.dev.atlas.oply.co",
+                    name.trim().to_lowercase().replace(' ', "-")
+                )
+            } else {
+                domain.trim().to_string()
+            },
+            admin_email: "dawns_ponies.5i@icloud.com".to_string(),
             admin_first_name: "Atlas".to_string(),
-            admin_last_name:  "Admin".to_string(),
-            apps:           Some(vec![canonical_app_type.to_string()]),
+            admin_last_name: "Admin".to_string(),
+            apps: Some(vec![canonical_app_type.to_string()]),
             bypass_dns_verification: Some(true),
         };
 
@@ -132,7 +158,8 @@ pub fn InternalInstancesPage() -> impl IntoView {
                     let tid = resp.tenant_id.to_string();
                     let p = purpose.clone();
                     if p != "none" {
-                        let _ = crate::api::admin::set_deployment_purpose(&tid, Some(p.as_str())).await;
+                        let _ =
+                            crate::api::admin::set_deployment_purpose(&tid, Some(p.as_str())).await;
                     }
 
                     toast_ref.show_toast(
@@ -150,10 +177,12 @@ pub fn InternalInstancesPage() -> impl IntoView {
         });
     };
 
-
     // Derived: all apps filtered to internal_operator mode
     let all_internal = Signal::derive(move || {
-        apps_res.get().unwrap_or_default().into_iter()
+        apps_res
+            .get()
+            .unwrap_or_default()
+            .into_iter()
             .filter(|a| a.mode == "internal_operator")
             .collect::<Vec<_>>()
     });
@@ -162,15 +191,23 @@ pub fn InternalInstancesPage() -> impl IntoView {
         let q = search.get().to_lowercase();
         let pf = purpose_filter.get();
         let tf = app_type_filter.get();
-        all_internal.get().into_iter().filter(|a| {
-            let matches_purpose = pf == "all" || a.purpose.as_deref().unwrap_or("") == pf;
-            let matches_type    = tf == "all" || a.app_type.to_lowercase().contains(&tf);
-            let matches_search  = q.is_empty()
-                || a.name.to_lowercase().contains(&q)
-                || a.domain.to_lowercase().contains(&q)
-                || a.purpose.as_deref().unwrap_or("").to_lowercase().contains(&q);
-            matches_purpose && matches_type && matches_search
-        }).collect::<Vec<_>>()
+        all_internal
+            .get()
+            .into_iter()
+            .filter(|a| {
+                let matches_purpose = pf == "all" || a.purpose.as_deref().unwrap_or("") == pf;
+                let matches_type = tf == "all" || a.app_type.to_lowercase().contains(&tf);
+                let matches_search = q.is_empty()
+                    || a.name.to_lowercase().contains(&q)
+                    || a.domain.to_lowercase().contains(&q)
+                    || a.purpose
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_lowercase()
+                        .contains(&q);
+                matches_purpose && matches_type && matches_search
+            })
+            .collect::<Vec<_>>()
     });
 
     view! {

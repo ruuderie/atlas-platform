@@ -12,19 +12,19 @@
 //! configuration for a specific tenant. Used by the Platform Admin UI.
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Router,
     routing::{get, post},
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait,
-    QueryOrder, Order, ActiveModelTrait, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Order, QueryFilter, QueryOrder,
+    Set,
 };
 use uuid::Uuid;
 
-use crate::entities::{user, session, user_account, app_instance, app_instance_module};
+use crate::entities::{app_instance, app_instance_module, session, user, user_account};
 use crate::models::admin_module::{AdminModuleConfig, AdminModuleType, UpsertModuleInput};
 
 /// Route constructor. State is applied by the caller (admin_routes in routes.rs).
@@ -64,7 +64,10 @@ pub async fn get_admin_modules(
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or_else(|| {
-            tracing::warn!("get_admin_modules: no user_account for user {}", current_user.id);
+            tracing::warn!(
+                "get_admin_modules: no user_account for user {}",
+                current_user.id
+            );
             StatusCode::FORBIDDEN
         })?;
 
@@ -78,7 +81,8 @@ pub async fn get_admin_modules(
         role => {
             tracing::warn!(
                 "get_admin_modules: insufficient role {:?} for user {}",
-                role, current_user.id
+                role,
+                current_user.id
             );
             return Err(StatusCode::FORBIDDEN);
         }
@@ -171,7 +175,8 @@ pub async fn upsert_tenant_module(
     if !is_super_admin {
         tracing::warn!(
             "upsert_tenant_module: non-superadmin {} attempted to modify tenant {} modules",
-            current_user.id, tenant_id
+            current_user.id,
+            tenant_id
         );
         return Err(StatusCode::FORBIDDEN);
     }
@@ -193,7 +198,8 @@ pub async fn upsert_tenant_module(
     if input.module_type.is_fixed() && !input.is_enabled {
         tracing::warn!(
             "upsert_tenant_module: attempt to disable fixed module {:?} for tenant {}",
-            input.module_type, tenant_id
+            input.module_type,
+            tenant_id
         );
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -227,13 +233,10 @@ pub async fn upsert_tenant_module(
         active.sort_order = Set(sort_order);
         active.is_enabled = Set(effective_is_enabled);
         active.updated_at = Set(chrono::Utc::now());
-        active
-            .update(&db)
-            .await
-            .map_err(|e| {
-                tracing::error!("upsert_tenant_module: update failed: {e}");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+        active.update(&db).await.map_err(|e| {
+            tracing::error!("upsert_tenant_module: update failed: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     } else {
         // INSERT new row.
         app_instance_module::ActiveModel {
@@ -307,7 +310,11 @@ mod tests {
         assert!(!module.is_fixed());
         // A non-fixed module passes through is_enabled as-is.
         let input_disabled = false;
-        let effective = if module.is_fixed() { true } else { input_disabled };
+        let effective = if module.is_fixed() {
+            true
+        } else {
+            input_disabled
+        };
         assert!(!effective, "Blog should be disableable");
     }
 

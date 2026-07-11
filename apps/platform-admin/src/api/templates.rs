@@ -10,9 +10,11 @@ pub async fn get_templates() -> Result<Vec<TemplateModel>, String> {
     let req = with_credentials(req);
 
     let res = req.send().await.map_err(|e| e.to_string())?;
-    
+
     if res.status() == StatusCode::OK {
-        res.json::<Vec<TemplateModel>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<TemplateModel>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(format!("Failed to fetch templates: {}", res.status()))
     }

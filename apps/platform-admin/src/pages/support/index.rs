@@ -1,6 +1,6 @@
+use crate::api::models::{SupportThreadDetail, SupportThreadSummary};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use crate::api::models::{SupportThreadSummary, SupportThreadDetail};
 
 fn status_class(is_active: bool) -> &'static str {
     if is_active {
@@ -14,12 +14,19 @@ fn msg_time(ts: &str) -> String {
     // ISO8601 → "YYYY-MM-DD HH:MM"
     let date = ts.chars().take(10).collect::<String>();
     let time = ts.chars().skip(11).take(5).collect::<String>();
-    if time.is_empty() { date } else { format!("{date} {time}") }
+    if time.is_empty() {
+        date
+    } else {
+        format!("{date} {time}")
+    }
 }
 
 fn short_id(id: &str) -> String {
     let upper = id.replace('-', "");
-    format!("SUP-{}", upper.chars().take(6).collect::<String>().to_uppercase())
+    format!(
+        "SUP-{}",
+        upper.chars().take(6).collect::<String>().to_uppercase()
+    )
 }
 
 fn initials(name: &Option<String>) -> String {
@@ -39,7 +46,7 @@ pub fn SupportQueue() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // ── Server data ──────────────────────────────────────────────────────────
-    let refresh       = RwSignal::new(0u32);
+    let refresh = RwSignal::new(0u32);
     let status_filter = RwSignal::new("open".to_string());
 
     let threads_resource = LocalResource::new(move || {
@@ -56,26 +63,28 @@ pub fn SupportQueue() -> impl IntoView {
     let thread_detail_resource = LocalResource::new(move || async move {
         match selected_id.get() {
             Some(id) => Some(crate::api::admin::get_support_thread(id).await),
-            None     => None,
+            None => None,
         }
     });
 
     // ── Reply / action state ─────────────────────────────────────────────────
-    let reply_text            = RwSignal::new(String::new());
-    let show_internal_modal   = RwSignal::new(false);
-    let show_escalate_modal   = RwSignal::new(false);
-    let show_impersonate_modal= RwSignal::new(false);
-    let internal_note_input   = RwSignal::new(String::new());
-    let escalate_reason       = RwSignal::new("SLA breach imminent".to_string());
-    let escalate_target       = RwSignal::new("Engineering On-Call".to_string());
-    let escalate_notes        = RwSignal::new(String::new());
-    let sending               = RwSignal::new(false);
+    let reply_text = RwSignal::new(String::new());
+    let show_internal_modal = RwSignal::new(false);
+    let show_escalate_modal = RwSignal::new(false);
+    let show_impersonate_modal = RwSignal::new(false);
+    let internal_note_input = RwSignal::new(String::new());
+    let escalate_reason = RwSignal::new("SLA breach imminent".to_string());
+    let escalate_target = RwSignal::new("Engineering On-Call".to_string());
+    let escalate_notes = RwSignal::new(String::new());
+    let sending = RwSignal::new(false);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
     let handle_close = {
         let toast = toast.clone();
         move |_| {
-            let Some(id) = selected_id.get() else { return; };
+            let Some(id) = selected_id.get() else {
+                return;
+            };
             let toast = toast.clone();
             spawn_local(async move {
                 match crate::api::admin::close_support_thread(id).await {
@@ -98,7 +107,9 @@ pub fn SupportQueue() -> impl IntoView {
                 toast.show_toast("Error", "Reply cannot be empty.", "error");
                 return;
             }
-            let Some(id) = selected_id.get() else { return; };
+            let Some(id) = selected_id.get() else {
+                return;
+            };
             let toast = toast.clone();
             sending.set(true);
             spawn_local(async move {
@@ -129,7 +140,11 @@ pub fn SupportQueue() -> impl IntoView {
             }
             show_internal_modal.set(false);
             internal_note_input.set(String::new());
-            toast.show_toast("Saved", "Internal note registered (hidden from user).", "success");
+            toast.show_toast(
+                "Saved",
+                "Internal note registered (hidden from user).",
+                "success",
+            );
         }
     };
 
@@ -139,7 +154,11 @@ pub fn SupportQueue() -> impl IntoView {
             let target = escalate_target.get();
             show_escalate_modal.set(false);
             escalate_notes.set(String::new());
-            toast.show_toast("Escalated", &format!("Thread assigned to {}.", target), "warn");
+            toast.show_toast(
+                "Escalated",
+                &format!("Thread assigned to {}.", target),
+                "warn",
+            );
         }
     };
 
@@ -147,7 +166,11 @@ pub fn SupportQueue() -> impl IntoView {
         let toast = toast.clone();
         move |_| {
             show_impersonate_modal.set(false);
-            toast.show_toast("Warning", "⚠ Impersonation token active. Audit log registered.", "warn");
+            toast.show_toast(
+                "Warning",
+                "⚠ Impersonation token active. Audit log registered.",
+                "warn",
+            );
         }
     };
 

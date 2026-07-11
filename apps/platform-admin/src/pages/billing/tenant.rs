@@ -1,24 +1,27 @@
+use crate::api::admin::{CreateInviteInput, create_invite, get_tenant_stats};
+use crate::api::billing::{
+    TenantSubscriptionDetail, change_plan, generate_invoice, get_tenant_subscription, issue_credit,
+};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use shared_ui::components::card::Card;
 use shared_ui::components::badge::{Badge, BadgeIntent};
-use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
+use shared_ui::components::card::Card;
+use shared_ui::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
 use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::billing::{issue_credit, generate_invoice, change_plan, get_tenant_subscription, TenantSubscriptionDetail};
-use crate::api::admin::{create_invite, CreateInviteInput, get_tenant_stats};
 
 #[component]
 pub fn TenantLedger() -> impl IntoView {
     let params = use_params_map();
-    let tenant_id_str = move || params.with(|p| p.get("id").unwrap_or_else(|| "t_8a91f3d2".to_string()));
-    
+    let tenant_id_str =
+        move || params.with(|p| p.get("id").unwrap_or_else(|| "t_8a91f3d2".to_string()));
+
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     // Active workspace tab state
     let active_tab = RwSignal::new("subscription".to_string());
 
@@ -31,26 +34,28 @@ pub fn TenantLedger() -> impl IntoView {
     let tenant_name_res = LocalResource::new(move || {
         let tid = tenant_id_str();
         async move {
-            get_tenant_stats().await.unwrap_or_default()
+            get_tenant_stats()
+                .await
+                .unwrap_or_default()
                 .into_iter()
                 .find(|t| t.tenant_id == tid)
                 .map(|t| t.name)
         }
     });
-    
+
     // Modals state
     let show_credit_modal = RwSignal::new(false);
     let show_invoice_modal = RwSignal::new(false);
     let show_plan_modal = RwSignal::new(false);
     let show_invite_modal = RwSignal::new(false);
-    
+
     // Forms state
     let credit_amount = RwSignal::new("".to_string());
     let credit_reason = RwSignal::new("".to_string());
     let invoice_amount = RwSignal::new("".to_string());
     let invoice_period = RwSignal::new("Jun 2026".to_string());
     let selected_plan_id = RwSignal::new("".to_string());
-    
+
     let invite_name = RwSignal::new("".to_string());
     let invite_email = RwSignal::new("".to_string());
     let invite_role = RwSignal::new("Property Manager".to_string());
@@ -63,19 +68,27 @@ pub fn TenantLedger() -> impl IntoView {
             trigger_fetch.get();
             let tid = tid_fn();
             async move {
-                crate::api::billing::get_tenant_ledger(&tid).await.unwrap_or_default()
+                crate::api::billing::get_tenant_ledger(&tid)
+                    .await
+                    .unwrap_or_default()
             }
         }
     });
 
     // Fetch database plans
     let plans_res = LocalResource::new(move || async move {
-        crate::api::billing::list_billing_plans().await.unwrap_or_default()
+        crate::api::billing::list_billing_plans()
+            .await
+            .unwrap_or_default()
     });
 
     // Derived style helpers
     let tab_class = move |tab_id: &str| {
-        if active_tab.get() == tab_id { "tab active" } else { "tab" }
+        if active_tab.get() == tab_id {
+            "tab active"
+        } else {
+            "tab"
+        }
     };
 
     // Fetch user roster for this tenant using the admin users endpoint
@@ -84,7 +97,9 @@ pub fn TenantLedger() -> impl IntoView {
         move || {
             let tid = tid();
             async move {
-                crate::api::admin::get_users(uuid::Uuid::parse_str(&tid).ok()).await.unwrap_or_default()
+                crate::api::admin::get_users(uuid::Uuid::parse_str(&tid).ok())
+                    .await
+                    .unwrap_or_default()
             }
         }
     });
@@ -93,14 +108,22 @@ pub fn TenantLedger() -> impl IntoView {
     let handle_issue_credit = move |_| {
         let amt_str = credit_amount.get();
         let reason = credit_reason.get();
-        if amt_str.is_empty() { return; }
+        if amt_str.is_empty() {
+            return;
+        }
         let tid = tenant_id_str();
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
             let amount_cents = (amt_str.parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
             match issue_credit(&tid, amount_cents, reason).await {
-                Ok(_) => t_toast.show_toast("Credit Issued", &format!("Billing credit of ${} applied successfully.", amt_str), "success"),
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to issue credit: {}", e), "error"),
+                Ok(_) => t_toast.show_toast(
+                    "Credit Issued",
+                    &format!("Billing credit of ${} applied successfully.", amt_str),
+                    "success",
+                ),
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to issue credit: {}", e), "error")
+                }
             }
         });
         credit_amount.set(String::new());
@@ -111,14 +134,27 @@ pub fn TenantLedger() -> impl IntoView {
     let handle_send_invoice = move |_| {
         let amt_str = invoice_amount.get();
         let period = invoice_period.get();
-        if amt_str.is_empty() { return; }
+        if amt_str.is_empty() {
+            return;
+        }
         let tid = tenant_id_str();
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
             let amount_cents = (amt_str.parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
             match generate_invoice(&tid, amount_cents, period.clone()).await {
-                Ok(_) => t_toast.show_toast("Invoice Generated", &format!("Manual invoice of ${} for period {} dispatched.", amt_str, period), "success"),
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to generate invoice: {}", e), "error"),
+                Ok(_) => t_toast.show_toast(
+                    "Invoice Generated",
+                    &format!(
+                        "Manual invoice of ${} for period {} dispatched.",
+                        amt_str, period
+                    ),
+                    "success",
+                ),
+                Err(e) => t_toast.show_toast(
+                    "Error",
+                    &format!("Failed to generate invoice: {}", e),
+                    "error",
+                ),
             }
         });
         invoice_amount.set(String::new());
@@ -127,13 +163,21 @@ pub fn TenantLedger() -> impl IntoView {
 
     let handle_change_plan = move |_| {
         let plan_id = selected_plan_id.get();
-        if plan_id.is_empty() { return; }
+        if plan_id.is_empty() {
+            return;
+        }
         let tid = tenant_id_str();
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
             match change_plan(&tid, plan_id).await {
-                Ok(_) => t_toast.show_toast("Plan Updated", "Subscription plan tier updated successfully.", "success"),
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to change plan: {}", e), "error"),
+                Ok(_) => t_toast.show_toast(
+                    "Plan Updated",
+                    "Subscription plan tier updated successfully.",
+                    "success",
+                ),
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to change plan: {}", e), "error")
+                }
             }
         });
         show_plan_modal.set(false);
@@ -144,7 +188,9 @@ pub fn TenantLedger() -> impl IntoView {
         let email = invite_email.get();
         let role = invite_role.get();
         let tid = tenant_id_str();
-        if name.is_empty() || email.is_empty() { return; }
+        if name.is_empty() || email.is_empty() {
+            return;
+        }
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
             match create_invite(CreateInviteInput {
@@ -157,9 +203,17 @@ pub fn TenantLedger() -> impl IntoView {
                 target_app_url: None,
                 personal_message: None,
                 expires_days: Some(7),
-            }).await {
-                Ok(_) => t_toast.show_toast("Invite Sent", &format!("Team invitation dispatched to {} ({}).", email, role), "success"),
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to send invite: {}", e), "error"),
+            })
+            .await
+            {
+                Ok(_) => t_toast.show_toast(
+                    "Invite Sent",
+                    &format!("Team invitation dispatched to {} ({}).", email, role),
+                    "success",
+                ),
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to send invite: {}", e), "error")
+                }
             }
         });
         invite_name.set(String::new());
@@ -179,7 +233,7 @@ pub fn TenantLedger() -> impl IntoView {
                         <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
                         <span class="text-primary/70 font-semibold">"Billing & Ledger"</span>
                     </nav>
-                    
+
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-primary/10 border border-primary/30 text-primary rounded-xl flex items-center justify-center font-bold text-lg">
                             "T"
@@ -623,7 +677,7 @@ pub fn TenantLedger() -> impl IntoView {
                             "Refresh Ledger"
                         </Button>
                     </div>
-                    
+
                     <Suspense fallback=move || view! { <div class="p-6 text-center text-xs text-on-surface-variant">"Loading PostgreSQL ledger..."</div> }>
                         {move || {
                             let txs = ledger_res.get().unwrap_or_default();
@@ -712,7 +766,7 @@ pub fn TenantLedger() -> impl IntoView {
                         <button class="btn btn-ghost btn-icon" on:click=move |_| show_credit_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Issue Custom Billing Credit"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Apply a manual ledger deduction adjustment to the tenant's current MRR cycle balance."</p>
-                        
+
                         <div class="space-y-4 mb-6">
                             <div class="flex flex-col gap-1.5">
                                 <Label>"Credit Amount ($)"</Label>
@@ -739,7 +793,7 @@ pub fn TenantLedger() -> impl IntoView {
                         <button class="btn btn-ghost btn-icon" on:click=move |_| show_invoice_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Generate Manual Invoice"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Dispatched direct invoice request containing flat fees or custom platform transaction totals."</p>
-                        
+
                         <div class="space-y-4 mb-6">
                             <div class="flex flex-col gap-1.5">
                                 <Label>"Invoice Total Due ($)"</Label>
@@ -766,11 +820,11 @@ pub fn TenantLedger() -> impl IntoView {
                         <button class="btn btn-ghost btn-icon" on:click=move |_| show_plan_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Modify Subscription Plan Tier"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Select a new template pricing model list loaded from platform database nodes."</p>
-                        
+
                         <div class="space-y-4 mb-6">
                             <div class="flex flex-col gap-1.5">
                                 <Label>"Active Plan Tier"</Label>
-                                <select 
+                                <select
                                     class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
                                     on:change=move |ev| selected_plan_id.set(event_target_value(&ev))
                                 >
@@ -807,7 +861,7 @@ pub fn TenantLedger() -> impl IntoView {
                         <button class="btn btn-ghost btn-icon" on:click=move |_| show_invite_modal.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Invite Team Member"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Invite an operator to join Nexus Property Group's active roster."</p>
-                        
+
                         <div class="space-y-4 mb-6">
                             <div class="flex flex-col gap-1.5">
                                 <Label>"Full Name"</Label>
@@ -819,7 +873,7 @@ pub fn TenantLedger() -> impl IntoView {
                             </div>
                             <div class="flex flex-col gap-1.5">
                                 <Label>"Roster Role"</Label>
-                                <select 
+                                <select
                                     class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
                                     on:change=move |ev| invite_role.set(event_target_value(&ev))
                                 >

@@ -8,46 +8,44 @@ pub fn Compliance() -> impl IntoView {
 
     // Tabs state
     let active_tab = RwSignal::new("regulatory".to_string());
-    
+
     // Municipal Permits Live Resource
     let permits_trigger = RwSignal::new(0);
     let permits_res = LocalResource::new(move || {
         permits_trigger.get();
-        async move {
-            crate::api::admin::get_permits().await.unwrap_or_default()
-        }
+        async move { crate::api::admin::get_permits().await.unwrap_or_default() }
     });
 
     // Contracts Live Resource (G-11)
     let contracts_trigger = RwSignal::new(0);
     let contracts_res = LocalResource::new(move || {
         contracts_trigger.get();
-        async move {
-            crate::api::admin::get_contracts().await.unwrap_or_default()
-        }
+        async move { crate::api::admin::get_contracts().await.unwrap_or_default() }
     });
 
     // Active SVG Map Zones Live Resource
     let geo_zones_trigger = RwSignal::new(0);
     let geo_zones_res = LocalResource::new(move || {
         geo_zones_trigger.get();
-        async move {
-            crate::api::admin::get_geo_zones().await.unwrap_or_default()
-        }
+        async move { crate::api::admin::get_geo_zones().await.unwrap_or_default() }
     });
 
     let selected_zone_key = RwSignal::new("chicago".to_string());
-    
+
     // Bounding details for selected zone
     let selected_zone = Signal::derive(move || {
         let key = selected_zone_key.get();
-        geo_zones_res.get().unwrap_or_default().into_iter().find(|z| z.key == key)
+        geo_zones_res
+            .get()
+            .unwrap_or_default()
+            .into_iter()
+            .find(|z| z.key == key)
     });
 
     // Drawing mode status
     let draw_mode_active = RwSignal::new(false);
     let draw_points = RwSignal::new(Vec::<(i32, i32)>::new());
-    
+
     // Modal states
     let show_permit_modal = RwSignal::new(false);
     let show_save_zone_modal = RwSignal::new(false);
@@ -69,7 +67,11 @@ pub fn Compliance() -> impl IntoView {
             match crate::api::admin::verify_permit(id).await {
                 Ok(_) => {
                     permits_trigger.set(permits_trigger.get() + 1);
-                    t_toast.show_toast("Success", "Permit regulatory verification check PASSED.", "success");
+                    t_toast.show_toast(
+                        "Success",
+                        "Permit regulatory verification check PASSED.",
+                        "success",
+                    );
                 }
                 Err(e) => {
                     t_toast.show_toast("Error", &format!("Verification failed: {}", e), "error");
@@ -82,14 +84,15 @@ pub fn Compliance() -> impl IntoView {
     let handle_save_geo_zone = move |_| {
         let name = new_zone_name.get();
         let region = new_zone_region.get();
-        
+
         if name.trim().is_empty() || region.trim().is_empty() {
             toast.show_toast("Error", "Name and region are required.", "error");
             return;
         }
 
         let points_vec = draw_points.get();
-        let points_str = points_vec.iter()
+        let points_str = points_vec
+            .iter()
             .map(|(px, py)| format!("{},{}", px, py))
             .collect::<Vec<String>>()
             .join(" ");
@@ -105,10 +108,18 @@ pub fn Compliance() -> impl IntoView {
                     draw_points.set(Vec::new());
                     new_zone_name.set(String::new());
                     new_zone_region.set(String::new());
-                    t_toast.show_toast("Success", "Drawn spatial polygon saved to database context successfully.", "success");
+                    t_toast.show_toast(
+                        "Success",
+                        "Drawn spatial polygon saved to database context successfully.",
+                        "success",
+                    );
                 }
                 Err(e) => {
-                    t_toast.show_toast("Error", &format!("Failed to save geo zone: {}", e), "error");
+                    t_toast.show_toast(
+                        "Error",
+                        &format!("Failed to save geo zone: {}", e),
+                        "error",
+                    );
                 }
             }
         });
@@ -116,19 +127,21 @@ pub fn Compliance() -> impl IntoView {
 
     // Handle map SVG mouse clicks
     let handle_map_click = move |ev: leptos::ev::MouseEvent| {
-        if !draw_mode_active.get() { return; }
-        
+        if !draw_mode_active.get() {
+            return;
+        }
+
         if let Some(target) = ev.current_target() {
             let svg: web_sys::Element = target.unchecked_into();
             let rect = svg.get_bounding_client_rect();
             let click_x = ev.client_x() - rect.left() as i32;
             let click_y = ev.client_y() - rect.top() as i32;
-            
+
             let mapped_x = (click_x as f64 * (400.0 / rect.width())) as i32;
             let mapped_y = (click_y as f64 * (300.0 / rect.height())) as i32;
-            
+
             draw_points.update(|pts| pts.push((mapped_x, mapped_y)));
-            
+
             if draw_points.get().len() == 4 {
                 show_save_zone_modal.set(true);
             }
@@ -136,7 +149,9 @@ pub fn Compliance() -> impl IntoView {
     };
 
     let draw_polygon_points_str = Signal::derive(move || {
-        draw_points.get().iter()
+        draw_points
+            .get()
+            .iter()
             .map(|(px, py)| format!("{},{}", px, py))
             .collect::<Vec<String>>()
             .join(" ")
@@ -150,13 +165,13 @@ pub fn Compliance() -> impl IntoView {
                 <p class="page-subtitle">"Track municipal registrations, regulatory listings, and active contracts"</p>
             </div>
             <div class="page-actions">
-                <button 
+                <button
                     on:click=move |_| toast.show_toast("Info", "Running PostGIS integrity check...", "info")
                     class="btn btn-ghost btn-sm"
                 >
                     "Validate Geo Areas"
                 </button>
-                <button 
+                <button
                     on:click=move |_| {
                         new_permit_municipality.set(String::new());
                         new_permit_license.set(String::new());
@@ -215,19 +230,19 @@ pub fn Compliance() -> impl IntoView {
 
         // Tabs
         <div class="tab-bar">
-            <button 
+            <button
                 class=move || format!("tab {}", if active_tab.get() == "regulatory" { "active" } else { "" })
                 on:click=move |_| active_tab.set("regulatory".to_string())
             >
                 "Regulatory Registrations"
             </button>
-            <button 
+            <button
                 class=move || format!("tab {}", if active_tab.get() == "contracts" { "active" } else { "" })
                 on:click=move |_| active_tab.set("contracts".to_string())
             >
                 "Active Contracts"
             </button>
-            <button 
+            <button
                 class=move || format!("tab {}", if active_tab.get() == "geo" { "active" } else { "" })
                 on:click=move |_| active_tab.set("geo".to_string())
             >
@@ -258,9 +273,9 @@ pub fn Compliance() -> impl IntoView {
                     <tbody>
                         <Suspense fallback=move || view! { <tr><td colspan="8">"Loading permits..."</td></tr> }>
                             {move || permits_res.get().map(|list| view! {
-                                <For 
-                                    each=move || list.clone() 
-                                    key=|p| p.id 
+                                <For
+                                    each=move || list.clone()
+                                    key=|p| p.id
                                     children=move |p| {
                                         let pid = p.id;
                                         view! {
@@ -277,9 +292,9 @@ pub fn Compliance() -> impl IntoView {
                                                 <td class="muted">{p.last_checked.clone()}</td>
                                                 <td class="muted">{p.date_renewed.clone()}</td>
                                                 <td>
-                                                    <button 
+                                                    <button
                                                         id=format!("btn-ver-{}", pid)
-                                                        class="btn btn-ghost btn-sm" 
+                                                        class="btn btn-ghost btn-sm"
                                                         on:click=move |_| verify_permit_action(pid)
                                                     >
                                                         "Verify"
@@ -399,17 +414,17 @@ pub fn Compliance() -> impl IntoView {
                             </pattern>
                         </defs>
                         <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-                        
+
                         <Suspense fallback=move || ()>
                             {move || geo_zones_res.get().map(|zones| view! {
-                                <For 
-                                    each=move || zones.clone() 
-                                    key=|z| z.key.clone() 
+                                <For
+                                    each=move || zones.clone()
+                                    key=|z| z.key.clone()
                                     children=move |z| {
                                         let key = z.key.clone();
                                         let key_click = z.key.clone();
                                         view! {
-                                            <polygon 
+                                            <polygon
                                                 class=move || format!("map-poly {}", if selected_zone_key.get() == key { "active" } else { "" })
                                                 points=z.points.clone()
                                                 on:click=move |e| {
@@ -430,13 +445,13 @@ pub fn Compliance() -> impl IntoView {
                         <text x="135" y="175" fill="var(--text-muted)" font-size="9" font-family="monospace">"Copacabana"</text>
 
                         <Show when=move || draw_mode_active.get() && !draw_polygon_points_str.get().is_empty()>
-                            <polygon 
-                                points=move || draw_polygon_points_str.get() 
+                            <polygon
+                                points=move || draw_polygon_points_str.get()
                                 style="fill: rgba(6,150,105,0.15); stroke: var(--green); stroke-width: 1.5;"
                             />
                         </Show>
 
-                        <For 
+                        <For
                             each=move || draw_points.get()
                             key=|(px, py)| format!("{},{}", px, py)
                             children=move |(px, py)| {
@@ -447,11 +462,11 @@ pub fn Compliance() -> impl IntoView {
                         />
                     </svg>
                     <span style="position:absolute; top:10px; left:12px; font-size:10px; font-family:monospace; color:var(--text-muted)">"Map Engine: PostGIS (SRID 4326)"</span>
-                    
-                    <button 
+
+                    <button
                         id="btn-draw-mode"
                         class=move || if draw_mode_active.get() { "btn btn-primary btn-sm btn-danger" } else { "btn btn-ghost btn-sm" }
-                        style="position:absolute; bottom:10px; right:12px;" 
+                        style="position:absolute; bottom:10px; right:12px;"
                         on:click=move |_| {
                             draw_mode_active.update(|v| *v = !*v);
                             draw_points.set(Vec::new());
@@ -506,8 +521,8 @@ pub fn Compliance() -> impl IntoView {
                     <div class="space-y-4 mb-6">
                         <div class="n-form-row">
                             <label class="n-form-label">"Municipality Name"</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 class="n-form-input"
                                 placeholder="e.g. City of Chicago STR"
                                 prop:value=new_permit_municipality
@@ -516,8 +531,8 @@ pub fn Compliance() -> impl IntoView {
                         </div>
                         <div class="n-form-row">
                             <label class="n-form-label">"Registry ID / License"</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 class="n-form-input"
                                 placeholder="R-2026-A8B"
                                 prop:value=new_permit_license
@@ -527,7 +542,7 @@ pub fn Compliance() -> impl IntoView {
                     </div>
                     <div class="flex justify-end gap-3">
                         <button on:click=move |_| show_permit_modal.set(false) class="btn btn-ghost">"Cancel"</button>
-                        <button 
+                        <button
                             on:click=move |_| {
                                 let mun = new_permit_municipality.get();
                                 let lic = new_permit_license.get();
@@ -568,8 +583,8 @@ pub fn Compliance() -> impl IntoView {
                     <div class="space-y-4 mb-6">
                         <div class="n-form-row">
                             <label class="n-form-label">"Zone Code Name"</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 class="n-form-input"
                                 placeholder="e.g. West Loop STR Area"
                                 prop:value=new_zone_name
@@ -578,8 +593,8 @@ pub fn Compliance() -> impl IntoView {
                         </div>
                         <div class="n-form-row">
                             <label class="n-form-label">"Coverage Region"</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 class="n-form-input"
                                 placeholder="Chicago, IL"
                                 prop:value=new_zone_region

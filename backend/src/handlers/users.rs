@@ -1,24 +1,28 @@
 #![allow(dead_code)]
+use crate::auth::{hash_password, verify_password};
 use crate::entities::{
+    account::{self},
     profile::{self},
+    session::{self},
+    tenant::Entity as TenantEntity,
     user::{self, Entity as User},
     user_account::{self},
-    session::{self},
-    account::{self},
-    tenant::Entity as TenantEntity,
 };
+use crate::handlers::profiles::get_profile_by_id;
+use crate::handlers::sessions::{create_user_session, refresh_token, validate_session};
+use crate::models::user::UserRegistration;
 use axum::{
-    extract::{Extension, Json, Path, State}, http::{StatusCode, header}, response::IntoResponse, routing::{get, post, put}, Router
+    Router,
+    extract::{Extension, Json, Path, State},
+    http::{StatusCode, header},
+    response::IntoResponse,
+    routing::{get, post, put},
 };
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use crate::auth::{hash_password, verify_password};
-use crate::models::user::UserRegistration;
-use crate::handlers::sessions::{refresh_token, validate_session, create_user_session};
-use crate::handlers::profiles::get_profile_by_id;
-use sea_orm::{DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter, ActiveModelTrait};
 use uuid::Uuid;
-use chrono::{Utc};
 
 #[derive(Deserialize, Debug)]
 pub struct LoginCredentials {
@@ -47,7 +51,6 @@ pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router<Databas
         .route("/api/refresh-token", post(refresh_token))
         .route("/api/validate-session", get(validate_session))
         .with_state(db_connection)
-
 }
 
 pub async fn get_user_profile(
@@ -62,7 +65,10 @@ pub async fn register_user(
     State(db): State<DatabaseConnection>,
     Json(user_data): Json<UserRegistration>,
 ) -> Result<axum::response::Response, (StatusCode, String)> {
-    tracing::info!("Received registration request for email: {}", user_data.email);
+    tracing::info!(
+        "Received registration request for email: {}",
+        user_data.email
+    );
 
     let tenant_id = user_data.tenant_id;
 
@@ -93,18 +99,20 @@ pub async fn register_user(
         })?;
 
     if existing_user.is_some() {
-        let error_msg = format!("User with email {} already exists in the system", user_data.email);
+        let error_msg = format!(
+            "User with email {} already exists in the system",
+            user_data.email
+        );
         tracing::warn!("{}", error_msg);
         return Err((StatusCode::CONFLICT, error_msg));
     }
 
     // Step 2: Hash password and create a new user
-    let hashed_password = hash_password(&user_data.password)
-        .map_err(|err| {
-            let error_msg = format!("Error hashing password: {:?}", err);
-            tracing::error!("{}", error_msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
-        })?;
+    let hashed_password = hash_password(&user_data.password).map_err(|err| {
+        let error_msg = format!("Error hashing password: {:?}", err);
+        tracing::error!("{}", error_msg);
+        (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
+    })?;
 
     // Clone username and email before moving them
     let username = user_data.username.clone();
@@ -141,26 +149,26 @@ pub async fn register_user(
             tracing::error!("{}", error_msg);
             (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
         })? {
-            Some(account) => account,
-            None => {
-                // Create a new Account if not found
-                let new_account = account::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    tenant_id: Set(tenant_id),
-                    name: Set(username.clone()),
-                    is_active: Set(true),
-                    stripe_customer_id: sea_orm::NotSet,
-                    stripe_payment_method_id: sea_orm::NotSet,
-                    created_at: Set(Utc::now()),
-                    updated_at: Set(Utc::now()),
-                };
-                new_account.insert(&db).await.map_err(|err| {
-                    let error_msg = format!("Database error when creating account: {:?}", err);
-                    tracing::error!("{}", error_msg);
-                    (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
-                })?
-            }
-        };
+        Some(account) => account,
+        None => {
+            // Create a new Account if not found
+            let new_account = account::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(tenant_id),
+                name: Set(username.clone()),
+                is_active: Set(true),
+                stripe_customer_id: sea_orm::NotSet,
+                stripe_payment_method_id: sea_orm::NotSet,
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            };
+            new_account.insert(&db).await.map_err(|err| {
+                let error_msg = format!("Database error when creating account: {:?}", err);
+                tracing::error!("{}", error_msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
+            })?
+        }
+    };
 
     // Step 5: Find or create the Profile for the network
     let profile = profile::Entity::find()
@@ -225,15 +233,21 @@ pub async fn register_user(
     // Create session for the new user immediately upon registration
     let session_response = create_user_session(&db, &user_data.email, &user_data.password)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to auto-authenticate after registration".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to auto-authenticate after registration".to_string(),
+            )
+        })?;
 
     let cookie = crate::handlers::sessions::session_cookie_header(&session_response.token, 86_400);
 
     Ok((
         StatusCode::CREATED,
         [(header::SET_COOKIE, cookie)],
-        Json(session_response)
-    ).into_response())
+        Json(session_response),
+    )
+        .into_response())
 }
 
 pub async fn login_user(
@@ -241,8 +255,12 @@ pub async fn login_user(
     Json(credentials): Json<LoginCredentials>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Attempting to log in user: {}", credentials.email);
-    println!("LOGIN ATTEMPT: Email: {}, Password length: {}", credentials.email, credentials.password.len());
-    
+    println!(
+        "LOGIN ATTEMPT: Email: {}, Password length: {}",
+        credentials.email,
+        credentials.password.len()
+    );
+
     let user = match User::find()
         .filter(user::Column::Email.eq(&credentials.email))
         .one(&db)
@@ -251,12 +269,12 @@ pub async fn login_user(
         Ok(Some(user)) => {
             println!("TEST LOG: from login_user and user found: {:?}", user);
             user
-        },
+        }
         Ok(None) => {
             println!("TEST LOG: from login_user and user not found");
             tracing::warn!("User not found for email: {}", credentials.email);
             return Err(StatusCode::UNAUTHORIZED);
-        },
+        }
         Err(e) => {
             println!("TEST LOG: from login_user and error: {:?}", e);
             tracing::error!("Database error when finding user: {:?}", e);
@@ -265,37 +283,50 @@ pub async fn login_user(
     };
 
     match verify_password(&credentials.password, &user.password_hash) {
-        Ok(true) =>{
+        Ok(true) => {
             tracing::info!("Password verified successfully");
             println!("TEST LOG: from login_user and password verified successfully");
-        },
+        }
         Ok(false) => {
-            println!("TEST LOG: from login_user and invalid password for user: {}", user.id);
+            println!(
+                "TEST LOG: from login_user and invalid password for user: {}",
+                user.id
+            );
             tracing::warn!("Invalid password for user: {}", user.id);
             return Err(StatusCode::UNAUTHORIZED);
-        },
+        }
         Err(e) => {
-            println!("TEST LOG: from login_user and error verifying password: {:?}", e);
+            println!(
+                "TEST LOG: from login_user and error verifying password: {:?}",
+                e
+            );
             tracing::error!("Error verifying password: {:?}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
 
     // Replace direct handler call with shared logic
-    let session_response = create_user_session(&db, &credentials.email, &credentials.password).await?;
+    let session_response =
+        create_user_session(&db, &credentials.email, &credentials.password).await?;
 
-    println!("TEST LOG: from login_user and session created successfully for user: {}", user.id);
-    tracing::info!("Session created from user handler successfully for user: {}", user.id);
-    
+    println!(
+        "TEST LOG: from login_user and session created successfully for user: {}",
+        user.id
+    );
+    tracing::info!(
+        "Session created from user handler successfully for user: {}",
+        user.id
+    );
+
     let cookie = crate::handlers::sessions::session_cookie_header(&session_response.token, 86_400);
 
     Ok((
         StatusCode::OK,
         [(header::SET_COOKIE, cookie)],
-        Json(session_response)
-    ).into_response())
+        Json(session_response),
+    )
+        .into_response())
 }
-
 
 pub async fn logout_user(
     State(db): State<DatabaseConnection>,
@@ -307,12 +338,21 @@ pub async fn logout_user(
     active_session.last_modified_date = Set(Utc::now());
 
     active_session.update(&db).await.map_err(|e| {
-        println!("TEST LOG: from logout_user and error updating session: {:?}", e);
+        println!(
+            "TEST LOG: from logout_user and error updating session: {:?}",
+            e
+        );
         tracing::error!("Failed to update session: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal server error".to_string(),
+        )
     })?;
 
-    Ok((StatusCode::OK, Json(json!({"message": "Successfully logged out"}))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({"message": "Successfully logged out"})),
+    ))
 }
 
 #[derive(Deserialize, Debug)]
@@ -331,8 +371,17 @@ pub async fn update_user_email(
     Extension(current_user): Extension<user::Model>,
     Json(payload): Json<UpdateEmailRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    match crate::services::user_service::UserService::update_email(&db, current_user, payload.new_email).await {
-        Ok(_) => Ok((StatusCode::OK, Json(json!({"message": "Email updated successfully"})))),
+    match crate::services::user_service::UserService::update_email(
+        &db,
+        current_user,
+        payload.new_email,
+    )
+    .await
+    {
+        Ok(_) => Ok((
+            StatusCode::OK,
+            Json(json!({"message": "Email updated successfully"})),
+        )),
         Err(e) => {
             if e == "Email already in use" {
                 Err((StatusCode::CONFLICT, e))
@@ -350,13 +399,32 @@ pub async fn update_user_password(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Verify current password
     match verify_password(&payload.current_password, &current_user.password_hash) {
-        Ok(true) => {},
-        Ok(false) => return Err((StatusCode::UNAUTHORIZED, "Invalid current password".to_string())),
-        Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "Error verifying password".to_string())),
+        Ok(true) => {}
+        Ok(false) => {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                "Invalid current password".to_string(),
+            ));
+        }
+        Err(_) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error verifying password".to_string(),
+            ));
+        }
     }
 
-    match crate::services::user_service::UserService::update_password(&db, current_user, payload.new_password).await {
-        Ok(_) => Ok((StatusCode::OK, Json(json!({"message": "Password updated successfully"})))),
+    match crate::services::user_service::UserService::update_password(
+        &db,
+        current_user,
+        payload.new_password,
+    )
+    .await
+    {
+        Ok(_) => Ok((
+            StatusCode::OK,
+            Json(json!({"message": "Password updated successfully"})),
+        )),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
     }
 }

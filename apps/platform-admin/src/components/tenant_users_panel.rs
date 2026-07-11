@@ -7,47 +7,48 @@
 //!   - Inviting a new user by email + folio role
 //!   - Viewing pending invitations for this tenant
 
+use crate::api::admin::{
+    CreateInviteInput, create_invite, get_invites, get_users, revoke_invite, toggle_admin,
+};
 use leptos::prelude::*;
 use uuid::Uuid;
-use crate::api::admin::{
-    get_users, toggle_admin, get_invites, create_invite, revoke_invite, CreateInviteInput,
-};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
-pub fn TenantUsersPanel(
-    tenant_id: Uuid,
-) -> impl IntoView {
+pub fn TenantUsersPanel(tenant_id: Uuid) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // ── Resources ──────────────────────────────────────────────────────────────
-    let users_res = LocalResource::new(move || {
-        async move { get_users(Some(tenant_id)).await.unwrap_or_default() }
-    });
+    let users_res =
+        LocalResource::new(
+            move || async move { get_users(Some(tenant_id)).await.unwrap_or_default() },
+        );
 
-    let invites_res = LocalResource::new(move || {
-        async move {
-            get_invites().await.unwrap_or_default()
-                .into_iter()
-                .filter(|i| i.tenant == tenant_id.to_string())
-                .collect::<Vec<_>>()
-        }
+    let invites_res = LocalResource::new(move || async move {
+        get_invites()
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|i| i.tenant == tenant_id.to_string())
+            .collect::<Vec<_>>()
     });
 
     // ── Invite form signals ────────────────────────────────────────────────────
     let show_invite_modal = RwSignal::new(false);
     let invite_email = RwSignal::new(String::new());
-    let invite_role  = RwSignal::new("landlord".to_string());
+    let invite_role = RwSignal::new("landlord".to_string());
     let invite_saving = RwSignal::new(false);
 
     let handle_invite = move |_| {
         let t = toast.clone();
         let email = invite_email.get();
-        let role  = invite_role.get();
+        let role = invite_role.get();
         let tenant = tenant_id.to_string();
 
-        if email.is_empty() { return; }
+        if email.is_empty() {
+            return;
+        }
         invite_saving.set(true);
         leptos::task::spawn_local(async move {
             match create_invite(CreateInviteInput {
@@ -60,7 +61,9 @@ pub fn TenantUsersPanel(
                 target_app_url: None,
                 personal_message: None,
                 expires_days: Some(7),
-            }).await {
+            })
+            .await
+            {
                 Ok(_) => {
                     t.show_toast("Invited", "Invitation sent successfully.", "success");
                     show_invite_modal.set(false);

@@ -7,19 +7,19 @@
 //! The client PUTs file bytes directly to R2; the backend is never in
 //! the upload path.
 
+use crate::entities::user;
+use aws_sdk_s3::Client;
+use aws_sdk_s3::presigning::PresigningConfig;
 use axum::{
+    Router,
     extract::{Extension, Json},
     http::StatusCode,
     response::IntoResponse,
     routing::post,
-    Router,
 };
-use aws_sdk_s3::presigning::PresigningConfig;
-use aws_sdk_s3::Client;
-use serde::{Deserialize, Serialize};
 use sea_orm::DatabaseConnection;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::entities::user;
 
 #[derive(Debug, Deserialize)]
 pub struct AdminPresignReq {
@@ -51,10 +51,9 @@ pub async fn admin_presign_upload(
     Json(payload): Json<AdminPresignReq>,
 ) -> impl IntoResponse {
     let access_key = std::env::var("R2_ACCESS_KEY_ID").unwrap_or_default();
-    let secret     = std::env::var("R2_SECRET_ACCESS_KEY").unwrap_or_default();
-    let endpoint   = std::env::var("R2_ENDPOINT").unwrap_or_default();
-    let public_base = std::env::var("R2_PUBLIC_URL")
-        .unwrap_or_else(|_| endpoint.clone());
+    let secret = std::env::var("R2_SECRET_ACCESS_KEY").unwrap_or_default();
+    let endpoint = std::env::var("R2_ENDPOINT").unwrap_or_default();
+    let public_base = std::env::var("R2_PUBLIC_URL").unwrap_or_else(|_| endpoint.clone());
 
     if access_key.is_empty() || endpoint.is_empty() {
         return (
@@ -66,7 +65,8 @@ pub async fn admin_presign_upload(
 
     let bucket = "atlas-tenant-vault".to_string();
 
-    let ext = payload.filename
+    let ext = payload
+        .filename
         .rsplit('.')
         .next()
         .unwrap_or("bin")
@@ -78,9 +78,8 @@ pub async fn admin_presign_upload(
         safe_folder, current_user.id, unique_id, ext
     );
 
-    let credentials = aws_sdk_s3::config::Credentials::new(
-        &access_key, &secret, None, None, "cloudflare",
-    );
+    let credentials =
+        aws_sdk_s3::config::Credentials::new(&access_key, &secret, None, None, "cloudflare");
     let s3_config = aws_sdk_s3::config::Builder::new()
         .credentials_provider(credentials)
         .region(aws_sdk_s3::config::Region::new("auto"))
@@ -92,7 +91,7 @@ pub async fn admin_presign_upload(
     let presigning_config = match PresigningConfig::expires_in(expires_in) {
         Ok(c) => c,
         Err(_) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Presign config error").into_response()
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Presign config error").into_response();
         }
     };
 
@@ -125,6 +124,5 @@ pub async fn admin_presign_upload(
 }
 
 pub fn routes() -> Router<DatabaseConnection> {
-    Router::new()
-        .route("/api/admin/upload-presign", post(admin_presign_upload))
+    Router::new().route("/api/admin/upload-presign", post(admin_presign_upload))
 }

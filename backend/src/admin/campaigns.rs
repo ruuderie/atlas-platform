@@ -9,14 +9,12 @@
 ///   GET  /api/admin/campaigns/:id/enrollments        → list enrollments for a campaign
 ///
 use axum::{
+    Json, Router,
     extract::{Path, State},
     routing::{get, post, put},
-    Router,
-    Json,
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -153,7 +151,12 @@ pub async fn get_campaign(
         .one(&db)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Campaign not found".to_string()))?;
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                "Campaign not found".to_string(),
+            )
+        })?;
 
     Ok(Json(CampaignDto::from(campaign)))
 }
@@ -169,10 +172,12 @@ pub async fn create_campaign(
     let id = Uuid::new_v4();
     let now = Utc::now();
 
-    let starts_at = payload.starts_at
+    let starts_at = payload
+        .starts_at
         .as_deref()
         .and_then(|s| s.parse::<chrono::DateTime<Utc>>().ok());
-    let ends_at = payload.ends_at
+    let ends_at = payload
+        .ends_at
         .as_deref()
         .and_then(|s| s.parse::<chrono::DateTime<Utc>>().ok());
 
@@ -231,7 +236,12 @@ pub async fn update_campaign_status(
         .one(&db)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Campaign not found".to_string()))?;
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                "Campaign not found".to_string(),
+            )
+        })?;
 
     let mut active: atlas_campaign::ActiveModel = campaign.into();
     active.status = Set(payload.status);
@@ -257,19 +267,26 @@ pub async fn list_campaign_enrollments(
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Json(enrollments.into_iter().map(EnrollmentDto::from).collect()))
+    Ok(Json(
+        enrollments.into_iter().map(EnrollmentDto::from).collect(),
+    ))
 }
 
 // ── Route constructor ─────────────────────────────────────────────────────────
 
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/admin/campaigns",
-            get(list_campaigns).post(create_campaign))
-        .route("/api/admin/campaigns/{id}",
-            get(get_campaign))
-        .route("/api/admin/campaigns/{id}/status",
-            put(update_campaign_status))
-        .route("/api/admin/campaigns/{id}/enrollments",
-            get(list_campaign_enrollments))
+        .route(
+            "/api/admin/campaigns",
+            get(list_campaigns).post(create_campaign),
+        )
+        .route("/api/admin/campaigns/{id}", get(get_campaign))
+        .route(
+            "/api/admin/campaigns/{id}/status",
+            put(update_campaign_status),
+        )
+        .route(
+            "/api/admin/campaigns/{id}/enrollments",
+            get(list_campaign_enrollments),
+        )
 }

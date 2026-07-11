@@ -1,7 +1,7 @@
 #![cfg(test)]
-use wasm_bindgen_test::*;
 use chrono::{TimeZone, Utc};
 use serde_json::json;
+use wasm_bindgen_test::*;
 
 use crate::pages::logs::{format_datetime_diff, format_json_diff};
 
@@ -69,10 +69,18 @@ fn test_group_apps_by_tenant_logic() {
     ];
 
     let grouped = group_apps_by_tenant(apps);
-    assert_eq!(grouped.len(), 2, "Should have exactly 2 distinct Tenant keys");
+    assert_eq!(
+        grouped.len(),
+        2,
+        "Should have exactly 2 distinct Tenant keys"
+    );
     let t1_group = grouped.get("T1").unwrap();
     assert_eq!(t1_group.0, "CT Build Pros");
-    assert_eq!(t1_group.1.len(), 2, "CT Build Pros should contain exactly 2 FQDN apps");
+    assert_eq!(
+        t1_group.1.len(),
+        2,
+        "CT Build Pros should contain exactly 2 FQDN apps"
+    );
     let t2_group = grouped.get("T2").unwrap();
     assert_eq!(t2_group.0, "BuildWithRuud");
     assert_eq!(t2_group.1.len(), 1, "BuildWithRuud should contain 1 app");
@@ -188,29 +196,37 @@ fn test_tenant_filter_by_status() {
     ];
 
     // Status filter
-    let active: Vec<_> = tenants.iter()
+    let active: Vec<_> = tenants
+        .iter()
         .filter(|t| t.site_status.as_deref() == Some("active"))
         .collect();
     assert_eq!(active.len(), 2, "2 active tenants");
 
-    let suspended: Vec<_> = tenants.iter()
+    let suspended: Vec<_> = tenants
+        .iter()
         .filter(|t| t.site_status.as_deref() == Some("suspended"))
         .collect();
     assert_eq!(suspended.len(), 1, "1 suspended tenant");
 
     // Name search (mirrors clients page search)
     let q = "alpha";
-    let matched: Vec<_> = tenants.iter()
+    let matched: Vec<_> = tenants
+        .iter()
         .filter(|t| t.name.to_lowercase().contains(q))
         .collect();
     assert_eq!(matched.len(), 1);
     assert_eq!(matched[0].name, "Alpha Inc");
 
     // Plan filter
-    let growth: Vec<_> = tenants.iter()
+    let growth: Vec<_> = tenants
+        .iter()
         .filter(|t| t.plan.as_deref() == Some("starter"))
         .collect();
-    assert_eq!(growth.len(), 4, "All 4 tenants on starter plan in this fixture");
+    assert_eq!(
+        growth.len(),
+        4,
+        "All 4 tenants on starter plan in this fixture"
+    );
 }
 
 // ── PlatformAppSummary field coverage ─────────────────────────────────────────
@@ -233,8 +249,14 @@ fn test_platform_app_summary_all_fields() {
         purpose: None,
     };
     assert_eq!(app.mode, "standard");
-    assert!(app.platform_account_id.is_some(), "CRM account cross-linked");
-    assert!(app.purpose.is_none(), "Not an internal instance — no purpose field");
+    assert!(
+        app.platform_account_id.is_some(),
+        "CRM account cross-linked"
+    );
+    assert!(
+        app.purpose.is_none(),
+        "Not an internal instance — no purpose field"
+    );
 
     // Internal operator demo instance
     let internal = PlatformAppSummary {
@@ -251,7 +273,10 @@ fn test_platform_app_summary_all_fields() {
     };
     assert_eq!(internal.mode, "internal_operator");
     assert_eq!(internal.purpose.as_deref(), Some("demo"));
-    assert!(internal.platform_account_id.is_none(), "Internal instances not CRM-linked");
+    assert!(
+        internal.platform_account_id.is_none(),
+        "Internal instances not CRM-linked"
+    );
 }
 
 // ── TenantStatModel slug field ─────────────────────────────────────────────────
@@ -274,7 +299,10 @@ fn test_tenant_stat_slug_field() {
         anchor_instance_id: Some("inst-bwr".to_string()),
     };
 
-    assert_eq!(t.slug, "buildwithruud", "slug must be the human-readable key shown in flags UI");
+    assert_eq!(
+        t.slug, "buildwithruud",
+        "slug must be the human-readable key shown in flags UI"
+    );
     // The flags page uses slug (not tenant_id UUID) as the display + filter key
     assert_ne!(t.slug, t.tenant_id, "slug must differ from UUID tenant_id");
 }

@@ -35,11 +35,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post, put},
-    Router,
 };
 use chrono::Utc;
 use sea_orm::{
@@ -57,10 +57,7 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/admin/flags", get(list_flags).post(create_flag))
         .route("/api/admin/flags/{key}", put(update_flag))
-        .route(
-            "/api/admin/flags/{key}/overrides",
-            post(add_override),
-        )
+        .route("/api/admin/flags/{key}/overrides", post(add_override))
         .route(
             "/api/admin/flags/{key}/overrides/{tenant_id}",
             delete(remove_override),
@@ -227,7 +224,10 @@ async fn load_full_flag(
         owner: flag.owner,
         created_at: flag.created_at,
         overrides: overrides.into_iter().map(FlagOverrideModel::from).collect(),
-        audit_logs: audit_logs.into_iter().map(FlagAuditLogModel::from).collect(),
+        audit_logs: audit_logs
+            .into_iter()
+            .map(FlagAuditLogModel::from)
+            .collect(),
     })
 }
 
@@ -274,7 +274,10 @@ pub async fn list_flags(
             owner: flag.owner,
             created_at: flag.created_at,
             overrides: overrides.into_iter().map(FlagOverrideModel::from).collect(),
-            audit_logs: audit_logs.into_iter().map(FlagAuditLogModel::from).collect(),
+            audit_logs: audit_logs
+                .into_iter()
+                .map(FlagAuditLogModel::from)
+                .collect(),
         });
     }
 
@@ -293,10 +296,10 @@ pub async fn create_flag(
     }
 
     let has_global = input.has_global.unwrap_or(true);
-    let rollout = input.global_rollout_pct.unwrap_or(if has_global { 100 } else { 0 });
-    let owner = input
-        .owner
-        .unwrap_or_else(|| current_user.email.clone());
+    let rollout = input
+        .global_rollout_pct
+        .unwrap_or(if has_global { 100 } else { 0 });
+    let owner = input.owner.unwrap_or_else(|| current_user.email.clone());
 
     let flag_id = Uuid::new_v4();
     feature_flag::ActiveModel {
@@ -323,7 +326,11 @@ pub async fn create_flag(
         &format!(
             "Flag created at {}% rollout{}",
             rollout,
-            input.jira.as_deref().map(|j| format!(" · {}", j)).unwrap_or_default()
+            input
+                .jira
+                .as_deref()
+                .map(|j| format!(" · {}", j))
+                .unwrap_or_default()
         ),
     )
     .await?;
@@ -372,7 +379,10 @@ pub async fn update_flag(
     if let Some(jira) = input.jira {
         active.jira = Set(Some(jira));
     }
-    active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let actor = &current_user.email;
 
@@ -380,7 +390,10 @@ pub async fn update_flag(
     let new_enabled = input.is_enabled.unwrap_or(prev_enabled);
     let new_rollout = input.global_rollout_pct.unwrap_or(prev_rollout);
     let action = if input.is_enabled.is_some() && new_enabled != prev_enabled {
-        format!("Global kill-switch toggled to {}", if new_enabled { "ON" } else { "OFF" })
+        format!(
+            "Global kill-switch toggled to {}",
+            if new_enabled { "ON" } else { "OFF" }
+        )
     } else if input.global_rollout_pct.is_some() && new_rollout != prev_rollout {
         format!("Global rollout {}% → {}%", prev_rollout, new_rollout)
     } else {
@@ -448,14 +461,21 @@ pub async fn add_override(
         &actor,
         &format!(
             "NI {} added: {} (Reason: {})",
-            if input.override_type == "deny" { "Deny" } else { "Grant" },
+            if input.override_type == "deny" {
+                "Deny"
+            } else {
+                "Grant"
+            },
             input.tenant_id,
             input.reason
         ),
     )
     .await?;
 
-    Ok((StatusCode::CREATED, axum::Json(FlagOverrideModel::from(ovr))))
+    Ok((
+        StatusCode::CREATED,
+        axum::Json(FlagOverrideModel::from(ovr)),
+    ))
 }
 
 /// DELETE /api/admin/flags/{key}/overrides/{tenant_id} — remove a per-tenant override

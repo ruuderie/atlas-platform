@@ -80,13 +80,14 @@ pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) ->
     } else {
         let text = res.text().await.unwrap_or_else(|_| "API Error".into());
         if let Ok(err) = serde_json::from_str::<ApiErrorResponse>(&text) {
-            Err(err.message.unwrap_or_else(|| err.error.unwrap_or_else(|| text.clone())))
+            Err(err
+                .message
+                .unwrap_or_else(|| err.error.unwrap_or_else(|| text.clone())))
         } else {
             Err(text)
         }
     }
 }
-
 
 static AUTH_TOKEN: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
@@ -139,12 +140,16 @@ pub fn clear_auth_token() {
 pub fn api_url(path: &str) -> String {
     #[allow(unused_mut)]
     let mut base_url = "http://api.localhost".to_string();
-    
+
     #[cfg(target_arch = "wasm32")]
     if let Some(window) = web_sys::window() {
-        if let Ok(env_val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__")) {
+        if let Ok(env_val) =
+            js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__"))
+        {
             if !env_val.is_undefined() {
-                if let Ok(api_val) = js_sys::Reflect::get(&env_val, &wasm_bindgen::JsValue::from_str("API_BASE_URL")) {
+                if let Ok(api_val) =
+                    js_sys::Reflect::get(&env_val, &wasm_bindgen::JsValue::from_str("API_BASE_URL"))
+                {
                     if let Some(s) = api_val.as_string() {
                         if s != "__API_BASE_URL__" && !s.is_empty() {
                             base_url = s;
@@ -154,7 +159,7 @@ pub fn api_url(path: &str) -> String {
             }
         }
     }
-    
+
     let base_url = base_url.trim_end_matches('/');
     let path = path.trim_start_matches('/');
     format!("{}/{}", base_url, path)
@@ -235,7 +240,10 @@ pub async fn api_patch_empty<B: Serialize>(path: &str, body: &B) -> Result<(), S
 ///
 /// Example: `api_get_key("api/folio/campaigns", "campaigns")` parses
 /// `{"campaigns": [...]}` into `Vec<CampaignModel>`.
-pub async fn api_get_key<T: serde::de::DeserializeOwned>(path: &str, key: &str) -> Result<T, String> {
+pub async fn api_get_key<T: serde::de::DeserializeOwned>(
+    path: &str,
+    key: &str,
+) -> Result<T, String> {
     let raw: serde_json::Value = api_get(path).await?;
     raw.get(key)
         .cloned()

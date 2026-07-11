@@ -1,16 +1,16 @@
+use crate::api::admin::end_ab_test;
+use crate::app::GlobalToast;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use uuid::Uuid;
+use shared_ui::components::card::Card;
+use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::related_list::RelatedList;
 use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use shared_ui::components::properties_editor::PropertiesEditor;
-use shared_ui::components::card::Card;
-use crate::api::admin::end_ab_test;
-use crate::app::GlobalToast;
+use uuid::Uuid;
 
 #[component]
 pub fn ListingDetail() -> impl IntoView {
@@ -24,10 +24,16 @@ pub fn ListingDetail() -> impl IntoView {
     let ab_tests_res = LocalResource::new(move || {
         let lid = listing_id_str.get_value();
         let _ = ab_refetch.get();
-        async move { crate::api::listings::get_listing_ab_tests(&lid).await.unwrap_or_default() }
+        async move {
+            crate::api::listings::get_listing_ab_tests(&lid)
+                .await
+                .unwrap_or_default()
+        }
     });
 
-    let listing_props = RwSignal::new(Some(serde_json::json!({"Service Area": "New York, NJ, PA"})));
+    let listing_props = RwSignal::new(Some(
+        serde_json::json!({"Service Area": "New York, NJ, PA"}),
+    ));
 
     let end_test_action = Action::new_local(move |test_id: &Uuid| {
         let t = toast.clone();

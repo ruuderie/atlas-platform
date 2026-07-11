@@ -1,19 +1,19 @@
+use argon2::{
+    Argon2,
+    password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
+};
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     http::StatusCode,
 };
+use chrono::{Duration, Utc};
+use rand::{Rng, distributions::Alphanumeric};
+use sea_orm::ActiveValue::Set;
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{Utc, Duration};
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
-    Argon2,
-};
-use rand::{distributions::Alphanumeric, Rng};
-use sea_orm::ActiveValue::Set;
 
-use crate::entities::{api_token, webhook_endpoint, webhook_delivery};
+use crate::entities::{api_token, webhook_delivery, webhook_endpoint};
 
 // --- API TOKENS ---
 
@@ -36,7 +36,6 @@ pub async fn create_api_token(
     Path(tenant_id): Path<Uuid>,
     Json(payload): Json<CreateApiTokenRequest>,
 ) -> Result<Json<CreateApiTokenResponse>, (StatusCode, String)> {
-    
     // Generate raw token
     let raw_token: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -49,7 +48,8 @@ pub async fn create_api_token(
     // Hash token
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-    let hash = argon2.hash_password(token.as_bytes(), &salt)
+    let hash = argon2
+        .hash_password(token.as_bytes(), &salt)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .to_string();
 
@@ -85,7 +85,7 @@ pub async fn list_api_tokens(
         .all(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     Ok(Json(tokens))
 }
 
@@ -97,7 +97,7 @@ pub async fn revoke_api_token(
         .exec(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -148,7 +148,7 @@ pub async fn list_webhook_endpoints(
         .all(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     Ok(Json(endpoints))
 }
 
@@ -160,7 +160,7 @@ pub async fn delete_webhook_endpoint(
         .exec(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -177,6 +177,6 @@ pub async fn list_webhook_deliveries(
         .all(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    
+
     Ok(Json(deliveries))
 }

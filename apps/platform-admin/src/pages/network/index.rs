@@ -1,15 +1,21 @@
-use leptos::prelude::*;
 use crate::api::admin::{get_all_platform_apps, get_tenant_stats};
+use leptos::prelude::*;
 
 #[component]
 pub fn NetworkRegistry() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    let apps_res = LocalResource::new(|| async move { get_all_platform_apps().await.unwrap_or_default() });
-    let tenants_res = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let apps_res =
+        LocalResource::new(|| async move { get_all_platform_apps().await.unwrap_or_default() });
+    let tenants_res =
+        LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
     let handle_export = move |_| {
-        toast.show_toast("Export", "Network registry database exported to JSON.", "success");
+        toast.show_toast(
+            "Export",
+            "Network registry database exported to JSON.",
+            "success",
+        );
     };
 
     view! {

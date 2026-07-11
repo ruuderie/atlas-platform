@@ -1,7 +1,7 @@
 use super::client::{api_url, create_client, with_credentials};
 use super::models::{
-    AccountModel, CreateAccount, LeadModel, CreateLead, DealModel, CreateDeal, UserInfo,
-    ContactModel, CreateContact, CrmNote, CrmActivity, CrmStatusOption
+    AccountModel, ContactModel, CreateAccount, CreateContact, CreateDeal, CreateLead, CrmActivity,
+    CrmNote, CrmStatusOption, DealModel, LeadModel, UserInfo,
 };
 use reqwest::StatusCode;
 
@@ -11,7 +11,9 @@ pub async fn get_users() -> Result<Vec<UserInfo>, String> {
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
-            if let Ok(data) = res.json::<Vec<UserInfo>>().await { return Ok(data); }
+            if let Ok(data) = res.json::<Vec<UserInfo>>().await {
+                return Ok(data);
+            }
         }
     }
     Err("Network Error: Backend unreachable".into())
@@ -26,23 +28,35 @@ pub async fn get_accounts(
 ) -> Result<Vec<AccountModel>, String> {
     let client = create_client();
     let mut url = api_url("/api/admin/accounts");
-    let mut qp = vec![
-        format!("page={}", page),
-        format!("per_page={}", per_page),
-    ];
-    if let Some(q) = search { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
-    if let Some(s) = status { if s != "all" { qp.push(format!("status={}", urlencoding::encode(s))); } }
-    if let Some(t) = account_type { if t != "all" { qp.push(format!("account_type={}", urlencoding::encode(t))); } }
-    if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
+    let mut qp = vec![format!("page={}", page), format!("per_page={}", per_page)];
+    if let Some(q) = search {
+        if !q.is_empty() {
+            qp.push(format!("search={}", urlencoding::encode(q)));
+        }
+    }
+    if let Some(s) = status {
+        if s != "all" {
+            qp.push(format!("status={}", urlencoding::encode(s)));
+        }
+    }
+    if let Some(t) = account_type {
+        if t != "all" {
+            qp.push(format!("account_type={}", urlencoding::encode(t)));
+        }
+    }
+    if !qp.is_empty() {
+        url = format!("{}?{}", url, qp.join("&"));
+    }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
-            if let Ok(data) = res.json::<Vec<AccountModel>>().await { return Ok(data); }
+            if let Ok(data) = res.json::<Vec<AccountModel>>().await {
+                return Ok(data);
+            }
         }
     }
     Err("Network Error: Backend unreachable".into())
 }
-
 
 pub async fn create_account(data: CreateAccount) -> Result<AccountModel, String> {
     let client = create_client();
@@ -66,23 +80,35 @@ pub async fn get_leads(
 ) -> Result<Vec<LeadModel>, String> {
     let client = create_client();
     let mut url = api_url("/api/admin/leads");
-    let mut qp = vec![
-        format!("page={}", page),
-        format!("per_page={}", per_page),
-    ];
-    if let Some(q) = search  { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
-    if let Some(s) = stage   { if s != "all"    { qp.push(format!("stage={}",  urlencoding::encode(s))); } }
-    if let Some(p) = source_prefix { if !p.is_empty() { qp.push(format!("source_prefix={}", urlencoding::encode(p))); } }
-    if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
+    let mut qp = vec![format!("page={}", page), format!("per_page={}", per_page)];
+    if let Some(q) = search {
+        if !q.is_empty() {
+            qp.push(format!("search={}", urlencoding::encode(q)));
+        }
+    }
+    if let Some(s) = stage {
+        if s != "all" {
+            qp.push(format!("stage={}", urlencoding::encode(s)));
+        }
+    }
+    if let Some(p) = source_prefix {
+        if !p.is_empty() {
+            qp.push(format!("source_prefix={}", urlencoding::encode(p)));
+        }
+    }
+    if !qp.is_empty() {
+        url = format!("{}?{}", url, qp.join("&"));
+    }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
-            if let Ok(data) = res.json::<Vec<LeadModel>>().await { return Ok(data); }
+            if let Ok(data) = res.json::<Vec<LeadModel>>().await {
+                return Ok(data);
+            }
         }
     }
     Err("Network Error: Backend unreachable".into())
 }
-
 
 pub async fn create_lead(data: CreateLead) -> Result<LeadModel, String> {
     let client = create_client();
@@ -103,7 +129,9 @@ pub async fn get_deals() -> Result<Vec<DealModel>, String> {
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
-            if let Ok(data) = res.json::<Vec<DealModel>>().await { return Ok(data); }
+            if let Ok(data) = res.json::<Vec<DealModel>>().await {
+                return Ok(data);
+            }
         }
     }
     Err("Network Error: Backend unreachable".into())
@@ -115,11 +143,17 @@ pub async fn create_deal(data: CreateDeal) -> Result<DealModel, String> {
     let req = with_credentials(client.post(&url));
     let res = req.json(&data).send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
-        res.json::<DealModel>().await.map_err(|e| format!("Parse error: {e}"))
+        res.json::<DealModel>()
+            .await
+            .map_err(|e| format!("Parse error: {e}"))
     } else {
         let status = res.status();
         let body = res.text().await.unwrap_or_default();
-        Err(format!("Create deal failed (HTTP {}): {}", status.as_u16(), body))
+        Err(format!(
+            "Create deal failed (HTTP {}): {}",
+            status.as_u16(),
+            body
+        ))
     }
 }
 
@@ -130,7 +164,6 @@ pub async fn get_user_by_id(id: &str) -> Result<UserInfo, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
         res.json::<UserInfo>().await.map_err(|e| e.to_string())
-
     } else {
         Err("Failed to fetch user".into())
     }
@@ -143,7 +176,6 @@ pub async fn get_account_by_id(id: &str) -> Result<AccountModel, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
         res.json::<AccountModel>().await.map_err(|e| e.to_string())
-
     } else {
         Err("Failed to fetch account".into())
     }
@@ -156,7 +188,6 @@ pub async fn get_lead_by_id(id: &str) -> Result<LeadModel, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
         res.json::<LeadModel>().await.map_err(|e| e.to_string())
-
     } else {
         Err("Failed to fetch lead".into())
     }
@@ -169,7 +200,6 @@ pub async fn get_deal_by_id(id: &str) -> Result<DealModel, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
         res.json::<DealModel>().await.map_err(|e| e.to_string())
-
     } else {
         Err("Failed to fetch deal".into())
     }
@@ -183,22 +213,28 @@ pub async fn get_contacts(
 ) -> Result<Vec<ContactModel>, String> {
     let client = create_client();
     let mut url = api_url("/api/admin/contacts");
-    let mut qp = vec![
-        format!("page={}", page),
-        format!("per_page={}", per_page),
-    ];
-    if let Some(q) = search { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
-    if let Some(r) = role   { qp.push(format!("role={}", urlencoding::encode(r))); }
-    if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
+    let mut qp = vec![format!("page={}", page), format!("per_page={}", per_page)];
+    if let Some(q) = search {
+        if !q.is_empty() {
+            qp.push(format!("search={}", urlencoding::encode(q)));
+        }
+    }
+    if let Some(r) = role {
+        qp.push(format!("role={}", urlencoding::encode(r)));
+    }
+    if !qp.is_empty() {
+        url = format!("{}?{}", url, qp.join("&"));
+    }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
-            if let Ok(data) = res.json::<Vec<ContactModel>>().await { return Ok(data); }
+            if let Ok(data) = res.json::<Vec<ContactModel>>().await {
+                return Ok(data);
+            }
         }
     }
     Err("Network Error: Backend unreachable".into())
 }
-
 
 pub async fn get_contact_by_id(id: &str) -> Result<ContactModel, String> {
     let client = create_client();
@@ -240,7 +276,10 @@ pub async fn update_contact(id: &str, data: CreateContact) -> Result<ContactMode
 
 pub async fn get_contact_notes(contact_id: &str) -> Result<Vec<CrmNote>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/crm/notes?entity_type=Contact&entity_id={}", contact_id));
+    let url = api_url(&format!(
+        "/api/crm/notes?entity_type=Contact&entity_id={}",
+        contact_id
+    ));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -270,17 +309,26 @@ pub async fn add_contact_note(contact_id: &str, content: &str) -> Result<CrmNote
 
 pub async fn get_contact_activities(contact_id: &str) -> Result<Vec<CrmActivity>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/crm/activities?entity_type=Contact&entity_id={}", contact_id));
+    let url = api_url(&format!(
+        "/api/crm/activities?entity_type=Contact&entity_id={}",
+        contact_id
+    ));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
-        res.json::<Vec<CrmActivity>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<CrmActivity>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err("Failed to fetch contact activities".into())
     }
 }
 
-pub async fn log_contact_activity(contact_id: &str, activity_type: &str, description: &str) -> Result<CrmActivity, String> {
+pub async fn log_contact_activity(
+    contact_id: &str,
+    activity_type: &str,
+    description: &str,
+) -> Result<CrmActivity, String> {
     let client = create_client();
     let url = api_url("/api/crm/activities");
     let payload = serde_json::json!({
@@ -302,11 +350,16 @@ pub async fn log_contact_activity(contact_id: &str, activity_type: &str, descrip
 
 pub async fn get_crm_status_options(object_type: &str) -> Result<Vec<CrmStatusOption>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/crm/status-options?object_type={}", object_type));
+    let url = api_url(&format!(
+        "/api/crm/status-options?object_type={}",
+        object_type
+    ));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
-        res.json::<Vec<CrmStatusOption>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<CrmStatusOption>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err("Failed to fetch status options".into())
     }
@@ -362,8 +415,8 @@ pub async fn log_call_activity(
     contact_id: Option<&str>,
     account_id: Option<&str>,
     duration_min: u32,
-    direction: &str,   // "inbound" | "outbound"
-    outcome: &str,     // "connected" | "voicemail" | "no_answer"
+    direction: &str, // "inbound" | "outbound"
+    outcome: &str,   // "connected" | "voicemail" | "no_answer"
     notes: &str,
     file_storage_paths: Vec<String>,
 ) -> Result<serde_json::Value, String> {
@@ -403,7 +456,9 @@ pub async fn log_call_activity(
     let req = with_credentials(client.post(&url).json(&payload));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
-        res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+        res.json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(res.text().await.unwrap_or_default())
     }

@@ -1,4 +1,4 @@
-use crate::api::client::{api_get, api_url, create_client, api_request};
+use crate::api::client::{api_get, api_request, api_url, create_client};
 use crate::api::models::VerificationRequestModel;
 use uuid::Uuid;
 
@@ -27,9 +27,14 @@ pub async fn approve_verification_request(id: Uuid) -> Result<VerificationReques
     api_request(req).await
 }
 
-pub async fn reject_verification_request(id: Uuid, reason: String) -> Result<VerificationRequestModel, String> {
+pub async fn reject_verification_request(
+    id: Uuid,
+    reason: String,
+) -> Result<VerificationRequestModel, String> {
     let client = create_client();
     let url = api_url(&format!("api/admin/verification-requests/{}/reject", id));
-    let req = client.post(&url).json(&serde_json::json!({ "reason": reason }));
+    let req = client
+        .post(&url)
+        .json(&serde_json::json!({ "reason": reason }));
     api_request(req).await
 }

@@ -1,6 +1,6 @@
+use super::client::api_post;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use super::client::{api_post};
 
 #[derive(Debug, Serialize)]
 pub struct SendEmailPayload {

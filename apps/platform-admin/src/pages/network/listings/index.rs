@@ -1,3 +1,5 @@
+use crate::api::listings::search_listings;
+use crate::api::models::{ListingModel, ListingStatus};
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
@@ -5,13 +7,11 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::models::{ListingModel, ListingStatus};
-use crate::api::listings::search_listings;
 
 #[component]
 pub fn Listings() -> impl IntoView {
     let (listings, set_listings) = signal(Vec::<ListingModel>::new());
-    
+
     Effect::new(move |_| {
         leptos::task::spawn_local(async move {
             if let Ok(data) = search_listings("").await {
@@ -62,7 +62,7 @@ pub fn Listings() -> impl IntoView {
                                     ListingStatus::Approved => "text-green-600 bg-green-600/10",
                                     ListingStatus::Rejected => "text-red-500 bg-red-500/10",
                                 };
-                                
+
                                 view! {
                                     <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted group">
                                         <DataTableCell class="p-4 align-middle font-semibold text-foreground">{item.title}</DataTableCell>

@@ -1,7 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-
 
 use crate::api::client::{api_url, create_client, with_credentials};
 
@@ -26,7 +25,7 @@ pub async fn get_audit_logs(
 ) -> Result<Vec<AuditLogModel>, String> {
     let client = create_client();
     let mut url = "/api/admin/audit-logs".to_string();
-    
+
     let mut params = Vec::new();
     if let Some(t) = tenant_id {
         params.push(format!("tenant_id={}", t));
@@ -37,7 +36,7 @@ pub async fn get_audit_logs(
     if let Some(e) = entity_id {
         params.push(format!("entity_id={}", e));
     }
-    
+
     if !params.is_empty() {
         url = format!("{}?{}", url, params.join("&"));
     }

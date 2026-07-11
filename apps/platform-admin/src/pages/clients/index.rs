@@ -1,3 +1,8 @@
+use crate::api::admin::{
+    get_all_platform_apps, get_crm_accounts, get_tenant_stats, link_deployment_account,
+    resume_instance, suspend_instance,
+};
+use crate::api::models::{AccountSummary, PlatformAppSummary, TenantStatModel};
 /// # Clients — Subscription & Tenant Management
 ///
 /// Route: /clients
@@ -11,30 +16,27 @@
 /// Data: get_tenant_stats() → TenantStatModel (tenant-centric)
 ///       get_all_platform_apps() → PlatformAppSummary (instance details)
 use leptos::prelude::*;
-use crate::api::admin::{
-    get_tenant_stats, get_all_platform_apps,
-    link_deployment_account, get_crm_accounts,
-    suspend_instance, resume_instance,
-};
-use crate::api::models::{TenantStatModel, PlatformAppSummary, AccountSummary};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
 
 fn status_pill(s: &str) -> &'static str {
     // Returns inline style string for a .plan-badge span
     match s {
-        "active"      => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
-        "provisioning"=> "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
-        "beta"        => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
-        "suspended"   => "color:var(--error);border-color:var(--error);background:var(--red-dim)",
-        "cancelled"   => "color:var(--text-muted);border-color:var(--border-default)",
-        _             => "color:var(--text-muted);border-color:var(--border-default)",
+        "active" => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
+        "provisioning" => {
+            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"
+        }
+        "beta" => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
+        "suspended" => "color:var(--error);border-color:var(--error);background:var(--red-dim)",
+        "cancelled" => "color:var(--text-muted);border-color:var(--border-default)",
+        _ => "color:var(--text-muted);border-color:var(--border-default)",
     }
 }
 
 fn fmt_mrr(cents: i64) -> String {
-    if cents == 0 { return "$0".to_string(); }
+    if cents == 0 {
+        return "$0".to_string();
+    }
     let dollars = cents / 100;
     format!("${}/mo", dollars)
 }
@@ -42,9 +44,9 @@ fn fmt_mrr(cents: i64) -> String {
 fn app_type_label(t: &str) -> &'static str {
     match t {
         "property_management" | "folio" => "Folio",
-        "anchor"   => "Anchor",
+        "anchor" => "Anchor",
         "meridian" => "Meridian",
-        _          => "App",
+        _ => "App",
     }
 }
 
@@ -60,30 +62,26 @@ fn LinkAccountModal(
     on_close: Callback<()>,
     on_saved: Callback<()>,
 ) -> impl IntoView {
-    let search   = RwSignal::new(String::new());
-    let saving   = RwSignal::new(false);
-    let err_msg  = RwSignal::new(Option::<String>::None);
+    let search = RwSignal::new(String::new());
+    let saving = RwSignal::new(false);
+    let err_msg = RwSignal::new(Option::<String>::None);
     let selected = RwSignal::new(current_account_id.clone());
 
-    let accounts_res = LocalResource::new(|| async move {
-        get_crm_accounts().await.unwrap_or_default()
-    });
+    let accounts_res =
+        LocalResource::new(|| async move { get_crm_accounts().await.unwrap_or_default() });
 
-    let tid_save    = tenant_id.clone();
+    let tid_save = tenant_id.clone();
     let on_save = move |_| {
-        let tid  = tid_save.clone();
+        let tid = tid_save.clone();
         let acct = selected.get();
         saving.set(true);
         err_msg.set(None);
         let on_saved_cb = on_saved.clone();
         leptos::task::spawn_local(async move {
-            let result = link_deployment_account(
-                &tid,
-                acct.as_deref(),
-            ).await;
+            let result = link_deployment_account(&tid, acct.as_deref()).await;
             saving.set(false);
             match result {
-                Ok(_)  => on_saved_cb.run(()),
+                Ok(_) => on_saved_cb.run(()),
                 Err(e) => err_msg.set(Some(format!("Save failed: {}", e))),
             }
         });
@@ -215,8 +213,14 @@ pub fn ClientsPage() -> impl IntoView {
     let tenants_res = LocalResource::new(move || async move {
         let _ = refresh.get();
         match get_tenant_stats().await {
-            Ok(v) => { clients_error.set(None); v }
-            Err(e) => { clients_error.set(Some(e)); vec![] }
+            Ok(v) => {
+                clients_error.set(None);
+                v
+            }
+            Err(e) => {
+                clients_error.set(Some(e));
+                vec![]
+            }
         }
     });
     let apps_res = LocalResource::new(move || async move {
@@ -224,10 +228,10 @@ pub fn ClientsPage() -> impl IntoView {
         get_all_platform_apps().await.unwrap_or_default()
     });
 
-    let search        = RwSignal::new(String::new());
+    let search = RwSignal::new(String::new());
     let filter_status = RwSignal::new("all".to_string());
     // Modal state: Some(tenant_id) = modal open for that tenant
-    let modal_tenant_id  = RwSignal::new(Option::<String>::None);
+    let modal_tenant_id = RwSignal::new(Option::<String>::None);
     let modal_account_id = RwSignal::new(Option::<String>::None);
 
     view! {

@@ -13,9 +13,11 @@ pub async fn get_categories(network_id: Option<String>) -> Result<Vec<CategoryMo
     let req = with_credentials(req);
 
     let res = req.send().await.map_err(|e| e.to_string())?;
-    
+
     if res.status() == StatusCode::OK {
-        res.json::<Vec<CategoryModel>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<CategoryModel>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(format!("Failed to fetch categories: {}", res.status()))
     }

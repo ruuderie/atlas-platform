@@ -8,8 +8,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::client::{api_get, api_post, api_put, api_delete};
-use super::client::{create_client, api_url, with_credentials, api_request};
+use super::client::{api_delete, api_get, api_post, api_put};
+use super::client::{api_request, api_url, create_client, with_credentials};
 
 // ── Response models ───────────────────────────────────────────────────────────
 
@@ -34,14 +34,24 @@ impl SyndicationOfferModel {
     pub fn types_display(&self) -> String {
         self.syndication_types
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
             .unwrap_or_else(|| "—".to_string())
     }
 
     pub fn mandatory_tiers_display(&self) -> String {
         self.is_mandatory_for_tiers
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
             .unwrap_or_else(|| "none".to_string())
     }
 
@@ -137,12 +147,17 @@ pub async fn get_syndication_offer(id: &str) -> Result<SyndicationOfferModel, St
 }
 
 /// Create a new syndication offer (platform admin).
-pub async fn create_syndication_offer(input: CreateOfferInput) -> Result<SyndicationOfferModel, String> {
+pub async fn create_syndication_offer(
+    input: CreateOfferInput,
+) -> Result<SyndicationOfferModel, String> {
     api_post("/api/admin/syndication/offers", &input).await
 }
 
 /// Update an existing syndication offer.
-pub async fn update_syndication_offer(id: &str, input: UpdateOfferInput) -> Result<SyndicationOfferModel, String> {
+pub async fn update_syndication_offer(
+    id: &str,
+    input: UpdateOfferInput,
+) -> Result<SyndicationOfferModel, String> {
     api_put(&format!("/api/admin/syndication/offers/{}", id), &input).await
 }
 
@@ -153,13 +168,20 @@ pub async fn retire_syndication_offer(id: &str) -> Result<(), String> {
     let req = client.post(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("Retire failed: {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Retire failed: {}", res.status()))
+    }
 }
 
 /// Auto-provision mandatory links for all instances on matching billing tiers.
 pub async fn auto_provision_mandatory_links(offer_id: &str) -> Result<AutoProvisionResult, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/admin/syndication/offers/{}/auto-provision", offer_id));
+    let url = api_url(&format!(
+        "/api/admin/syndication/offers/{}/auto-provision",
+        offer_id
+    ));
     let req = client.post(&url);
     api_request(req).await
 }
@@ -170,7 +192,9 @@ pub async fn list_syndication_links() -> Result<Vec<SyndicationLinkModel>, Strin
 }
 
 /// Create a manual syndication link (admin-only, bypasses self-service gate).
-pub async fn create_syndication_link(input: CreateLinkInput) -> Result<SyndicationLinkModel, String> {
+pub async fn create_syndication_link(
+    input: CreateLinkInput,
+) -> Result<SyndicationLinkModel, String> {
     api_post("/api/admin/syndication/links", &input).await
 }
 

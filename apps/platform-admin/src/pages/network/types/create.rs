@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::app::GlobalToast;
+use leptos::prelude::*;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
 #[component]
@@ -13,7 +13,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
     let submit_action = Action::new_local(move |_: &()| {
         let n = name.get();
         let d = description.get();
-        
+
         let t = toast.clone();
         let nav = navigate.clone();
 
@@ -23,7 +23,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
                 return;
             }
 
-            use crate::api::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+            use crate::api::client::{ApiErrorResponse, api_url, create_client, with_credentials};
             use serde_json::json;
 
             let payload = json!({
@@ -35,11 +35,14 @@ pub fn NetworkTypeCreate() -> impl IntoView {
             let url = api_url("/api/admin/network-types");
             let req = client.post(&url).json(&payload);
             let req = with_credentials(req);
-            
+
             match req.send().await {
                 Ok(res) if res.status().is_success() => {
                     t.show_toast("Success", "Network Type created.", "success");
-                    nav("/network/network-types", leptos_router::NavigateOptions::default());
+                    nav(
+                        "/network/network-types",
+                        leptos_router::NavigateOptions::default(),
+                    );
                 }
                 Ok(res) => {
                     if let Ok(err) = res.json::<ApiErrorResponse>().await {
@@ -69,7 +72,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
             >
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Type Name"</label>
-                    <input type="text" 
+                    <input type="text"
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                         placeholder="e.g. Real Estate"
                         prop:value=move || name.get()
@@ -79,7 +82,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Description"</label>
-                    <textarea 
+                    <textarea
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                         placeholder="Describe the purpose of this network type"
                         rows="3"
@@ -87,7 +90,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
                         on:input=move |ev| description.set(event_target_value(&ev))
                     ></textarea>
                 </div>
-                
+
                 <div class="flex justify-end gap-4 pt-6 mt-6 border-t border-outline-variant/10">
                     <a href="/network/network-types">
                         <Button variant=ButtonVariant::Outline>"Cancel"</Button>

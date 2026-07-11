@@ -16,10 +16,18 @@ use leptos::prelude::*;
 
 fn outer_classes(variant: &str) -> &'static str {
     match variant {
-        "warning" => "w-full px-4 py-3.5 rounded-xl border bg-amber-500/10 border-amber-500/20 text-xs text-on-surface-variant leading-relaxed",
-        "success" => "w-full px-4 py-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/20 text-xs text-on-surface-variant leading-relaxed",
-        "error"   => "w-full px-4 py-3.5 rounded-xl border bg-error/10 border-error/20 text-xs text-on-surface-variant leading-relaxed",
-        _         => "w-full px-4 py-3.5 rounded-xl border bg-primary/10 border-primary/20 text-xs text-on-surface-variant leading-relaxed",
+        "warning" => {
+            "w-full px-4 py-3.5 rounded-xl border bg-amber-500/10 border-amber-500/20 text-xs text-on-surface-variant leading-relaxed"
+        }
+        "success" => {
+            "w-full px-4 py-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/20 text-xs text-on-surface-variant leading-relaxed"
+        }
+        "error" => {
+            "w-full px-4 py-3.5 rounded-xl border bg-error/10 border-error/20 text-xs text-on-surface-variant leading-relaxed"
+        }
+        _ => {
+            "w-full px-4 py-3.5 rounded-xl border bg-primary/10 border-primary/20 text-xs text-on-surface-variant leading-relaxed"
+        }
     }
 }
 
@@ -27,8 +35,8 @@ fn title_classes(variant: &str) -> &'static str {
     match variant {
         "warning" => "text-amber-400 font-bold",
         "success" => "text-emerald-400 font-bold",
-        "error"   => "text-error font-bold",
-        _         => "text-primary font-bold",
+        "error" => "text-error font-bold",
+        _ => "text-primary font-bold",
     }
 }
 

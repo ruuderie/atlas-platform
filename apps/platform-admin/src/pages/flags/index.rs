@@ -1,6 +1,6 @@
+use crate::api::models::{FeatureFlagModel, FlagAuditLogModel, FlagOverrideModel};
 use leptos::prelude::*;
 use shared_ui::components::ui::switch::Switch;
-use crate::api::models::{FeatureFlagModel, FlagOverrideModel, FlagAuditLogModel};
 
 // ── UI-only wrappers ─────────────────────────────────────────────────────────
 // FlagState adds the reactive UI signals needed by the view (expand toggle,
@@ -39,7 +39,11 @@ impl FlagState {
             audit_logs: RwSignal::new(m.audit_logs.clone()),
             jira: m.jira.clone().unwrap_or_default(),
             owner: m.owner.clone(),
-            date_created: m.created_at.as_deref().map(|s| s.chars().take(10).collect()).unwrap_or_default(),
+            date_created: m
+                .created_at
+                .as_deref()
+                .map(|s| s.chars().take(10).collect())
+                .unwrap_or_default(),
             expanded: RwSignal::new(false),
             active_tab: RwSignal::new("variants".to_string()),
         }
@@ -65,12 +69,12 @@ impl TenantOption {
     fn color_from_name(name: &str) -> (String, String) {
         // bg_style, text_color — both CSS var references, no Tailwind color classes
         let palettes: &[(&str, &str)] = &[
-            ("var(--cobalt-dim)",  "var(--cobalt)"),
-            ("var(--amber-dim)",   "var(--amber)"),
-            ("var(--green-dim)",   "var(--green)"),
-            ("var(--violet-dim)",  "var(--violet)"),
-            ("var(--red-dim)",     "var(--red)"),
-            ("var(--teal-dim)",    "var(--teal)"),
+            ("var(--cobalt-dim)", "var(--cobalt)"),
+            ("var(--amber-dim)", "var(--amber)"),
+            ("var(--green-dim)", "var(--green)"),
+            ("var(--violet-dim)", "var(--violet)"),
+            ("var(--red-dim)", "var(--red)"),
+            ("var(--teal-dim)", "var(--teal)"),
             ("var(--bg-elevated)", "var(--text-secondary)"),
         ];
         let idx = name.chars().next().map(|c| c as usize).unwrap_or(0) % palettes.len();
@@ -102,7 +106,11 @@ pub fn FeatureFlags() -> impl IntoView {
     let flags_resource = LocalResource::new(move || async move {
         let _ = refresh.get();
         let res = crate::api::admin::get_admin_flags().await;
-        if let Err(ref e) = res { flags_error.set(Some(e.clone())); } else { flags_error.set(None); }
+        if let Err(ref e) = res {
+            flags_error.set(Some(e.clone()));
+        } else {
+            flags_error.set(None);
+        }
         res
     });
 
@@ -128,10 +136,14 @@ pub fn FeatureFlags() -> impl IntoView {
         tenants_resource
             .get()
             .and_then(|r| r.ok())
-            .map(|stats| stats.iter().map(TenantOption::from_stat).collect::<Vec<_>>())
+            .map(|stats| {
+                stats
+                    .iter()
+                    .map(TenantOption::from_stat)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default()
     });
-
 
     // Filtering & Searching UI State
     let search_query = RwSignal::new(String::new());
@@ -168,25 +180,32 @@ pub fn FeatureFlags() -> impl IntoView {
         let query = search_query.get().to_lowercase();
         let scope = filter_scope.get();
 
-        flags.get().into_iter().filter(|f| {
-            // Text Search Match
-            let matches_query = query.is_empty()
-                || f.key.to_lowercase().contains(&query)
-                || f.description.to_lowercase().contains(&query)
-                || f.jira.to_lowercase().contains(&query)
-                || f.overrides.get().iter().any(|o| o.tenant_id.to_lowercase().contains(&query));
+        flags
+            .get()
+            .into_iter()
+            .filter(|f| {
+                // Text Search Match
+                let matches_query = query.is_empty()
+                    || f.key.to_lowercase().contains(&query)
+                    || f.description.to_lowercase().contains(&query)
+                    || f.jira.to_lowercase().contains(&query)
+                    || f.overrides
+                        .get()
+                        .iter()
+                        .any(|o| o.tenant_id.to_lowercase().contains(&query));
 
-            // Scope Filter Match
-            let matches_scope = match scope.as_str() {
-                "global" => f.has_global,
-                "plan"   => f.is_plan_gated,
-                "ni"     => !f.overrides.get().is_empty(),
-                "off"    => !f.is_enabled.get() || (f.has_global && f.global_rollout.get() == 0),
-                _        => true,
-            };
+                // Scope Filter Match
+                let matches_scope = match scope.as_str() {
+                    "global" => f.has_global,
+                    "plan" => f.is_plan_gated,
+                    "ni" => !f.overrides.get().is_empty(),
+                    "off" => !f.is_enabled.get() || (f.has_global && f.global_rollout.get() == 0),
+                    _ => true,
+                };
 
-            matches_query && matches_scope
-        }).collect::<Vec<FlagState>>()
+                matches_query && matches_scope
+            })
+            .collect::<Vec<FlagState>>()
     });
 
     // Handle Open Assign Override Drawer
@@ -214,7 +233,9 @@ pub fn FeatureFlags() -> impl IntoView {
         let tenant_opt = selected_tenant.get();
         let reason = override_reason.get();
 
-        if fkey_opt.is_none() { return; }
+        if fkey_opt.is_none() {
+            return;
+        }
         let fkey = fkey_opt.unwrap();
 
         if tenant_opt.is_none() {
@@ -224,13 +245,25 @@ pub fn FeatureFlags() -> impl IntoView {
         let tenant = tenant_opt.unwrap();
 
         if reason.trim().is_empty() {
-            toast.show_toast("Error", "Update reason is required for audit logs.", "error");
+            toast.show_toast(
+                "Error",
+                "Update reason is required for audit logs.",
+                "error",
+            );
             return;
         }
 
         let ovr_type = override_type.get();
-        let rollout = if ovr_type == "deny" { 0 } else { override_rollout_pct.get() };
-        let jira_val = if override_jira.get().trim().is_empty() { None } else { Some(override_jira.get()) };
+        let rollout = if ovr_type == "deny" {
+            0
+        } else {
+            override_rollout_pct.get()
+        };
+        let jira_val = if override_jira.get().trim().is_empty() {
+            None
+        } else {
+            Some(override_jira.get())
+        };
 
         let input = crate::api::models::CreateFlagOverrideInput {
             tenant_id: tenant.id.clone(),
@@ -248,7 +281,11 @@ pub fn FeatureFlags() -> impl IntoView {
                 Ok(_) => {
                     resource.refetch();
                     close_override_drawer();
-                    toast.show_toast("Success", &format!("Tenant override saved for {}.", tenant_slug), "success");
+                    toast.show_toast(
+                        "Success",
+                        &format!("Tenant override saved for {}.", tenant_slug),
+                        "success",
+                    );
                 }
                 Err(e) => toast.show_toast("Error", &e, "error"),
             }
@@ -262,7 +299,11 @@ pub fn FeatureFlags() -> impl IntoView {
             match crate::api::admin::remove_flag_override(flag_key, tenant_id.clone()).await {
                 Ok(_) => {
                     resource.refetch();
-                    toast.show_toast("Warning", &format!("Override removed for {}.", tenant_id), "warn");
+                    toast.show_toast(
+                        "Warning",
+                        &format!("Override removed for {}.", tenant_id),
+                        "warn",
+                    );
                 }
                 Err(e) => toast.show_toast("Error", &e, "error"),
             }
@@ -280,7 +321,11 @@ pub fn FeatureFlags() -> impl IntoView {
             match crate::api::admin::update_flag(flag_key.clone(), input).await {
                 Ok(_) => {
                     resource.refetch();
-                    toast.show_toast("Info", &format!("Global switch updated for {}.", flag_key), "info");
+                    toast.show_toast(
+                        "Info",
+                        &format!("Global switch updated for {}.", flag_key),
+                        "info",
+                    );
                 }
                 Err(e) => toast.show_toast("Error", &e, "error"),
             }
@@ -298,7 +343,11 @@ pub fn FeatureFlags() -> impl IntoView {
             return;
         }
 
-        let jira_opt = if jira.trim().is_empty() { None } else { Some(jira.trim().to_uppercase()) };
+        let jira_opt = if jira.trim().is_empty() {
+            None
+        } else {
+            Some(jira.trim().to_uppercase())
+        };
         let input = crate::api::models::CreateFlagInput {
             key: key.trim().to_lowercase().replace(' ', "_"),
             description: desc,
@@ -316,7 +365,11 @@ pub fn FeatureFlags() -> impl IntoView {
                     new_flag_key.set(String::new());
                     new_flag_desc.set(String::new());
                     new_flag_jira.set(String::new());
-                    toast.show_toast("Success", &format!("Feature flag {} created.", input.key), "success");
+                    toast.show_toast(
+                        "Success",
+                        &format!("Feature flag {} created.", input.key),
+                        "success",
+                    );
                 }
                 Err(e) => toast.show_toast("Error", &e, "error"),
             }
@@ -337,15 +390,17 @@ pub fn FeatureFlags() -> impl IntoView {
                     Ok(_) => {
                         resource.refetch();
                         show_rollout_modal.set(None);
-                        toast.show_toast("Success", &format!("Rollout updated to {}% for {}.", new_pct, flag_key), "success");
+                        toast.show_toast(
+                            "Success",
+                            &format!("Rollout updated to {}% for {}.", new_pct, flag_key),
+                            "success",
+                        );
                     }
                     Err(e) => toast.show_toast("Error", &e, "error"),
                 }
             });
         }
     };
-
-
 
     view! {
         <div class="main-area">
@@ -366,13 +421,13 @@ pub fn FeatureFlags() -> impl IntoView {
                         </svg>
                         "Refresh"
                     </button>
-                    <button 
+                    <button
                         on:click=move |_| toast.show_toast("Info", "Exporting flag audit logs to CSV...", "info")
                         class="btn btn-ghost btn-sm"
                     >
                         "↓ Export"
                     </button>
-                    <button 
+                    <button
                         on:click=move |_| {
                             new_flag_key.set(String::new());
                             new_flag_desc.set(String::new());
@@ -441,9 +496,9 @@ pub fn FeatureFlags() -> impl IntoView {
                             <line x1="10" y1="10" x2="14" y2="14"/>
                         </svg>
                     </span>
-                    <input 
-                        type="text" 
-                        placeholder="Search flag key, Jira, NI slug…" 
+                    <input
+                        type="text"
+                        placeholder="Search flag key, Jira, NI slug…"
                         prop:value=search_query
                         on:input=move |ev| search_query.set(event_target_value(&ev))
                     />
@@ -451,7 +506,7 @@ pub fn FeatureFlags() -> impl IntoView {
                 {
                     let filter_pill = move |scope: &'static str, label: &'static str, active_class_name: &'static str| {
                         view! {
-                            <button 
+                            <button
                                 on:click=move |_| filter_scope.set(scope.to_string())
                                 class=move || format!(
                                     "fpill {}",
@@ -489,13 +544,13 @@ pub fn FeatureFlags() -> impl IntoView {
 
             // ── Flags List Container ──
             <div class="flags-body">
-                <For 
+                <For
                     each=move || filtered_flags.get()
                     key=|f| f.key.clone()
                     children=move |f| {
                         let f_val = StoredValue::new(f);
                         let fkey = StoredValue::new(f_val.with_value(|v| v.key.clone()));
-                        
+
                         let has_global = f_val.with_value(|v| v.has_global);
                         let is_plan_gated = f_val.with_value(|v| v.is_plan_gated);
                         let global_rollout = f_val.with_value(|v| v.global_rollout);
@@ -519,12 +574,12 @@ pub fn FeatureFlags() -> impl IntoView {
                                 if is_expanded.get() { "expanded" } else { "" }
                             )>
                                 // Card Header
-                                <div 
+                                <div
                                     on:click=move |_| is_expanded.update(|v| *v = !*v)
                                     class="flag-card-hdr"
                                 >
                                     <div class="flag-toggle" on:click=move |e| e.stop_propagation()>
-                                        <Switch 
+                                        <Switch
                                             variant="compact"
                                             checked=is_enabled
                                             on_checked_change=Callback::new({
@@ -587,8 +642,8 @@ pub fn FeatureFlags() -> impl IntoView {
                                             }}
                                         </div>
 
-                                        <button 
-                                            class="btn btn-ghost btn-sm" 
+                                        <button
+                                            class="btn btn-ghost btn-sm"
                                             on:click={
                                                 let fk = fkey.clone();
                                                 move |e| { e.stop_propagation(); open_override_drawer(fk.get_value()); }
@@ -603,7 +658,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                 // Expanded details body
                                 <div class="flag-card-body">
                                     <div class="flag-card-tabs">
-                                        <button 
+                                        <button
                                             class=move || format!("fct {}", if active_tab.get() == "variants" { "active" } else { "" })
                                             on:click={
                                                 let tab_sig = active_tab;
@@ -612,7 +667,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                         >
                                             "Variants & Rollout"
                                         </button>
-                                        <button 
+                                        <button
                                             class=move || format!("fct {}", if active_tab.get() == "overrides" { "active" } else { "" })
                                             on:click={
                                                 let tab_sig = active_tab;
@@ -620,7 +675,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                             }
                                         >
                                             "NI Overrides "
-                                            <span style=move || format!("background:{};border:1px solid {};border-radius:8px;padding:0 5px;font-size:9px;color:{}", 
+                                            <span style=move || format!("background:{};border:1px solid {};border-radius:8px;padding:0 5px;font-size:9px;color:{}",
                                                 if count_overrides.get() > 0 { "var(--green-dim)" } else { "var(--bg-elevated)" },
                                                 if count_overrides.get() > 0 { "var(--green)" } else { "var(--border-default)" },
                                                 if count_overrides.get() > 0 { "var(--green)" } else { "var(--text-muted)" }
@@ -628,7 +683,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                 {move || count_overrides.get().to_string()}
                                             </span>
                                         </button>
-                                        <button 
+                                        <button
                                             class=move || format!("fct {}", if active_tab.get() == "audit" { "active" } else { "" })
                                             on:click={
                                                 let tab_sig = active_tab;
@@ -680,7 +735,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                             <td>
                                                                 <div class="rb-inline">
                                                                     <div class="rb">
-                                                                        <div class="rf" style=move || format!("width: {}%; background: {}", 
+                                                                        <div class="rf" style=move || format!("width: {}%; background: {}",
                                                                             global_rollout.get(),
                                                                             if global_rollout.get() == 100 { "var(--green)" } else { "var(--cobalt)" }
                                                                         )></div>
@@ -702,7 +757,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                             </td>
                                                             <td style="font-size:11px;color:var(--text-muted);">{f_val.with_value(|v| v.date_created.clone())} " · " {owner.get_value()}</td>
                                                             <td>
-                                                                <button 
+                                                                <button
                                                                     class="btn btn-ghost btn-sm"
                                                                     on:click={
                                                                         let fk = fkey.clone();
@@ -733,7 +788,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                             <td style="color:var(--text-secondary);font-size:11.5px;">{plan_gate_tier.get_value()} " tier only"</td>
                                                             <td style="font-size:11px;color:var(--text-muted);">{f_val.with_value(|v| v.date_created.clone())} " · " {owner.get_value()}</td>
                                                             <td>
-                                                                <button 
+                                                                <button
                                                                     class="btn btn-ghost btn-sm"
                                                                     on:click=move |_| toast.show_toast("Info", "Plan gate definitions must be modified in Billing rules tier mapping.", "info")
                                                                 >
@@ -753,7 +808,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                             <div style="padding:10px 0;">
                                                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                                                     <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">"Tenant-Specific Overrides"</div>
-                                                    <button 
+                                                    <button
                                                         class="btn btn-ghost btn-sm"
                                                         on:click={
                                                             let fk = fkey.clone();
@@ -769,7 +824,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                         "No NI overrides. Use \"+ Assign NI Override\" to grant or deny access for a specific tenant."
                                                     </div>
                                                 }>
-                                                    <For 
+                                                    <For
                                                         each=move || overrides.get()
                                                         key=|o| o.tenant_id.clone()
                                                         children={
@@ -801,8 +856,8 @@ pub fn FeatureFlags() -> impl IntoView {
                                                                             <span class="override-dot" style=move || format!("background:{}", if o_type_for_style == "deny" { "var(--red)" } else { "var(--green)" })></span>
                                                                             {if o_type == "deny" { "Blocked" } else { "100% active" }}
                                                                         </div>
-                                                                        <button 
-                                                                            class="btn btn-ghost btn-sm btn-icon" 
+                                                                        <button
+                                                                            class="btn btn-ghost btn-sm btn-icon"
                                                                             title="Remove override"
                                                                             on:click=move |_| handle_remove_override(fk_inner.get_value(), tenant_id.clone())
                                                                         >
@@ -821,7 +876,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                     // Tab Pane: Audit Log
                                     <Show when=move || active_tab.get() == "audit">
                                         <div class="fct-pane active" on:click=move |e| e.stop_propagation() style="max-height: 250px; overflow-y: auto;">
-                                            <For 
+                                            <For
                                                 each=move || audit_logs.get()
                                                 key=|log| format!("{}-{}-{}", log.created_at.as_deref().unwrap_or(""), log.user_id, log.action)
                                                 children=move |log| {
@@ -846,14 +901,14 @@ pub fn FeatureFlags() -> impl IntoView {
             </div>
 
             // ── Assign NI Override Side Panel ──
-            <div 
+            <div
                 on:click=move |_| close_override_drawer()
                 class=move || format!(
                     "assign-panel-backdrop {}",
                     if show_override_panel.get() { "open" } else { "" }
                 )
             ></div>
-            
+
             <div class=move || format!(
                 "assign-panel {}",
                 if show_override_panel.get() { "open" } else { "" }
@@ -865,7 +920,7 @@ pub fn FeatureFlags() -> impl IntoView {
                             {move || active_override_flag_key.get().unwrap_or_default()}
                         </div>
                     </div>
-                    <button 
+                    <button
                         on:click=move |_| close_override_drawer()
                         class="btn btn-ghost btn-sm"
                     >
@@ -886,9 +941,9 @@ pub fn FeatureFlags() -> impl IntoView {
                         <label class="n-form-label">"Tenant (NI slug or name)"</label>
                         <Show when=move || selected_tenant.get().is_some() fallback=move || view! {
                             <div class="tenant-search-wrap">
-                                <input 
-                                    type="text" 
-                                    placeholder="Search nexus-property, miami-stays…" 
+                                <input
+                                    type="text"
+                                    placeholder="Search nexus-property, miami-stays…"
                                     prop:value=override_tenant_input
                                     on:focus=move |_| autocomplete_open.set(true)
                                     on:input=move |ev| {
@@ -912,13 +967,13 @@ pub fn FeatureFlags() -> impl IntoView {
                                                 }.into_any()
                                             } else {
                                                 view! {
-                                                    <For 
+                                                    <For
                                                         each=move || filtered_opts.clone()
                                                         key=|t| t.slug.clone()
                                                         children=move |t| {
                                                             let t_select = t.clone();
                                                             view! {
-                                                                <div 
+                                                                <div
                                                                     on:click=move |_| {
                                                                         selected_tenant.set(Some(t_select.clone()));
                                                                         autocomplete_open.set(false);
@@ -953,9 +1008,9 @@ pub fn FeatureFlags() -> impl IntoView {
                                         <div class="slug">{st.slug.clone()}</div>
                                         <div style="font-size:10.5px;color:var(--text-muted);">{st.name.clone()} " · " {st.plan.clone()}</div>
                                     </div>
-                                    <button 
+                                    <button
                                         on:click=move |_| selected_tenant.set(None)
-                                        class="btn btn-ghost btn-sm btn-icon" 
+                                        class="btn btn-ghost btn-sm btn-icon"
                                         title="Change tenant"
                                     >
                                         "✕"
@@ -968,7 +1023,7 @@ pub fn FeatureFlags() -> impl IntoView {
                     // Override Type Selection
                     <div class="n-form-row">
                         <label class="n-form-label">"Override Type"</label>
-                        <select 
+                        <select
                             class="n-form-select"
                             on:change=move |ev| override_type.set(event_target_value(&ev))
                         >
@@ -988,8 +1043,8 @@ pub fn FeatureFlags() -> impl IntoView {
                     <Show when=move || override_type.get() == "grant">
                         <div class="n-form-row" id="rollout-row">
                             <label class="n-form-label">"Rollout % within this tenant (0–100)"</label>
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 min="0" max="100"
                                 class="n-form-input"
                                 prop:value=override_rollout_pct
@@ -1006,7 +1061,7 @@ pub fn FeatureFlags() -> impl IntoView {
                     // Reason input
                     <div class="n-form-row">
                         <label class="n-form-label">"Reason " <span style="color:var(--red)">"*"</span></label>
-                        <input 
+                        <input
                             type="text"
                             class="n-form-input"
                             placeholder="e.g. Pilot per AM request · ATLAS-3200"
@@ -1019,7 +1074,7 @@ pub fn FeatureFlags() -> impl IntoView {
                     // Optional Jira ticket
                     <div class="n-form-row">
                         <label class="n-form-label">"Jira Ticket (if different from flag's primary ticket)"</label>
-                        <input 
+                        <input
                             type="text"
                             class="n-form-input font-mono"
                             placeholder="ATLAS-XXXX"
@@ -1123,12 +1178,12 @@ pub fn FeatureFlags() -> impl IntoView {
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_new_flag_modal.set(false)>"✕"</button>
                         <h3 class="text-base font-bold mb-2">"New Feature Flag"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Define a new global feature key and registry rollout rules."</p>
-                        
+
                         <div class="space-y-4 mb-6">
                             <div class="n-form-row">
                                 <label class="n-form-label">"Flag KeyRegistry Key *"</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     class="n-form-input font-mono"
                                     placeholder="snake_case_key"
                                     prop:value=new_flag_key
@@ -1138,8 +1193,8 @@ pub fn FeatureFlags() -> impl IntoView {
                             </div>
                             <div class="n-form-row">
                                 <label class="n-form-label">"Description / Purpose *"</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     class="n-form-input"
                                     placeholder="What does enabling this flag do?"
                                     prop:value=new_flag_desc
@@ -1148,7 +1203,7 @@ pub fn FeatureFlags() -> impl IntoView {
                             </div>
                             <div class="n-form-row">
                                 <label class="n-form-label">"Initial Variant"</label>
-                                <select 
+                                <select
                                     class="n-form-select"
                                     on:change=move |ev| {
                                         let val = event_target_value(&ev);
@@ -1162,8 +1217,8 @@ pub fn FeatureFlags() -> impl IntoView {
                             </div>
                             <div class="n-form-row">
                                 <label class="n-form-label">"Jira Ticket / Issue ID *"</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     class="n-form-input font-mono uppercase"
                                     placeholder="ATLAS-XXXX"
                                     prop:value=new_flag_jira
@@ -1194,7 +1249,7 @@ pub fn FeatureFlags() -> impl IntoView {
                         <div class="space-y-4 mb-6">
                             <div class="n-form-row">
                                 <label class="n-form-label">"Global Rollout (0–100)"</label>
-                                <input 
+                                <input
                                     type="number" min="0" max="100"
                                     class="n-form-input"
                                     prop:value=temp_rollout_val
@@ -1208,8 +1263,8 @@ pub fn FeatureFlags() -> impl IntoView {
                             </div>
                             <div class="n-form-row">
                                 <label class="n-form-label">"Reason"</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     class="n-form-input"
                                     placeholder="e.g. 72h canary stable, no errors — bumping to 100%"
                                 />

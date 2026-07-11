@@ -1,6 +1,6 @@
+use crate::api::client::{api_get, api_url, create_client, with_credentials};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::api::client::{api_get, api_url, create_client, with_credentials};
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SHARED TYPES (mirror the backend response structs)
@@ -43,21 +43,35 @@ pub async fn get_onboarding_status(
 /// Mark a custom step complete.
 pub async fn complete_step(app_instance_id: &str, step_id: &str) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("api/onboarding/{}/complete/{}", app_instance_id, step_id));
+    let url = api_url(&format!(
+        "api/onboarding/{}/complete/{}",
+        app_instance_id, step_id
+    ));
     let req = client.post(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", res.status()))
+    }
 }
 
 /// Skip an optional step.
 pub async fn skip_step(app_instance_id: &str, step_id: &str) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("api/onboarding/{}/skip/{}", app_instance_id, step_id));
+    let url = api_url(&format!(
+        "api/onboarding/{}/skip/{}",
+        app_instance_id, step_id
+    ));
     let req = client.post(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", res.status()))
+    }
 }
 
 /// Dismiss the full-page wizard takeover ("I'll do this later").
@@ -67,5 +81,9 @@ pub async fn dismiss_wizard(app_instance_id: &str) -> Result<(), String> {
     let req = client.post(&url).json(&serde_json::json!({}));
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", res.status())) }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", res.status()))
+    }
 }

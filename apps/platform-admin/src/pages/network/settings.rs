@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use shared_ui::components::card::Card;
+use shared_ui::components::ui::button::{Button, ButtonSize, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
-use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
 use shared_ui::components::ui::switch::Switch;
 
 #[component]
@@ -15,14 +15,16 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
 
     let (trigger_fetch_domains, set_trigger_fetch_domains) = signal(0);
     let new_domain_bind = RwSignal::new("".to_string());
-    
+
     let domains_res = LocalResource::new({
         let sid_clone = site_id.clone();
         move || {
             let sid = sid_clone();
             trigger_fetch_domains.get();
             async move {
-                crate::api::admin::get_app_domains(sid).await.unwrap_or_default()
+                crate::api::admin::get_app_domains(sid)
+                    .await
+                    .unwrap_or_default()
             }
         }
     });
@@ -33,15 +35,24 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
             let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
             let sid = sid_clone();
             let domain_str = new_domain_bind.get();
-            if domain_str.is_empty() { return; }
-            
+            if domain_str.is_empty() {
+                return;
+            }
+
             leptos::task::spawn_local(async move {
-                if crate::api::admin::add_app_domain(sid, domain_str).await.is_ok() {
+                if crate::api::admin::add_app_domain(sid, domain_str)
+                    .await
+                    .is_ok()
+                {
                     set_trigger_fetch_domains.update(|v| *v += 1);
                     new_domain_bind.set("".to_string());
                     toast.show_toast("Domains", "Domain routing natively mapped.", "success");
                 } else {
-                    toast.show_toast("Domains", "Failed to route domain. It may already be in use.", "error");
+                    toast.show_toast(
+                        "Domains",
+                        "Failed to route domain. It may already be in use.",
+                        "error",
+                    );
                 }
             });
         }
@@ -52,9 +63,12 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
         move |domain_name: String| {
             let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
             let sid = sid_clone();
-            
+
             leptos::task::spawn_local(async move {
-                if crate::api::admin::remove_app_domain(sid, domain_name).await.is_ok() {
+                if crate::api::admin::remove_app_domain(sid, domain_name)
+                    .await
+                    .is_ok()
+                {
                     set_trigger_fetch_domains.update(|v| *v += 1);
                     toast.show_toast("Domains", "Domain safely detached.", "success");
                 } else {
@@ -76,10 +90,24 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
 
             if let Ok(instance_id) = sid.parse::<uuid::Uuid>() {
                 is_saving.set(true);
-                let custom_domain_opt = if custom_domain.is_empty() { None } else { Some(custom_domain) };
+                let custom_domain_opt = if custom_domain.is_empty() {
+                    None
+                } else {
+                    Some(custom_domain)
+                };
                 leptos::task::spawn_local(async move {
-                    match crate::api::admin::update_public_config(instance_id, None, custom_domain_opt).await {
-                        Ok(_) => toast.show_toast("Network", "Custom domain configuration saved.", "success"),
+                    match crate::api::admin::update_public_config(
+                        instance_id,
+                        None,
+                        custom_domain_opt,
+                    )
+                    .await
+                    {
+                        Ok(_) => toast.show_toast(
+                            "Network",
+                            "Custom domain configuration saved.",
+                            "success",
+                        ),
                         Err(e) => toast.show_toast("Error", &e, "error"),
                     }
                     is_saving.set(false);
@@ -94,7 +122,7 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
         <Card class="bg-card border-border shadow-sm p-6 mb-6".to_string()>
             <h3 class="text-lg font-semibold mb-4 text-primary">"Network Core Configuration"</h3>
             <div class="space-y-4 max-w-lg">
-                
+
                 <div class="space-y-4 pb-6 border-b border-border">
                     <div class="space-y-2">
                         <label class="text-sm font-medium leading-none">"Custom Domain Override"</label>
@@ -108,7 +136,7 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
                     <Input r#type=InputType::Text class="w-full".to_string() bind_value=network_identity_bind placeholder="e.g. Standard Directory, B2B Marketplace".to_string() />
                     <p class="text-xs text-muted-foreground">"Dictates core taxonomy structure and UI layout logic."</p>
                 </div>
-                
+
                 <div class="space-y-2 mt-6 p-4 border border-outline-variant/20 rounded-md bg-surface-container-low transition-colors hover:bg-surface-container">
                     <div class="flex items-center justify-between">
                         <div>
@@ -132,7 +160,7 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
         <Card class="bg-card border-border shadow-sm p-6 mb-6".to_string()>
             <h3 class="text-lg font-semibold mb-4 text-primary">"Native Architecture Domain Routing"</h3>
             <p class="text-xs text-muted-foreground mb-6">"Explicitly map Fully Qualified Domain Names (FQDNs) natively onto this application instance context. Traffic inbound to these domains will be exclusively terminated here."</p>
-            
+
             <div class="space-y-4 max-w-lg mb-6 flex gap-2 w-full">
                 <Input r#type=InputType::Text class="font-mono bg-muted flex-1".to_string() bind_value=new_domain_bind placeholder="e.g., app.network.com".to_string() />
                 <Button variant=ButtonVariant::Default on:click=handle_add_domain>"Bind Route"</Button>

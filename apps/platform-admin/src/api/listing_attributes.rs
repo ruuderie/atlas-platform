@@ -10,10 +10,15 @@ pub async fn get_listing_attributes() -> Result<Vec<ListingAttributeModel>, Stri
     let req = with_credentials(req);
 
     let res = req.send().await.map_err(|e| e.to_string())?;
-    
+
     if res.status() == StatusCode::OK {
-        res.json::<Vec<ListingAttributeModel>>().await.map_err(|e| e.to_string())
+        res.json::<Vec<ListingAttributeModel>>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
-        Err(format!("Failed to fetch listing attributes: {}", res.status()))
+        Err(format!(
+            "Failed to fetch listing attributes: {}",
+            res.status()
+        ))
     }
 }

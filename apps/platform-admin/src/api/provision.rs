@@ -1,6 +1,6 @@
 use super::client::{api_url, create_client, with_credentials};
-use serde::{Deserialize, Serialize};
 use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -39,7 +39,9 @@ pub struct ProvisionAdminResponse {
 
 /// Calls `POST /api/admin/tenants/provision` on the backend to provision
 /// a tenant, its app instance, app domain, admin user, CMS pages, and WebAuthn registry entry.
-pub async fn provision_tenant(payload: ProvisionTenantPayload) -> Result<ProvisionTenantResponse, String> {
+pub async fn provision_tenant(
+    payload: ProvisionTenantPayload,
+) -> Result<ProvisionTenantResponse, String> {
     let client = create_client();
     let url = api_url("/api/admin/tenants/provision");
     let req = client.post(&url);
@@ -64,7 +66,10 @@ pub async fn provision_tenant(payload: ProvisionTenantPayload) -> Result<Provisi
 
 /// Calls `POST /api/tenants/{tenant_id}/provision-admin` to provision a tenant administrator user
 /// and generate a passkey setup link.
-pub async fn provision_admin(tenant_id: Uuid, payload: ProvisionAdminPayload) -> Result<ProvisionAdminResponse, String> {
+pub async fn provision_admin(
+    tenant_id: Uuid,
+    payload: ProvisionAdminPayload,
+) -> Result<ProvisionAdminResponse, String> {
     let client = create_client();
     let url = api_url(&format!("/api/tenants/{}/provision-admin", tenant_id));
     let req = client.post(&url);

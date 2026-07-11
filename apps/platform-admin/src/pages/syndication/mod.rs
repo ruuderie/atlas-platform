@@ -1,2 +1,2 @@
-pub mod offers;
 pub mod links;
+pub mod offers;

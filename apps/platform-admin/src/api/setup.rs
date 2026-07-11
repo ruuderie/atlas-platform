@@ -1,4 +1,4 @@
-use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+use super::client::{ApiErrorResponse, api_url, create_client, with_credentials};
 use super::models::SessionResponse;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,10 @@ pub async fn get_setup_status() -> Result<SetupStatusResponse, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status() == StatusCode::OK {
-        let status = res.json::<SetupStatusResponse>().await.map_err(|e| e.to_string())?;
+        let status = res
+            .json::<SetupStatusResponse>()
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(status)
     } else {
         Err("Failed to fetch setup status".into())

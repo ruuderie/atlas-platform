@@ -13,11 +13,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post},
-    Router,
 };
 use chrono::{Duration, Utc};
 use sea_orm::{
@@ -97,7 +97,7 @@ fn app_role_label(role: &str) -> String {
         .map(|word| {
             let mut c = word.chars();
             match c.next() {
-                None    => String::new(),
+                None => String::new(),
                 Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
             }
         })
@@ -119,9 +119,9 @@ async fn dispatch_invite_email(
 ) {
     use crate::services::auth_service::AuthService;
     use lettre::{
-        message::{header as mail_header, MultiPart, SinglePart},
-        transport::smtp::authentication::Credentials,
         Message, SmtpTransport, Transport,
+        message::{MultiPart, SinglePart, header as mail_header},
+        transport::smtp::authentication::Credentials,
     };
     use std::env;
 
@@ -140,8 +140,8 @@ async fn dispatch_invite_email(
         .map(|s| s.to_string());
 
     if resolved_url.is_none() {
-        use crate::entities::{platform_invite, app_domain};
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+        use crate::entities::{app_domain, platform_invite};
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         if let Ok(Some(invite)) = platform_invite::Entity::find_by_id(invite_id).one(db).await {
             if let Some(instance_id) = invite.app_instance_id {
                 if let Ok(Some(domain_record)) = app_domain::Entity::find()
@@ -155,15 +155,21 @@ async fn dispatch_invite_email(
         }
     }
 
-    let frontend_url = resolved_url
-        .unwrap_or_else(|| env::var("FRONTEND_URL")
-            .unwrap_or_else(|_| "https://network.dev.atlas.oply.co".to_string()));
+    let frontend_url = resolved_url.unwrap_or_else(|| {
+        env::var("FRONTEND_URL").unwrap_or_else(|_| "https://network.dev.atlas.oply.co".to_string())
+    });
     let magic_link_url = format!("{}/magic-login?token={}", frontend_url, token);
 
     // ── 3. Build email content ─────────────────────────────────────────────
     let recipient_name = display_name.unwrap_or("there");
-    let role_label = app_role.map(app_role_label).unwrap_or_else(|| "User".to_string());
-    let tenant_display = if tenant_name.is_empty() { "Atlas Platform" } else { tenant_name };
+    let role_label = app_role
+        .map(app_role_label)
+        .unwrap_or_else(|| "User".to_string());
+    let tenant_display = if tenant_name.is_empty() {
+        "Atlas Platform"
+    } else {
+        tenant_name
+    };
     let message_block = personal_message
         .filter(|m| !m.is_empty())
         .map(|m| format!(
@@ -249,13 +255,14 @@ async fn dispatch_invite_email(
     );
 
     // ── 4. Dispatch via SMTP ───────────────────────────────────────────────
-    let smtp_server   = env::var("SMTP_SERVER").unwrap_or_default();
+    let smtp_server = env::var("SMTP_SERVER").unwrap_or_default();
     let smtp_username = env::var("SMTP_USERNAME").unwrap_or_default();
-    let smtp_token    = env::var("SMTP_TOKEN").unwrap_or_default();
-    let smtp_port     = env::var("SMTP_PORT").unwrap_or("587".to_string())
-        .parse::<u16>().unwrap_or(587);
-    let smtp_from     = env::var("SMTP_FROM")
-        .unwrap_or_else(|_| "noreply@atlas.oply.co".to_string());
+    let smtp_token = env::var("SMTP_TOKEN").unwrap_or_default();
+    let smtp_port = env::var("SMTP_PORT")
+        .unwrap_or("587".to_string())
+        .parse::<u16>()
+        .unwrap_or(587);
+    let smtp_from = env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas.oply.co".to_string());
 
     if smtp_server.is_empty() || smtp_username.is_empty() {
         tracing::warn!("SMTP not configured — skipping invite email to {}", email);
@@ -269,8 +276,16 @@ async fn dispatch_invite_email(
         .subject(format!("You've been invited to {}", tenant_display))
         .multipart(
             MultiPart::alternative()
-                .singlepart(SinglePart::builder().header(mail_header::ContentType::TEXT_PLAIN).body(text_body))
-                .singlepart(SinglePart::builder().header(mail_header::ContentType::TEXT_HTML).body(html_body)),
+                .singlepart(
+                    SinglePart::builder()
+                        .header(mail_header::ContentType::TEXT_PLAIN)
+                        .body(text_body),
+                )
+                .singlepart(
+                    SinglePart::builder()
+                        .header(mail_header::ContentType::TEXT_HTML)
+                        .body(html_body),
+                ),
         ) {
         Ok(m) => m,
         Err(e) => {
@@ -287,7 +302,7 @@ async fn dispatch_invite_email(
         .build();
 
     match mailer.send(&message) {
-        Ok(_)  => tracing::info!("Invite email sent to {}", email),
+        Ok(_) => tracing::info!("Invite email sent to {}", email),
         Err(e) => tracing::error!("Failed to send invite email to {}: {:?}", email, e),
     }
 }
@@ -316,16 +331,16 @@ pub async fn list_invites(
     let response: Vec<InviteResponse> = list
         .into_iter()
         .map(|m| InviteResponse {
-            id:              m.id,
-            email:           m.email,
-            display_name:    m.display_name,
-            role:            m.role,
-            app_role:      m.app_role,
-            tenant:          m.tenant_name,
+            id: m.id,
+            email: m.email,
+            display_name: m.display_name,
+            role: m.role,
+            app_role: m.app_role,
+            tenant: m.tenant_name,
             app_instance_id: m.app_instance_id,
-            invited_by:      m.invited_by,
-            sent:            m.created_at.format("%b %d").to_string(),
-            expires:         m.expires_at.format("%b %d").to_string(),
+            invited_by: m.invited_by,
+            sent: m.created_at.format("%b %d").to_string(),
+            expires: m.expires_at.format("%b %d").to_string(),
         })
         .collect();
 
@@ -340,30 +355,37 @@ pub async fn create_invite(
     let invited_by_str = {
         let name = format!("{} {}", current_user.first_name, current_user.last_name);
         let name = name.trim();
-        if name.is_empty() { current_user.email.clone() } else { name.to_string() }
+        if name.is_empty() {
+            current_user.email.clone()
+        } else {
+            name.to_string()
+        }
     };
 
     let expires_days = input.expires_days.unwrap_or(7).clamp(1, 30);
-    let id           = Uuid::new_v4();
-    let created_at   = Utc::now();
-    let expires_at   = created_at + Duration::days(expires_days);
+    let id = Uuid::new_v4();
+    let created_at = Utc::now();
+    let expires_at = created_at + Duration::days(expires_days);
 
     let new_invite = platform_invite::ActiveModel {
-        id:              Set(id),
-        email:           Set(input.email.clone()),
-        role:            Set(input.role.clone()),
-        tenant_name:     Set(input.tenant.clone()),
-        invited_by:      Set(invited_by_str.clone()),
-        display_name:    Set(input.display_name.clone()),
-        app_role:        Set(input.app_role.clone()),
+        id: Set(id),
+        email: Set(input.email.clone()),
+        role: Set(input.role.clone()),
+        tenant_name: Set(input.tenant.clone()),
+        invited_by: Set(invited_by_str.clone()),
+        display_name: Set(input.display_name.clone()),
+        app_role: Set(input.app_role.clone()),
         app_instance_id: Set(input.app_instance_id),
-        account_id:      Set(input.account_id),
-        asset_ids:       Set(input.asset_ids.as_ref().and_then(|ids| serde_json::to_value(ids).ok())),
-        lease_id:        Set(input.lease_id),
-        target_app_url:  Set(input.target_app_url.clone()),
-        personal_message:Set(input.personal_message.clone()),
-        created_at:      Set(created_at),
-        expires_at:      Set(expires_at),
+        account_id: Set(input.account_id),
+        asset_ids: Set(input
+            .asset_ids
+            .as_ref()
+            .and_then(|ids| serde_json::to_value(ids).ok())),
+        lease_id: Set(input.lease_id),
+        target_app_url: Set(input.target_app_url.clone()),
+        personal_message: Set(input.personal_message.clone()),
+        created_at: Set(created_at),
+        expires_at: Set(expires_at),
     };
 
     new_invite.insert(&db).await.map_err(|e| {
@@ -373,17 +395,18 @@ pub async fn create_invite(
 
     // Fire-and-forget: dispatch the branded magic link email asynchronously
     {
-        let db2      = db.clone();
-        let email    = input.email.clone();
-        let dname    = input.display_name.clone();
-        let iby      = invited_by_str.clone();
-        let frole    = input.app_role.clone();
-        let tenant   = input.tenant.clone();
-        let pmsg     = input.personal_message.clone();
-        let turl     = input.target_app_url.clone();
+        let db2 = db.clone();
+        let email = input.email.clone();
+        let dname = input.display_name.clone();
+        let iby = invited_by_str.clone();
+        let frole = input.app_role.clone();
+        let tenant = input.tenant.clone();
+        let pmsg = input.personal_message.clone();
+        let turl = input.target_app_url.clone();
         tokio::spawn(async move {
             dispatch_invite_email(
-                &db2, id,
+                &db2,
+                id,
                 &email,
                 dname.as_deref(),
                 &iby,
@@ -391,21 +414,22 @@ pub async fn create_invite(
                 &tenant,
                 pmsg.as_deref(),
                 turl.as_deref(),
-            ).await;
+            )
+            .await;
         });
     }
 
     let response = InviteResponse {
         id,
-        email:           input.email,
-        display_name:    input.display_name,
-        role:            input.role,
-        app_role:      input.app_role,
-        tenant:          input.tenant,
+        email: input.email,
+        display_name: input.display_name,
+        role: input.role,
+        app_role: input.app_role,
+        tenant: input.tenant,
         app_instance_id: input.app_instance_id,
-        invited_by:      invited_by_str,
-        sent:            created_at.format("%b %d").to_string(),
-        expires:         expires_at.format("%b %d").to_string(),
+        invited_by: invited_by_str,
+        sent: created_at.format("%b %d").to_string(),
+        expires: expires_at.format("%b %d").to_string(),
     };
 
     Ok((StatusCode::CREATED, Json(response)))
@@ -447,17 +471,18 @@ pub async fn resend_invite(
 
     // Re-dispatch email
     {
-        let db2    = db.clone();
-        let email  = invite.email.clone();
-        let dname  = invite.display_name.clone();
-        let iby    = invite.invited_by.clone();
-        let frole  = invite.app_role.clone();
+        let db2 = db.clone();
+        let email = invite.email.clone();
+        let dname = invite.display_name.clone();
+        let iby = invite.invited_by.clone();
+        let frole = invite.app_role.clone();
         let tenant = invite.tenant_name.clone();
-        let pmsg   = invite.personal_message.clone();
-        let turl   = invite.target_app_url.clone();
+        let pmsg = invite.personal_message.clone();
+        let turl = invite.target_app_url.clone();
         tokio::spawn(async move {
             dispatch_invite_email(
-                &db2, id,
+                &db2,
+                id,
                 &email,
                 dname.as_deref(),
                 &iby,
@@ -465,7 +490,8 @@ pub async fn resend_invite(
                 &tenant,
                 pmsg.as_deref(),
                 turl.as_deref(),
-            ).await;
+            )
+            .await;
         });
     }
 

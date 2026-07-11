@@ -1,9 +1,9 @@
-use sea_orm::{DatabaseConnection,ColumnTrait, EntityTrait, Set, QueryFilter};
-use crate::entities::{user, user_account};
 use crate::auth::hash_password;
-use uuid::Uuid;
+use crate::entities::{user, user_account};
 use chrono::Utc;
 use dotenv::dotenv;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use uuid::Uuid;
 pub async fn create_admin_user_if_not_exists(
     db: &DatabaseConnection,
     email: &str,
@@ -12,8 +12,14 @@ pub async fn create_admin_user_if_not_exists(
     dotenv().ok();
     tracing::info!("Email: {:?}", email);
     tracing::info!("Password: {:?}", password);
-    tracing::info!("Admin first name: {:?}", std::env::var("ADMIN_FIRST_NAME").unwrap());
-    tracing::info!("Admin last name: {:?}", std::env::var("ADMIN_LAST_NAME").unwrap());
+    tracing::info!(
+        "Admin first name: {:?}",
+        std::env::var("ADMIN_FIRST_NAME").unwrap()
+    );
+    tracing::info!(
+        "Admin last name: {:?}",
+        std::env::var("ADMIN_LAST_NAME").unwrap()
+    );
     tracing::info!("Admin phone: {:?}", std::env::var("ADMIN_PHONE").unwrap());
     // Check if the admin user already exists
     let existing_admin = user::Entity::find()
@@ -40,7 +46,7 @@ pub async fn create_admin_user_if_not_exists(
         };
 
         let insert_res = user::Entity::insert(new_admin).exec(db).await?;
-        
+
         let account = user_account::ActiveModel {
             id: Set(Uuid::new_v4()),
             user_id: Set(insert_res.last_insert_id),
@@ -50,7 +56,7 @@ pub async fn create_admin_user_if_not_exists(
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
         };
-        
+
         user_account::Entity::insert(account).exec(db).await?;
         tracing::info!("Admin user created successfully");
     } else {

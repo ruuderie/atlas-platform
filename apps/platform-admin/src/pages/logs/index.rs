@@ -1,8 +1,8 @@
-use leptos::prelude::*;
 use chrono::{DateTime, Utc};
+use leptos::prelude::*;
 use serde_json::Value;
 
-use crate::api::audit_logs::{get_audit_logs, AuditLogModel};
+use crate::api::audit_logs::{AuditLogModel, get_audit_logs};
 use crate::app::GlobalToast;
 
 #[allow(dead_code)]
@@ -21,7 +21,7 @@ pub fn format_json_diff(val: &Option<Value>) -> String {
 pub fn AuditLogs() -> impl IntoView {
     let (logs, set_logs) = signal(Vec::<AuditLogModel>::new());
     let (loading, set_loading) = signal(true);
-    
+
     let (selected_log, set_selected_log) = signal(None::<AuditLogModel>);
     let (show_modal, set_show_modal) = signal(false);
 
@@ -30,7 +30,8 @@ pub fn AuditLogs() -> impl IntoView {
     let (date_from, set_date_from) = signal(String::new());
     let (date_to, set_date_to) = signal(String::new());
 
-    let active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network missing");
+    let active_network =
+        use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network missing");
     let toast = use_context::<GlobalToast>().expect("toast context missing");
 
     let fetch_logs = move || {
@@ -51,8 +52,16 @@ pub fn AuditLogs() -> impl IntoView {
     };
 
     let csv_export_url = Signal::derive(move || {
-        let tenant = active_network.get().map(|id| id.to_string()).unwrap_or_default();
-        format!("/api/audit-logs/export?tenant_id={}&start={}&end={}", tenant, date_from.get(), date_to.get())
+        let tenant = active_network
+            .get()
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        format!(
+            "/api/audit-logs/export?tenant_id={}&start={}&end={}",
+            tenant,
+            date_from.get(),
+            date_to.get()
+        )
     });
 
     Effect::new(move |_| {
@@ -63,26 +72,46 @@ pub fn AuditLogs() -> impl IntoView {
         let raw_logs = logs.get();
         let cat = filter_cat.get();
         let q = search_query.get().to_lowercase();
-        
-        raw_logs.into_iter().filter(|log| {
-            let action_lower = log.action_type.to_lowercase();
-            let matches_cat = match cat.as_str() {
-                "all" => true,
-                "security" => action_lower.contains("security") || action_lower.contains("auth") || action_lower.contains("login") || action_lower.contains("user"),
-                "ni" => action_lower.contains("ni") || action_lower.contains("tenant") || action_lower.contains("provision"),
-                "billing" => action_lower.contains("bill") || action_lower.contains("sub") || action_lower.contains("mrr") || action_lower.contains("invoice"),
-                "flags" => action_lower.contains("flag") || action_lower.contains("rollout"),
-                _ => true,
-            };
-            
-            let matches_query = q.is_empty() 
-                || action_lower.contains(&q) 
-                || log.entity_type.to_lowercase().contains(&q)
-                || log.entity_id.to_string().contains(&q)
-                || log.actor_id.map(|id| id.to_string().contains(&q)).unwrap_or(false);
-                
-            matches_cat && matches_query
-        }).collect::<Vec<AuditLogModel>>()
+
+        raw_logs
+            .into_iter()
+            .filter(|log| {
+                let action_lower = log.action_type.to_lowercase();
+                let matches_cat = match cat.as_str() {
+                    "all" => true,
+                    "security" => {
+                        action_lower.contains("security")
+                            || action_lower.contains("auth")
+                            || action_lower.contains("login")
+                            || action_lower.contains("user")
+                    }
+                    "ni" => {
+                        action_lower.contains("ni")
+                            || action_lower.contains("tenant")
+                            || action_lower.contains("provision")
+                    }
+                    "billing" => {
+                        action_lower.contains("bill")
+                            || action_lower.contains("sub")
+                            || action_lower.contains("mrr")
+                            || action_lower.contains("invoice")
+                    }
+                    "flags" => action_lower.contains("flag") || action_lower.contains("rollout"),
+                    _ => true,
+                };
+
+                let matches_query = q.is_empty()
+                    || action_lower.contains(&q)
+                    || log.entity_type.to_lowercase().contains(&q)
+                    || log.entity_id.to_string().contains(&q)
+                    || log
+                        .actor_id
+                        .map(|id| id.to_string().contains(&q))
+                        .unwrap_or(false);
+
+                matches_cat && matches_query
+            })
+            .collect::<Vec<AuditLogModel>>()
     });
 
     let grouped_logs = Signal::derive(move || {
@@ -108,7 +137,7 @@ pub fn AuditLogs() -> impl IntoView {
                     <p class="page-subtitle">"Immutable log of critical system operations and state changes. Filter by tenant or date range for compliance exports."</p>
                 </div>
                 <div style="display:flex;gap:8px;">
-                    <button 
+                    <button
                         class="btn btn-ghost btn-sm"
                         on:click=move |_| fetch_logs()
                     >
@@ -204,8 +233,8 @@ pub fn AuditLogs() -> impl IntoView {
                 </div>
                 // Row 2: category filter + text search
                 <div class="filter-bar" style="padding:0;border:none;margin:0;">
-                    <select 
-                        class="filter-select" 
+                    <select
+                        class="filter-select"
                         on:change=move |ev| set_filter_cat.set(event_target_value(&ev))
                     >
                         <option value="all">"All Categories"</option>
@@ -218,9 +247,9 @@ pub fn AuditLogs() -> impl IntoView {
                     </select>
                     <div style="flex:1"></div>
                     <div class="flag-search-wrap" style="width:260px">
-                        <input 
-                            type="text" 
-                            class="date-input" 
+                        <input
+                            type="text"
+                            class="date-input"
                             style="width:100%"
                             placeholder="Search action, entity, actor..."
                             prop:value=search_query
@@ -247,7 +276,7 @@ pub fn AuditLogs() -> impl IntoView {
                                 <div class="log-date-group">{date_str} " · " {group_items.len()} " entries"</div>
                                 {group_items.into_iter().map(|log| {
                                     let log_clone = log.clone();
-                                    
+
                                     let action_lower = log.action_type.to_lowercase();
                                     let (dot_class, cat_class, cat_label) = if action_lower.contains("flag") || action_lower.contains("rollout") {
                                         ("dot-flag", "cat-flag", "Flags")
@@ -342,9 +371,9 @@ pub fn AuditLogs() -> impl IntoView {
                                     </div>
                                 }.into_any()
                             }).unwrap_or_else(|| view! {}.into_any())}
-                            
+
                             <div style="margin-top:20px; font-weight:600; font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">"State Differential"</div>
-                            
+
                             <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px;">
                                 <div class="diff-block" style="background:#060e20;">
                                     <div class="diff-rem" style="font-weight:bold;margin-bottom:4px;">"BEFORE (old_state):"</div>

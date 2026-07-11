@@ -1,28 +1,27 @@
+use crate::api::models::{
+    BulkGenerateBody, CopyStrategy, LaunchMode, LocalizationStatus, MarketSpec,
+    PlatformProductModel, ProductVariantModel, UpdateProductBody,
+};
 use leptos::prelude::*;
 use uuid::Uuid;
-use crate::api::models::{
-    CopyStrategy, LaunchMode, LocalizationStatus,
-    PlatformProductModel, ProductVariantModel, UpdateProductBody,
-    BulkGenerateBody, MarketSpec,
-};
 
 #[component]
 pub fn BillingProducts() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let trigger_fetch = RwSignal::new(0);
-    
+
     // Resource for database platform products
     let db_products = LocalResource::new(move || {
         trigger_fetch.get();
         async move {
-            crate::api::products::get_products().await.unwrap_or_default()
+            crate::api::products::get_products()
+                .await
+                .unwrap_or_default()
         }
     });
 
-    let products_list = Signal::derive(move || {
-        db_products.get().unwrap_or_default()
-    });
+    let products_list = Signal::derive(move || db_products.get().unwrap_or_default());
 
     // Reactive states
     let search_query = RwSignal::new(String::new());
@@ -44,18 +43,29 @@ pub fn BillingProducts() -> impl IntoView {
     let filtered_products = Signal::derive(move || {
         let query = search_query.get().to_lowercase();
         let status_filter = filter_status.get();
-        products_list.get().into_iter().filter(move |p| {
-            let matches_search = p.name.to_lowercase().contains(&query) || p.slug.contains(&query);
-            let matches_status = match status_filter.as_str() {
-                "all" => true,
-                "live" => p.status.to_lowercase() == "active" || p.status.to_lowercase() == "live",
-                "beta" => p.status.to_lowercase() == "beta",
-                "pre-launch" => p.status.to_lowercase() == "pre_launch" || p.status.to_lowercase() == "pre-launch" || p.status.to_lowercase() == "waitlist",
-                "ai" => p.status.to_lowercase() == "ai" || p.slug.contains("brazil"),
-                _ => true,
-            };
-            matches_search && matches_status
-        }).collect::<Vec<PlatformProductModel>>()
+        products_list
+            .get()
+            .into_iter()
+            .filter(move |p| {
+                let matches_search =
+                    p.name.to_lowercase().contains(&query) || p.slug.contains(&query);
+                let matches_status = match status_filter.as_str() {
+                    "all" => true,
+                    "live" => {
+                        p.status.to_lowercase() == "active" || p.status.to_lowercase() == "live"
+                    }
+                    "beta" => p.status.to_lowercase() == "beta",
+                    "pre-launch" => {
+                        p.status.to_lowercase() == "pre_launch"
+                            || p.status.to_lowercase() == "pre-launch"
+                            || p.status.to_lowercase() == "waitlist"
+                    }
+                    "ai" => p.status.to_lowercase() == "ai" || p.slug.contains("brazil"),
+                    _ => true,
+                };
+                matches_search && matches_status
+            })
+            .collect::<Vec<PlatformProductModel>>()
     });
 
     // Set first product as default selection on mount/fetch
@@ -222,7 +232,7 @@ pub fn BillingProducts() -> impl IntoView {
                 subdomain_override: None,
                 created_at: "Jun 09".to_string(),
                 updated_at: "".to_string(),
-            }
+            },
         ]
     });
 
@@ -244,11 +254,19 @@ pub fn BillingProducts() -> impl IntoView {
 
     // Derived style closures
     let pill_class = move |status: &'static str| {
-        if filter_status.get() == status { "pill active" } else { "pill" }
+        if filter_status.get() == status {
+            "pill active"
+        } else {
+            "pill"
+        }
     };
 
     let tab_class = move |tab: &'static str| {
-        if active_tab.get() == tab { "tab active" } else { "tab" }
+        if active_tab.get() == tab {
+            "tab active"
+        } else {
+            "tab"
+        }
     };
 
     let card_class = move |pid: Uuid| {
@@ -266,7 +284,11 @@ pub fn BillingProducts() -> impl IntoView {
             let pid = p.id;
             leptos::task::spawn_local(async move {
                 match crate::api::products::publish_marketing(pid).await {
-                    Ok(_) => toast.show_toast("Success", "Marketing page successfully deployed.", "success"),
+                    Ok(_) => toast.show_toast(
+                        "Success",
+                        "Marketing page successfully deployed.",
+                        "success",
+                    ),
                     Err(e) => toast.show_toast("Error", &e, "error"),
                 }
             });
@@ -280,14 +302,38 @@ pub fn BillingProducts() -> impl IntoView {
             leptos::task::spawn_local(async move {
                 let spec = BulkGenerateBody {
                     markets: vec![
-                        MarketSpec { slug: "nyc-str".into(), locale: "en-US".into(), city: Some("New York".into()), region: Some("NY".into()), country_code: Some("US".into()), geo_lat: Some(40.7128), geo_lng: Some(-74.0060), subdomain_override: None, pre_order_cap: None },
-                        MarketSpec { slug: "rio-str".into(), locale: "pt-BR".into(), city: Some("Rio de Janeiro".into()), region: Some("RJ".into()), country_code: Some("BR".into()), geo_lat: Some(-22.9068), geo_lng: Some(-43.1729), subdomain_override: None, pre_order_cap: None },
+                        MarketSpec {
+                            slug: "nyc-str".into(),
+                            locale: "en-US".into(),
+                            city: Some("New York".into()),
+                            region: Some("NY".into()),
+                            country_code: Some("US".into()),
+                            geo_lat: Some(40.7128),
+                            geo_lng: Some(-74.0060),
+                            subdomain_override: None,
+                            pre_order_cap: None,
+                        },
+                        MarketSpec {
+                            slug: "rio-str".into(),
+                            locale: "pt-BR".into(),
+                            city: Some("Rio de Janeiro".into()),
+                            region: Some("RJ".into()),
+                            country_code: Some("BR".into()),
+                            geo_lat: Some(-22.9068),
+                            geo_lng: Some(-43.1729),
+                            subdomain_override: None,
+                            pre_order_cap: None,
+                        },
                     ],
                     launch_mode: Some("beta".into()),
                     copy_strategy: Some("ai_localize".into()),
                 };
                 match crate::api::products::bulk_generate_variants(pid, spec).await {
-                    Ok(_) => toast.show_toast("Success", "Pricing variant bulk generation triggered.", "success"),
+                    Ok(_) => toast.show_toast(
+                        "Success",
+                        "Pricing variant bulk generation triggered.",
+                        "success",
+                    ),
                     Err(e) => toast.show_toast("Error", &e, "error"),
                 }
             });
@@ -305,10 +351,18 @@ pub fn BillingProducts() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match crate::api::products::create_product(name.clone(), slug).await {
                 Ok(_) => {
-                    t_toast.show_toast("Product Created", &format!("Product '{}' created successfully.", name), "success");
+                    t_toast.show_toast(
+                        "Product Created",
+                        &format!("Product '{}' created successfully.", name),
+                        "success",
+                    );
                     trigger_fetch.update(|v| *v += 1);
                 }
-                Err(e) => t_toast.show_toast("Error", &format!("Failed to create product: {}", e), "error"),
+                Err(e) => t_toast.show_toast(
+                    "Error",
+                    &format!("Failed to create product: {}", e),
+                    "error",
+                ),
             }
         });
         new_prod_name.set(String::new());
@@ -358,7 +412,7 @@ pub fn BillingProducts() -> impl IntoView {
 
             // ── Workspace: Left (List) & Right (Details) ──
             <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] h-[720px] border border-outline-variant/20 rounded-2xl overflow-hidden bg-[var(--bg-base)]">
-                
+
                 // Left Panel: Product Registry
                 <div class="flex flex-col border-r border-outline-variant/10 bg-[var(--bg-surface)]/10 overflow-hidden">
                     <div class="p-4 border-b border-outline-variant/10 flex-shrink-0">
@@ -372,7 +426,7 @@ pub fn BillingProducts() -> impl IntoView {
                             />
                         </div>
                     </div>
-                    
+
                     <div class="flex gap-1.5 p-3 border-b border-outline-variant/5 overflow-x-auto scrollbar-none flex-shrink-0">
                         <button class=move || pill_class("all") on:click=move |_| filter_status.set("all".into())>"All"</button>
                         <button class=move || pill_class("live") on:click=move |_| filter_status.set("live".into())>"Live"</button>
@@ -478,7 +532,7 @@ pub fn BillingProducts() -> impl IntoView {
 
                                 // Detail Pane Content
                                 <div class="flex-1 overflow-y-auto p-6">
-                                    
+
                                     // 1. Overview Tab
                                     <div class=move || format!("space-y-6 {}", if active_tab.get() == "overview" { "block" } else { "hidden" })>
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -818,10 +872,10 @@ pub fn BillingProducts() -> impl IntoView {
                                                     view! {}.into_any()
                                                 }
                                             }}
-                                            
+
                                             // Vertical list of tasks
                                             <div class="space-y-6 relative pl-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant/20">
-                                                
+
                                                 // Step 1
                                                 <div class="relative flex items-start gap-4">
                                                     <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-teal-200/20 border border-teal-200 flex items-center justify-center text-teal-200 text-[9px] font-bold">

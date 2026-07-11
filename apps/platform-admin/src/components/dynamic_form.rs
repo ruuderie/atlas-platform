@@ -2,11 +2,11 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use shared_ui::components::ui::checkbox::Checkbox;
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-use shared_ui::components::ui::checkbox::Checkbox;
 use shared_ui::components::ui::select::{
-    Select, SelectContent, SelectGroup, SelectOption, SelectTrigger, SelectValue, SelectPosition
+    Select, SelectContent, SelectGroup, SelectOption, SelectPosition, SelectTrigger, SelectValue,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -86,7 +86,7 @@ pub fn DynamicForm(
             <div class="space-y-6">
                 {layout.into_iter().map(move |field| {
                     let sig = signals_store.with_value(|sigs| *sigs.get(&field.id).unwrap());
-                    
+
                     let input_view = match field.field_type {
                         DynamicFieldType::Text => view! {
                             <Input r#type=InputType::Text placeholder=field.placeholder.unwrap_or_default() bind_value=sig required=field.required />
@@ -98,7 +98,7 @@ pub fn DynamicForm(
                             <Input r#type=InputType::Number placeholder=field.placeholder.unwrap_or_default() bind_value=sig required=field.required />
                         }.into_any(),
                         DynamicFieldType::Textarea => view! {
-                            <textarea 
+                            <textarea
                                 class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                                 placeholder=field.placeholder.unwrap_or_default()
                                 required=field.required
@@ -144,13 +144,13 @@ pub fn DynamicForm(
                         DynamicFieldType::Select => {
                             let opts = field.options.unwrap_or_default();
                             let default_val = sig.get();
-                            
+
                             let on_change = Callback::new(move |new_val: Option<String>| {
                                 if let Some(v) = new_val {
                                     sig.set(v);
                                 }
                             });
-                            
+
                             view! {
                                 <Select default_value=default_val on_change=on_change>
                                     <SelectTrigger class="w-full".to_string()>

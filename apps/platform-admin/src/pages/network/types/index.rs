@@ -1,3 +1,5 @@
+use crate::api::models::NetworkTypeModel;
+use crate::api::network_types::get_network_types;
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
@@ -5,13 +7,11 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::models::NetworkTypeModel;
-use crate::api::network_types::get_network_types;
 
 #[component]
 pub fn NetworkTypes() -> impl IntoView {
     let (types, set_types) = signal(Vec::<NetworkTypeModel>::new());
-    
+
     Effect::new(move |_| {
         leptos::task::spawn_local(async move {
             if let Ok(data) = get_network_types().await {

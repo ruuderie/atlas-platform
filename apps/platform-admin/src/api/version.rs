@@ -1,4 +1,4 @@
-use super::client::{api_url, create_client, api_request};
+use super::client::{api_request, api_url, create_client};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

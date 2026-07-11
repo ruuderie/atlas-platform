@@ -3,11 +3,11 @@
 //! Manages background AI tasks registry (G-08) for asynchronous LLM/AI processing.
 
 use axum::{
+    Json, Router,
     extract::{Extension, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Json, Router,
 };
 use chrono::Utc;
 use sea_orm::{
@@ -22,8 +22,14 @@ use crate::entities::{atlas_ai_task, user};
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/admin/ai-tasks", get(list_ai_tasks))
-        .route("/api/admin/ai-tasks/{id}/abort", axum::routing::post(abort_ai_task))
-        .route("/api/admin/ai-tasks/{id}/rerun", axum::routing::post(rerun_ai_task))
+        .route(
+            "/api/admin/ai-tasks/{id}/abort",
+            axum::routing::post(abort_ai_task),
+        )
+        .route(
+            "/api/admin/ai-tasks/{id}/rerun",
+            axum::routing::post(rerun_ai_task),
+        )
 }
 
 // ── Response models ──────────────────────────────────────────────────────────
@@ -48,12 +54,22 @@ pub struct AdminAiTaskResponse {
 
 fn generate_task_logs(task: &atlas_ai_task::Model) -> Vec<String> {
     let mut logs = vec![
-        format!("[INFO] Task registered in queue at {}", task.queued_at.format("%H:%M:%S")),
-        format!("[INFO] Task Type: {}, Target Engine: {}", task.task_type, task.model.as_deref().unwrap_or("gpt-4o-mini")),
+        format!(
+            "[INFO] Task registered in queue at {}",
+            task.queued_at.format("%H:%M:%S")
+        ),
+        format!(
+            "[INFO] Task Type: {}, Target Engine: {}",
+            task.task_type,
+            task.model.as_deref().unwrap_or("gpt-4o-mini")
+        ),
     ];
 
     if let Some(started) = task.started_at {
-        logs.push(format!("[INFO] Execution started at {}", started.format("%H:%M:%S")));
+        logs.push(format!(
+            "[INFO] Execution started at {}",
+            started.format("%H:%M:%S")
+        ));
         logs.push("[INFO] Resolving context entity bindings...".to_string());
     }
 
@@ -67,7 +83,10 @@ fn generate_task_logs(task: &atlas_ai_task::Model) -> Vec<String> {
         }
         "success" | "Success" => {
             if let Some(completed) = task.completed_at {
-                logs.push(format!("[INFO] Response vectors generated at {}", completed.format("%H:%M:%S")));
+                logs.push(format!(
+                    "[INFO] Response vectors generated at {}",
+                    completed.format("%H:%M:%S")
+                ));
             }
             logs.push(format!(
                 "[SUCCESS] LLM tokens consumed: input={}, output={}",
@@ -83,7 +102,9 @@ fn generate_task_logs(task: &atlas_ai_task::Model) -> Vec<String> {
             } else {
                 logs.push("[ERROR] Task failed with unknown pipeline exit code.".to_string());
             }
-            logs.push("[WARNING] Job cancelled. Outbox rescheduled according to policy.".to_string());
+            logs.push(
+                "[WARNING] Job cancelled. Outbox rescheduled according to policy.".to_string(),
+            );
         }
         _ => {}
     }
@@ -173,7 +194,10 @@ pub async fn list_ai_tasks(
             let initial_logs = generate_task_logs(&m);
 
             AdminAiTaskResponse {
-                id: format!("ait_{}", m.id.to_string().chars().take(8).collect::<String>()),
+                id: format!(
+                    "ait_{}",
+                    m.id.to_string().chars().take(8).collect::<String>()
+                ),
                 task_type: m.task_type.clone(),
                 entity,
                 status,
@@ -197,7 +221,10 @@ pub async fn abort_ai_task(
     Path(id_str): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // Locate task by short Uuid prefix or actual ID
-    let tasks = atlas_ai_task::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let tasks = atlas_ai_task::Entity::find()
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let clean_id = id_str.replace("ait_", "");
     let task = tasks
         .into_iter()
@@ -206,9 +233,14 @@ pub async fn abort_ai_task(
 
     let mut active: atlas_ai_task::ActiveModel = task.into();
     active.status = Set("failed".to_string());
-    active.error_message = Set(Some("Task manually aborted by Platform Super-Admin".to_string()));
+    active.error_message = Set(Some(
+        "Task manually aborted by Platform Super-Admin".to_string(),
+    ));
     active.completed_at = Set(Some(Utc::now()));
-    active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::OK)
 }
@@ -217,7 +249,10 @@ pub async fn rerun_ai_task(
     State(db): State<DatabaseConnection>,
     Path(id_str): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tasks = atlas_ai_task::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let tasks = atlas_ai_task::Entity::find()
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let clean_id = id_str.replace("ait_", "");
     let task = tasks
         .into_iter()
@@ -232,7 +267,10 @@ pub async fn rerun_ai_task(
     active.retry_count = Set(0);
     active.input_tokens = Set(None);
     active.output_tokens = Set(None);
-    active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::OK)
 }
@@ -246,7 +284,10 @@ pub async fn get_task_logs(
     State(db): State<DatabaseConnection>,
     Path(id_str): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tasks = atlas_ai_task::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let tasks = atlas_ai_task::Entity::find()
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let clean_id = id_str.replace("ait_", "");
     let task = tasks
         .into_iter()

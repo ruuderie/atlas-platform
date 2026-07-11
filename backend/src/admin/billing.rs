@@ -1,7 +1,13 @@
-use axum::{extract::{Path, State}, Json};
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, QueryOrder, QuerySelect, PaginatorTrait};
-use uuid::Uuid;
 use crate::entities::{billing_plan, transaction};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    QuerySelect,
+};
+use uuid::Uuid;
 
 pub async fn list_billing_plans(
     State(db): State<DatabaseConnection>,
@@ -47,9 +53,15 @@ pub async fn set_subscription_exemption(
     Json(payload): Json<ExemptionPayload>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
     use crate::services::subscription_service::SubscriptionService;
-    SubscriptionService::toggle_billing_exemption(&db, tenant_id, id, payload.is_exempt, payload.reason)
-        .await
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    SubscriptionService::toggle_billing_exemption(
+        &db,
+        tenant_id,
+        id,
+        payload.is_exempt,
+        payload.reason,
+    )
+    .await
+    .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(serde_json::json!({ "status": "success" })))
 }
 
@@ -57,7 +69,9 @@ pub async fn suspend_subscription(
     State(db): State<DatabaseConnection>,
     Path((tenant_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
-    use crate::entities::atlas_subscription::{Entity as SubscriptionEntity, ActiveModel as SubscriptionActiveModel, SubscriptionStatus};
+    use crate::entities::atlas_subscription::{
+        ActiveModel as SubscriptionActiveModel, Entity as SubscriptionEntity, SubscriptionStatus,
+    };
     use sea_orm::{ActiveModelTrait, Set};
     let sub = SubscriptionEntity::find()
         .filter(crate::entities::atlas_subscription::Column::TenantId.eq(tenant_id))
@@ -69,10 +83,16 @@ pub async fn suspend_subscription(
     if let Some(s) = sub {
         let mut active: SubscriptionActiveModel = s.into();
         active.status = Set(SubscriptionStatus::Suspended);
-        active.update(&db).await.map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        active
+            .update(&db)
+            .await
+            .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         Ok(Json(serde_json::json!({ "status": "suspended" })))
     } else {
-        Err((axum::http::StatusCode::NOT_FOUND, "Subscription not found".to_string()))
+        Err((
+            axum::http::StatusCode::NOT_FOUND,
+            "Subscription not found".to_string(),
+        ))
     }
 }
 
@@ -80,7 +100,9 @@ pub async fn reactivate_subscription(
     State(db): State<DatabaseConnection>,
     Path((tenant_id, id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
-    use crate::entities::atlas_subscription::{Entity as SubscriptionEntity, ActiveModel as SubscriptionActiveModel, SubscriptionStatus};
+    use crate::entities::atlas_subscription::{
+        ActiveModel as SubscriptionActiveModel, Entity as SubscriptionEntity, SubscriptionStatus,
+    };
     use sea_orm::{ActiveModelTrait, Set};
     let sub = SubscriptionEntity::find()
         .filter(crate::entities::atlas_subscription::Column::TenantId.eq(tenant_id))
@@ -93,10 +115,16 @@ pub async fn reactivate_subscription(
         let mut active: SubscriptionActiveModel = s.into();
         active.status = Set(SubscriptionStatus::Active);
         active.grace_period_ends_at = Set(None); // Reset grace clock
-        active.update(&db).await.map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        active
+            .update(&db)
+            .await
+            .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         Ok(Json(serde_json::json!({ "status": "active" })))
     } else {
-        Err((axum::http::StatusCode::NOT_FOUND, "Subscription not found".to_string()))
+        Err((
+            axum::http::StatusCode::NOT_FOUND,
+            "Subscription not found".to_string(),
+        ))
     }
 }
 
@@ -173,7 +201,6 @@ pub async fn get_tenant_subscription(
     Ok(Json(detail))
 }
 
-
 #[derive(serde::Deserialize)]
 pub struct BillingPlanPayload {
     pub name: String,
@@ -189,8 +216,8 @@ pub async fn create_billing_plan(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<BillingPlanPayload>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::billing_plan::ActiveModel;
+    use sea_orm::{ActiveModelTrait, Set};
 
     let id = Uuid::new_v4();
     let now: chrono::DateTime<chrono::FixedOffset> = chrono::Utc::now().into();
@@ -203,7 +230,8 @@ pub async fn create_billing_plan(
         created_at: Set(Some(now)),
         updated_at: Set(Some(now)),
     };
-    plan.insert(&db).await
+    plan.insert(&db)
+        .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(serde_json::json!({ "id": id, "status": "created" })))
 }
@@ -214,13 +242,18 @@ pub async fn update_billing_plan(
     Path(plan_id): Path<Uuid>,
     Json(payload): Json<BillingPlanPayload>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, String)> {
-    use sea_orm::{ActiveModelTrait, Set, IntoActiveModel};
+    use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
 
     let plan = billing_plan::Entity::find_by_id(plan_id)
         .one(&db)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Plan not found".to_string()))?;
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                "Plan not found".to_string(),
+            )
+        })?;
 
     let mut active = plan.into_active_model();
     active.name = Set(payload.name);
@@ -228,9 +261,13 @@ pub async fn update_billing_plan(
     active.currency = Set(payload.currency.unwrap_or_else(|| "usd".to_string()));
     active.interval = Set(payload.interval);
     active.updated_at = Set(Some(chrono::Utc::now().into()));
-    active.update(&db).await
+    active
+        .update(&db)
+        .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    Ok(Json(serde_json::json!({ "id": plan_id, "status": "updated" })))
+    Ok(Json(
+        serde_json::json!({ "id": plan_id, "status": "updated" }),
+    ))
 }
 
 /// `DELETE /api/admin/billing/plans/{id}`
@@ -244,9 +281,15 @@ pub async fn delete_billing_plan(
         .one(&db)
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| (axum::http::StatusCode::NOT_FOUND, "Plan not found".to_string()))?;
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                "Plan not found".to_string(),
+            )
+        })?;
 
-    plan.delete(&db).await
+    plan.delete(&db)
+        .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(axum::http::StatusCode::NO_CONTENT)
 }

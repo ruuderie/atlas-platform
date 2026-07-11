@@ -1,11 +1,10 @@
 use crate::app::App;
 
-mod app;
-mod pages;
 pub mod api;
+mod app;
 pub mod components;
+mod pages;
 pub mod utils;
-
 
 #[cfg(test)]
 pub mod tests;

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::api::client::api_get;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct KpiData {
@@ -46,7 +46,10 @@ pub async fn get_engagement() -> Result<EngagementResponse, String> {
 }
 
 pub async fn get_trends(metric_key: &str, days: u32) -> Result<Vec<TrendPoint>, String> {
-    let path = format!("/api/admin/analytics/trends?metric_key={}&days={}", metric_key, days);
+    let path = format!(
+        "/api/admin/analytics/trends?metric_key={}&days={}",
+        metric_key, days
+    );
     api_get(&path).await
 }
 

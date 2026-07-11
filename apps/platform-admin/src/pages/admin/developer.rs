@@ -1,8 +1,7 @@
-use leptos::prelude::*;
 use crate::api::developer::*;
 use crate::app::GlobalToast;
+use leptos::prelude::*;
 use uuid::Uuid;
-
 
 #[component]
 pub fn DeveloperConsole() -> impl IntoView {
@@ -58,7 +57,10 @@ pub fn DeveloperConsole() -> impl IntoView {
         async move {
             if let Some(tenant_id) = tenant {
                 // For now, give blanket scopes or prompt via modal. We just use ["*"]
-                let req = CreateApiTokenRequest { name: "Developer Console Key".to_string(), scopes: vec!["*".to_string()] };
+                let req = CreateApiTokenRequest {
+                    name: "Developer Console Key".to_string(),
+                    scopes: vec!["*".to_string()],
+                };
                 match create_api_token(tenant_id, req).await {
                     Ok(resp) => {
                         new_api_token.set(Some(resp.secret));
@@ -85,7 +87,11 @@ pub fn DeveloperConsole() -> impl IntoView {
                 return;
             }
             if let Some(tenant_id) = tenant {
-                let req = CreateWebhookRequest { target_url: url, events: vec!["*".to_string()], secret: None };
+                let req = CreateWebhookRequest {
+                    target_url: url,
+                    events: vec!["*".to_string()],
+                    secret: None,
+                };
                 match create_webhook_endpoint(tenant_id, req).await {
                     Ok(_) => {
                         new_webhook_url.set(String::new());
@@ -127,7 +133,6 @@ pub fn DeveloperConsole() -> impl IntoView {
             }
         }
     });
-
 
     view! {
         <div class="main-canvas">
@@ -214,11 +219,11 @@ pub fn DeveloperConsole() -> impl IntoView {
                         <section class="p-6 rounded-2xl bg-surface-container border border-outline-variant/10 shadow-sm">
                             <h2 class="text-lg font-semibold text-on-surface mb-2">"Webhooks"</h2>
                             <p class="text-sm text-on-surface-variant mb-6">"Notify your remote systems when events occur."</p>
-                            
+
                             <form on:submit=move |e| { e.prevent_default(); create_webhook_action.dispatch(()); } class="flex items-end gap-4 mb-6">
                                 <div class="flex-1">
                                     <label class="block text-xs font-medium text-on-surface-variant mb-1 uppercase tracking-wider">"Target URL"</label>
-                                    <input type="url" 
+                                    <input type="url"
                                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                                         placeholder="https://api.yourdomain.com/webhook"
                                         prop:value=move || new_webhook_url.get()

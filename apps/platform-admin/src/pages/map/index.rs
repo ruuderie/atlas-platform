@@ -1,7 +1,7 @@
+use crate::api::models::PlatformAppModel;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
-use crate::api::models::PlatformAppModel;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct TenantMapItem {
@@ -25,9 +25,13 @@ extern "C" {
 
 fn call_js_focus_tenant(id: &str) {
     if let Some(window) = web_sys::window() {
-        if let Ok(controller) = js_sys::Reflect::get(&window, &JsValue::from_str("platformMapController")) {
+        if let Ok(controller) =
+            js_sys::Reflect::get(&window, &JsValue::from_str("platformMapController"))
+        {
             if !controller.is_undefined() && !controller.is_null() {
-                if let Ok(focus_fn) = js_sys::Reflect::get(&controller, &JsValue::from_str("focusTenant")) {
+                if let Ok(focus_fn) =
+                    js_sys::Reflect::get(&controller, &JsValue::from_str("focusTenant"))
+                {
                     if let Some(focus_fn) = focus_fn.dyn_ref::<js_sys::Function>() {
                         let _ = focus_fn.call1(&controller, &JsValue::from_str(id));
                     }
@@ -39,9 +43,13 @@ fn call_js_focus_tenant(id: &str) {
 
 fn call_js_update_visibility(filtered_ids_json: &str) {
     if let Some(window) = web_sys::window() {
-        if let Ok(controller) = js_sys::Reflect::get(&window, &JsValue::from_str("platformMapController")) {
+        if let Ok(controller) =
+            js_sys::Reflect::get(&window, &JsValue::from_str("platformMapController"))
+        {
             if !controller.is_undefined() && !controller.is_null() {
-                if let Ok(vis_fn) = js_sys::Reflect::get(&controller, &JsValue::from_str("updateVisibility")) {
+                if let Ok(vis_fn) =
+                    js_sys::Reflect::get(&controller, &JsValue::from_str("updateVisibility"))
+                {
                     if let Some(vis_fn) = vis_fn.dyn_ref::<js_sys::Function>() {
                         let _ = vis_fn.call1(&controller, &JsValue::from_str(filtered_ids_json));
                     }
@@ -50,7 +58,6 @@ fn call_js_update_visibility(filtered_ids_json: &str) {
         }
     }
 }
-
 
 fn get_deterministic_location(idx: usize, name: &str) -> (f64, f64, String) {
     let locations = vec![
@@ -66,11 +73,11 @@ fn get_deterministic_location(idx: usize, name: &str) -> (f64, f64, String) {
 
     let loc_idx = idx % locations.len();
     let base = &locations[loc_idx];
-    
+
     // Add small offsets based on name length to prevent overlap
     let offset_lat = ((name.len() as f64 * 0.05) % 0.2) - 0.1;
     let offset_lng = ((name.len() as f64 * 0.08) % 0.2) - 0.1;
-    
+
     (base.0 + offset_lat, base.1 + offset_lng, base.2.clone())
 }
 
@@ -79,11 +86,14 @@ fn construct_tenant_map_items(
     stats: Vec<crate::api::models::TenantStatModel>,
 ) -> Vec<TenantMapItem> {
     let mut result = Vec::new();
-    
+
     for (idx, app) in real_apps.into_iter().enumerate() {
         let app_slug = app.name.to_lowercase().replace(' ', "-");
-        
-        let (plan, mrr) = if let Some(stat) = stats.iter().find(|s| s.tenant_id.to_string() == app.tenant_id) {
+
+        let (plan, mrr) = if let Some(stat) = stats
+            .iter()
+            .find(|s| s.tenant_id.to_string() == app.tenant_id)
+        {
             let plan_str = stat.plan.clone().unwrap_or_else(|| "starter".to_string());
             let mrr_cents = stat.mrr_cents.unwrap_or(0);
             let mrr_formatted = if mrr_cents > 0 {
@@ -95,15 +105,15 @@ fn construct_tenant_map_items(
         } else {
             ("starter".to_string(), "$0".to_string())
         };
-        
+
         let (lat, lng, location) = get_deterministic_location(idx, &app.name);
-        
+
         let (health, health_label) = match app.site_status.to_lowercase().as_str() {
             "active" | "running" => ("good".to_string(), "● Healthy".to_string()),
             "warning" => ("warning".to_string(), "⚠ SLA Warning".to_string()),
             _ => ("critical".to_string(), "⚡ Outage".to_string()),
         };
-        
+
         result.push(TenantMapItem {
             id: app.tenant_id.clone(),
             name: app.name.clone(),
@@ -117,7 +127,7 @@ fn construct_tenant_map_items(
             location,
         });
     }
-    
+
     result
 }
 
@@ -125,7 +135,7 @@ fn construct_tenant_map_items(
 pub fn PlatformMap() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
-    
+
     let active_id = RwSignal::new(None::<String>);
     let plan_filter = RwSignal::new("all".to_string());
     let health_filter = RwSignal::new("all".to_string());
@@ -133,7 +143,9 @@ pub fn PlatformMap() -> impl IntoView {
     let selected_impersonate_tenant = RwSignal::new(None::<TenantMapItem>);
 
     let stats_res = LocalResource::new(move || async move {
-        crate::api::admin::get_tenant_stats().await.unwrap_or_default()
+        crate::api::admin::get_tenant_stats()
+            .await
+            .unwrap_or_default()
     });
 
     // Merge networks resource into our Leaflet model list
@@ -146,11 +158,15 @@ pub fn PlatformMap() -> impl IntoView {
     let filtered_tenants = Signal::derive(move || {
         let plan = plan_filter.get();
         let health = health_filter.get();
-        tenants_list.get().into_iter().filter(move |t| {
-            let matches_plan = plan == "all" || t.plan == plan;
-            let matches_health = health == "all" || t.health == health;
-            matches_plan && matches_health
-        }).collect::<Vec<TenantMapItem>>()
+        tenants_list
+            .get()
+            .into_iter()
+            .filter(move |t| {
+                let matches_plan = plan == "all" || t.plan == plan;
+                let matches_health = health == "all" || t.health == health;
+                matches_plan && matches_health
+            })
+            .collect::<Vec<TenantMapItem>>()
     });
 
     // Effect: Initialize Leaflet Map once tenants list is loaded
@@ -162,7 +178,11 @@ pub fn PlatformMap() -> impl IntoView {
 
         // Setup the impersonation handler closure
         let on_impersonate = Closure::wrap(Box::new(move |id: String| {
-            if let Some(t) = tenants_list.get_untracked().into_iter().find(|x| x.id == id) {
+            if let Some(t) = tenants_list
+                .get_untracked()
+                .into_iter()
+                .find(|x| x.id == id)
+            {
                 selected_impersonate_tenant.set(Some(t));
                 show_impersonate_modal.set(true);
             }
@@ -174,7 +194,11 @@ pub fn PlatformMap() -> impl IntoView {
         }) as Box<dyn FnMut(String)>);
 
         if let Some(window) = web_sys::window() {
-            let _ = js_sys::Reflect::set(&window, &JsValue::from_str("onFocusTenantFromMap"), on_focus_from_map.as_ref());
+            let _ = js_sys::Reflect::set(
+                &window,
+                &JsValue::from_str("onFocusTenantFromMap"),
+                on_focus_from_map.as_ref(),
+            );
         }
         on_focus_from_map.forget();
 
@@ -186,7 +210,11 @@ pub fn PlatformMap() -> impl IntoView {
 
     // Effect: Sync map marker visibility when filters change
     Effect::new(move |_| {
-        let ids: Vec<String> = filtered_tenants.get().iter().map(|t| t.id.clone()).collect();
+        let ids: Vec<String> = filtered_tenants
+            .get()
+            .iter()
+            .map(|t| t.id.clone())
+            .collect();
         if let Ok(ids_json) = serde_json::to_string(&ids) {
             call_js_update_visibility(&ids_json);
         }
@@ -202,7 +230,11 @@ pub fn PlatformMap() -> impl IntoView {
     let handle_confirm_impersonate = move |_| {
         if let Some(t) = selected_impersonate_tenant.get() {
             show_impersonate_modal.set(false);
-            toast.show_toast("Warning", &format!("⚠ Impersonating {} — audit logged", t.slug), "warn");
+            toast.show_toast(
+                "Warning",
+                &format!("⚠ Impersonating {} — audit logged", t.slug),
+                "warn",
+            );
         }
     };
 
@@ -272,7 +304,7 @@ pub fn PlatformMap() -> impl IntoView {
                                 let id_clone = t.id.clone();
                                 let id_clone_for_active = id_clone.clone();
                                 let is_active = move || active_id.get().as_ref() == Some(&id_clone_for_active);
-                                
+
                                 let health_color = match t.health.as_str() {
                                     "good" => "text-teal-200",
                                     "warning" => "text-amber-400",
@@ -286,7 +318,7 @@ pub fn PlatformMap() -> impl IntoView {
                                 };
 
                                 view! {
-                                    <div 
+                                    <div
                                         class=move || format!(
                                             "border rounded-xl p-3.5 cursor-pointer transition-all duration-150 {}",
                                             if is_active() {
@@ -301,7 +333,7 @@ pub fn PlatformMap() -> impl IntoView {
                                             <div class="font-bold text-xs text-on-surface">{t.name.clone()}</div>
                                         </div>
                                         <div class="text-[10px] font-mono text-on-surface-variant/70 mb-3">{t.slug.clone()}</div>
-                                        
+
                                         <div class="flex items-center justify-between text-[10px]">
                                             <span class=format!("px-2 py-0.5 rounded text-[9px] font-bold border uppercase tracking-wider {}", plan_badge_class)>
                                                 {t.plan.clone()}
@@ -361,7 +393,7 @@ pub fn PlatformMap() -> impl IntoView {
                         </p>
                         <div class="flex justify-end gap-3">
                             <button class="btn btn-ghost" on:click=move |_| show_impersonate_modal.set(false)>"Cancel"</button>
-                            <button 
+                            <button
                                 class="btn btn-danger"
                                 on:click=handle_confirm_impersonate
                             >
