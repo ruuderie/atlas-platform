@@ -5,8 +5,8 @@
 use crate::api::admin::get_tenant_stats;
 use crate::api::models::TenantStatModel;
 use crate::api::scorecards::{
-    get_analytics, get_anomalies, get_leaderboard, list_catalog, list_templates, refresh_analytics,
-    AnomalyAlert, LeaderboardEntry, PortfolioStats, ScorecardTemplate,
+    AnomalyAlert, LeaderboardEntry, PortfolioStats, ScorecardTemplate, get_analytics,
+    get_anomalies, get_leaderboard, list_catalog, list_templates, refresh_analytics,
 };
 use leptos::prelude::*;
 
@@ -57,7 +57,8 @@ pub fn Scorecards() -> impl IntoView {
     let analytics_refresh = RwSignal::new(0u32);
     let refreshing = RwSignal::new(false);
 
-    let tenants_res = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let tenants_res =
+        LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
     // Auto-select first tenant when list loads and none selected.
     Effect::new(move |_| {
@@ -441,7 +442,9 @@ fn TemplateSection(
 #[component]
 fn AnalyticsTab(
     templates_res: LocalResource<Result<Vec<ScorecardTemplate>, String>>,
-    analytics_bundle: LocalResource<Result<Option<(PortfolioStats, Vec<LeaderboardEntry>, Vec<AnomalyAlert>)>, String>>,
+    analytics_bundle: LocalResource<
+        Result<Option<(PortfolioStats, Vec<LeaderboardEntry>, Vec<AnomalyAlert>)>, String>,
+    >,
     selected_tenant_id: RwSignal<String>,
     analytics_template_id: RwSignal<String>,
     dimension_focus: RwSignal<String>,

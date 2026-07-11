@@ -41,8 +41,8 @@ pub enum ScoringMethod {
 impl fmt::Display for ScoringMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::WeightedMean   => "weighted_mean",
-            Self::SimpleMean     => "simple_mean",
+            Self::WeightedMean => "weighted_mean",
+            Self::SimpleMean => "simple_mean",
             Self::PercentileRank => "percentile_rank",
         })
     }
@@ -52,8 +52,8 @@ impl TryFrom<String> for ScoringMethod {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "weighted_mean"   => Ok(Self::WeightedMean),
-            "simple_mean"     => Ok(Self::SimpleMean),
+            "weighted_mean" => Ok(Self::WeightedMean),
+            "simple_mean" => Ok(Self::SimpleMean),
             "percentile_rank" => Ok(Self::PercentileRank),
             other => Err(format!("unknown ScoringMethod: '{other}'")),
         }
@@ -80,7 +80,7 @@ impl fmt::Display for ColdStartStrategy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Suppress => "suppress",
-            Self::Prior    => "prior",
+            Self::Prior => "prior",
             Self::Category => "category",
         })
     }
@@ -91,7 +91,7 @@ impl TryFrom<String> for ColdStartStrategy {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "suppress" => Ok(Self::Suppress),
-            "prior"    => Ok(Self::Prior),
+            "prior" => Ok(Self::Prior),
             "category" => Ok(Self::Category),
             other => Err(format!("unknown ColdStartStrategy: '{other}'")),
         }
@@ -116,19 +116,24 @@ pub enum PercentileBand {
 impl PercentileBand {
     /// Derive the band from a 0–100 percentile rank.
     pub fn from_rank(rank: f64) -> Self {
-        if rank >= 90.0      { Self::Top10 }
-        else if rank >= 75.0 { Self::TopQuartile }
-        else if rank >= 50.0 { Self::Median }
-        else                 { Self::BottomQuartile }
+        if rank >= 90.0 {
+            Self::Top10
+        } else if rank >= 75.0 {
+            Self::TopQuartile
+        } else if rank >= 50.0 {
+            Self::Median
+        } else {
+            Self::BottomQuartile
+        }
     }
 }
 
 impl fmt::Display for PercentileBand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Top10          => "top_10",
-            Self::TopQuartile    => "top_quartile",
-            Self::Median         => "median",
+            Self::Top10 => "top_10",
+            Self::TopQuartile => "top_quartile",
+            Self::Median => "median",
             Self::BottomQuartile => "bottom_quartile",
         })
     }
@@ -138,9 +143,9 @@ impl TryFrom<String> for PercentileBand {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "top_10"          => Ok(Self::Top10),
-            "top_quartile"    => Ok(Self::TopQuartile),
-            "median"          => Ok(Self::Median),
+            "top_10" => Ok(Self::Top10),
+            "top_quartile" => Ok(Self::TopQuartile),
+            "median" => Ok(Self::Median),
             "bottom_quartile" => Ok(Self::BottomQuartile),
             other => Err(format!("unknown PercentileBand: '{other}'")),
         }
@@ -171,11 +176,11 @@ pub enum ScaleType {
 impl fmt::Display for ScaleType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Rating     => "rating",
-            Self::Absolute   => "absolute",
-            Self::Boolean    => "boolean",
+            Self::Rating => "rating",
+            Self::Absolute => "absolute",
+            Self::Boolean => "boolean",
             Self::PollSingle => "poll_single",
-            Self::PollMulti  => "poll_multi",
+            Self::PollMulti => "poll_multi",
         })
     }
 }
@@ -184,11 +189,11 @@ impl FromStr for ScaleType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "rating"      => Ok(Self::Rating),
-            "absolute"    => Ok(Self::Absolute),
-            "boolean"     => Ok(Self::Boolean),
+            "rating" => Ok(Self::Rating),
+            "absolute" => Ok(Self::Absolute),
+            "boolean" => Ok(Self::Boolean),
             "poll_single" => Ok(Self::PollSingle),
-            "poll_multi"  => Ok(Self::PollMulti),
+            "poll_multi" => Ok(Self::PollMulti),
             other => Err(format!("unknown ScaleType: '{other}'")),
         }
     }
@@ -265,16 +270,16 @@ impl SourceType {
 impl fmt::Display for SourceType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::CommunityRating    => "community_rating",
-            Self::PeerReview         => "peer_review",
-            Self::SelfAssessment     => "self_assessment",
-            Self::ManagerReview      => "manager_review",
-            Self::TestResult         => "test_result",
-            Self::BehavioralSignal   => "behavioral_signal",
-            Self::OfficialData       => "official_data",
+            Self::CommunityRating => "community_rating",
+            Self::PeerReview => "peer_review",
+            Self::SelfAssessment => "self_assessment",
+            Self::ManagerReview => "manager_review",
+            Self::TestResult => "test_result",
+            Self::BehavioralSignal => "behavioral_signal",
+            Self::OfficialData => "official_data",
             Self::TranscriptInferred => "transcript_inferred",
-            Self::Manual             => "manual",
-            Self::Inspection         => "inspection",
+            Self::Manual => "manual",
+            Self::Inspection => "inspection",
         })
     }
 }
@@ -283,16 +288,16 @@ impl TryFrom<String> for SourceType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "community_rating"    => Ok(Self::CommunityRating),
-            "peer_review"         => Ok(Self::PeerReview),
-            "self_assessment"     => Ok(Self::SelfAssessment),
-            "manager_review"      => Ok(Self::ManagerReview),
-            "test_result"         => Ok(Self::TestResult),
-            "behavioral_signal"   => Ok(Self::BehavioralSignal),
-            "official_data"       => Ok(Self::OfficialData),
+            "community_rating" => Ok(Self::CommunityRating),
+            "peer_review" => Ok(Self::PeerReview),
+            "self_assessment" => Ok(Self::SelfAssessment),
+            "manager_review" => Ok(Self::ManagerReview),
+            "test_result" => Ok(Self::TestResult),
+            "behavioral_signal" => Ok(Self::BehavioralSignal),
+            "official_data" => Ok(Self::OfficialData),
             "transcript_inferred" => Ok(Self::TranscriptInferred),
-            "manual"              => Ok(Self::Manual),
-            "inspection"          => Ok(Self::Inspection),
+            "manual" => Ok(Self::Manual),
+            "inspection" => Ok(Self::Inspection),
             other => Err(format!("unknown SourceType: '{other}'")),
         }
     }
@@ -344,21 +349,21 @@ pub enum SessionType {
 impl fmt::Display for SessionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Job              => "job",
-            Self::Stay             => "stay",
-            Self::Visit            => "visit",
-            Self::EventShift       => "event_shift",
-            Self::Purchase         => "purchase",
-            Self::Flight           => "flight",
-            Self::Meeting          => "meeting",
-            Self::DiscoveryCall    => "discovery_call",
-            Self::Demo             => "demo",
-            Self::PipelineReview   => "pipeline_review",
-            Self::Call             => "call",
-            Self::EmailThread      => "email_thread",
+            Self::Job => "job",
+            Self::Stay => "stay",
+            Self::Visit => "visit",
+            Self::EventShift => "event_shift",
+            Self::Purchase => "purchase",
+            Self::Flight => "flight",
+            Self::Meeting => "meeting",
+            Self::DiscoveryCall => "discovery_call",
+            Self::Demo => "demo",
+            Self::PipelineReview => "pipeline_review",
+            Self::Call => "call",
+            Self::EmailThread => "email_thread",
             Self::TranscriptReview => "transcript_review",
-            Self::MonthlyReview    => "monthly_review",
-            Self::QuarterlyReview  => "quarterly_review",
+            Self::MonthlyReview => "monthly_review",
+            Self::QuarterlyReview => "quarterly_review",
         })
     }
 }
@@ -367,21 +372,21 @@ impl TryFrom<String> for SessionType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "job"               => Ok(Self::Job),
-            "stay"              => Ok(Self::Stay),
-            "visit"             => Ok(Self::Visit),
-            "event_shift"       => Ok(Self::EventShift),
-            "purchase"          => Ok(Self::Purchase),
-            "flight"            => Ok(Self::Flight),
-            "meeting"           => Ok(Self::Meeting),
-            "discovery_call"    => Ok(Self::DiscoveryCall),
-            "demo"              => Ok(Self::Demo),
-            "pipeline_review"   => Ok(Self::PipelineReview),
-            "call"              => Ok(Self::Call),
-            "email_thread"      => Ok(Self::EmailThread),
+            "job" => Ok(Self::Job),
+            "stay" => Ok(Self::Stay),
+            "visit" => Ok(Self::Visit),
+            "event_shift" => Ok(Self::EventShift),
+            "purchase" => Ok(Self::Purchase),
+            "flight" => Ok(Self::Flight),
+            "meeting" => Ok(Self::Meeting),
+            "discovery_call" => Ok(Self::DiscoveryCall),
+            "demo" => Ok(Self::Demo),
+            "pipeline_review" => Ok(Self::PipelineReview),
+            "call" => Ok(Self::Call),
+            "email_thread" => Ok(Self::EmailThread),
             "transcript_review" => Ok(Self::TranscriptReview),
-            "monthly_review"    => Ok(Self::MonthlyReview),
-            "quarterly_review"  => Ok(Self::QuarterlyReview),
+            "monthly_review" => Ok(Self::MonthlyReview),
+            "quarterly_review" => Ok(Self::QuarterlyReview),
             other => Err(format!("unknown SessionType: '{other}'")),
         }
     }
@@ -404,10 +409,10 @@ pub enum RatingSessionStatus {
 impl fmt::Display for RatingSessionStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Draft     => "draft",
+            Self::Draft => "draft",
             Self::Submitted => "submitted",
-            Self::Verified  => "verified",
-            Self::Disputed  => "disputed",
+            Self::Verified => "verified",
+            Self::Disputed => "disputed",
         })
     }
 }
@@ -416,10 +421,10 @@ impl TryFrom<String> for RatingSessionStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "draft"     => Ok(Self::Draft),
+            "draft" => Ok(Self::Draft),
             "submitted" => Ok(Self::Submitted),
-            "verified"  => Ok(Self::Verified),
-            "disputed"  => Ok(Self::Disputed),
+            "verified" => Ok(Self::Verified),
+            "disputed" => Ok(Self::Disputed),
             other => Err(format!("unknown RatingSessionStatus: '{other}'")),
         }
     }
@@ -445,13 +450,13 @@ pub enum DeploymentTriggerEvent {
 impl fmt::Display for DeploymentTriggerEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Manual             => "manual",
+            Self::Manual => "manual",
             Self::PostServiceSession => "post_service_session",
-            Self::PostCheckout       => "post_checkout",
-            Self::DealClose          => "deal_close",
-            Self::LeaseEnd           => "lease_end",
-            Self::CaseResolved       => "case_resolved",
-            Self::Scheduled          => "scheduled",
+            Self::PostCheckout => "post_checkout",
+            Self::DealClose => "deal_close",
+            Self::LeaseEnd => "lease_end",
+            Self::CaseResolved => "case_resolved",
+            Self::Scheduled => "scheduled",
         })
     }
 }
@@ -460,13 +465,13 @@ impl TryFrom<String> for DeploymentTriggerEvent {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "manual"               => Ok(Self::Manual),
+            "manual" => Ok(Self::Manual),
             "post_service_session" => Ok(Self::PostServiceSession),
-            "post_checkout"        => Ok(Self::PostCheckout),
-            "deal_close"           => Ok(Self::DealClose),
-            "lease_end"            => Ok(Self::LeaseEnd),
-            "case_resolved"        => Ok(Self::CaseResolved),
-            "scheduled"            => Ok(Self::Scheduled),
+            "post_checkout" => Ok(Self::PostCheckout),
+            "deal_close" => Ok(Self::DealClose),
+            "lease_end" => Ok(Self::LeaseEnd),
+            "case_resolved" => Ok(Self::CaseResolved),
+            "scheduled" => Ok(Self::Scheduled),
             other => Err(format!("unknown DeploymentTriggerEvent: '{other}'")),
         }
     }
@@ -498,10 +503,10 @@ impl ConfidenceLevel {
     pub fn from_entry_count(n: i32) -> Self {
         match n {
             i32::MIN..=4 => Self::Insufficient,
-            5..=9        => Self::Low,
-            10..=49      => Self::Medium,
-            50..=199     => Self::High,
-            _            => Self::VeryHigh,
+            5..=9 => Self::Low,
+            10..=49 => Self::Medium,
+            50..=199 => Self::High,
+            _ => Self::VeryHigh,
         }
     }
 }
@@ -510,10 +515,10 @@ impl fmt::Display for ConfidenceLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Insufficient => "insufficient",
-            Self::Low          => "low",
-            Self::Medium       => "medium",
-            Self::High         => "high",
-            Self::VeryHigh     => "very_high",
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::VeryHigh => "very_high",
         })
     }
 }
@@ -523,10 +528,10 @@ impl TryFrom<String> for ConfidenceLevel {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "insufficient" => Ok(Self::Insufficient),
-            "low"          => Ok(Self::Low),
-            "medium"       => Ok(Self::Medium),
-            "high"         => Ok(Self::High),
-            "very_high"    => Ok(Self::VeryHigh),
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            "very_high" => Ok(Self::VeryHigh),
             other => Err(format!("unknown ConfidenceLevel: '{other}'")),
         }
     }
@@ -557,10 +562,10 @@ pub enum TriggerCategory {
 impl fmt::Display for TriggerCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::RecordState     => "record_state",
-            Self::TimeProximity   => "time_proximity",
+            Self::RecordState => "record_state",
+            Self::TimeProximity => "time_proximity",
             Self::ActivityTrigger => "activity_trigger",
-            Self::ScoreGap        => "score_gap",
+            Self::ScoreGap => "score_gap",
         })
     }
 }
@@ -569,10 +574,10 @@ impl TryFrom<String> for TriggerCategory {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "record_state"      => Ok(Self::RecordState),
-            "time_proximity"    => Ok(Self::TimeProximity),
-            "activity_trigger"  => Ok(Self::ActivityTrigger),
-            "score_gap"         => Ok(Self::ScoreGap),
+            "record_state" => Ok(Self::RecordState),
+            "time_proximity" => Ok(Self::TimeProximity),
+            "activity_trigger" => Ok(Self::ActivityTrigger),
+            "score_gap" => Ok(Self::ScoreGap),
             other => Err(format!("unknown TriggerCategory: '{other}'")),
         }
     }
@@ -607,16 +612,16 @@ pub enum RuleOperator {
 impl fmt::Display for RuleOperator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Equals              => "equals",
-            Self::NotEquals           => "not_equals",
-            Self::In                  => "in",
-            Self::NotIn               => "not_in",
-            Self::WithinDays          => "within_days",
-            Self::OverdueDays         => "overdue_days",
+            Self::Equals => "equals",
+            Self::NotEquals => "not_equals",
+            Self::In => "in",
+            Self::NotIn => "not_in",
+            Self::WithinDays => "within_days",
+            Self::OverdueDays => "overdue_days",
             Self::DimensionScoreBelow => "dimension_score_below",
             Self::DimensionScoreAbove => "dimension_score_above",
-            Self::ActivityTypeIs      => "activity_type_is",
-            Self::DimensionUnrated    => "dimension_unrated",
+            Self::ActivityTypeIs => "activity_type_is",
+            Self::DimensionUnrated => "dimension_unrated",
         })
     }
 }
@@ -625,16 +630,16 @@ impl TryFrom<String> for RuleOperator {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "equals"                => Ok(Self::Equals),
-            "not_equals"            => Ok(Self::NotEquals),
-            "in"                    => Ok(Self::In),
-            "not_in"                => Ok(Self::NotIn),
-            "within_days"           => Ok(Self::WithinDays),
-            "overdue_days"          => Ok(Self::OverdueDays),
+            "equals" => Ok(Self::Equals),
+            "not_equals" => Ok(Self::NotEquals),
+            "in" => Ok(Self::In),
+            "not_in" => Ok(Self::NotIn),
+            "within_days" => Ok(Self::WithinDays),
+            "overdue_days" => Ok(Self::OverdueDays),
             "dimension_score_below" => Ok(Self::DimensionScoreBelow),
             "dimension_score_above" => Ok(Self::DimensionScoreAbove),
-            "activity_type_is"      => Ok(Self::ActivityTypeIs),
-            "dimension_unrated"     => Ok(Self::DimensionUnrated),
+            "activity_type_is" => Ok(Self::ActivityTypeIs),
+            "dimension_unrated" => Ok(Self::DimensionUnrated),
             other => Err(format!("unknown RuleOperator: '{other}'")),
         }
     }
@@ -685,11 +690,11 @@ impl RuleAction {
 impl fmt::Display for RuleAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Show            => "show",
-            Self::Hide            => "hide",
-            Self::Require         => "require",
-            Self::SurfaceAsNudge  => "surface_as_nudge",
-            Self::ShowInPrepMode  => "show_in_prep_mode",
+            Self::Show => "show",
+            Self::Hide => "hide",
+            Self::Require => "require",
+            Self::SurfaceAsNudge => "surface_as_nudge",
+            Self::ShowInPrepMode => "show_in_prep_mode",
             Self::ShowAlertBanner => "show_alert_banner",
         })
     }
@@ -699,10 +704,10 @@ impl TryFrom<String> for RuleAction {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "show"              => Ok(Self::Show),
-            "hide"              => Ok(Self::Hide),
-            "require"           => Ok(Self::Require),
-            "surface_as_nudge"  => Ok(Self::SurfaceAsNudge),
+            "show" => Ok(Self::Show),
+            "hide" => Ok(Self::Hide),
+            "require" => Ok(Self::Require),
+            "surface_as_nudge" => Ok(Self::SurfaceAsNudge),
             "show_in_prep_mode" => Ok(Self::ShowInPrepMode),
             "show_alert_banner" => Ok(Self::ShowAlertBanner),
             other => Err(format!("unknown RuleAction: '{other}'")),
@@ -729,10 +734,10 @@ pub enum ModeScope {
 impl fmt::Display for ModeScope {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Always       => "always",
+            Self::Always => "always",
             Self::PostActivity => "post_activity",
-            Self::PreActivity  => "pre_activity",
-            Self::OnScoreGap   => "on_score_gap",
+            Self::PreActivity => "pre_activity",
+            Self::OnScoreGap => "on_score_gap",
         })
     }
 }
@@ -741,10 +746,10 @@ impl TryFrom<String> for ModeScope {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "always"        => Ok(Self::Always),
+            "always" => Ok(Self::Always),
             "post_activity" => Ok(Self::PostActivity),
-            "pre_activity"  => Ok(Self::PreActivity),
-            "on_score_gap"  => Ok(Self::OnScoreGap),
+            "pre_activity" => Ok(Self::PreActivity),
+            "on_score_gap" => Ok(Self::OnScoreGap),
             other => Err(format!("unknown ModeScope: '{other}'")),
         }
     }
@@ -790,7 +795,9 @@ pub struct BenchmarkTier {
     pub show_value: bool,
 }
 
-fn is_false(b: &bool) -> bool { !b }
+fn is_false(b: &bool) -> bool {
+    !b
+}
 
 /// The full `benchmark_tiers` JSONB array — typed, never a raw `Value`.
 pub type BenchmarkTiers = Vec<BenchmarkTier>;
@@ -904,7 +911,6 @@ pub enum EntryContext {
 #[serde(default)]
 pub struct ScorecardTemplateDisplayConfig {
     // ── Landlord dashboard surfaces ───────────────────────────────────────────
-
     /// Show composite score badge in the PortfolioTable row for this template's entity.
     /// Surface: Landlord God View `/dashboard` → PortfolioTable G27ScoreBadge column.
     pub show_on_portfolio_table: bool,
@@ -926,13 +932,11 @@ pub struct ScorecardTemplateDisplayConfig {
     pub show_on_property_detail: bool,
 
     // ── Wholesaling surfaces ──────────────────────────────────────────────────
-
     /// Show the ScorecardDisplay inline on the lead detail page.
     /// Surface: `/wholesaling/leads/{id}` → Lead Quality Assessment inline widget.
     pub show_on_lead_card: bool,
 
     // ── Public / tenant-facing surfaces ──────────────────────────────────────
-
     /// Show the composite score badge on the public PropertyForge listing card.
     /// Surface: `/listings` and `/listings/{property_id}`.
     /// Requires explicit landlord opt-in — scores are NOT shown publicly by default.
@@ -943,7 +947,6 @@ pub struct ScorecardTemplateDisplayConfig {
     pub tenant_visible: bool,
 
     // ── Nudge / activity-trigger surfaces ────────────────────────────────────
-
     /// Fire a `<ScoreNudge>` WebSocket push when an `atlas_case` of type `maintenance`
     /// transitions to `status = closed`.
     /// Surface: any authenticated landlord page → toast overlay.
@@ -956,7 +959,6 @@ pub struct ScorecardTemplateDisplayConfig {
     pub nudge_on_str_checkout: bool,
 
     // ── Display gate ──────────────────────────────────────────────────────────
-
     /// Minimum number of verified entries before any display surface renders the score.
     /// `None` = fall through to `atlas_scorecard_templates.min_entries_to_publish`.
     ///
@@ -978,7 +980,7 @@ impl ScorecardTemplateDisplayConfig {
     pub fn from_json(raw: Option<&serde_json::Value>) -> Result<Self, serde_json::Error> {
         match raw {
             Some(v) => serde_json::from_value(v.clone()),
-            None    => Ok(Self::default()),
+            None => Ok(Self::default()),
         }
     }
 
@@ -1062,31 +1064,31 @@ pub enum ScorecardEntityType {
 impl fmt::Display for ScorecardEntityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::City                 => "city",
-            Self::Property             => "property",
-            Self::Hotel                => "hotel",
-            Self::Person               => "person",
-            Self::Agent                => "agent",
-            Self::Contractor           => "contractor",
-            Self::Restaurant           => "restaurant",
-            Self::Product              => "product",
-            Self::Event                => "event",
-            Self::Airline              => "airline",
-            Self::Carrier              => "carrier",
-            Self::AtlasLead            => "atlas_lead",
-            Self::AtlasOpportunity     => "atlas_opportunity",
-            Self::AtlasAccount         => "atlas_account",
-            Self::AtlasAsset           => "atlas_asset",
-            Self::AtlasCatalogEntry    => "atlas_catalog_entry",
+            Self::City => "city",
+            Self::Property => "property",
+            Self::Hotel => "hotel",
+            Self::Person => "person",
+            Self::Agent => "agent",
+            Self::Contractor => "contractor",
+            Self::Restaurant => "restaurant",
+            Self::Product => "product",
+            Self::Event => "event",
+            Self::Airline => "airline",
+            Self::Carrier => "carrier",
+            Self::AtlasLead => "atlas_lead",
+            Self::AtlasOpportunity => "atlas_opportunity",
+            Self::AtlasAccount => "atlas_account",
+            Self::AtlasAsset => "atlas_asset",
+            Self::AtlasCatalogEntry => "atlas_catalog_entry",
             Self::AtlasServiceProvider => "atlas_service_provider",
-            Self::AtlasContact         => "atlas_contact",
-            Self::AtlasPortfolio       => "atlas_portfolio",
-            Self::AtlasReservation     => "atlas_reservation",
-            Self::AtlasCase            => "atlas_case",
-            Self::Tenant               => "tenant",
-            Self::AppInstance          => "app_instance",
-            Self::Listing              => "listing",
-            Self::Profile              => "profile",
+            Self::AtlasContact => "atlas_contact",
+            Self::AtlasPortfolio => "atlas_portfolio",
+            Self::AtlasReservation => "atlas_reservation",
+            Self::AtlasCase => "atlas_case",
+            Self::Tenant => "tenant",
+            Self::AppInstance => "app_instance",
+            Self::Listing => "listing",
+            Self::Profile => "profile",
         })
     }
 }
@@ -1095,32 +1097,32 @@ impl TryFrom<String> for ScorecardEntityType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "city"                  => Ok(Self::City),
-            "property"              => Ok(Self::Property),
-            "hotel"                 => Ok(Self::Hotel),
-            "person"                => Ok(Self::Person),
-            "agent"                 => Ok(Self::Agent),
-            "contractor"            => Ok(Self::Contractor),
-            "restaurant"            => Ok(Self::Restaurant),
-            "product"               => Ok(Self::Product),
-            "event"                 => Ok(Self::Event),
-            "airline"               => Ok(Self::Airline),
-            "carrier"               => Ok(Self::Carrier),
-            "atlas_lead"            => Ok(Self::AtlasLead),
-            "atlas_opportunity"     => Ok(Self::AtlasOpportunity),
-            "atlas_account"         => Ok(Self::AtlasAccount),
-            "atlas_asset"           => Ok(Self::AtlasAsset),
-            "atlas_catalog_entry"   => Ok(Self::AtlasCatalogEntry),
+            "city" => Ok(Self::City),
+            "property" => Ok(Self::Property),
+            "hotel" => Ok(Self::Hotel),
+            "person" => Ok(Self::Person),
+            "agent" => Ok(Self::Agent),
+            "contractor" => Ok(Self::Contractor),
+            "restaurant" => Ok(Self::Restaurant),
+            "product" => Ok(Self::Product),
+            "event" => Ok(Self::Event),
+            "airline" => Ok(Self::Airline),
+            "carrier" => Ok(Self::Carrier),
+            "atlas_lead" => Ok(Self::AtlasLead),
+            "atlas_opportunity" => Ok(Self::AtlasOpportunity),
+            "atlas_account" => Ok(Self::AtlasAccount),
+            "atlas_asset" => Ok(Self::AtlasAsset),
+            "atlas_catalog_entry" => Ok(Self::AtlasCatalogEntry),
             "atlas_service_provider" => Ok(Self::AtlasServiceProvider),
-            "atlas_contact"         => Ok(Self::AtlasContact),
-            "atlas_portfolio"       => Ok(Self::AtlasPortfolio),
-            "atlas_reservation"     => Ok(Self::AtlasReservation),
-            "atlas_case"            => Ok(Self::AtlasCase),
-            "tenant"                => Ok(Self::Tenant),
-            "app_instance"          => Ok(Self::AppInstance),
-            "listing"               => Ok(Self::Listing),
-            "profile"               => Ok(Self::Profile),
-            other                   => Err(format!("unknown ScorecardEntityType: '{other}'")),
+            "atlas_contact" => Ok(Self::AtlasContact),
+            "atlas_portfolio" => Ok(Self::AtlasPortfolio),
+            "atlas_reservation" => Ok(Self::AtlasReservation),
+            "atlas_case" => Ok(Self::AtlasCase),
+            "tenant" => Ok(Self::Tenant),
+            "app_instance" => Ok(Self::AppInstance),
+            "listing" => Ok(Self::Listing),
+            "profile" => Ok(Self::Profile),
+            other => Err(format!("unknown ScorecardEntityType: '{other}'")),
         }
     }
 }

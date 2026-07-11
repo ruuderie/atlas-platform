@@ -23,11 +23,11 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
 use serde::Deserialize;
 use uuid::Uuid;

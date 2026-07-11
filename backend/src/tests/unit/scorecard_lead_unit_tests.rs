@@ -4,19 +4,25 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::services::scorecard_service::ScorecardService;
     use crate::entities::atlas_lead::Model as LeadModel;
+    use crate::services::scorecard_service::ScorecardService;
 
     // ── ScorecardService::compute_confidence_level ────────────────────────────
 
     #[test]
     fn confidence_level_insufficient_for_zero_entries() {
-        assert_eq!(ScorecardService::compute_confidence_level(0), "insufficient");
+        assert_eq!(
+            ScorecardService::compute_confidence_level(0),
+            "insufficient"
+        );
     }
 
     #[test]
     fn confidence_level_insufficient_for_four_entries() {
-        assert_eq!(ScorecardService::compute_confidence_level(4), "insufficient");
+        assert_eq!(
+            ScorecardService::compute_confidence_level(4),
+            "insufficient"
+        );
     }
 
     #[test]
@@ -56,7 +62,10 @@ mod tests {
 
     #[test]
     fn confidence_level_very_high_for_large_values() {
-        assert_eq!(ScorecardService::compute_confidence_level(100_000), "very_high");
+        assert_eq!(
+            ScorecardService::compute_confidence_level(100_000),
+            "very_high"
+        );
     }
 
     // Boundary: ensure every boundary is correct by testing n-1, n, n+1
@@ -86,21 +95,19 @@ mod tests {
     #[test]
     fn confidence_rank_ordering_is_correct() {
         assert!(
-            ScorecardService::confidence_rank("insufficient") <
-            ScorecardService::confidence_rank("low"),
+            ScorecardService::confidence_rank("insufficient")
+                < ScorecardService::confidence_rank("low"),
             "insufficient must rank below low"
         );
         assert!(
-            ScorecardService::confidence_rank("low") <
-            ScorecardService::confidence_rank("medium")
+            ScorecardService::confidence_rank("low") < ScorecardService::confidence_rank("medium")
         );
         assert!(
-            ScorecardService::confidence_rank("medium") <
+            ScorecardService::confidence_rank("medium") < ScorecardService::confidence_rank("high")
+        );
+        assert!(
             ScorecardService::confidence_rank("high")
-        );
-        assert!(
-            ScorecardService::confidence_rank("high") <
-            ScorecardService::confidence_rank("very_high")
+                < ScorecardService::confidence_rank("very_high")
         );
     }
 
@@ -116,8 +123,8 @@ mod tests {
         let levels_in_order = ["insufficient", "low", "medium", "high", "very_high"];
         for i in 0..levels_in_order.len() - 1 {
             assert!(
-                ScorecardService::confidence_rank(levels_in_order[i]) <
-                ScorecardService::confidence_rank(levels_in_order[i + 1]),
+                ScorecardService::confidence_rank(levels_in_order[i])
+                    < ScorecardService::confidence_rank(levels_in_order[i + 1]),
                 "rank must be strictly increasing: {} < {}",
                 levels_in_order[i],
                 levels_in_order[i + 1]
@@ -179,7 +186,10 @@ mod tests {
     #[test]
     fn compute_name_company_wins_over_email() {
         let name = LeadModel::compute_name(None, None, Some("Acme Corp"), Some("jane@acme.com"));
-        assert_eq!(name, "Acme Corp", "company must win over email in fallback chain");
+        assert_eq!(
+            name, "Acme Corp",
+            "company must win over email in fallback chain"
+        );
     }
 
     #[test]
@@ -271,7 +281,8 @@ mod tests {
         for status in &["new", "contacted", "qualifying", "qualified"] {
             assert!(
                 !make_lead(status).is_terminal(),
-                "status '{}' should NOT be terminal", status
+                "status '{}' should NOT be terminal",
+                status
             );
         }
     }

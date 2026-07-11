@@ -8,7 +8,7 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use shared_ui::components::configurator::Configurator;
 use shared_ui::components::scorecard::models::{
-    ColdStartStrategy, ConfiguratorMode, DisplayConfigForm, DisplayRuleForm, DimensionForm,
+    ColdStartStrategy, ConfiguratorMode, DimensionForm, DisplayConfigForm, DisplayRuleForm,
     ModeScope, RenderMode, RuleAction, RuleOperator, ScaleType, ScoringMethod, SessionDimension,
     SessionType, SourceType, TemplateForm, TemplateSavePayload, TemplateScope, TriggerCategory,
 };
@@ -172,7 +172,9 @@ pub async fn ni_list_scorecard_templates() -> Result<Vec<TemplateListItem>, Serv
     if !res.status().is_success() {
         return Err(ServerFnError::new(format!("API {}", res.status())));
     }
-    res.json().await.map_err(|e| ServerFnError::new(e.to_string()))
+    res.json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))
 }
 
 #[server]
@@ -193,7 +195,9 @@ pub async fn ni_fetch_template_detail(
     if !res.status().is_success() {
         return Err(ServerFnError::new(format!("API {}", res.status())));
     }
-    res.json().await.map_err(|e| ServerFnError::new(e.to_string()))
+    res.json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))
 }
 
 #[server]
@@ -212,7 +216,9 @@ pub async fn ni_fetch_dimensions(template_id: String) -> Result<Vec<DimensionDto
     if !res.status().is_success() {
         return Err(ServerFnError::new(format!("API {}", res.status())));
     }
-    res.json().await.map_err(|e| ServerFnError::new(e.to_string()))
+    res.json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))
 }
 
 #[server]
@@ -233,7 +239,9 @@ pub async fn ni_fetch_display_rules(
     if !res.status().is_success() {
         return Err(ServerFnError::new(format!("API {}", res.status())));
     }
-    res.json().await.map_err(|e| ServerFnError::new(e.to_string()))
+    res.json()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))
 }
 
 #[server]
@@ -273,10 +281,10 @@ pub async fn ni_open_rating_session(
     let token = session_cookie();
     let base = crate::get_api_base_url();
     let client = reqwest::Client::new();
-    let template_id = Uuid::parse_str(&template_id)
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let subject_entity_id = Uuid::parse_str(&subject_entity_id)
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let template_id =
+        Uuid::parse_str(&template_id).map_err(|e| ServerFnError::new(e.to_string()))?;
+    let subject_entity_id =
+        Uuid::parse_str(&subject_entity_id).map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let goc = GetOrCreateBody {
         template_id,

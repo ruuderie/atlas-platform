@@ -1,10 +1,10 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
-use rust_decimal::Decimal;
+use uuid::Uuid;
 
 /// G-27: atlas_scorecards — a template applied to one specific entity instance.
 ///
@@ -95,7 +95,7 @@ impl Model {
     pub fn dimension_vector_typed(&self) -> Result<Option<Vec<f64>>, serde_json::Error> {
         match &self.dimension_vector {
             Some(v) => serde_json::from_value(v.clone()).map(Some),
-            None    => Ok(None),
+            None => Ok(None),
         }
     }
 
@@ -110,7 +110,7 @@ impl Model {
     pub fn dimension_vector_v2_typed(&self) -> Result<Option<Vec<f32>>, serde_json::Error> {
         match &self.dimension_vector_v2 {
             Some(v) => serde_json::from_value(v.clone()).map(Some),
-            None    => Ok(None),
+            None => Ok(None),
         }
     }
 
@@ -124,7 +124,7 @@ impl Model {
     pub fn has_data_mask_typed(&self) -> Result<Option<Vec<bool>>, serde_json::Error> {
         match &self.has_data_mask {
             Some(v) => serde_json::from_value(v.clone()).map(Some),
-            None    => Ok(None),
+            None => Ok(None),
         }
     }
 

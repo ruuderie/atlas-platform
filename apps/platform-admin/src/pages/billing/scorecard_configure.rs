@@ -5,12 +5,12 @@
 use crate::api::admin::{get_all_platform_apps, get_tenant_stats};
 use crate::api::models::PlatformAppSummary;
 use crate::api::scorecards::{
-    create_dimension, create_display_rule, create_template, get_template, list_dimensions,
-    list_display_rules, list_template_deployments, update_dimension, update_display_rule,
-    update_template, upsert_instance_deployments, CreateDimensionInput, CreateDisplayRuleInput,
-    CreateTemplateInput, DisplayRuleAdminView, ScorecardDimension, ScorecardTemplate,
-    UpdateDimensionInput, UpdateDisplayRuleInput, UpdateTemplateInput, UpsertDeploymentItem,
-    UpsertDeploymentsInput,
+    CreateDimensionInput, CreateDisplayRuleInput, CreateTemplateInput, DisplayRuleAdminView,
+    ScorecardDimension, ScorecardTemplate, UpdateDimensionInput, UpdateDisplayRuleInput,
+    UpdateTemplateInput, UpsertDeploymentItem, UpsertDeploymentsInput, create_dimension,
+    create_display_rule, create_template, get_template, list_dimensions, list_display_rules,
+    list_template_deployments, update_dimension, update_display_rule, update_template,
+    upsert_instance_deployments,
 };
 use crate::app::GlobalToast;
 use leptos::prelude::*;
@@ -18,7 +18,7 @@ use leptos::task::spawn_local;
 use leptos_router::hooks::{use_navigate, use_params_map, use_query_map};
 use shared_ui::components::configurator::Configurator;
 use shared_ui::components::scorecard::models::{
-    ColdStartStrategy, ConfiguratorMode, DisplayConfigForm, DisplayRuleForm, DimensionForm,
+    ColdStartStrategy, ConfiguratorMode, DimensionForm, DisplayConfigForm, DisplayRuleForm,
     ModeScope, RuleAction, RuleOperator, ScaleType, ScoringMethod, TemplateForm,
     TemplateSavePayload, TemplateScope, TriggerCategory,
 };
@@ -47,8 +47,7 @@ fn template_to_form(t: &ScorecardTemplate) -> TemplateForm {
         default_scale_max: parse_f64(&t.default_scale_max),
         min_entries_to_publish: t.min_entries_to_publish,
         is_published: t.is_published,
-        template_scope: TemplateScope::from_str(&t.template_scope)
-            .unwrap_or(TemplateScope::Tenant),
+        template_scope: TemplateScope::from_str(&t.template_scope).unwrap_or(TemplateScope::Tenant),
         cold_start_strategy: ColdStartStrategy::from_str(&t.cold_start_strategy)
             .unwrap_or(ColdStartStrategy::Suppress),
         cold_start_saturation_threshold: t.cold_start_saturation_threshold,
@@ -81,7 +80,10 @@ fn dimension_to_form(d: &ScorecardDimension, local_id: usize) -> DimensionForm {
         sort_order: d.sort_order,
         is_tenant_extension: d.is_tenant_extension,
         min_entries_to_show: d.min_entries_to_show,
-        bayesian_prior_weight: d.bayesian_prior_weight.as_ref().and_then(|s| s.parse().ok()),
+        bayesian_prior_weight: d
+            .bayesian_prior_weight
+            .as_ref()
+            .and_then(|s| s.parse().ok()),
         global_reference_value: d
             .global_reference_value
             .as_ref()
@@ -140,15 +142,12 @@ pub fn ScorecardConfigure() -> impl IntoView {
     let navigate = use_navigate();
     let toast = use_context::<GlobalToast>().expect("toast context");
 
-    let template_id_param = move || {
-        params.with(|p| p.get("template_id").unwrap_or_else(|| "new".to_string()))
-    };
+    let template_id_param =
+        move || params.with(|p| p.get("template_id").unwrap_or_else(|| "new".to_string()));
     let is_create = move || template_id_param() == "new";
 
-    let selected_tenant_id = RwSignal::new(
-        query
-            .with_untracked(|q| q.get("tenant_id").unwrap_or_default()),
-    );
+    let selected_tenant_id =
+        RwSignal::new(query.with_untracked(|q| q.get("tenant_id").unwrap_or_default()));
 
     let tenants_res =
         LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
@@ -168,9 +167,10 @@ pub fn ScorecardConfigure() -> impl IntoView {
         let tmpl_id = template_id_param();
         async move {
             if tid.is_empty() {
-                return Ok::<Option<(TemplateForm, Vec<DimensionForm>, Vec<DisplayRuleForm>)>, String>(
-                    None,
-                );
+                return Ok::<
+                    Option<(TemplateForm, Vec<DimensionForm>, Vec<DisplayRuleForm>)>,
+                    String,
+                >(None);
             }
             if tmpl_id == "new" {
                 return Ok(Some((
@@ -396,9 +396,7 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
                     for app in &tenant_apps {
                         if let Ok(iid) = Uuid::parse_str(&app.instance_id) {
                             map.entry(iid).or_insert(false);
-                            triggers
-                                .entry(iid)
-                                .or_insert_with(|| "manual".to_string());
+                            triggers.entry(iid).or_insert_with(|| "manual".to_string());
                         }
                     }
                     apps_sv.set(tenant_apps);

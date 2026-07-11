@@ -8,9 +8,9 @@
 //!   - `PrepModePanel` — pre-activity dimension guidance panel
 //!   - `RuleBuilder` — display rules configuration section
 
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
+use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
 #[serde(rename_all = "snake_case")]
@@ -82,7 +82,9 @@ pub enum RenderMode {
 }
 
 /// How dimension scores combine into a composite — mirrors backend `ScoringMethod`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ScoringMethod {
@@ -93,7 +95,9 @@ pub enum ScoringMethod {
 }
 
 /// Cold-start display strategy — mirrors backend `ColdStartStrategy`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ColdStartStrategy {
@@ -104,7 +108,9 @@ pub enum ColdStartStrategy {
 }
 
 /// Platform vs tenant template scope — mirrors backend `TemplateScope`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum TemplateScope {
@@ -427,26 +433,31 @@ impl DisplayRuleForm {
         } else {
             "?".to_string()
         };
-        format!("{}: {} → {}", target, self.trigger_label(), self.action_label())
+        format!(
+            "{}: {} → {}",
+            target,
+            self.trigger_label(),
+            self.action_label()
+        )
     }
 
     pub fn trigger_label(&self) -> &'static str {
         match self.trigger_category {
-            TriggerCategory::RecordState     => "Record State",
-            TriggerCategory::TimeProximity   => "Time Proximity",
+            TriggerCategory::RecordState => "Record State",
+            TriggerCategory::TimeProximity => "Time Proximity",
             TriggerCategory::ActivityTrigger => "Activity Logged",
-            TriggerCategory::ScoreGap        => "Score Gap",
+            TriggerCategory::ScoreGap => "Score Gap",
         }
     }
 
     pub fn action_label(&self) -> &'static str {
         match self.action {
-            RuleAction::Show             => "Show",
-            RuleAction::Hide             => "Hide",
-            RuleAction::Require          => "Require",
-            RuleAction::SurfaceAsNudge   => "Surface as Nudge",
-            RuleAction::ShowInPrepMode   => "Prep Mode Only",
-            RuleAction::ShowAlertBanner  => "Show Alert Banner",
+            RuleAction::Show => "Show",
+            RuleAction::Hide => "Hide",
+            RuleAction::Require => "Require",
+            RuleAction::SurfaceAsNudge => "Surface as Nudge",
+            RuleAction::ShowInPrepMode => "Prep Mode Only",
+            RuleAction::ShowAlertBanner => "Show Alert Banner",
         }
     }
 

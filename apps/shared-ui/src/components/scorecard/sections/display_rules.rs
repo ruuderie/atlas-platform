@@ -15,57 +15,68 @@
 //! The section renders a paywall notice for tenants without
 //! `scorecard_display_rules_enabled`. The parent passes `rules_enabled: bool`.
 
+use super::super::models::{
+    DimensionForm, DisplayRuleForm, ModeScope, RuleAction, RuleOperator, TriggerCategory,
+};
 use leptos::prelude::*;
 use uuid::Uuid;
-use super::super::models::{
-    DimensionForm, DisplayRuleForm, TriggerCategory, RuleOperator, RuleAction, ModeScope
-};
 
 // ── Trigger category options ─────────────────────────────────────────────────
 
 const TRIGGER_OPTIONS: &[(&str, &str)] = &[
-    ("record_state",     "Record State Change"),
-    ("time_proximity",   "Time Proximity (date field)"),
+    ("record_state", "Record State Change"),
+    ("time_proximity", "Time Proximity (date field)"),
     ("activity_trigger", "Activity Logged"),
-    ("score_gap",        "Score Gap on Dimension"),
+    ("score_gap", "Score Gap on Dimension"),
 ];
 
 const OPERATOR_OPTIONS_RECORD: &[(&str, &str)] = &[
-    ("equals",     "Equals"),
+    ("equals", "Equals"),
     ("not_equals", "Does not equal"),
-    ("in",         "Is one of"),
-    ("not_in",     "Is not one of"),
+    ("in", "Is one of"),
+    ("not_in", "Is not one of"),
 ];
 
 const OPERATOR_OPTIONS_TIME: &[(&str, &str)] = &[
-    ("within_days",  "Within N days"),
+    ("within_days", "Within N days"),
     ("overdue_days", "Overdue by N days"),
 ];
 
 const OPERATOR_OPTIONS_SCORE: &[(&str, &str)] = &[
-    ("dimension_score_below",  "Score below threshold"),
-    ("dimension_score_above",  "Score above threshold"),
-    ("dimension_unrated",      "Not yet rated"),
+    ("dimension_score_below", "Score below threshold"),
+    ("dimension_score_above", "Score above threshold"),
+    ("dimension_unrated", "Not yet rated"),
 ];
 
-const OPERATOR_OPTIONS_ACTIVITY: &[(&str, &str)] = &[
-    ("activity_type_is", "Activity type is one of"),
-];
+const OPERATOR_OPTIONS_ACTIVITY: &[(&str, &str)] =
+    &[("activity_type_is", "Activity type is one of")];
 
 const ACTION_OPTIONS: &[(&str, &str, &str)] = &[
-    ("show",              "Show",               "Make this dimension visible"),
-    ("hide",              "Hide",               "Suppress from session form"),
-    ("require",           "Require",            "Show and mark as required"),
-    ("surface_as_nudge",  "Surface as Nudge",   "Show in post-activity compact prompt"),
-    ("show_in_prep_mode", "Prep Mode Only",     "Show only before a scheduled activity"),
-    ("show_alert_banner", "Show Alert Banner",  "Show a warning banner in the widget"),
+    ("show", "Show", "Make this dimension visible"),
+    ("hide", "Hide", "Suppress from session form"),
+    ("require", "Require", "Show and mark as required"),
+    (
+        "surface_as_nudge",
+        "Surface as Nudge",
+        "Show in post-activity compact prompt",
+    ),
+    (
+        "show_in_prep_mode",
+        "Prep Mode Only",
+        "Show only before a scheduled activity",
+    ),
+    (
+        "show_alert_banner",
+        "Show Alert Banner",
+        "Show a warning banner in the widget",
+    ),
 ];
 
 const SCOPE_OPTIONS: &[(&str, &str)] = &[
-    ("always",        "Always"),
+    ("always", "Always"),
     ("post_activity", "Post-activity only"),
-    ("pre_activity",  "Pre-activity only"),
-    ("on_score_gap",  "When score gap is active"),
+    ("pre_activity", "Pre-activity only"),
+    ("on_score_gap", "When score gap is active"),
 ];
 
 // ── DisplayRulesSection ───────────────────────────────────────────────────────
@@ -293,17 +304,19 @@ fn RuleEditor(
     };
 
     // Operators change based on trigger category
-    let available_operators = move || {
-        match rule().map(|r| r.trigger_category) {
-            Some(TriggerCategory::RecordState)     => OPERATOR_OPTIONS_RECORD,
-            Some(TriggerCategory::TimeProximity)   => OPERATOR_OPTIONS_TIME,
-            Some(TriggerCategory::ScoreGap)        => OPERATOR_OPTIONS_SCORE,
-            Some(TriggerCategory::ActivityTrigger) => OPERATOR_OPTIONS_ACTIVITY,
-            None                                   => OPERATOR_OPTIONS_RECORD,
-        }
+    let available_operators = move || match rule().map(|r| r.trigger_category) {
+        Some(TriggerCategory::RecordState) => OPERATOR_OPTIONS_RECORD,
+        Some(TriggerCategory::TimeProximity) => OPERATOR_OPTIONS_TIME,
+        Some(TriggerCategory::ScoreGap) => OPERATOR_OPTIONS_SCORE,
+        Some(TriggerCategory::ActivityTrigger) => OPERATOR_OPTIONS_ACTIVITY,
+        None => OPERATOR_OPTIONS_RECORD,
     };
 
-    let trigger_cat = move || rule().map(|r| r.trigger_category).unwrap_or(TriggerCategory::RecordState);
+    let trigger_cat = move || {
+        rule()
+            .map(|r| r.trigger_category)
+            .unwrap_or(TriggerCategory::RecordState)
+    };
     let operator = move || rule().map(|r| r.operator).unwrap_or(RuleOperator::Equals);
     let action = move || rule().map(|r| r.action).unwrap_or(RuleAction::Show);
 
@@ -311,19 +324,29 @@ fn RuleEditor(
     let needs_scalar_value = move || {
         matches!(
             operator(),
-            RuleOperator::Equals | RuleOperator::NotEquals | RuleOperator::WithinDays | RuleOperator::OverdueDays
-            | RuleOperator::DimensionScoreBelow | RuleOperator::DimensionScoreAbove
+            RuleOperator::Equals
+                | RuleOperator::NotEquals
+                | RuleOperator::WithinDays
+                | RuleOperator::OverdueDays
+                | RuleOperator::DimensionScoreBelow
+                | RuleOperator::DimensionScoreAbove
         )
     };
 
     // Show value_list field for operators that use a list
     let needs_list_value = move || {
-        matches!(operator(), RuleOperator::In | RuleOperator::NotIn | RuleOperator::ActivityTypeIs)
+        matches!(
+            operator(),
+            RuleOperator::In | RuleOperator::NotIn | RuleOperator::ActivityTypeIs
+        )
     };
 
     // Show field_reference for record_state and time_proximity
     let needs_field_ref = move || {
-        matches!(trigger_cat(), TriggerCategory::RecordState | TriggerCategory::TimeProximity)
+        matches!(
+            trigger_cat(),
+            TriggerCategory::RecordState | TriggerCategory::TimeProximity
+        )
     };
 
     // Show alert_message when action is show_alert_banner

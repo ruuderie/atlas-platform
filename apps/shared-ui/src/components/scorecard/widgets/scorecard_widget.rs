@@ -22,9 +22,9 @@
 //! />
 //! ```
 
+use super::super::models::{RenderMode, ScaleType, SessionDimension};
 use leptos::prelude::*;
 use uuid::Uuid;
-use super::super::models::{SessionDimension, ScaleType, RenderMode};
 
 // ── ScorecardWidget ───────────────────────────────────────────────────────────
 
@@ -42,13 +42,17 @@ pub fn ScorecardWidget(
     /// Called on submit with (dimension_id, score, option_id) triples.
     on_submit: Callback<Vec<ScoreSubmission>>,
     /// Enable transcript/recording upload zone.
-    #[prop(default = false)] transcript_upload_enabled: bool,
+    #[prop(default = false)]
+    transcript_upload_enabled: bool,
     /// Called when the user drops/uploads a transcript file.
-    #[prop(optional)] on_transcript_upload: Option<Callback<web_sys::File>>,
+    #[prop(optional)]
+    on_transcript_upload: Option<Callback<web_sys::File>>,
     /// Called when the user rejects an AI-inferred score.
-    #[prop(optional)] on_reject_inference: Option<Callback<Uuid>>,
+    #[prop(optional)]
+    on_reject_inference: Option<Callback<Uuid>>,
     /// Called on cancel.
-    #[prop(optional)] on_cancel: Option<Callback<()>>,
+    #[prop(optional)]
+    on_cancel: Option<Callback<()>>,
 ) -> impl IntoView {
     let dims = RwSignal::new(dimensions);
     let is_submitting = RwSignal::new(false);
@@ -58,11 +62,17 @@ pub fn ScorecardWidget(
 
     // Alert banner dimensions
     let alert_dims = move || {
-        dims.get().into_iter().filter(|d| d.render_mode == RenderMode::Alert).collect::<Vec<_>>()
+        dims.get()
+            .into_iter()
+            .filter(|d| d.render_mode == RenderMode::Alert)
+            .collect::<Vec<_>>()
     };
 
     let required_unrated = move || {
-        dims.get().into_iter().filter(|d| d.is_required && d.draft_score.is_none() && d.draft_option_id.is_none()).count()
+        dims.get()
+            .into_iter()
+            .filter(|d| d.is_required && d.draft_score.is_none() && d.draft_option_id.is_none())
+            .count()
     };
 
     let handle_submit = move |_| {
@@ -76,7 +86,9 @@ pub fn ScorecardWidget(
         submission_error.set(None);
         is_submitting.set(true);
 
-        let submissions: Vec<ScoreSubmission> = dims.get().into_iter()
+        let submissions: Vec<ScoreSubmission> = dims
+            .get()
+            .into_iter()
             .filter(|d| d.draft_score.is_some() || d.draft_option_id.is_some())
             .map(|d| ScoreSubmission {
                 dimension_id: d.dimension_id,

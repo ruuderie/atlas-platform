@@ -5,11 +5,11 @@
 //! Phase 1b: template deployments (per app-instance enablement).
 
 use axum::{
+    Json, Router,
     extract::{Extension, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post},
-    Json, Router,
 };
 use chrono::Utc;
 use rust_decimal::Decimal;
@@ -38,10 +38,7 @@ use crate::types::scorecard::{
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         // Catalog (no tenant path — platform-scoped rows across tenants)
-        .route(
-            "/api/admin/scorecard-templates/catalog",
-            get(list_catalog),
-        )
+        .route("/api/admin/scorecard-templates/catalog", get(list_catalog))
         // Templates
         .route(
             "/api/admin/tenants/{tenant_id}/scorecard-templates",
@@ -347,15 +344,20 @@ async fn create_template(
 ) -> Result<impl IntoResponse, StatusCode> {
     let entity_type = parse_entity_type(&input.entity_type)?;
     let scoring_method = match input.scoring_method.as_deref() {
-        Some(s) => ScoringMethod::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        Some(s) => {
+            ScoringMethod::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+        }
         None => ScoringMethod::WeightedMean,
     };
     let template_scope = match input.template_scope.as_deref() {
-        Some(s) => TemplateScope::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        Some(s) => {
+            TemplateScope::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+        }
         None => TemplateScope::Tenant,
     };
     let cold_start = match input.cold_start_strategy.as_deref() {
-        Some(s) => ColdStartStrategy::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        Some(s) => ColdStartStrategy::try_from(s.to_owned())
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
         None => ColdStartStrategy::Suppress,
     };
 
@@ -508,7 +510,9 @@ async fn create_dimension(
         scale_min: Set(input.scale_min.unwrap_or(template.default_scale_min)),
         scale_max: Set(input.scale_max.unwrap_or(template.default_scale_max)),
         unit_label: Set(input.unit_label),
-        benchmark_tiers: Set(input.benchmark_tiers.unwrap_or_else(|| serde_json::json!([]))),
+        benchmark_tiers: Set(input
+            .benchmark_tiers
+            .unwrap_or_else(|| serde_json::json!([]))),
         global_reference_value: Set(input.global_reference_value),
         global_reference_label: Set(input.global_reference_label),
         min_entries_to_show: Set(input.min_entries_to_show.unwrap_or(1)),
@@ -811,7 +815,9 @@ async fn submit_entry(
     }
 
     let source_type = match input.source_type.as_deref() {
-        Some(s) => SourceType::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?,
+        Some(s) => {
+            SourceType::try_from(s.to_owned()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+        }
         None => SourceType::Manual,
     };
 
@@ -840,7 +846,10 @@ async fn submit_entry(
         }
     })?;
 
-    Ok((StatusCode::CREATED, Json(SubmitEntryResponse { id: entry_id })))
+    Ok((
+        StatusCode::CREATED,
+        Json(SubmitEntryResponse { id: entry_id }),
+    ))
 }
 
 // ── Analytics wrappers ────────────────────────────────────────────────────────
@@ -990,9 +999,7 @@ async fn upsert_instance_deployments(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-        let trigger_event = item
-            .trigger_event
-            .unwrap_or_else(|| "manual".to_string());
+        let trigger_event = item.trigger_event.unwrap_or_else(|| "manual".to_string());
 
         let saved = if let Some(row) = existing {
             let mut am: deployments::ActiveModel = row.into();

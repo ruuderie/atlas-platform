@@ -2,9 +2,9 @@
 
 use crate::api::admin::get_tenant_stats;
 use crate::api::scorecards::{
-    get_scorecard, list_dimensions, list_entries, list_sessions, list_time_series, open_session,
-    recompute, submit_entry, verify_scorecard_entry, DimensionAggregate, OpenSessionInput,
-    RatingSession, ScorecardDetail, ScorecardEntry, SubmitEntryInput, TimeSeriesPoint,
+    DimensionAggregate, OpenSessionInput, RatingSession, ScorecardDetail, ScorecardEntry,
+    SubmitEntryInput, TimeSeriesPoint, get_scorecard, list_dimensions, list_entries, list_sessions,
+    list_time_series, open_session, recompute, submit_entry, verify_scorecard_entry,
 };
 use crate::pages::billing::scorecard_panel::to_session_dimension;
 use leptos::prelude::*;
@@ -25,7 +25,8 @@ pub fn ScorecardDetailPage() -> impl IntoView {
     let error: RwSignal<Option<String>> = RwSignal::new(None);
     let rating: RwSignal<Option<(Uuid, Uuid, Vec<SessionDimension>)>> = RwSignal::new(None);
 
-    let tenants_res = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let tenants_res =
+        LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
     Effect::new(move |_| {
         if selected_tenant_id.get().is_empty() {
@@ -509,9 +510,7 @@ fn TimeSeriesTab(
     let series_res = LocalResource::new(move || {
         let tid = tid_sv.get_value();
         let _ = refresh.get();
-        async move {
-            list_time_series(&tid, &scorecard_id.to_string(), None, Some("monthly")).await
-        }
+        async move { list_time_series(&tid, &scorecard_id.to_string(), None, Some("monthly")).await }
     });
 
     view! {
@@ -533,7 +532,10 @@ fn TimeSeriesTab(
 }
 
 #[component]
-fn TimeSeriesTable(points: Vec<TimeSeriesPoint>, dim_names: HashMap<Uuid, String>) -> impl IntoView {
+fn TimeSeriesTable(
+    points: Vec<TimeSeriesPoint>,
+    dim_names: HashMap<Uuid, String>,
+) -> impl IntoView {
     if points.is_empty() {
         return view! {
             <p style="font-size:12px;color:var(--text-muted);">"No time-series points yet."</p>

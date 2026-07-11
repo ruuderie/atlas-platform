@@ -22,11 +22,11 @@
 //! ```
 
 use axum::{
-    extract::{Extension, Path, Json},
+    Router,
+    extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Router,
 };
 use chrono::Utc;
 use sea_orm::{
@@ -213,7 +213,10 @@ async fn create_display_rule(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok((StatusCode::CREATED, axum::response::Json(DisplayRuleAdminView::from(inserted))))
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(DisplayRuleAdminView::from(inserted)),
+    ))
 }
 
 /// PATCH /api/admin/scorecard-display-rules/:id
@@ -240,19 +243,45 @@ async fn update_display_rule(
 
     let mut am: display_rules::ActiveModel = rule.into();
 
-    if let Some(v) = input.dimension_id       { am.dimension_id = Set(Some(v)); }
-    if let Some(v) = input.category_target    { am.category_target = Set(Some(v)); }
-    if let Some(v) = input.trigger_category   { am.trigger_category = Set(v); }
-    if let Some(v) = input.field_reference    { am.field_reference = Set(Some(v)); }
-    if let Some(v) = input.operator           { am.operator = Set(v); }
-    if let Some(v) = input.value              { am.value = Set(Some(v)); }
-    if let Some(v) = input.value_list         { am.value_list = Set(Some(v)); }
-    if let Some(v) = input.action             { am.action = Set(v); }
-    if let Some(v) = input.alert_message      { am.alert_message = Set(Some(v)); }
-    if let Some(v) = input.mode_scope         { am.mode_scope = Set(v); }
-    if let Some(v) = input.priority           { am.priority = Set(v); }
-    if let Some(v) = input.description        { am.description = Set(Some(v)); }
-    if let Some(v) = input.is_active          { am.is_active = Set(v); }
+    if let Some(v) = input.dimension_id {
+        am.dimension_id = Set(Some(v));
+    }
+    if let Some(v) = input.category_target {
+        am.category_target = Set(Some(v));
+    }
+    if let Some(v) = input.trigger_category {
+        am.trigger_category = Set(v);
+    }
+    if let Some(v) = input.field_reference {
+        am.field_reference = Set(Some(v));
+    }
+    if let Some(v) = input.operator {
+        am.operator = Set(v);
+    }
+    if let Some(v) = input.value {
+        am.value = Set(Some(v));
+    }
+    if let Some(v) = input.value_list {
+        am.value_list = Set(Some(v));
+    }
+    if let Some(v) = input.action {
+        am.action = Set(v);
+    }
+    if let Some(v) = input.alert_message {
+        am.alert_message = Set(Some(v));
+    }
+    if let Some(v) = input.mode_scope {
+        am.mode_scope = Set(v);
+    }
+    if let Some(v) = input.priority {
+        am.priority = Set(v);
+    }
+    if let Some(v) = input.description {
+        am.description = Set(Some(v));
+    }
+    if let Some(v) = input.is_active {
+        am.is_active = Set(v);
+    }
 
     let updated = am
         .update(&db)

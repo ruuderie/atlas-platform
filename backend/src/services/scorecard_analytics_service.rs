@@ -31,19 +31,19 @@ use uuid::Uuid;
 /// Returned by `portfolio_stats()` and used as the peer pool in BYOC requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DimensionPortfolioStats {
-    pub dimension_id:   Uuid,
+    pub dimension_id: Uuid,
     pub dimension_slug: String,
     pub dimension_name: String,
     /// Distinct scorecards with at least one valid entry for this dimension.
-    pub cohort_size:    i64,
-    pub pool_mean:      Option<f64>,
-    pub pool_std_dev:   Option<f64>,
-    pub pool_min:       Option<f64>,
-    pub pool_p25:       Option<f64>,
-    pub pool_p50:       Option<f64>,
-    pub pool_p75:       Option<f64>,
-    pub pool_p90:       Option<f64>,
-    pub pool_max:       Option<f64>,
+    pub cohort_size: i64,
+    pub pool_mean: Option<f64>,
+    pub pool_std_dev: Option<f64>,
+    pub pool_min: Option<f64>,
+    pub pool_p25: Option<f64>,
+    pub pool_p50: Option<f64>,
+    pub pool_p75: Option<f64>,
+    pub pool_p90: Option<f64>,
+    pub pool_max: Option<f64>,
     /// Scorecards trending improving in their most recent time series period.
     pub improving_count: i64,
     /// Scorecards trending declining in their most recent time series period.
@@ -53,39 +53,39 @@ pub struct DimensionPortfolioStats {
 /// Portfolio-wide stats for a single template, returned by `portfolio_stats()`.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PortfolioStats {
-    pub template_id:   Uuid,
-    pub tenant_id:     Uuid,
+    pub template_id: Uuid,
+    pub tenant_id: Uuid,
     /// Total distinct scorecards across all dimensions (max cohort_size).
     pub total_scorecards: i64,
     /// Timestamp of the last materialized view refresh.
-    pub refreshed_at:  Option<chrono::DateTime<chrono::Utc>>,
-    pub dimensions:    Vec<DimensionPortfolioStats>,
+    pub refreshed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub dimensions: Vec<DimensionPortfolioStats>,
 }
 
 /// A single entry in the leaderboard — one scorecard ranked by composite score.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaderboardEntry {
-    pub rank:                i64,
-    pub scorecard_id:        Uuid,
-    pub subject_entity_id:   String,
+    pub rank: i64,
+    pub scorecard_id: Uuid,
+    pub subject_entity_id: String,
     pub subject_entity_type: String,
-    pub composite_score:     Option<f64>,
-    pub confidence_level:    String,
+    pub composite_score: Option<f64>,
+    pub confidence_level: String,
     /// Percentile rank computed from the materialized view pool.
-    pub percentile_rank:     Option<f64>,
-    pub trend_direction:     Option<String>,
+    pub percentile_rank: Option<f64>,
+    pub trend_direction: Option<String>,
 }
 
 /// A recent anomaly alert — one time series row with is_anomaly = true.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AnomalyAlert {
-    pub scorecard_id:     Uuid,
-    pub dimension_id:     Uuid,
-    pub dimension_slug:   String,
-    pub dimension_name:   String,
-    pub period_start:     chrono::NaiveDate,
-    pub mean_score:       Option<f64>,
-    pub z_score:          Option<f64>,
+    pub scorecard_id: Uuid,
+    pub dimension_id: Uuid,
+    pub dimension_slug: String,
+    pub dimension_name: String,
+    pub period_start: chrono::NaiveDate,
+    pub mean_score: Option<f64>,
+    pub z_score: Option<f64>,
     pub anomaly_direction: Option<String>,
 }
 
@@ -94,12 +94,12 @@ pub struct AnomalyAlert {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeerPoolSnapshot {
     pub cohort_size: i64,
-    pub pool_mean:   Option<f64>,
+    pub pool_mean: Option<f64>,
     pub pool_std_dev: Option<f64>,
-    pub pool_p25:    Option<f64>,
-    pub pool_p50:    Option<f64>,
-    pub pool_p75:    Option<f64>,
-    pub pool_p90:    Option<f64>,
+    pub pool_p25: Option<f64>,
+    pub pool_p50: Option<f64>,
+    pub pool_p75: Option<f64>,
+    pub pool_p90: Option<f64>,
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -119,15 +119,16 @@ impl ScorecardAnalyticsService {
     /// Powers: `GET /api/templates/:id/analytics`
     /// Powers: `g27scPortfolioPanel` LWC callout in AppExchange
     pub async fn portfolio_stats(
-        db:          &DatabaseConnection,
+        db: &DatabaseConnection,
         template_id: Uuid,
-        tenant_id:   Uuid,
+        tenant_id: Uuid,
     ) -> Result<PortfolioStats> {
         let backend = db.get_database_backend();
 
-        let rows = db.query_all(Statement::from_sql_and_values(
-            backend,
-            "SELECT
+        let rows = db
+            .query_all(Statement::from_sql_and_values(
+                backend,
+                "SELECT
                dimension_id,
                dimension_slug,
                dimension_name,
@@ -147,12 +148,12 @@ impl ScorecardAnalyticsService {
              WHERE template_id = $1
                AND tenant_id   = $2
              ORDER BY dimension_slug",
-            vec![
-                sea_orm::Value::Uuid(Some(Box::new(template_id))),
-                sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
-            ],
-        ))
-        .await?;
+                vec![
+                    sea_orm::Value::Uuid(Some(Box::new(template_id))),
+                    sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
+                ],
+            ))
+            .await?;
 
         let mut dimensions = Vec::with_capacity(rows.len());
         let mut total_scorecards: i64 = 0;
@@ -161,27 +162,33 @@ impl ScorecardAnalyticsService {
         for row in &rows {
             let dim_id: Uuid = row.try_get("", "dimension_id")?;
             let cohort: i64 = row.try_get("", "cohort_size")?;
-            if cohort > total_scorecards { total_scorecards = cohort; }
+            if cohort > total_scorecards {
+                total_scorecards = cohort;
+            }
 
             if refreshed_at.is_none() {
-                refreshed_at = row.try_get::<Option<chrono::DateTime<chrono::Utc>>>("", "refreshed_at")
+                refreshed_at = row
+                    .try_get::<Option<chrono::DateTime<chrono::Utc>>>("", "refreshed_at")
                     .ok()
                     .flatten();
             }
 
             dimensions.push(DimensionPortfolioStats {
-                dimension_id:    dim_id,
-                dimension_slug:  row.try_get("", "dimension_slug")?,
-                dimension_name:  row.try_get("", "dimension_name")?,
-                cohort_size:     cohort,
-                pool_mean:       row.try_get::<Option<f64>>("", "pool_mean").ok().flatten(),
-                pool_std_dev:    row.try_get::<Option<f64>>("", "pool_std_dev").ok().flatten(),
-                pool_min:        row.try_get::<Option<f64>>("", "pool_min").ok().flatten(),
-                pool_p25:        row.try_get::<Option<f64>>("", "pool_p25").ok().flatten(),
-                pool_p50:        row.try_get::<Option<f64>>("", "pool_p50").ok().flatten(),
-                pool_p75:        row.try_get::<Option<f64>>("", "pool_p75").ok().flatten(),
-                pool_p90:        row.try_get::<Option<f64>>("", "pool_p90").ok().flatten(),
-                pool_max:        row.try_get::<Option<f64>>("", "pool_max").ok().flatten(),
+                dimension_id: dim_id,
+                dimension_slug: row.try_get("", "dimension_slug")?,
+                dimension_name: row.try_get("", "dimension_name")?,
+                cohort_size: cohort,
+                pool_mean: row.try_get::<Option<f64>>("", "pool_mean").ok().flatten(),
+                pool_std_dev: row
+                    .try_get::<Option<f64>>("", "pool_std_dev")
+                    .ok()
+                    .flatten(),
+                pool_min: row.try_get::<Option<f64>>("", "pool_min").ok().flatten(),
+                pool_p25: row.try_get::<Option<f64>>("", "pool_p25").ok().flatten(),
+                pool_p50: row.try_get::<Option<f64>>("", "pool_p50").ok().flatten(),
+                pool_p75: row.try_get::<Option<f64>>("", "pool_p75").ok().flatten(),
+                pool_p90: row.try_get::<Option<f64>>("", "pool_p90").ok().flatten(),
+                pool_max: row.try_get::<Option<f64>>("", "pool_max").ok().flatten(),
                 improving_count: row.try_get("", "improving_count").unwrap_or(0),
                 declining_count: row.try_get("", "declining_count").unwrap_or(0),
             });
@@ -205,19 +212,20 @@ impl ScorecardAnalyticsService {
     ///
     /// Powers: `GET /api/templates/:id/leaderboard?limit=25`
     pub async fn leaderboard(
-        db:          &DatabaseConnection,
+        db: &DatabaseConnection,
         template_id: Uuid,
-        tenant_id:   Uuid,
-        limit:       i64,
+        tenant_id: Uuid,
+        limit: i64,
     ) -> Result<Vec<LeaderboardEntry>> {
         let backend = db.get_database_backend();
         let limit = limit.clamp(1, 100);
 
         // Joins atlas_scorecards with the max(cohort_size) from the MV to
         // compute percentile rank inline without a second query.
-        let rows = db.query_all(Statement::from_sql_and_values(
-            backend,
-            "SELECT
+        let rows = db
+            .query_all(Statement::from_sql_and_values(
+                backend,
+                "SELECT
                sc.id                     AS scorecard_id,
                sc.subject_entity_id,
                sc.subject_entity_type,
@@ -260,25 +268,34 @@ impl ScorecardAnalyticsService {
                sc.composite_score, sc.confidence_level, latest_ts.trend_direction
              ORDER BY sc.composite_score DESC NULLS LAST
              LIMIT $3",
-            vec![
-                sea_orm::Value::Uuid(Some(Box::new(template_id))),
-                sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
-                sea_orm::Value::BigInt(Some(limit)),
-            ],
-        ))
-        .await?;
+                vec![
+                    sea_orm::Value::Uuid(Some(Box::new(template_id))),
+                    sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
+                    sea_orm::Value::BigInt(Some(limit)),
+                ],
+            ))
+            .await?;
 
         let mut entries = Vec::with_capacity(rows.len());
         for row in &rows {
             entries.push(LeaderboardEntry {
-                rank:                row.try_get("", "rank")?,
-                scorecard_id:        row.try_get("", "scorecard_id")?,
-                subject_entity_id:   row.try_get("", "subject_entity_id")?,
+                rank: row.try_get("", "rank")?,
+                scorecard_id: row.try_get("", "scorecard_id")?,
+                subject_entity_id: row.try_get("", "subject_entity_id")?,
                 subject_entity_type: row.try_get("", "subject_entity_type")?,
-                composite_score:     row.try_get::<Option<f64>>("", "composite_score").ok().flatten(),
-                confidence_level:    row.try_get("", "confidence_level").unwrap_or_default(),
-                percentile_rank:     row.try_get::<Option<f64>>("", "percentile_rank").ok().flatten(),
-                trend_direction:     row.try_get::<Option<String>>("", "trend_direction").ok().flatten(),
+                composite_score: row
+                    .try_get::<Option<f64>>("", "composite_score")
+                    .ok()
+                    .flatten(),
+                confidence_level: row.try_get("", "confidence_level").unwrap_or_default(),
+                percentile_rank: row
+                    .try_get::<Option<f64>>("", "percentile_rank")
+                    .ok()
+                    .flatten(),
+                trend_direction: row
+                    .try_get::<Option<String>>("", "trend_direction")
+                    .ok()
+                    .flatten(),
             });
         }
 
@@ -295,17 +312,18 @@ impl ScorecardAnalyticsService {
     /// Powers: `GET /api/templates/:id/anomalies`
     /// Also used by the Platform Event publisher to batch anomaly signals.
     pub async fn recent_anomalies(
-        db:          &DatabaseConnection,
+        db: &DatabaseConnection,
         template_id: Uuid,
-        tenant_id:   Uuid,
-        limit:       i64,
+        tenant_id: Uuid,
+        limit: i64,
     ) -> Result<Vec<AnomalyAlert>> {
         let backend = db.get_database_backend();
         let limit = limit.clamp(1, 500);
 
-        let rows = db.query_all(Statement::from_sql_and_values(
-            backend,
-            "SELECT
+        let rows = db
+            .query_all(Statement::from_sql_and_values(
+                backend,
+                "SELECT
                scorecard_id,
                dimension_id,
                dimension_slug,
@@ -319,25 +337,28 @@ impl ScorecardAnalyticsService {
                AND tenant_id   = $2
              ORDER BY period_start DESC, ABS(z_score) DESC NULLS LAST
              LIMIT $3",
-            vec![
-                sea_orm::Value::Uuid(Some(Box::new(template_id))),
-                sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
-                sea_orm::Value::BigInt(Some(limit)),
-            ],
-        ))
-        .await?;
+                vec![
+                    sea_orm::Value::Uuid(Some(Box::new(template_id))),
+                    sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
+                    sea_orm::Value::BigInt(Some(limit)),
+                ],
+            ))
+            .await?;
 
         let mut alerts = Vec::with_capacity(rows.len());
         for row in &rows {
             alerts.push(AnomalyAlert {
-                scorecard_id:      row.try_get("", "scorecard_id")?,
-                dimension_id:      row.try_get("", "dimension_id")?,
-                dimension_slug:    row.try_get("", "dimension_slug")?,
-                dimension_name:    row.try_get("", "dimension_name")?,
-                period_start:      row.try_get("", "period_start")?,
-                mean_score:        row.try_get::<Option<f64>>("", "mean_score").ok().flatten(),
-                z_score:           row.try_get::<Option<f64>>("", "z_score").ok().flatten(),
-                anomaly_direction: row.try_get::<Option<String>>("", "anomaly_direction").ok().flatten(),
+                scorecard_id: row.try_get("", "scorecard_id")?,
+                dimension_id: row.try_get("", "dimension_id")?,
+                dimension_slug: row.try_get("", "dimension_slug")?,
+                dimension_name: row.try_get("", "dimension_name")?,
+                period_start: row.try_get("", "period_start")?,
+                mean_score: row.try_get::<Option<f64>>("", "mean_score").ok().flatten(),
+                z_score: row.try_get::<Option<f64>>("", "z_score").ok().flatten(),
+                anomaly_direction: row
+                    .try_get::<Option<String>>("", "anomaly_direction")
+                    .ok()
+                    .flatten(),
             });
         }
 
@@ -357,9 +378,7 @@ impl ScorecardAnalyticsService {
     ///   2. POST /api/templates/:id/analytics/refresh (admin only, on-demand)
     ///
     /// Returns the duration of the refresh for observability logging.
-    pub async fn refresh_portfolio_view(
-        db: &DatabaseConnection,
-    ) -> Result<std::time::Duration> {
+    pub async fn refresh_portfolio_view(db: &DatabaseConnection) -> Result<std::time::Duration> {
         let backend = db.get_database_backend();
         let started = std::time::Instant::now();
 
@@ -383,16 +402,17 @@ impl ScorecardAnalyticsService {
     /// Returns `None` if no portfolio data exists yet for this dimension
     /// (view not yet refreshed or dimension has no data).
     pub async fn peer_pool_snapshot(
-        db:           &DatabaseConnection,
-        template_id:  Uuid,
-        tenant_id:    Uuid,
+        db: &DatabaseConnection,
+        template_id: Uuid,
+        tenant_id: Uuid,
         dimension_id: Uuid,
     ) -> Result<Option<PeerPoolSnapshot>> {
         let backend = db.get_database_backend();
 
-        let rows = db.query_all(Statement::from_sql_and_values(
-            backend,
-            "SELECT
+        let rows = db
+            .query_all(Statement::from_sql_and_values(
+                backend,
+                "SELECT
                cohort_size, pool_mean, pool_std_dev,
                pool_p25, pool_p50, pool_p75, pool_p90
              FROM mv_scorecard_portfolio_analytics
@@ -400,24 +420,29 @@ impl ScorecardAnalyticsService {
                AND tenant_id    = $2
                AND dimension_id = $3
              LIMIT 1",
-            vec![
-                sea_orm::Value::Uuid(Some(Box::new(template_id))),
-                sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
-                sea_orm::Value::Uuid(Some(Box::new(dimension_id))),
-            ],
-        ))
-        .await?;
+                vec![
+                    sea_orm::Value::Uuid(Some(Box::new(template_id))),
+                    sea_orm::Value::Uuid(Some(Box::new(tenant_id))),
+                    sea_orm::Value::Uuid(Some(Box::new(dimension_id))),
+                ],
+            ))
+            .await?;
 
-        let Some(row) = rows.first() else { return Ok(None) };
+        let Some(row) = rows.first() else {
+            return Ok(None);
+        };
 
         Ok(Some(PeerPoolSnapshot {
-            cohort_size:  row.try_get("", "cohort_size").unwrap_or(0),
-            pool_mean:    row.try_get::<Option<f64>>("", "pool_mean").ok().flatten(),
-            pool_std_dev: row.try_get::<Option<f64>>("", "pool_std_dev").ok().flatten(),
-            pool_p25:     row.try_get::<Option<f64>>("", "pool_p25").ok().flatten(),
-            pool_p50:     row.try_get::<Option<f64>>("", "pool_p50").ok().flatten(),
-            pool_p75:     row.try_get::<Option<f64>>("", "pool_p75").ok().flatten(),
-            pool_p90:     row.try_get::<Option<f64>>("", "pool_p90").ok().flatten(),
+            cohort_size: row.try_get("", "cohort_size").unwrap_or(0),
+            pool_mean: row.try_get::<Option<f64>>("", "pool_mean").ok().flatten(),
+            pool_std_dev: row
+                .try_get::<Option<f64>>("", "pool_std_dev")
+                .ok()
+                .flatten(),
+            pool_p25: row.try_get::<Option<f64>>("", "pool_p25").ok().flatten(),
+            pool_p50: row.try_get::<Option<f64>>("", "pool_p50").ok().flatten(),
+            pool_p75: row.try_get::<Option<f64>>("", "pool_p75").ok().flatten(),
+            pool_p90: row.try_get::<Option<f64>>("", "pool_p90").ok().flatten(),
         }))
     }
 
@@ -430,9 +455,9 @@ impl ScorecardAnalyticsService {
     /// The rank recomputation is lightweight — reads the freshly-refreshed MV
     /// and writes to atlas_scorecard_dimension_aggregates.
     pub async fn refresh_and_rerank(
-        db:          &DatabaseConnection,
+        db: &DatabaseConnection,
         template_id: Uuid,
-        tenant_id:   Uuid,
+        tenant_id: Uuid,
     ) -> Result<()> {
         // 1. Refresh the materialized view
         let duration = Self::refresh_portfolio_view(db).await?;

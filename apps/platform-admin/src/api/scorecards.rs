@@ -453,11 +453,17 @@ pub async fn list_catalog(is_published: Option<bool>) -> Result<Vec<ScorecardTem
 }
 
 pub async fn list_templates(tenant_id: &str) -> Result<Vec<ScorecardTemplate>, String> {
-    api_get(&format!("api/admin/tenants/{tenant_id}/scorecard-templates")).await
+    api_get(&format!(
+        "api/admin/tenants/{tenant_id}/scorecard-templates"
+    ))
+    .await
 }
 
 pub async fn get_template(tenant_id: &str, id: &str) -> Result<ScorecardTemplate, String> {
-    api_get(&format!("api/admin/tenants/{tenant_id}/scorecard-templates/{id}")).await
+    api_get(&format!(
+        "api/admin/tenants/{tenant_id}/scorecard-templates/{id}"
+    ))
+    .await
 }
 
 pub async fn create_template(
@@ -535,9 +541,9 @@ pub async fn get_leaderboard(
         Some(n) => format!(
             "api/admin/tenants/{tenant_id}/scorecard-templates/{template_id}/leaderboard?limit={n}"
         ),
-        None => format!(
-            "api/admin/tenants/{tenant_id}/scorecard-templates/{template_id}/leaderboard"
-        ),
+        None => {
+            format!("api/admin/tenants/{tenant_id}/scorecard-templates/{template_id}/leaderboard")
+        }
     };
     api_get(&path).await
 }
@@ -551,9 +557,9 @@ pub async fn get_anomalies(
         Some(n) => format!(
             "api/admin/tenants/{tenant_id}/scorecard-templates/{template_id}/anomalies?limit={n}"
         ),
-        None => format!(
-            "api/admin/tenants/{tenant_id}/scorecard-templates/{template_id}/anomalies"
-        ),
+        None => {
+            format!("api/admin/tenants/{tenant_id}/scorecard-templates/{template_id}/anomalies")
+        }
     };
     api_get(&path).await
 }
@@ -578,7 +584,10 @@ pub async fn get_scorecard(tenant_id: &str, id: &str) -> Result<ScorecardDetail,
     api_get(&format!("api/admin/tenants/{tenant_id}/scorecards/{id}")).await
 }
 
-pub async fn list_sessions(tenant_id: &str, scorecard_id: &str) -> Result<Vec<RatingSession>, String> {
+pub async fn list_sessions(
+    tenant_id: &str,
+    scorecard_id: &str,
+) -> Result<Vec<RatingSession>, String> {
     api_get(&format!(
         "api/admin/tenants/{tenant_id}/scorecards/{scorecard_id}/sessions"
     ))
@@ -616,9 +625,7 @@ pub async fn list_time_series(
     dimension_id: Option<&str>,
     period_type: Option<&str>,
 ) -> Result<Vec<TimeSeriesPoint>, String> {
-    let mut path = format!(
-        "api/admin/tenants/{tenant_id}/scorecards/{scorecard_id}/time-series"
-    );
+    let mut path = format!("api/admin/tenants/{tenant_id}/scorecards/{scorecard_id}/time-series");
     let mut qs = Vec::new();
     if let Some(d) = dimension_id {
         qs.push(format!("dimension_id={d}"));
@@ -698,9 +705,7 @@ pub async fn upsert_instance_deployments(
     input: &UpsertDeploymentsInput,
 ) -> Result<Vec<ScorecardDeployment>, String> {
     api_put(
-        &format!(
-            "api/admin/tenants/{tenant_id}/app-instances/{instance_id}/scorecard-deployments"
-        ),
+        &format!("api/admin/tenants/{tenant_id}/app-instances/{instance_id}/scorecard-deployments"),
         input,
     )
     .await

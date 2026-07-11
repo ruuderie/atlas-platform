@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 
 /// G-27: atlas_scorecard_poll_aggregates — vote counts for poll_single/poll_multi dimensions.
 ///

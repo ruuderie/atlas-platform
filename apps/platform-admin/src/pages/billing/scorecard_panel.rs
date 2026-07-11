@@ -5,9 +5,9 @@
 
 use crate::api::admin::get_tenant_stats;
 use crate::api::scorecards::{
-    get_or_create_scorecard, get_scorecard, list_dimensions, list_templates, open_session, recompute,
-    submit_entry, GetOrCreateInput, OpenSessionInput, ScorecardDetail, ScorecardDimension,
-    ScorecardTemplate, SubmitEntryInput,
+    GetOrCreateInput, OpenSessionInput, ScorecardDetail, ScorecardDimension, ScorecardTemplate,
+    SubmitEntryInput, get_or_create_scorecard, get_scorecard, list_dimensions, list_templates,
+    open_session, recompute, submit_entry,
 };
 use leptos::prelude::*;
 use leptos::task::spawn_local;

@@ -16,12 +16,12 @@
 //!   - get_display_rules (enabled):  returns active rules ordered by priority
 //!   - get_nudge_dimensions_for_activity: returns matching nudge dimensions
 
-use uuid::Uuid;
 use serde_json::json;
+use uuid::Uuid;
 
+use crate::services::scorecard_service::ScorecardService;
 use crate::tests::api_tests::setup_test_app;
 use crate::tests::test_utils;
-use crate::services::scorecard_service::ScorecardService;
 
 /// Helper: insert a minimal scorecard template and one dimension directly via
 /// raw SeaORM inserts so tests don't depend on a template API endpoint.
@@ -29,12 +29,12 @@ async fn create_test_template_and_dimension(
     db: &sea_orm::DatabaseConnection,
     tenant_id: Uuid,
 ) -> (Uuid, Uuid) {
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::{
-        atlas_scorecard_template::ActiveModel as TemplateAM,
         atlas_scorecard_dimension::ActiveModel as DimAM,
+        atlas_scorecard_template::ActiveModel as TemplateAM,
     };
     use rust_decimal::Decimal;
+    use sea_orm::{ActiveModelTrait, Set};
     use serde_json::json;
 
     let template_id = Uuid::new_v4();
@@ -106,26 +106,16 @@ async fn test_scorecard_get_or_create_is_idempotent() {
     let subject_id = Uuid::new_v4();
 
     // First call: creates
-    let id_a = ScorecardService::get_or_create(
-        &db,
-        tenant.id,
-        template_id,
-        "atlas_lead",
-        subject_id,
-    )
-    .await
-    .expect("first get_or_create failed");
+    let id_a =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", subject_id)
+            .await
+            .expect("first get_or_create failed");
 
     // Second call: must return the same ID
-    let id_b = ScorecardService::get_or_create(
-        &db,
-        tenant.id,
-        template_id,
-        "atlas_lead",
-        subject_id,
-    )
-    .await
-    .expect("second get_or_create failed");
+    let id_b =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", subject_id)
+            .await
+            .expect("second get_or_create failed");
 
     assert_eq!(id_a, id_b, "get_or_create must be idempotent");
 }
@@ -139,15 +129,10 @@ async fn test_scorecard_open_session_and_submit_entry() {
     let subject_id = Uuid::new_v4();
     let rater_id = Uuid::new_v4();
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db,
-        tenant.id,
-        template_id,
-        "atlas_lead",
-        subject_id,
-    )
-    .await
-    .expect("get_or_create failed");
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", subject_id)
+            .await
+            .expect("get_or_create failed");
 
     // open_session(db, scorecard_id, rater_user_id, tenant_id, occurred_at,
     //              session_type, context_entity_type, context_entity_id, session_label)
@@ -161,7 +146,7 @@ async fn test_scorecard_open_session_and_submit_entry() {
         None,
         None,
         Some("Q1 qualification call"), // session_label: Option<&str>
-        None, // app_instance_id
+        None,                          // app_instance_id
     )
     .await
     .expect("open_session failed");
@@ -178,11 +163,11 @@ async fn test_scorecard_open_session_and_submit_entry() {
         dim_id,
         tenant.id,
         rater_id,
-        Some(8.0_f64),                          // score: Option<f64>
-        None,                                    // option_id: not a poll dimension
-        "manual",                                // source_type: &str
-        None,                                    // context: Option<Value>
-        Some("Good safety record"),              // note: Option<&str>
+        Some(8.0_f64),              // score: Option<f64>
+        None,                       // option_id: not a poll dimension
+        "manual",                   // source_type: &str
+        None,                       // context: Option<Value>
+        Some("Good safety record"), // note: Option<&str>
     )
     .await
     .expect("submit_entry failed");
@@ -199,26 +184,58 @@ async fn test_scorecard_submit_entry_is_idempotent_per_contributor() {
     let subject_id = Uuid::new_v4();
     let rater_id = Uuid::new_v4();
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", subject_id,
-    ).await.unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", subject_id)
+            .await
+            .unwrap();
 
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "review", None, None, None, None,
-    ).await.unwrap();
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "review",
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     // First submit: OK
     ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(7.0_f64), None, "manual", None, None,
-    ).await.expect("first submit must succeed");
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(7.0_f64),
+        None,
+        "manual",
+        None,
+        None,
+    )
+    .await
+    .expect("first submit must succeed");
 
     // Second submit for same (session, dimension, contributor): must fail with DB error
     let result = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(9.0_f64), None, "manual", None, None,
-    ).await;
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(9.0_f64),
+        None,
+        "manual",
+        None,
+        None,
+    )
+    .await;
 
     assert!(
         result.is_err(),
@@ -235,19 +252,41 @@ async fn test_recompute_aggregates_smoke() {
     let subject_id = Uuid::new_v4();
     let rater_id = Uuid::new_v4();
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", subject_id,
-    ).await.unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", subject_id)
+            .await
+            .unwrap();
 
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "inspection", None, None, Some("90-day review"), None,
-    ).await.unwrap();
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "inspection",
+        None,
+        None,
+        Some("90-day review"),
+        None,
+    )
+    .await
+    .unwrap();
 
     ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(8.0_f64), None, "inspection", Some(json!({"duration_days": 90})), None,
-    ).await.unwrap();
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(8.0_f64),
+        None,
+        "inspection",
+        Some(json!({"duration_days": 90})),
+        None,
+    )
+    .await
+    .unwrap();
 
     // recompute_aggregates should succeed without panicking
     ScorecardService::recompute_aggregates(&db, scorecard_id)
@@ -287,12 +326,12 @@ async fn create_inverted_dimension(
     db: &sea_orm::DatabaseConnection,
     tenant_id: Uuid,
 ) -> (Uuid, Uuid) {
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::{
-        atlas_scorecard_template::ActiveModel as TemplateAM,
         atlas_scorecard_dimension::ActiveModel as DimAM,
+        atlas_scorecard_template::ActiveModel as TemplateAM,
     };
     use rust_decimal::Decimal;
+    use sea_orm::{ActiveModelTrait, Set};
 
     let template_id = Uuid::new_v4();
     TemplateAM {
@@ -346,8 +385,8 @@ async fn insert_display_rule(
     priority: i32,
     action: &str,
 ) -> Uuid {
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::atlas_scorecard_display_rule::ActiveModel as RuleAM;
+    use sea_orm::{ActiveModelTrait, Set};
 
     let rule_id = Uuid::new_v4();
     RuleAM {
@@ -384,20 +423,42 @@ async fn test_verify_entry_confirm() {
     let tenant = test_utils::create_test_tenant(&db).await;
     let (template_id, dim_id) = create_test_template_and_dimension(&db, tenant.id).await;
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
-    ).await.unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", Uuid::new_v4())
+            .await
+            .unwrap();
 
     let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "call", None, None, None, None,
-    ).await.unwrap();
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "call",
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     let entry_id = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(7.0), None, "transcript_inferred", None, None,
-    ).await.expect("submit_entry failed");
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(7.0),
+        None,
+        "transcript_inferred",
+        None,
+        None,
+    )
+    .await
+    .expect("submit_entry failed");
 
     // Confirm the entry
     ScorecardService::verify_entry(&db, entry_id, tenant.id, true)
@@ -412,7 +473,10 @@ async fn test_verify_entry_confirm() {
         .unwrap()
         .expect("entry must still exist after confirm");
 
-    assert!(entry.is_verified, "confirmed entry must have is_verified = true");
+    assert!(
+        entry.is_verified,
+        "confirmed entry must have is_verified = true"
+    );
 }
 
 /// verify_entry(confirmed=false): the entry must be deleted.
@@ -422,20 +486,42 @@ async fn test_verify_entry_reject() {
     let tenant = test_utils::create_test_tenant(&db).await;
     let (template_id, dim_id) = create_test_template_and_dimension(&db, tenant.id).await;
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
-    ).await.unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", Uuid::new_v4())
+            .await
+            .unwrap();
 
     let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "call", None, None, None, None,
-    ).await.unwrap();
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "call",
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     let entry_id = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(6.0), None, "transcript_inferred", None, None,
-    ).await.expect("submit_entry failed");
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(6.0),
+        None,
+        "transcript_inferred",
+        None,
+        None,
+    )
+    .await
+    .expect("submit_entry failed");
 
     // Reject the entry
     ScorecardService::verify_entry(&db, entry_id, tenant.id, false)
@@ -460,23 +546,42 @@ async fn test_submit_entry_transcript_inferred_source_type() {
     let tenant = test_utils::create_test_tenant(&db).await;
     let (template_id, dim_id) = create_test_template_and_dimension(&db, tenant.id).await;
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
-    ).await.unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", Uuid::new_v4())
+            .await
+            .unwrap();
 
     let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "call", None, None, None, None,
-    ).await.unwrap();
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "call",
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     let entry_id = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(8.0), None,
-        "transcript_inferred",   // ← Gap 5: must be a valid SourceType variant
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(8.0),
+        None,
+        "transcript_inferred", // ← Gap 5: must be a valid SourceType variant
         Some(json!({"call_id": "call_abc", "confidence": 0.91})),
         None,
-    ).await.expect("transcript_inferred must be a valid source_type");
+    )
+    .await
+    .expect("transcript_inferred must be a valid source_type");
 
     // Entry must exist and be unverified
     use sea_orm::EntityTrait;
@@ -499,21 +604,43 @@ async fn test_recompute_aggregates_inverted_dimension() {
     let tenant = test_utils::create_test_tenant(&db).await;
     let (template_id, dim_id) = create_inverted_dimension(&db, tenant.id).await;
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
-    ).await.unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", Uuid::new_v4())
+            .await
+            .unwrap();
 
     let rater_id = Uuid::new_v4();
     let session_id = ScorecardService::open_session(
-        &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "review", None, None, None, None,
-    ).await.unwrap();
+        &db,
+        scorecard_id,
+        rater_id,
+        tenant.id,
+        chrono::Utc::now(),
+        "review",
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     // Score of 20 (low = good for inverted: churn_rate)
     ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
-        Some(20.0), None, "manual", None, None,
-    ).await.unwrap();
+        &db,
+        session_id,
+        scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(20.0),
+        None,
+        "manual",
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     ScorecardService::recompute_aggregates(&db, scorecard_id)
         .await
@@ -550,8 +677,8 @@ async fn test_get_display_rules_returns_active_rules_for_enabled_tenant() {
 
     // Enable the feature for this tenant
     {
-        use sea_orm::{ActiveModelTrait, Set};
         use crate::entities::tenant_setting::ActiveModel as SettingAM;
+        use sea_orm::{ActiveModelTrait, Set};
         SettingAM {
             id: Set(Uuid::new_v4()),
             tenant_id: Set(tenant.id),
@@ -567,7 +694,7 @@ async fn test_get_display_rules_returns_active_rules_for_enabled_tenant() {
     }
 
     // Insert two rules with different priorities
-    insert_display_rule(&db, tenant.id, template_id, dim_id, 5,  "require").await;
+    insert_display_rule(&db, tenant.id, template_id, dim_id, 5, "require").await;
     insert_display_rule(&db, tenant.id, template_id, dim_id, 20, "surface_as_nudge").await;
 
     let rules = ScorecardService::get_display_rules(&db, template_id, tenant.id)
@@ -575,8 +702,14 @@ async fn test_get_display_rules_returns_active_rules_for_enabled_tenant() {
         .expect("get_display_rules must not fail");
 
     assert_eq!(rules.len(), 2, "must return all active rules");
-    assert_eq!(rules[0].priority, 5,  "must be ordered by priority asc — first is priority 5");
-    assert_eq!(rules[1].priority, 20, "must be ordered by priority asc — second is priority 20");
+    assert_eq!(
+        rules[0].priority, 5,
+        "must be ordered by priority asc — first is priority 5"
+    );
+    assert_eq!(
+        rules[1].priority, 20,
+        "must be ordered by priority asc — second is priority 20"
+    );
 }
 
 /// get_nudge_dimensions_for_activity returns matching nudge dimensions for a
@@ -590,8 +723,8 @@ async fn test_get_nudge_dimensions_for_activity() {
 
     // Enable the feature
     {
-        use sea_orm::{ActiveModelTrait, Set};
         use crate::entities::tenant_setting::ActiveModel as SettingAM;
+        use sea_orm::{ActiveModelTrait, Set};
         SettingAM {
             id: Set(Uuid::new_v4()),
             tenant_id: Set(tenant.id),
@@ -607,24 +740,28 @@ async fn test_get_nudge_dimensions_for_activity() {
     }
 
     // Create scorecard for the entity
-    let _ = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", entity_id,
-    ).await.unwrap();
+    let _ = ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", entity_id)
+        .await
+        .unwrap();
 
     // Rule fires on 'call' or 'demo'
     insert_display_rule(&db, tenant.id, template_id, dim_id, 10, "surface_as_nudge").await;
 
     // Matching activity type → must return 1 nudge dimension
     let nudges = ScorecardService::get_nudge_dimensions_for_activity(
-        &db, tenant.id, template_id,
-        "atlas_lead", entity_id,
-        "call",   // matches value_list: ["call", "demo"]
+        &db,
+        tenant.id,
+        template_id,
+        "atlas_lead",
+        entity_id,
+        "call", // matches value_list: ["call", "demo"]
     )
     .await
     .expect("get_nudge_dimensions_for_activity must not fail");
 
     assert_eq!(
-        nudges.len(), 1,
+        nudges.len(),
+        1,
         "must return 1 nudge dimension for a matching activity type"
     );
     assert_eq!(nudges[0].dimension_id, dim_id);
@@ -632,9 +769,12 @@ async fn test_get_nudge_dimensions_for_activity() {
 
     // Non-matching activity type → must return empty
     let nudges_none = ScorecardService::get_nudge_dimensions_for_activity(
-        &db, tenant.id, template_id,
-        "atlas_lead", entity_id,
-        "email",  // NOT in value_list
+        &db,
+        tenant.id,
+        template_id,
+        "atlas_lead",
+        entity_id,
+        "email", // NOT in value_list
     )
     .await
     .expect("get_nudge_dimensions_for_activity must not fail for non-matching type");
@@ -652,9 +792,9 @@ async fn create_test_app_instance(
     tenant_id: Uuid,
     app_type: &str,
 ) -> Uuid {
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::app_instance::ActiveModel as InstanceAM;
     use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
 
     let id = Uuid::new_v4();
     InstanceAM {
@@ -680,9 +820,9 @@ async fn insert_deployment(
     app_instance_id: Uuid,
     is_enabled: bool,
 ) {
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::atlas_scorecard_template_deployment::ActiveModel as DepAM;
     use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
 
     DepAM {
         id: Set(Uuid::new_v4()),
@@ -708,11 +848,10 @@ async fn test_templates_enabled_for_instance_filters_disabled() {
 
     insert_deployment(&db, tenant.id, template_id, instance_id, false).await;
 
-    let enabled = ScorecardService::templates_enabled_for_instance(
-        &db, tenant.id, instance_id, None,
-    )
-    .await
-    .expect("query must succeed");
+    let enabled =
+        ScorecardService::templates_enabled_for_instance(&db, tenant.id, instance_id, None)
+            .await
+            .expect("query must succeed");
 
     assert!(
         enabled.is_empty(),
@@ -720,8 +859,8 @@ async fn test_templates_enabled_for_instance_filters_disabled() {
     );
 
     // Enable and re-query
-    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
     use crate::entities::atlas_scorecard_template_deployment as deployments;
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
     let row = deployments::Entity::find()
         .filter(deployments::Column::TemplateId.eq(template_id))
         .filter(deployments::Column::AppInstanceId.eq(instance_id))
@@ -733,11 +872,10 @@ async fn test_templates_enabled_for_instance_filters_disabled() {
     am.is_enabled = Set(true);
     am.update(&db).await.unwrap();
 
-    let enabled = ScorecardService::templates_enabled_for_instance(
-        &db, tenant.id, instance_id, None,
-    )
-    .await
-    .expect("query must succeed");
+    let enabled =
+        ScorecardService::templates_enabled_for_instance(&db, tenant.id, instance_id, None)
+            .await
+            .expect("query must succeed");
 
     assert_eq!(enabled.len(), 1);
     assert_eq!(enabled[0].id, template_id);
@@ -754,11 +892,10 @@ async fn test_templates_enabled_for_instance_wrong_tenant_empty() {
     insert_deployment(&db, tenant_a.id, template_id, instance_a, true).await;
 
     // Query with tenant_b's id against tenant_a's instance → empty (tenant filter)
-    let enabled = ScorecardService::templates_enabled_for_instance(
-        &db, tenant_b.id, instance_a, None,
-    )
-    .await
-    .expect("query must succeed");
+    let enabled =
+        ScorecardService::templates_enabled_for_instance(&db, tenant_b.id, instance_a, None)
+            .await
+            .expect("query must succeed");
 
     assert!(
         enabled.is_empty(),
@@ -776,11 +913,10 @@ async fn test_templates_enabled_for_instance_wrong_instance_empty() {
 
     insert_deployment(&db, tenant.id, template_id, instance_a, true).await;
 
-    let enabled = ScorecardService::templates_enabled_for_instance(
-        &db, tenant.id, instance_b, None,
-    )
-    .await
-    .expect("query must succeed");
+    let enabled =
+        ScorecardService::templates_enabled_for_instance(&db, tenant.id, instance_b, None)
+            .await
+            .expect("query must succeed");
 
     assert!(
         enabled.is_empty(),
@@ -798,8 +934,8 @@ async fn test_auto_deploy_on_seed_and_deploy_for_folio() {
         .await
         .expect("seed_and_deploy must succeed");
 
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use crate::entities::atlas_scorecard_template_deployment as deployments;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let deps = deployments::Entity::find()
         .filter(deployments::Column::TenantId.eq(tenant.id))
@@ -810,7 +946,8 @@ async fn test_auto_deploy_on_seed_and_deploy_for_folio() {
         .expect("list deployments");
 
     assert_eq!(
-        deps.len(), 4,
+        deps.len(),
+        4,
         "auto-deploy must create 4 enabled deployments for seeded PM templates"
     );
 
@@ -828,11 +965,10 @@ async fn test_auto_deploy_on_seed_and_deploy_for_folio() {
 
     assert_eq!(deps2.len(), 4, "re-seed must remain idempotent");
 
-    let enabled = ScorecardService::templates_enabled_for_instance(
-        &db, tenant.id, instance_id, None,
-    )
-    .await
-    .expect("list enabled");
+    let enabled =
+        ScorecardService::templates_enabled_for_instance(&db, tenant.id, instance_id, None)
+            .await
+            .expect("list enabled");
     assert_eq!(enabled.len(), 4);
 }
 
@@ -847,10 +983,10 @@ async fn test_post_checkout_trigger_opens_session_and_submit_updates_aggregates(
         .await
         .expect("seed_and_deploy");
 
-    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-    use crate::entities::atlas_scorecard_template as templates;
     use crate::entities::atlas_scorecard_dimension::ActiveModel as DimAM;
+    use crate::entities::atlas_scorecard_template as templates;
     use rust_decimal::Decimal;
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
     let str_template = templates::Entity::find()
         .filter(templates::Column::TenantId.eq(tenant.id))
@@ -904,7 +1040,8 @@ async fn test_post_checkout_trigger_opens_session_and_submit_updates_aggregates(
     .expect("on_str_checkout");
 
     assert_eq!(
-        opened.len(), 1,
+        opened.len(),
+        1,
         "STR Property Assessment deployment should open one post_checkout session"
     );
     assert_eq!(opened[0].template_id, str_template.id);
@@ -915,7 +1052,10 @@ async fn test_post_checkout_trigger_opens_session_and_submit_updates_aggregates(
         .await
         .unwrap()
         .expect("session row");
-    assert_eq!(session.context_entity_type.as_deref(), Some("atlas_reservation"));
+    assert_eq!(
+        session.context_entity_type.as_deref(),
+        Some("atlas_reservation")
+    );
     assert_eq!(session.context_entity_id, Some(reservation_id));
     assert_eq!(session.session_type, "stay");
     assert_eq!(session.app_instance_id, Some(instance_id));
@@ -974,9 +1114,9 @@ async fn test_case_resolved_trigger_opens_contractor_session() {
         .await
         .expect("seed_and_deploy");
 
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-    use crate::entities::atlas_scorecard_template as templates;
     use crate::entities::atlas_rating_session as sessions;
+    use crate::entities::atlas_scorecard_template as templates;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let contractor_template = templates::Entity::find()
         .filter(templates::Column::TenantId.eq(tenant.id))
@@ -1036,11 +1176,10 @@ async fn test_open_session_allows_null_app_instance_id() {
     let (template_id, _) = create_test_template_and_dimension(&db, tenant.id).await;
     let rater_id = Uuid::new_v4();
 
-    let scorecard_id = ScorecardService::get_or_create(
-        &db, tenant.id, template_id, "atlas_lead", Uuid::new_v4(),
-    )
-    .await
-    .unwrap();
+    let scorecard_id =
+        ScorecardService::get_or_create(&db, tenant.id, template_id, "atlas_lead", Uuid::new_v4())
+            .await
+            .unwrap();
 
     let session_id = ScorecardService::open_session(
         &db,
@@ -1057,8 +1196,8 @@ async fn test_open_session_allows_null_app_instance_id() {
     .await
     .expect("open_session with null app_instance_id");
 
-    use sea_orm::EntityTrait;
     use crate::entities::atlas_rating_session as sessions;
+    use sea_orm::EntityTrait;
     let session = sessions::Entity::find_by_id(session_id)
         .one(&db)
         .await
@@ -1089,16 +1228,13 @@ async fn test_trigger_enqueues_evaluate_scorecard_nudge_job() {
     .expect("on_str_checkout");
     assert!(!opened.is_empty());
 
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use crate::entities::outbox_job;
     use crate::types::outbox::OutboxJobType;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let jobs = outbox_job::Entity::find()
         .filter(outbox_job::Column::TenantId.eq(tenant.id))
-        .filter(
-            outbox_job::Column::JobType
-                .eq(OutboxJobType::EvaluateScorecardNudge.to_string()),
-        )
+        .filter(outbox_job::Column::JobType.eq(OutboxJobType::EvaluateScorecardNudge.to_string()))
         .all(&db)
         .await
         .expect("outbox query");

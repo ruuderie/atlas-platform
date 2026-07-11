@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::NaiveDate;
+use rust_decimal::Decimal;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::NaiveDate;
-use rust_decimal::Decimal;
 
 /// G-27: atlas_scorecard_time_series — monthly/quarterly trend buckets per dimension.
 ///

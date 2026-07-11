@@ -32,15 +32,15 @@ pub mod widgets;
 
 // Models — used by all consumers
 pub use models::{
-    TemplateForm, DimensionForm, OptionForm, DisplayRuleForm, SessionDimension,
-    DisplayConfigForm, ConfiguratorMode, TemplateSavePayload, ScaleType, RenderMode,
-    ScoringMethod, ColdStartStrategy, TemplateScope, SessionType, SourceType,
-    TriggerCategory, RuleOperator, RuleAction, ModeScope,
+    ColdStartStrategy, ConfiguratorMode, DimensionForm, DisplayConfigForm, DisplayRuleForm,
+    ModeScope, OptionForm, RenderMode, RuleAction, RuleOperator, ScaleType, ScoringMethod,
+    SessionDimension, SessionType, SourceType, TemplateForm, TemplateSavePayload, TemplateScope,
+    TriggerCategory,
 };
 
 // Configurator sections
 pub use sections::display_rules::DisplayRulesSection;
 
 // Widgets
-pub use widgets::scorecard_widget::{ScorecardWidget, ScoreSubmission};
 pub use widgets::nudge_prompt::NudgePrompt;
+pub use widgets::scorecard_widget::{ScoreSubmission, ScorecardWidget};

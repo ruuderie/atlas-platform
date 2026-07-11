@@ -15,9 +15,9 @@
 //! a confidence indicator and "Confirm / Reject" buttons. Rejection calls
 //! `on_reject_inference(dimension_id)`. Confirmation calls `on_submit`.
 
+use super::super::models::{ScaleType, SessionDimension};
 use leptos::prelude::*;
 use uuid::Uuid;
-use super::super::models::{SessionDimension, ScaleType};
 
 // ── NudgePrompt ───────────────────────────────────────────────────────────────
 
@@ -36,7 +36,8 @@ pub fn NudgePrompt(
     /// Called when the user dismisses without submitting.
     on_dismiss: Callback<()>,
     /// Called when the user rejects an AI-inferred score.
-    #[prop(optional)] on_reject_inference: Option<Callback<Uuid>>,
+    #[prop(optional)]
+    on_reject_inference: Option<Callback<Uuid>>,
 ) -> impl IntoView {
     let dims = RwSignal::new(dimensions);
     let is_submitting = RwSignal::new(false);
@@ -44,11 +45,15 @@ pub fn NudgePrompt(
     // Collect draft scores keyed by dimension_id
     let submit = move |_| {
         is_submitting.set(true);
-        let scores: Vec<(Uuid, Option<f64>)> = dims.get().into_iter().map(|d| {
-            // If confirmed inference, use inferred_score; else use draft_score
-            let score = d.draft_score.or(d.inferred_score);
-            (d.dimension_id, score)
-        }).collect();
+        let scores: Vec<(Uuid, Option<f64>)> = dims
+            .get()
+            .into_iter()
+            .map(|d| {
+                // If confirmed inference, use inferred_score; else use draft_score
+                let score = d.draft_score.or(d.inferred_score);
+                (d.dimension_id, score)
+            })
+            .collect();
         on_submit.run(scores);
     };
 
@@ -203,7 +208,11 @@ fn NudgeDimensionInput(
 
     let scale_hint = {
         let unit = unit_label.clone();
-        let inv_note = if is_inverted { " (lower is better)" } else { "" };
+        let inv_note = if is_inverted {
+            " (lower is better)"
+        } else {
+            ""
+        };
         if unit.is_empty() {
             format!("{:.0}–{:.0}{inv_note}", scale_min, scale_max)
         } else {
@@ -241,14 +250,13 @@ fn NudgeDimensionInput(
                     "✗ No"
                 </button>
             </div>
-        }.into_any(),
+        }
+        .into_any(),
 
         ScaleType::Rating => {
             // 5-star compact slider for rating dimensions
             let steps = (scale_max - scale_min).round() as usize + 1;
-            let step_values: Vec<f64> = (0..steps)
-                .map(|i| scale_min + i as f64)
-                .collect();
+            let step_values: Vec<f64> = (0..steps).map(|i| scale_min + i as f64).collect();
 
             view! {
                 <div class="nudge-input nudge-input--rating">
@@ -284,8 +292,9 @@ fn NudgeDimensionInput(
                         <span class="nudge-rating-selected">{format!("{:.0}", v)}</span>
                     })}
                 </div>
-            }.into_any()
-        },
+            }
+            .into_any()
+        }
 
         _ => view! {
             // Absolute / generic numeric input
@@ -303,6 +312,7 @@ fn NudgeDimensionInput(
                     }
                 />
             </div>
-        }.into_any(),
+        }
+        .into_any(),
     }
 }

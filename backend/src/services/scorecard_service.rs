@@ -58,35 +58,33 @@
 //! - `Local` (default): calls `atlas-compute-sdk` in-process
 //! - `Byoc(url)`: POSTs a `ComputeRequest` JSON to the customer's Lambda — compute stays in their VPC
 
-use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait,
-    ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, TransactionTrait,
-};
-use uuid::Uuid;
+use anyhow::{Result, anyhow, bail};
 use chrono::{Datelike, Utc};
-use serde_json::{json, Value};
-use anyhow::{anyhow, bail, Result};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseConnection,
+    EntityTrait, QueryFilter, QueryOrder, TransactionTrait,
+};
+use serde_json::{Value, json};
+use uuid::Uuid;
 
 use crate::types::scorecard::{
-    ScaleType, SourceType, ConfidenceLevel, BenchmarkTier, BenchmarkTiers,
-    TriggerCategory,
-    ScoringMethod, ColdStartStrategy, PercentileBand,
+    BenchmarkTier, BenchmarkTiers, ColdStartStrategy, ConfidenceLevel, PercentileBand, ScaleType,
+    ScoringMethod, SourceType, TriggerCategory,
 };
 
 use crate::entities::{
+    atlas_rating_session::{self as sessions, ActiveModel as SessionActiveModel},
     atlas_scorecard::{self as scorecards, ActiveModel as ScorecardActiveModel},
     atlas_scorecard_dimension::{self as dimensions, Model as DimensionModel},
-    atlas_scorecard_dimension_option::{self as dim_options},
-    atlas_scorecard_entry::{self as entries, ActiveModel as EntryActiveModel},
     atlas_scorecard_dimension_aggregate::ActiveModel as AggregateActiveModel,
-    atlas_scorecard_poll_aggregate::ActiveModel as PollAggregateActiveModel,
-    atlas_scorecard_time_series::ActiveModel as TimeSeriesActiveModel,
-    atlas_rating_session::{self as sessions, ActiveModel as SessionActiveModel},
+    atlas_scorecard_dimension_option::{self as dim_options},
     atlas_scorecard_display_rule::{self as display_rules, Model as DisplayRuleModel},
+    atlas_scorecard_entry::{self as entries, ActiveModel as EntryActiveModel},
+    atlas_scorecard_poll_aggregate::ActiveModel as PollAggregateActiveModel,
     atlas_scorecard_template::{self as templates, Model as TemplateModel},
     atlas_scorecard_template_deployment as deployments,
+    atlas_scorecard_time_series::ActiveModel as TimeSeriesActiveModel,
 };
-
 
 pub struct ScorecardService;
 
@@ -128,8 +126,8 @@ impl ComputeBackend {
     /// Returns `Local` if no setting exists or the value is `"local"`.
     /// Returns `Byoc(url)` if the value is a non-empty HTTPS URL.
     pub async fn resolve(db: &DatabaseConnection, tenant_id: uuid::Uuid) -> Self {
-        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         use crate::entities::tenant_setting;
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
         let row = tenant_setting::Entity::find()
             .filter(tenant_setting::Column::TenantId.eq(tenant_id))
@@ -140,9 +138,7 @@ impl ComputeBackend {
             .flatten();
 
         match row {
-            Some(r) if !r.value.is_empty() && r.value != "local" => {
-                ComputeBackend::Byoc(r.value)
-            }
+            Some(r) if !r.value.is_empty() && r.value != "local" => ComputeBackend::Byoc(r.value),
             _ => ComputeBackend::Local,
         }
     }
@@ -321,7 +317,13 @@ impl ScorecardService {
             .filter(scorecards::Column::TenantId.eq(tenant_id))
             .one(db)
             .await?
-            .ok_or_else(|| anyhow!("scorecard {} not found for tenant {}", scorecard_id, tenant_id))?;
+            .ok_or_else(|| {
+                anyhow!(
+                    "scorecard {} not found for tenant {}",
+                    scorecard_id,
+                    tenant_id
+                )
+            })?;
 
         let _ = sc; // ownership confirmed
 
@@ -384,7 +386,8 @@ impl ScorecardService {
         if session.scorecard_id != scorecard_id {
             bail!(
                 "session {} does not belong to scorecard {} — mismatched coupling",
-                session_id, scorecard_id
+                session_id,
+                scorecard_id
             );
         }
 
@@ -393,7 +396,9 @@ impl ScorecardService {
         if session.rater_user_id != contributor_user_id {
             bail!(
                 "session {} rater mismatch: expected {}, got {}",
-                session_id, session.rater_user_id, contributor_user_id
+                session_id,
+                session.rater_user_id,
+                contributor_user_id
             );
         }
 
@@ -410,10 +415,12 @@ impl ScorecardService {
             _ => {}
         }
 
-        let score_decimal = score.map(|s| {
-            rust_decimal::Decimal::from_f64_retain(s)
-                .ok_or_else(|| anyhow!("score {s} is not a valid decimal"))
-        }).transpose()?;
+        let score_decimal = score
+            .map(|s| {
+                rust_decimal::Decimal::from_f64_retain(s)
+                    .ok_or_else(|| anyhow!("score {s} is not a valid decimal"))
+            })
+            .transpose()?;
 
         // transcript_inferred entries are NEVER auto-verified.
         // They appear in the session UI for the contributor to confirm or reject.
@@ -441,7 +448,9 @@ impl ScorecardService {
             created_at: Set(Utc::now()),
         };
 
-        let inserted = model.insert(db).await
+        let inserted = model
+            .insert(db)
+            .await
             .map_err(|e| anyhow!("submit_entry failed (duplicate?): {e}"))?;
 
         // Queue recompute when the entry is already verified (direct ratings).
@@ -461,7 +470,8 @@ impl ScorecardService {
                 run_at: Set(Utc::now()),
                 created_at: Set(Utc::now()),
             };
-            job.insert(db).await
+            job.insert(db)
+                .await
                 .map_err(|e| anyhow!("failed to queue recompute job after submit_entry: {e}"))?;
         }
 
@@ -514,7 +524,8 @@ impl ScorecardService {
                 run_at: Set(Utc::now()),
                 created_at: Set(Utc::now()),
             };
-            job.insert(db).await
+            job.insert(db)
+                .await
                 .map_err(|e| anyhow!("failed to queue recompute job: {e}"))?;
         } else {
             // Rejected: delete the entry entirely. No audit trail needed—
@@ -524,7 +535,6 @@ impl ScorecardService {
 
         Ok(())
     }
-
 
     // ── recompute_aggregates ───────────────────────────────────────────────
 
@@ -543,10 +553,7 @@ impl ScorecardService {
     /// After all dimension aggregates are written, rebuilds the `dimension_vector`
     /// (weighted normalized scores in sort_order sequence) and updates the
     /// scorecard's `composite_score` and `confidence_level`.
-    pub async fn recompute_aggregates(
-        db: &DatabaseConnection,
-        scorecard_id: Uuid,
-    ) -> Result<()> {
+    pub async fn recompute_aggregates(db: &DatabaseConnection, scorecard_id: Uuid) -> Result<()> {
         let txn = db.begin().await?;
 
         // Load all verified entries for this scorecard
@@ -578,17 +585,20 @@ impl ScorecardService {
         let mut dimension_vector: Vec<f64> = Vec::with_capacity(all_dimensions.len());
         // v2 masked arrays: f32 values + bool data-presence mask
         let mut dimension_vector_v2: Vec<f32> = Vec::with_capacity(all_dimensions.len());
-        let mut has_data_mask: Vec<bool>       = Vec::with_capacity(all_dimensions.len());
+        let mut has_data_mask: Vec<bool> = Vec::with_capacity(all_dimensions.len());
         let mut composite_sum: f64 = 0.0;
         let mut composite_weight_sum: f64 = 0.0;
-        let mut total_contributors_set: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
-        let mut total_sessions_set: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
+        let mut total_contributors_set: std::collections::HashSet<Uuid> =
+            std::collections::HashSet::new();
+        let mut total_sessions_set: std::collections::HashSet<Uuid> =
+            std::collections::HashSet::new();
 
         // Load template for cold_start_strategy and saturation_threshold.
-        let template = crate::entities::atlas_scorecard_template::Entity::find_by_id(scorecard.template_id)
-            .one(&txn)
-            .await?
-            .ok_or_else(|| anyhow!("template {} not found", scorecard.template_id))?;
+        let template =
+            crate::entities::atlas_scorecard_template::Entity::find_by_id(scorecard.template_id)
+                .one(&txn)
+                .await?
+                .ok_or_else(|| anyhow!("template {} not found", scorecard.template_id))?;
         let saturation_threshold = template.cold_start_saturation_threshold.max(1) as f64;
         let cold_start_strategy = ColdStartStrategy::try_from(template.cold_start_strategy.clone())
             .unwrap_or(ColdStartStrategy::Suppress);
@@ -623,15 +633,16 @@ impl ScorecardService {
                 ],
             );
             match txn.query_all(rows).await {
-                Ok(cal_rows) => {
-                    cal_rows.iter().filter_map(|r| {
+                Ok(cal_rows) => cal_rows
+                    .iter()
+                    .filter_map(|r| {
                         let contributor: Uuid = r.try_get("", "contributor_user_id").ok()?;
-                        let dim_id:      Uuid = r.try_get("", "dimension_id").ok()?;
-                        let bias:        f64  = r.try_get("", "bias_offset").ok()?;
-                        let scale:       f64  = r.try_get("", "scale_factor").ok()?;
+                        let dim_id: Uuid = r.try_get("", "dimension_id").ok()?;
+                        let bias: f64 = r.try_get("", "bias_offset").ok()?;
+                        let scale: f64 = r.try_get("", "scale_factor").ok()?;
                         Some(((contributor, dim_id), (bias, scale)))
-                    }).collect::<std::collections::HashMap<(Uuid, Uuid), (f64, f64)>>()
-                }
+                    })
+                    .collect::<std::collections::HashMap<(Uuid, Uuid), (f64, f64)>>(),
                 Err(e) => {
                     tracing::warn!(
                         scorecard_id = %scorecard_id,
@@ -666,18 +677,22 @@ impl ScorecardService {
             // Parse scale_type into the typed enum at the aggregation boundary.
             // This is the only place in recompute_aggregates where scale_type is a String.
             // All branching below uses ScaleType variants — no string comparisons.
-            let scale_type = ScaleType::try_from(dim.scale_type.clone())
-                .unwrap_or_else(|e| {
-                    tracing::error!("scorecard {} dim {}: {e}", scorecard_id, dim.id);
-                    // Treat unknown scale types as Rating to avoid silently dropping data.
-                    // This case should only occur if the DB was written by a newer version
-                    // of the service that added a scale type this binary doesn't know about.
-                    ScaleType::Rating
-                });
+            let scale_type = ScaleType::try_from(dim.scale_type.clone()).unwrap_or_else(|e| {
+                tracing::error!("scorecard {} dim {}: {e}", scorecard_id, dim.id);
+                // Treat unknown scale types as Rating to avoid silently dropping data.
+                // This case should only occur if the DB was written by a newer version
+                // of the service that added a scale type this binary doesn't know about.
+                ScaleType::Rating
+            });
 
             match scale_type {
                 ScaleType::Rating | ScaleType::Absolute => {
-                    let agg = Self::compute_numeric_aggregate(dim, &template, &dim_entries, &calibrations)?;
+                    let agg = Self::compute_numeric_aggregate(
+                        dim,
+                        &template,
+                        &dim_entries,
+                        &calibrations,
+                    )?;
 
                     if let Some(weighted_mean) = agg.weighted_mean {
                         let range = scale_max - scale_min;
@@ -743,7 +758,6 @@ impl ScorecardService {
                     Self::recompute_poll_aggregate(&txn, scorecard_id, dim, &dim_entries).await?;
                 }
             }
-
         }
 
         // Compute composite score with scoring_method routing (Bug Fix #3)
@@ -765,9 +779,11 @@ impl ScorecardService {
                             // Return global_reference_value from any dimension as the template prior.
                             // We use the first dimension with a reference value as a proxy for the
                             // template-level prior. In practice, templates should have a global ref.
-                            all_dimensions.iter()
-                                .find_map(|d| d.global_reference_value.as_ref()
-                                    .and_then(|r| <rust_decimal::Decimal as TryInto<f64>>::try_into(*r).ok()))
+                            all_dimensions.iter().find_map(|d| {
+                                d.global_reference_value.as_ref().and_then(|r| {
+                                    <rust_decimal::Decimal as TryInto<f64>>::try_into(*r).ok()
+                                })
+                            })
                         }
                         ColdStartStrategy::Suppress => None,
                     }
@@ -777,7 +793,9 @@ impl ScorecardService {
                 // Percentile rank requires cross-entity query run outside this transaction.
                 // Set to None here; compute_percentile_ranks() updates it after commit.
                 // This is a stub — Phase 3 implements the full materialized view path.
-                tracing::debug!("scoring_method=percentile_rank: composite deferred to percentile computation");
+                tracing::debug!(
+                    "scoring_method=percentile_rank: composite deferred to percentile computation"
+                );
                 None
             }
         };
@@ -788,13 +806,12 @@ impl ScorecardService {
 
         // Capture ids before scorecard.into() consumes the struct
         let scorecard_template_id = scorecard.template_id;
-        let scorecard_tenant_id   = scorecard.tenant_id;
+        let scorecard_tenant_id = scorecard.tenant_id;
 
         // Update scorecard — write both legacy vector (JSONB) and v2 masked arrays
         let mut scorecard_am: scorecards::ActiveModel = scorecard.into();
-        scorecard_am.composite_score = Set(
-            composite_score.and_then(|s| rust_decimal::Decimal::from_f64_retain(s))
-        );
+        scorecard_am.composite_score =
+            Set(composite_score.and_then(|s| rust_decimal::Decimal::from_f64_retain(s)));
         scorecard_am.confidence_level = Set(confidence_level.to_string());
         scorecard_am.total_contributors = Set(total_contributors_count);
         scorecard_am.total_sessions = Set(total_sessions_set.len() as i32);
@@ -813,7 +830,14 @@ impl ScorecardService {
         // Post-commit: compute percentile ranks for all dimensions of this scorecard.
         // This is a separate read-only query across the tenant pool and does not need
         // to be inside the aggregate transaction.
-        if let Err(e) = Self::compute_percentile_ranks(db, scorecard_id, scorecard_template_id, scorecard_tenant_id).await {
+        if let Err(e) = Self::compute_percentile_ranks(
+            db,
+            scorecard_id,
+            scorecard_template_id,
+            scorecard_tenant_id,
+        )
+        .await
+        {
             // Non-fatal: percentile ranks are best-effort. Log and continue.
             tracing::warn!("compute_percentile_ranks failed for scorecard {scorecard_id}: {e}");
         }
@@ -868,21 +892,33 @@ impl ScorecardService {
                     return None;
                 }
 
-                let composite_f64: Option<f64> = sc.composite_score
+                let composite_f64: Option<f64> = sc
+                    .composite_score
                     .and_then(|d| <rust_decimal::Decimal as TryInto<f64>>::try_into(d).ok());
 
                 // Prefer v2 masked cosine similarity
-                if let (Some(v2_val), Some(mask_val)) = (&sc.dimension_vector_v2, &sc.has_data_mask) {
-                    let candidate_v2: Vec<f64> = v2_val.as_array()?
-                        .iter().map(|x| x.as_f64().unwrap_or(0.0)).collect();
-                    let candidate_mask: Vec<bool> = mask_val.as_array()?
-                        .iter().map(|x| x.as_bool().unwrap_or(false)).collect();
+                if let (Some(v2_val), Some(mask_val)) = (&sc.dimension_vector_v2, &sc.has_data_mask)
+                {
+                    let candidate_v2: Vec<f64> = v2_val
+                        .as_array()?
+                        .iter()
+                        .map(|x| x.as_f64().unwrap_or(0.0))
+                        .collect();
+                    let candidate_mask: Vec<bool> = mask_val
+                        .as_array()?
+                        .iter()
+                        .map(|x| x.as_bool().unwrap_or(false))
+                        .collect();
 
-                    if candidate_v2.len() != n_dims { return None; }
+                    if candidate_v2.len() != n_dims {
+                        return None;
+                    }
 
                     let (similarity, distance) = Self::masked_cosine_similarity(
-                        &target_vector, &target_mask,
-                        &candidate_v2, &candidate_mask,
+                        &target_vector,
+                        &target_mask,
+                        &candidate_v2,
+                        &candidate_mask,
                         min_overlap,
                     )?;
 
@@ -899,12 +935,20 @@ impl ScorecardService {
                     // Fallback: legacy Euclidean on old JSONB vector
                     let vector = sc.dimension_vector.as_ref().and_then(|v| {
                         v.as_array().map(|arr| {
-                            arr.iter().map(|x| x.as_f64().unwrap_or(0.0)).collect::<Vec<f64>>()
+                            arr.iter()
+                                .map(|x| x.as_f64().unwrap_or(0.0))
+                                .collect::<Vec<f64>>()
                         })
                     })?;
-                    if vector.len() != n_dims { return None; }
-                    let distance = vector.iter().zip(target_vector.iter())
-                        .map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+                    if vector.len() != n_dims {
+                        return None;
+                    }
+                    let distance = vector
+                        .iter()
+                        .zip(target_vector.iter())
+                        .map(|(a, b)| (a - b).powi(2))
+                        .sum::<f64>()
+                        .sqrt();
                     let similarity = 1.0 / (1.0 + distance);
                     Some(SimilarityResult {
                         scorecard_id: sc.id,
@@ -919,7 +963,11 @@ impl ScorecardService {
             })
             .collect();
 
-        results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(limit);
         Ok(results)
     }
@@ -946,19 +994,22 @@ impl ScorecardService {
         b_mask: &[bool],
         min_overlap: usize,
     ) -> Option<(f64, f64)> {
-        let overlap: Vec<(f64, f64)> = a_vec.iter()
+        let overlap: Vec<(f64, f64)> = a_vec
+            .iter()
             .zip(b_vec.iter())
             .zip(a_mask.iter().zip(b_mask.iter()))
-            .filter_map(|((a, b), (ma, mb))| {
-                if *ma && *mb { Some((*a, *b)) } else { None }
-            })
+            .filter_map(
+                |((a, b), (ma, mb))| {
+                    if *ma && *mb { Some((*a, *b)) } else { None }
+                },
+            )
             .collect();
 
         if overlap.len() < min_overlap {
             return None;
         }
 
-        let dot: f64   = overlap.iter().map(|(a, b)| a * b).sum();
+        let dot: f64 = overlap.iter().map(|(a, b)| a * b).sum();
         let mag_a: f64 = overlap.iter().map(|(a, _)| a * a).sum::<f64>().sqrt();
         let mag_b: f64 = overlap.iter().map(|(_, b)| b * b).sum::<f64>().sqrt();
 
@@ -1006,31 +1057,37 @@ impl ScorecardService {
         for dim in &dims {
             // Pull all weighted_mean_scores for this dimension across the tenant pool
             // (only scorecards that have been computed — NULL means no data yet).
-            let rows = db.query_all(Statement::from_string(
-                backend,
-                format!(
-                    "SELECT a.scorecard_id, a.weighted_mean_score \
+            let rows = db
+                .query_all(Statement::from_string(
+                    backend,
+                    format!(
+                        "SELECT a.scorecard_id, a.weighted_mean_score \
                      FROM atlas_scorecard_dimension_aggregates a \
                      JOIN atlas_scorecards s ON s.id = a.scorecard_id \
                      WHERE s.tenant_id = '{}' \
                        AND s.template_id = '{}' \
                        AND a.dimension_id = '{}' \
                        AND a.weighted_mean_score IS NOT NULL;",
-                    tenant_id, template_id, dim.id
-                ),
-            ))
-            .await?;
+                        tenant_id, template_id, dim.id
+                    ),
+                ))
+                .await?;
 
             if rows.len() < 2 {
                 continue;
             }
 
-            let pool: Vec<(Uuid, f64)> = rows.iter().filter_map(|row| {
-                let sc_id: Uuid = row.try_get("", "scorecard_id").ok()?;
-                let score: rust_decimal::Decimal = row.try_get("", "weighted_mean_score").ok()?;
-                let score_f64: f64 = <rust_decimal::Decimal as TryInto<f64>>::try_into(score).ok()?;
-                Some((sc_id, score_f64))
-            }).collect();
+            let pool: Vec<(Uuid, f64)> = rows
+                .iter()
+                .filter_map(|row| {
+                    let sc_id: Uuid = row.try_get("", "scorecard_id").ok()?;
+                    let score: rust_decimal::Decimal =
+                        row.try_get("", "weighted_mean_score").ok()?;
+                    let score_f64: f64 =
+                        <rust_decimal::Decimal as TryInto<f64>>::try_into(score).ok()?;
+                    Some((sc_id, score_f64))
+                })
+                .collect();
 
             let cohort_size = pool.len() as i32;
 
@@ -1052,7 +1109,9 @@ impl ScorecardService {
                          percentile_cohort_size = {cohort}, \
                          percentile_band = '{band}' \
                      WHERE scorecard_id = '{sc}' AND dimension_id = '{dim}';",
-                    rank_val = rank_decimal.map(|d| d.to_string()).unwrap_or_else(|| "NULL".to_owned()),
+                    rank_val = rank_decimal
+                        .map(|d| d.to_string())
+                        .unwrap_or_else(|| "NULL".to_owned()),
                     cohort = cohort_size,
                     band = band,
                     sc = scorecard_id,
@@ -1065,7 +1124,6 @@ impl ScorecardService {
         Ok(())
     }
 
-
     fn compute_numeric_aggregate(
         dim: &DimensionModel,
         template: &crate::entities::atlas_scorecard_template::Model,
@@ -1077,34 +1135,60 @@ impl ScorecardService {
     ) -> Result<NumericAgg> {
         if entries.is_empty() {
             return Ok(NumericAgg {
-                mean: None, weighted_mean: None, std_deviation: None,
-                min_score: None, max_score: None, contributor_count: 0,
-                session_count: 0, consensus_level: None, benchmark_label: None,
-                benchmark_color: None, display_value: None,
-                vs_global_delta: None, vs_global_label: None,
+                mean: None,
+                weighted_mean: None,
+                std_deviation: None,
+                min_score: None,
+                max_score: None,
+                contributor_count: 0,
+                session_count: 0,
+                consensus_level: None,
+                benchmark_label: None,
+                benchmark_color: None,
+                display_value: None,
+                vs_global_delta: None,
+                vs_global_label: None,
             });
         }
 
-        let scores: Vec<f64> = entries.iter()
-            .filter_map(|e| e.score.as_ref().and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok()))
+        let scores: Vec<f64> = entries
+            .iter()
+            .filter_map(|e| {
+                e.score
+                    .as_ref()
+                    .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok())
+            })
             .collect();
 
         if scores.is_empty() {
             return Ok(NumericAgg {
-                mean: None, weighted_mean: None, std_deviation: None,
-                min_score: None, max_score: None,
+                mean: None,
+                weighted_mean: None,
+                std_deviation: None,
+                min_score: None,
+                max_score: None,
                 contributor_count: entries.len() as i32,
-                session_count: entries.iter().map(|e| e.session_id).collect::<std::collections::HashSet<_>>().len() as i32,
-                consensus_level: None, benchmark_label: None, benchmark_color: None,
-                display_value: None, vs_global_delta: None, vs_global_label: None,
+                session_count: entries
+                    .iter()
+                    .map(|e| e.session_id)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len() as i32,
+                consensus_level: None,
+                benchmark_label: None,
+                benchmark_color: None,
+                display_value: None,
+                vs_global_delta: None,
+                vs_global_label: None,
             });
         }
 
         // Credibility weight: prefer duration_days or worked_together_months from context
         let credibility_weight = |e: &&entries::Model| -> f64 {
-            e.context.as_ref()
+            e.context
+                .as_ref()
                 .and_then(|c| {
-                    c.get("duration_days").and_then(|v| v.as_f64())
+                    c.get("duration_days")
+                        .and_then(|v| v.as_f64())
                         .or_else(|| c.get("worked_together_months").and_then(|v| v.as_f64()))
                 })
                 .map(|v| (v / 30.0).clamp(0.5, 3.0))
@@ -1114,7 +1198,9 @@ impl ScorecardService {
         let mut weighted_sum = 0.0f64;
         let mut weight_total = 0.0f64;
         for e in entries {
-            let score_opt: Option<f64> = e.score.as_ref()
+            let score_opt: Option<f64> = e
+                .score
+                .as_ref()
                 .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok());
             if let Some(raw_score) = score_opt {
                 // Phase 4: apply contributor calibration if available.
@@ -1124,11 +1210,10 @@ impl ScorecardService {
                     .or_else(|| calibrations.get(&(e.contributor_user_id, Uuid::nil())))
                     .copied()
                     .unwrap_or((0.0, 1.0)); // identity: no calibration
-                let score = ((raw_score - bias) * scale)
-                    .clamp(
-                        dim.scale_min.try_into().unwrap_or(0.0),
-                        dim.scale_max.try_into().unwrap_or(10.0),
-                    );
+                let score = ((raw_score - bias) * scale).clamp(
+                    dim.scale_min.try_into().unwrap_or(0.0),
+                    dim.scale_max.try_into().unwrap_or(10.0),
+                );
                 let w = credibility_weight(e);
                 weighted_sum += score * w;
                 weight_total += w;
@@ -1136,7 +1221,11 @@ impl ScorecardService {
         }
 
         let mean = scores.iter().sum::<f64>() / scores.len() as f64;
-        let raw_weighted_mean = if weight_total > 0.0 { Some(weighted_sum / weight_total) } else { None };
+        let raw_weighted_mean = if weight_total > 0.0 {
+            Some(weighted_sum / weight_total)
+        } else {
+            None
+        };
 
         // Bayesian prior shrinkage (Gap 1 — dimension level, hierarchical lookup).
         //
@@ -1147,12 +1236,14 @@ impl ScorecardService {
         //
         // When a prior_weight is resolved AND global_reference_value is set, apply
         // James-Stein shrinkage: shrunk = (w*ref + Σ(credibility*scores)) / (w + credibility_total)
-        let effective_prior_weight: Option<f64> = dim.bayesian_prior_weight
+        let effective_prior_weight: Option<f64> = dim
+            .bayesian_prior_weight
             .as_ref()
             .and_then(|w| <rust_decimal::Decimal as TryInto<f64>>::try_into(*w).ok())
             .or_else(|| {
                 // Fallback: template-level default
-                template.default_bayesian_prior_weight
+                template
+                    .default_bayesian_prior_weight
                     .as_ref()
                     .and_then(|w| <rust_decimal::Decimal as TryInto<f64>>::try_into(*w).ok())
             });
@@ -1160,11 +1251,14 @@ impl ScorecardService {
         let weighted_mean = match (
             raw_weighted_mean,
             effective_prior_weight,
-            dim.global_reference_value.as_ref().and_then(|r| <rust_decimal::Decimal as TryInto<f64>>::try_into(*r).ok()),
+            dim.global_reference_value
+                .as_ref()
+                .and_then(|r| <rust_decimal::Decimal as TryInto<f64>>::try_into(*r).ok()),
         ) {
             (Some(_), Some(prior_weight), Some(global_ref)) if prior_weight > 0.0 => {
                 // Apply shrinkage: blend prior with observed credibility-weighted mean
-                let shrunk = (prior_weight * global_ref + weighted_sum) / (prior_weight + weight_total);
+                let shrunk =
+                    (prior_weight * global_ref + weighted_sum) / (prior_weight + weight_total);
                 Some(shrunk)
             }
             _ => raw_weighted_mean,
@@ -1181,24 +1275,31 @@ impl ScorecardService {
         let std_deviation = Some(variance.sqrt());
 
         let consensus_level = std_deviation.map(|std| {
-            if std < 1.0 { "strong_consensus".to_owned() }
-            else if std < 2.0 { "consensus".to_owned() }
-            else if std < 3.0 { "mixed".to_owned() }
-            else { "disputed".to_owned() }
+            if std < 1.0 {
+                "strong_consensus".to_owned()
+            } else if std < 2.0 {
+                "consensus".to_owned()
+            } else if std < 3.0 {
+                "mixed".to_owned()
+            } else {
+                "disputed".to_owned()
+            }
         });
 
         // Resolve benchmark tier using the typed BenchmarkTiers struct.
         // Deserialize once; no raw JSONB key access in tier logic.
-        let tiers: BenchmarkTiers = serde_json::from_value(dim.benchmark_tiers.clone())
-            .unwrap_or_default();
+        let tiers: BenchmarkTiers =
+            serde_json::from_value(dim.benchmark_tiers.clone()).unwrap_or_default();
 
-        let (benchmark_label, benchmark_color) = weighted_mean.map(|wm| {
-            if dim.is_inverted {
-                Self::resolve_tier_inverted(wm, &tiers)
-            } else {
-                Self::resolve_tier(wm, &tiers)
-            }
-        }).unwrap_or_default();
+        let (benchmark_label, benchmark_color) = weighted_mean
+            .map(|wm| {
+                if dim.is_inverted {
+                    Self::resolve_tier_inverted(wm, &tiers)
+                } else {
+                    Self::resolve_tier(wm, &tiers)
+                }
+            })
+            .unwrap_or_default();
 
         // Display value: "Fast: 16 Mbps" or "7.3/10"
         let display_value = weighted_mean.map(|wm| {
@@ -1212,27 +1313,38 @@ impl ScorecardService {
 
         let (vs_global_delta, vs_global_label) = if let (Some(wm), Some(ref_val)) = (
             weighted_mean,
-            dim.global_reference_value.as_ref().and_then(|d| <rust_decimal::Decimal as TryInto<f64>>::try_into(*d).ok()),
+            dim.global_reference_value
+                .as_ref()
+                .and_then(|d| <rust_decimal::Decimal as TryInto<f64>>::try_into(*d).ok()),
         ) {
             let delta = wm - ref_val;
             let tolerance = 0.2;
             // For inverted dimensions (lower = better), the label direction is flipped:
             // a negative delta (score below reference) means the entity is BETTER than reference.
             let label = if dim.is_inverted {
-                if delta < -tolerance { "above" }
-                else if delta > tolerance { "below" }
-                else { "at" }
+                if delta < -tolerance {
+                    "above"
+                } else if delta > tolerance {
+                    "below"
+                } else {
+                    "at"
+                }
             } else {
-                if delta > tolerance { "above" }
-                else if delta < -tolerance { "below" }
-                else { "at" }
+                if delta > tolerance {
+                    "above"
+                } else if delta < -tolerance {
+                    "below"
+                } else {
+                    "at"
+                }
             };
             (Some(delta), Some(label.to_owned()))
         } else {
             (None, None)
         };
 
-        let session_count = entries.iter()
+        let session_count = entries
+            .iter()
             .map(|e| e.session_id)
             .collect::<std::collections::HashSet<_>>()
             .len() as i32;
@@ -1260,16 +1372,24 @@ impl ScorecardService {
     ) -> Result<BooleanAgg> {
         if entries.is_empty() {
             return Ok(BooleanAgg {
-                percent_true: None, contributor_count: 0, session_count: 0,
-                benchmark_label: None, benchmark_color: None, display_value: None,
+                percent_true: None,
+                contributor_count: 0,
+                session_count: 0,
+                benchmark_label: None,
+                benchmark_color: None,
+                display_value: None,
             });
         }
 
-        let true_count = entries.iter()
-            .filter(|e| e.score.as_ref()
-                .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok())
-                .map(|v: f64| v >= 1.0)
-                .unwrap_or(false))
+        let true_count = entries
+            .iter()
+            .filter(|e| {
+                e.score
+                    .as_ref()
+                    .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok())
+                    .map(|v: f64| v >= 1.0)
+                    .unwrap_or(false)
+            })
             .count();
 
         let percent_true = (true_count as f64 / entries.len() as f64) * 100.0;
@@ -1280,7 +1400,8 @@ impl ScorecardService {
 
         let display_value = Some(format!("{}% yes", percent_true.round() as i32));
 
-        let session_count = entries.iter()
+        let session_count = entries
+            .iter()
             .map(|e| e.session_id)
             .collect::<std::collections::HashSet<_>>()
             .len() as i32;
@@ -1301,9 +1422,8 @@ impl ScorecardService {
         dim: &DimensionModel,
         agg: NumericAgg,
     ) -> Result<()> {
-        let to_decimal = |opt: Option<f64>| {
-            opt.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))
-        };
+        let to_decimal =
+            |opt: Option<f64>| opt.and_then(|f| rust_decimal::Decimal::from_f64_retain(f));
 
         // DELETE + INSERT is safe since we're inside a transaction and the
         // primary key is composite (scorecard_id, dimension_id).
@@ -1352,9 +1472,8 @@ impl ScorecardService {
         dim: &DimensionModel,
         agg: BooleanAgg,
     ) -> Result<()> {
-        let to_decimal = |opt: Option<f64>| {
-            opt.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))
-        };
+        let to_decimal =
+            |opt: Option<f64>| opt.and_then(|f| rust_decimal::Decimal::from_f64_retain(f));
 
         use sea_orm::Statement;
         let db_backend = txn.get_database_backend();
@@ -1417,7 +1536,8 @@ impl ScorecardService {
             .len() as i32;
 
         // Count votes per option
-        let mut vote_counts: std::collections::HashMap<Uuid, i32> = std::collections::HashMap::new();
+        let mut vote_counts: std::collections::HashMap<Uuid, i32> =
+            std::collections::HashMap::new();
         for entry in entries {
             if let Some(opt_id) = entry.option_id {
                 *vote_counts.entry(opt_id).or_insert(0) += 1;
@@ -1436,7 +1556,8 @@ impl ScorecardService {
         .await?;
 
         // Rank options by vote count (descending)
-        let mut ranked_options: Vec<(Uuid, i32)> = options.iter()
+        let mut ranked_options: Vec<(Uuid, i32)> = options
+            .iter()
             .map(|o| (o.id, *vote_counts.get(&o.id).unwrap_or(&0)))
             .collect();
         ranked_options.sort_by(|a, b| b.1.cmp(&a.1));
@@ -1493,7 +1614,10 @@ impl ScorecardService {
     /// For inverted dimensions: lower score matches tiers with `max_score`.
     /// Finds the lowest `max_score` that the actual score is still <= (tightest passing tier).
     /// Expected tier format (typed): `BenchmarkTier { max_score: Some(f64), label, color, .. }`
-    fn resolve_tier_inverted(score: f64, tiers: &BenchmarkTiers) -> (Option<String>, Option<String>) {
+    fn resolve_tier_inverted(
+        score: f64,
+        tiers: &BenchmarkTiers,
+    ) -> (Option<String>, Option<String>) {
         let mut best: Option<(&BenchmarkTier, f64)> = None;
         for tier in tiers {
             if let Some(max) = tier.max_score {
@@ -1514,7 +1638,9 @@ impl ScorecardService {
     /// For boolean dimensions: `percent_true` matches tiers with `min_pct`.
     /// Expected tier format (typed): `BenchmarkTier { min_pct: Some(f64), label, color, .. }`
     fn resolve_boolean_tier_typed(pct: f64, tiers: &Value) -> (Option<String>, Option<String>) {
-        let Some(arr) = tiers.as_array() else { return (None, None) };
+        let Some(arr) = tiers.as_array() else {
+            return (None, None);
+        };
 
         let mut best: Option<(&Value, f64)> = None;
         for tier in arr {
@@ -1527,13 +1653,18 @@ impl ScorecardService {
             }
         }
 
-        best.map(|(t, _)| (
-            t.get("label").and_then(|l| l.as_str()).map(|s| s.to_owned()),
-            t.get("color").and_then(|c| c.as_str()).map(|s| s.to_owned()),
-        ))
+        best.map(|(t, _)| {
+            (
+                t.get("label")
+                    .and_then(|l| l.as_str())
+                    .map(|s| s.to_owned()),
+                t.get("color")
+                    .and_then(|c| c.as_str())
+                    .map(|s| s.to_owned()),
+            )
+        })
         .unwrap_or_default()
     }
-
 
     // ── Confidence level helpers ───────────────────────────────────────────
 
@@ -1552,10 +1683,10 @@ impl ScorecardService {
         ConfidenceLevel::try_from(level.to_owned())
             .map(|c| match c {
                 ConfidenceLevel::Insufficient => 0,
-                ConfidenceLevel::Low          => 1,
-                ConfidenceLevel::Medium       => 2,
-                ConfidenceLevel::High         => 3,
-                ConfidenceLevel::VeryHigh     => 4,
+                ConfidenceLevel::Low => 1,
+                ConfidenceLevel::Medium => 2,
+                ConfidenceLevel::High => 3,
+                ConfidenceLevel::VeryHigh => 4,
             })
             .unwrap_or(0)
     }
@@ -1569,17 +1700,18 @@ impl ScorecardService {
     /// `anomaly_direction = Some("spike")` when `z > 2.0`, `Some("drop")` when `z < -2.0`.
     ///
     /// If the window has zero standard deviation (all values identical), returns z=0 (stable).
-    fn compute_z_score(
-        value: f64,
-        window: &[f64],
-    ) -> (f64, bool, Option<String>) {
+    fn compute_z_score(value: f64, window: &[f64]) -> (f64, bool, Option<String>) {
         if window.is_empty() {
             return (0.0, false, None);
         }
         let n = window.len() as f64;
         let window_mean = window.iter().sum::<f64>() / n;
         let window_var = if window.len() > 1 {
-            window.iter().map(|v| (v - window_mean).powi(2)).sum::<f64>() / (n - 1.0)
+            window
+                .iter()
+                .map(|v| (v - window_mean).powi(2))
+                .sum::<f64>()
+                / (n - 1.0)
         } else {
             0.0
         };
@@ -1593,13 +1725,16 @@ impl ScorecardService {
         let z = (value - window_mean) / window_std;
         let is_anomaly = z.abs() > 2.0;
         let direction = if is_anomaly {
-            Some(if z > 0.0 { "spike".to_owned() } else { "drop".to_owned() })
+            Some(if z > 0.0 {
+                "spike".to_owned()
+            } else {
+                "drop".to_owned()
+            })
         } else {
             None
         };
         (z, is_anomaly, direction)
     }
-
 
     // ── Time series refresh ────────────────────────────────────────────────
 
@@ -1640,9 +1775,11 @@ impl ScorecardService {
 
         for entry in &dim_entries {
             let date = entry.created_at.date_naive();
-            let period_start = chrono::NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
-                .unwrap_or(date);
-            if let Some(score_f64) = entry.score.as_ref()
+            let period_start =
+                chrono::NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap_or(date);
+            if let Some(score_f64) = entry
+                .score
+                .as_ref()
                 .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok())
             {
                 monthly.entry(period_start).or_default().push(score_f64);
@@ -1651,7 +1788,8 @@ impl ScorecardService {
 
         let periods: Vec<_> = monthly.iter().collect();
         // Collect all period means for z-score rolling window computation
-        let all_means: Vec<f64> = periods.iter()
+        let all_means: Vec<f64> = periods
+            .iter()
             .map(|(_, scores)| scores.iter().sum::<f64>() / scores.len() as f64)
             .collect();
 
@@ -1696,10 +1834,8 @@ impl ScorecardService {
                 let window_means: Vec<f64> = all_means[window_start..window_end].to_vec();
 
                 if window_means.len() >= 3 {
-                    let (z, anomaly, direction) = Self::compute_z_score(
-                        mean_score.unwrap_or(0.0),
-                        &window_means,
-                    );
+                    let (z, anomaly, direction) =
+                        Self::compute_z_score(mean_score.unwrap_or(0.0), &window_means);
                     (Some(z), anomaly, direction)
                 } else {
                     (None, false, None)
@@ -1730,7 +1866,9 @@ impl ScorecardService {
                 mean_score: Set(mean_score.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))),
                 session_count: Set(session_count),
                 contributor_count: Set(session_count), // approx — entries ≈ contributors per period
-                delta_from_prior: Set(delta_from_prior.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))),
+                delta_from_prior: Set(
+                    delta_from_prior.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))
+                ),
                 trend_direction: Set(trend_direction),
                 z_score: Set(z_score_opt.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))),
                 is_anomaly: Set(is_anomaly),
@@ -1828,9 +1966,10 @@ impl ScorecardService {
             .filter(display_rules::Column::TemplateId.eq(template_id))
             .filter(display_rules::Column::TenantId.eq(tenant_id))
             .filter(display_rules::Column::IsActive.eq(true))
-            .filter(display_rules::Column::TriggerCategory.eq(
-                TriggerCategory::ActivityTrigger.to_string()
-            ))
+            .filter(
+                display_rules::Column::TriggerCategory
+                    .eq(TriggerCategory::ActivityTrigger.to_string()),
+            )
             .order_by_asc(display_rules::Column::Priority)
             .all(db)
             .await?;
@@ -1843,7 +1982,10 @@ impl ScorecardService {
             .filter(|rule| {
                 let nudge_actions = ["surface_as_nudge", "require", "show"];
                 nudge_actions.contains(&rule.action.as_str())
-                    && rule.value_list_as_strings().iter().any(|v| v == activity_type)
+                    && rule
+                        .value_list_as_strings()
+                        .iter()
+                        .any(|v| v == activity_type)
             })
             .collect();
 
@@ -1868,11 +2010,12 @@ impl ScorecardService {
                 // Derive a session_type_hint from the activity_type for the UI.
                 let session_type_hint = match activity_type {
                     "call" | "discovery_call" => "call",
-                    "demo"                    => "demo",
-                    "meeting"                 => "meeting",
-                    "email" | "email_thread"  => "email_thread",
-                    _                         => "meeting",
-                }.to_owned();
+                    "demo" => "demo",
+                    "meeting" => "meeting",
+                    "email" | "email_thread" => "email_thread",
+                    _ => "meeting",
+                }
+                .to_owned();
 
                 nudge_dims.push(NudgeDimension {
                     dimension_id: dim.id,
@@ -1918,40 +2061,44 @@ impl ScorecardService {
     /// After applying: calibrated_score = (raw_score − bias_offset) × scale_factor
     /// This shifts and scales each contributor's scores to align with the ensemble.
     pub async fn calibrate_contributor_bias(
-        db:          &DatabaseConnection,
+        db: &DatabaseConnection,
         template_id: Uuid,
     ) -> Result<usize> {
         // Load all verified entries for this template via raw SQL join.
         // atlas_scorecard_entry has no declared sea-orm Relation to atlas_scorecard,
         // so we use a parameterised query rather than .inner_join().
         let all_entries: Vec<entries::Model> = {
-            let rows = db.query_all(sea_orm::Statement::from_sql_and_values(
-                sea_orm::DatabaseBackend::Postgres,
-                "SELECT e.* \
+            let rows = db
+                .query_all(sea_orm::Statement::from_sql_and_values(
+                    sea_orm::DatabaseBackend::Postgres,
+                    "SELECT e.* \
                  FROM atlas_scorecard_entries e \
                  JOIN atlas_scorecards sc ON sc.id = e.scorecard_id \
                  WHERE sc.template_id = $1 \
                    AND e.is_verified = true",
-                vec![sea_orm::Value::Uuid(Some(Box::new(template_id)))],
-            )).await?;
-            rows.iter().filter_map(|r| {
-                Some(entries::Model {
-                    id:                       r.try_get("", "id").ok()?,
-                    session_id:               r.try_get("", "session_id").ok()?,
-                    scorecard_id:             r.try_get("", "scorecard_id").ok()?,
-                    dimension_id:             r.try_get("", "dimension_id").ok()?,
-                    tenant_id:                r.try_get("", "tenant_id").ok()?,
-                    contributor_user_id:      r.try_get("", "contributor_user_id").ok()?,
-                    score:                    r.try_get("", "score").ok()?,
-                    option_id:                r.try_get("", "option_id").ok()?,
-                    source_type:              r.try_get("", "source_type").ok()?,
-                    context:                  r.try_get("", "context").ok()?,
-                    note:                     r.try_get("", "note").ok()?,
-                    is_verified:              r.try_get("", "is_verified").ok()?,
-                    verification_request_id:  r.try_get("", "verification_request_id").ok()?,
-                    created_at:               r.try_get("", "created_at").ok()?,
+                    vec![sea_orm::Value::Uuid(Some(Box::new(template_id)))],
+                ))
+                .await?;
+            rows.iter()
+                .filter_map(|r| {
+                    Some(entries::Model {
+                        id: r.try_get("", "id").ok()?,
+                        session_id: r.try_get("", "session_id").ok()?,
+                        scorecard_id: r.try_get("", "scorecard_id").ok()?,
+                        dimension_id: r.try_get("", "dimension_id").ok()?,
+                        tenant_id: r.try_get("", "tenant_id").ok()?,
+                        contributor_user_id: r.try_get("", "contributor_user_id").ok()?,
+                        score: r.try_get("", "score").ok()?,
+                        option_id: r.try_get("", "option_id").ok()?,
+                        source_type: r.try_get("", "source_type").ok()?,
+                        context: r.try_get("", "context").ok()?,
+                        note: r.try_get("", "note").ok()?,
+                        is_verified: r.try_get("", "is_verified").ok()?,
+                        verification_request_id: r.try_get("", "verification_request_id").ok()?,
+                        created_at: r.try_get("", "created_at").ok()?,
+                    })
                 })
-            }).collect()
+                .collect()
         };
 
         if all_entries.is_empty() {
@@ -1967,10 +2114,18 @@ impl ScorecardService {
 
         // ── Step 3: Compute ensemble stats per dimension ───────────────────────
         // Group all scores by dimension_id → compute ensemble mean + std
-        let mut ensemble_scores: std::collections::HashMap<Uuid, Vec<f64>> = std::collections::HashMap::new();
+        let mut ensemble_scores: std::collections::HashMap<Uuid, Vec<f64>> =
+            std::collections::HashMap::new();
         for e in &all_entries {
-            if let Some(score) = e.score.as_ref().and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok()) {
-                ensemble_scores.entry(e.dimension_id).or_default().push(score);
+            if let Some(score) = e
+                .score
+                .as_ref()
+                .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok())
+            {
+                ensemble_scores
+                    .entry(e.dimension_id)
+                    .or_default()
+                    .push(score);
             }
         }
 
@@ -1990,9 +2145,14 @@ impl ScorecardService {
 
         // ── Step 4: Compute per-contributor stats per dimension ────────────────
         // Group by (contributor_user_id, dimension_id)
-        let mut contributor_scores: std::collections::HashMap<(Uuid, Uuid), Vec<f64>> = std::collections::HashMap::new();
+        let mut contributor_scores: std::collections::HashMap<(Uuid, Uuid), Vec<f64>> =
+            std::collections::HashMap::new();
         for e in &all_entries {
-            if let Some(score) = e.score.as_ref().and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok()) {
+            if let Some(score) = e
+                .score
+                .as_ref()
+                .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok())
+            {
                 contributor_scores
                     .entry((e.contributor_user_id, e.dimension_id))
                     .or_default()
@@ -2009,21 +2169,23 @@ impl ScorecardService {
                 continue;
             }
 
-            let (ensemble_mean, ensemble_std) = ensemble_stats
-                .get(dim_id)
-                .copied()
-                .unwrap_or((0.0, 0.0));
+            let (ensemble_mean, ensemble_std) =
+                ensemble_stats.get(dim_id).copied().unwrap_or((0.0, 0.0));
 
             let n = scores.len() as f64;
             let contributor_mean = scores.iter().sum::<f64>() / n;
             let contributor_variance = if n > 1.0 {
-                scores.iter().map(|s| (s - contributor_mean).powi(2)).sum::<f64>() / (n - 1.0)
+                scores
+                    .iter()
+                    .map(|s| (s - contributor_mean).powi(2))
+                    .sum::<f64>()
+                    / (n - 1.0)
             } else {
                 0.0
             };
             let contributor_std = contributor_variance.sqrt();
 
-            let bias_offset  = contributor_mean - ensemble_mean;
+            let bias_offset = contributor_mean - ensemble_mean;
             let scale_factor = if ensemble_std > 0.01 && contributor_std > 0.01 {
                 (contributor_std / ensemble_std).clamp(0.1, 3.0)
             } else {
@@ -2046,7 +2208,11 @@ impl ScorecardService {
                 entry_count = scores.len()
             ))
             .await
-            .map_err(|e| anyhow!("calibration upsert failed for contributor {contributor_id} dim {dim_id}: {e}"))?;
+            .map_err(|e| {
+                anyhow!(
+                    "calibration upsert failed for contributor {contributor_id} dim {dim_id}: {e}"
+                )
+            })?;
 
             upserted += 1;
         }
@@ -2098,10 +2264,7 @@ impl ScorecardService {
             query = query.filter(templates::Column::IsPublished.eq(true));
         }
 
-        let rows = query
-            .order_by_asc(templates::Column::Name)
-            .all(db)
-            .await?;
+        let rows = query.order_by_asc(templates::Column::Name).all(db).await?;
 
         Ok(rows)
     }

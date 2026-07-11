@@ -35,11 +35,11 @@
 //! ```
 
 use axum::{
-    extract::{Extension, Path, Query, Json},
+    Router,
+    extract::{Extension, Json, Path, Query},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Router,
 };
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -61,22 +61,13 @@ use crate::types::scorecard::{
 
 pub fn routes() -> Router<sea_orm::DatabaseConnection> {
     Router::new()
-        .route(
-            "/api/scorecard-templates",
-            get(list_deployed_templates),
-        )
+        .route("/api/scorecard-templates", get(list_deployed_templates))
         .route(
             "/api/scorecard-templates/{template_id}",
             get(get_deployed_template).patch(patch_deployed_template),
         )
-        .route(
-            "/api/scorecards/get-or-create",
-            post(tenant_get_or_create),
-        )
-        .route(
-            "/api/scorecards/{id}/sessions",
-            post(tenant_open_session),
-        )
+        .route("/api/scorecards/get-or-create", post(tenant_get_or_create))
+        .route("/api/scorecards/{id}/sessions", post(tenant_open_session))
         .route(
             "/api/scorecard-sessions/{sid}/entries",
             post(tenant_submit_entry),
@@ -310,8 +301,8 @@ async fn list_deployed_templates(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    let app_instance_id = resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id)
-        .await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
 
     // Verify the instance belongs to this tenant (403 if foreign).
     ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
@@ -574,7 +565,9 @@ async fn list_pending_sessions(
 
         // Pending = fewer verified/submitted entries than active dimensions on the template.
         let dim_count = crate::entities::atlas_scorecard_dimension::Entity::find()
-            .filter(crate::entities::atlas_scorecard_dimension::Column::TemplateId.eq(sc.template_id))
+            .filter(
+                crate::entities::atlas_scorecard_dimension::Column::TemplateId.eq(sc.template_id),
+            )
             .filter(crate::entities::atlas_scorecard_dimension::Column::TenantId.eq(tenant_id))
             .filter(crate::entities::atlas_scorecard_dimension::Column::IsActive.eq(true))
             .count(&db)
@@ -583,7 +576,10 @@ async fn list_pending_sessions(
 
         let entry_count = crate::entities::atlas_scorecard_entry::Entity::find()
             .filter(crate::entities::atlas_scorecard_entry::Column::SessionId.eq(s.id))
-            .filter(crate::entities::atlas_scorecard_entry::Column::ContributorUserId.eq(current_user.id))
+            .filter(
+                crate::entities::atlas_scorecard_entry::Column::ContributorUserId
+                    .eq(current_user.id),
+            )
             .count(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -773,10 +769,7 @@ async fn create_tenant_display_rule(
         value_list: Set(input.value_list),
         action: Set(input.action.to_string()),
         alert_message: Set(input.alert_message),
-        mode_scope: Set(input
-            .mode_scope
-            .unwrap_or(ModeScope::Always)
-            .to_string()),
+        mode_scope: Set(input.mode_scope.unwrap_or(ModeScope::Always).to_string()),
         priority: Set(input.priority.unwrap_or(10)),
         is_active: Set(true),
         description: Set(input.description),
@@ -979,9 +972,17 @@ async fn ensure_template_deployed_enabled(
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let dep = crate::entities::atlas_scorecard_template_deployment::Entity::find()
-        .filter(crate::entities::atlas_scorecard_template_deployment::Column::TenantId.eq(tenant_id))
-        .filter(crate::entities::atlas_scorecard_template_deployment::Column::AppInstanceId.eq(app_instance_id))
-        .filter(crate::entities::atlas_scorecard_template_deployment::Column::TemplateId.eq(template_id))
+        .filter(
+            crate::entities::atlas_scorecard_template_deployment::Column::TenantId.eq(tenant_id),
+        )
+        .filter(
+            crate::entities::atlas_scorecard_template_deployment::Column::AppInstanceId
+                .eq(app_instance_id),
+        )
+        .filter(
+            crate::entities::atlas_scorecard_template_deployment::Column::TemplateId
+                .eq(template_id),
+        )
         .filter(crate::entities::atlas_scorecard_template_deployment::Column::IsEnabled.eq(true))
         .one(db)
         .await

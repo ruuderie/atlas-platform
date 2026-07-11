@@ -81,17 +81,17 @@ impl Model {
     ///
     /// Returns `None` if the field is absent or contains non-numeric values.
     pub fn parse_target_vector(&self) -> Option<Vec<f64>> {
-        self.target_vector.as_ref()?.as_array().map(|arr| {
-            arr.iter()
-                .map(|v| v.as_f64().unwrap_or(0.0))
-                .collect()
-        })
+        self.target_vector
+            .as_ref()?
+            .as_array()
+            .map(|arr| arr.iter().map(|v| v.as_f64().unwrap_or(0.0)).collect())
     }
 
     /// Returns `true` if this target has a computable vector (i.e. it can be
     /// passed directly to `find_similar` without first aggregating seed entities).
     pub fn has_precomputed_vector(&self) -> bool {
-        self.target_vector.as_ref()
+        self.target_vector
+            .as_ref()
             .and_then(|v| v.as_array())
             .map(|arr| !arr.is_empty())
             .unwrap_or(false)

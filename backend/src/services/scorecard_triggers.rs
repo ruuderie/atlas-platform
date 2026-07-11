@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::entities::atlas_scorecard_template_deployment as deployments;
 use crate::services::scorecard_service::ScorecardService;
-use crate::types::scorecard::{DeploymentTriggerEvent, SessionType, ScorecardEntityType};
+use crate::types::scorecard::{DeploymentTriggerEvent, ScorecardEntityType, SessionType};
 
 /// Result of opening sessions for a single trigger event.
 #[derive(Debug, Clone)]
@@ -158,10 +158,10 @@ async fn enqueue_scorecard_nudge(
     session_id: Uuid,
     scorecard_id: Uuid,
 ) -> Result<()> {
-    use chrono::Utc;
-    use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::outbox_job;
     use crate::types::outbox::OutboxJobType;
+    use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
     use serde_json::json;
 
     let job = outbox_job::ActiveModel {

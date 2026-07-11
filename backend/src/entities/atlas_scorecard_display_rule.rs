@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use serde_json::Value;
-use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 /// G-27 Display Rules: `atlas_scorecard_display_rules`
 ///
@@ -44,7 +44,6 @@ pub struct Model {
     // ── Trigger axis ──────────────────────────────────────────────────────────
     // All VARCHAR fields below have typed Rust equivalents in crate::types::scorecard.
     // Convert with TryFrom<String> after reading; Display::fmt before writing.
-
     /// The condition category that fires this rule.
     /// Typed: `crate::types::scorecard::TriggerCategory`
     /// Values: 'record_state' | 'time_proximity' | 'activity_trigger' | 'score_gap'
@@ -71,7 +70,6 @@ pub struct Model {
     pub value_list: Option<Value>,
 
     // ── Action axis ───────────────────────────────────────────────────────────
-
     /// What happens to the targeted dimension when the condition fires.
     /// Typed: `crate::types::scorecard::RuleAction`
     /// Values: 'show' | 'hide' | 'require' | 'surface_as_nudge' |
@@ -82,7 +80,6 @@ pub struct Model {
     pub alert_message: Option<String>,
 
     // ── Scope ─────────────────────────────────────────────────────────────────
-
     /// Which rendering context must be active for this rule to apply.
     /// Typed: `crate::types::scorecard::ModeScope`
     /// Values: 'always' | 'post_activity' | 'pre_activity' | 'on_score_gap'
