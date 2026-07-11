@@ -7,6 +7,10 @@ use std::time::Duration;
 ///   Entry → PasskeyPrompt | MagicRequest → MagicSent
 ///
 /// Passkey registration after first magic-link verify lives at `/auth/passkey-setup`.
+///
+/// Only one screen is mounted at a time (`Show` / match). Do not stack all screens
+/// with CSS `display:none` toggles — BEM `--active` class bindings are fragile in
+/// the Leptos view macro and previously left every step visible at once.
 #[component]
 pub fn Login() -> impl IntoView {
     view! {
@@ -24,6 +28,11 @@ enum LoginScreen {
     PasskeyPrompt,
     MagicRequest,
     MagicSent,
+}
+
+fn is_valid_email(email: &str) -> bool {
+    let email = email.trim();
+    !email.is_empty() && email.contains('@') && email.contains('.')
 }
 
 // ── Brand panel ───────────────────────────────────────────────────────────────
@@ -193,8 +202,9 @@ fn AuthPanel() -> impl IntoView {
     };
 
     let continue_email = move || {
-        let e = email.get();
-        if e.is_empty() || !e.contains('@') {
+        let e = email.get().trim().to_string();
+        email.set(e.clone());
+        if !is_valid_email(&e) {
             err.set(Some("Please enter a valid email address.".to_string()));
             return;
         }
@@ -206,8 +216,9 @@ fn AuthPanel() -> impl IntoView {
         if pending.get() {
             return;
         }
-        let e = email.get();
-        if e.is_empty() || !e.contains('@') {
+        let e = email.get().trim().to_string();
+        email.set(e.clone());
+        if !is_valid_email(&e) {
             err.set(Some("Please enter a valid email address.".to_string()));
             screen.set(LoginScreen::Entry);
             return;
@@ -231,10 +242,10 @@ fn AuthPanel() -> impl IntoView {
         passkey_pending.set(false);
         err.set(None);
         let e = email.get();
-        if e.is_empty() || !e.contains('@') {
-            screen.set(LoginScreen::Entry);
-        } else {
+        if is_valid_email(&e) {
             screen.set(LoginScreen::MagicRequest);
+        } else {
+            screen.set(LoginScreen::Entry);
         }
     };
 
@@ -255,213 +266,231 @@ fn AuthPanel() -> impl IntoView {
                     <span class="login-logo-text">"Folio"</span>
                 </div>
 
-                // ── 1 · Entry ─────────────────────────────────────────────
-                <div class="login-screen" class:login-screen--active=move || screen.get() == LoginScreen::Entry>
-                    <h1 class="login-auth-h1">"Welcome back"</h1>
-                    <p class="login-auth-sub">"Sign in with a passkey or get a secure email link. No password required."</p>
+                {move || match screen.get() {
+                    LoginScreen::Entry => view! {
+                        <div class="login-screen login-screen--active">
+                            <h1 class="login-auth-h1">"Welcome back"</h1>
+                            <p class="login-auth-sub">"Sign in with a passkey or get a secure email link. No password required."</p>
 
-                    <button
-                        type="button"
-                        class="login-passkey-btn"
-                        id="login-passkey-btn"
-                        disabled=move || passkey_pending.get()
-                        on:click=start_passkey
-                    >
-                        <span class="login-passkey-icon-box" aria-hidden="true">
-                            <span class="material-symbols-outlined login-icon-fill">"fingerprint"</span>
-                        </span>
-                        <span class="login-passkey-btn-text">
-                            <span class="login-passkey-btn-label">"Sign in with a passkey"</span>
-                            <span class="login-passkey-btn-sub">"Face ID, Touch ID, or device PIN"</span>
-                        </span>
-                        <span class="material-symbols-outlined login-passkey-chevron" aria-hidden="true">"chevron_right"</span>
-                    </button>
+                            <button
+                                type="button"
+                                class="login-passkey-btn"
+                                id="login-passkey-btn"
+                                disabled=move || passkey_pending.get()
+                                on:click=start_passkey
+                            >
+                                <span class="login-passkey-icon-box" aria-hidden="true">
+                                    <span class="material-symbols-outlined login-icon-fill">"fingerprint"</span>
+                                </span>
+                                <span class="login-passkey-btn-text">
+                                    <span class="login-passkey-btn-label">"Sign in with a passkey"</span>
+                                    <span class="login-passkey-btn-sub">"Face ID, Touch ID, or device PIN"</span>
+                                </span>
+                                <span class="material-symbols-outlined login-passkey-chevron" aria-hidden="true">"chevron_right"</span>
+                            </button>
 
-                    <div class="login-divider"><span>"or"</span></div>
+                            <div class="login-divider"><span>"or"</span></div>
 
-                    <div class="login-auth-form">
-                        <div class="login-field">
-                            <label class="login-field-label" for="auth-email">"Email address"</label>
-                            <input
-                                id="auth-email"
-                                type="email"
-                                class="login-field-input"
-                                placeholder="you@example.com"
-                                autocomplete="email"
-                                prop:value=move || email.get()
-                                on:input=move |ev| email.set(event_target_value(&ev))
-                                on:keydown=move |ev| {
-                                    if ev.key() == "Enter" {
-                                        ev.prevent_default();
-                                        continue_email();
+                            <div class="login-auth-form">
+                                <div class="login-field">
+                                    <label class="login-field-label" for="auth-email">"Email address"</label>
+                                    <input
+                                        id="auth-email"
+                                        type="email"
+                                        class="login-field-input"
+                                        placeholder="you@example.com"
+                                        autocomplete="email"
+                                        prop:value=move || email.get()
+                                        on:input=move |ev| {
+                                            email.set(event_target_value(&ev));
+                                            if err.get().is_some() {
+                                                err.set(None);
+                                            }
+                                        }
+                                        on:keydown=move |ev| {
+                                            if ev.key() == "Enter" {
+                                                ev.prevent_default();
+                                                continue_email();
+                                            }
+                                        }
+                                    />
+                                </div>
+                                <Show when=move || err.get().is_some()>
+                                    <p class="login-field-error login-field-error--show">
+                                        {move || err.get().unwrap_or_default()}
+                                    </p>
+                                </Show>
+                                <button
+                                    type="button"
+                                    class="login-auth-btn"
+                                    id="login-submit-btn"
+                                    on:click=move |_| continue_email()
+                                >
+                                    "Continue"
+                                    <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">"arrow_forward"</span>
+                                </button>
+                            </div>
+
+                            <div class="login-alt-actions">
+                                <p class="login-alt-text">
+                                    "New to Folio? "
+                                    <a href="/#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
+                                </p>
+                            </div>
+                            <p class="login-legal">
+                                "By continuing you agree to Folio's "
+                                <a href="/legal/terms">"Terms"</a>
+                                " and "
+                                <a href="/legal/privacy">"Privacy Policy"</a>
+                                "."
+                            </p>
+                        </div>
+                    }.into_any(),
+
+                    LoginScreen::PasskeyPrompt => view! {
+                        <div class="login-screen login-screen--active">
+                            <button type="button" class="login-back-btn" on:click=go_entry>
+                                <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">"arrow_back"</span>
+                                " Back"
+                            </button>
+                            <div class="login-passkey-prompt">
+                                <div class="login-passkey-ring-wrap">
+                                    <div class="login-passkey-ring">
+                                        <span class="material-symbols-outlined login-icon-fill" style="font-size:40px" aria-hidden="true">"fingerprint"</span>
+                                    </div>
+                                    <div class="login-passkey-ring-badge">
+                                        <span class="material-symbols-outlined login-icon-fill" style="font-size:13px" aria-hidden="true">"fingerprint"</span>
+                                    </div>
+                                </div>
+                                <h1 class="login-auth-h1">"Authenticate with your passkey"</h1>
+                                <p class="login-auth-sub">
+                                    {move || if err.get().is_some() {
+                                        "Authentication didn’t complete. Try again, or use a magic link."
+                                    } else {
+                                        "Your device will prompt you for Face ID, Touch ID, or PIN."
+                                    }}
+                                </p>
+                                <Show when=move || passkey_pending.get()>
+                                    <div class="login-dots" aria-hidden="true">
+                                        <span class="login-dot login-dot--1"></span>
+                                        <span class="login-dot login-dot--2"></span>
+                                        <span class="login-dot login-dot--3"></span>
+                                    </div>
+                                </Show>
+                                <Show when=move || err.get().is_some()>
+                                    <p class="login-field-error login-field-error--show">
+                                        {move || err.get().unwrap_or_default()}
+                                    </p>
+                                </Show>
+                            </div>
+                            <button
+                                type="button"
+                                class="login-auth-btn login-auth-btn--green"
+                                disabled=move || passkey_pending.get()
+                                on:click=retry_passkey
+                            >
+                                <span class="material-symbols-outlined login-icon-fill" style="font-size:18px" aria-hidden="true">"fingerprint"</span>
+                                {move || if passkey_pending.get() { "Waiting for device…" } else { "Authenticate with Passkey" }}
+                            </button>
+                            <button type="button" class="login-btn-text" on:click=use_magic_instead>
+                                <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:0.25rem" aria-hidden="true">"mail"</span>
+                                "Use a magic link instead"
+                            </button>
+                        </div>
+                    }.into_any(),
+
+                    LoginScreen::MagicRequest => view! {
+                        <div class="login-screen login-screen--active">
+                            <button type="button" class="login-back-btn" on:click=go_entry>
+                                <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">"arrow_back"</span>
+                                " Back"
+                            </button>
+                            <h1 class="login-auth-h1">"Sign in with email"</h1>
+                            <p class="login-auth-sub">
+                                "We'll send a secure sign-in link to "
+                                <strong>{move || email.get()}</strong>
+                                ". It expires in 15 minutes."
+                            </p>
+                            <div class="login-email-preview" aria-hidden="true">
+                                <div class="login-email-preview-hdr">
+                                    <div class="login-email-icon">"F"</div>
+                                    <div>
+                                        <div class="login-email-subj">"Sign in to Folio"</div>
+                                        <div class="login-email-from">"no-reply@folio.app"</div>
+                                    </div>
+                                </div>
+                                <div class="login-email-body">
+                                    <p>"Click the link below to sign in securely. This link expires in 15 minutes and can only be used once."</p>
+                                    <span class="login-email-cta">
+                                        <span class="material-symbols-outlined" style="font-size:13px">"login"</span>
+                                        " Log In Now"
+                                    </span>
+                                </div>
+                            </div>
+                            <Show when=move || err.get().is_some()>
+                                <p class="login-field-error login-field-error--show">
+                                    {move || err.get().unwrap_or_default()}
+                                </p>
+                            </Show>
+                            <button
+                                type="button"
+                                class="login-auth-btn"
+                                id="login-send-magic"
+                                disabled=move || pending.get()
+                                on:click=send_magic_link
+                            >
+                                <Show
+                                    when=move || !pending.get()
+                                    fallback=|| view! {
+                                        <span class="login-btn-content" style="display:inline-flex;align-items:center;gap:8px">
+                                            <span class="login-btn-spinner"></span>
+                                            "Sending…"
+                                        </span>
                                     }
-                                }
-                            />
+                                >
+                                    <span class="login-btn-content" style="display:inline-flex;align-items:center;gap:8px">
+                                        <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">"send"</span>
+                                        "Send magic link"
+                                    </span>
+                                </Show>
+                            </button>
                         </div>
-                        <p class="login-field-error" class:login-field-error--show=move || {
-                            err.get().is_some() && screen.get() == LoginScreen::Entry
-                        }>
-                            {move || err.get().unwrap_or_default()}
-                        </p>
-                        <button
-                            type="button"
-                            class="login-auth-btn"
-                            id="login-submit-btn"
-                            on:click=move |_| continue_email()
-                        >
-                            "Continue"
-                            <span class="material-symbols-outlined" style="font-size:18px">"arrow_forward"</span>
-                        </button>
-                    </div>
+                    }.into_any(),
 
-                    <div class="login-alt-actions">
-                        <p class="login-alt-text">
-                            "New to Folio? "
-                            <a href="/#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
-                        </p>
-                    </div>
-                    <p class="login-legal">
-                        "By continuing you agree to Folio's "
-                        <a href="/legal/terms">"Terms"</a>
-                        " and "
-                        <a href="/legal/privacy">"Privacy Policy"</a>
-                        "."
-                    </p>
-                </div>
-
-                // ── 2A · Passkey guidance ─────────────────────────────────
-                <div class="login-screen" class:login-screen--active=move || screen.get() == LoginScreen::PasskeyPrompt>
-                    <button type="button" class="login-back-btn" on:click=go_entry>
-                        <span class="material-symbols-outlined" style="font-size:16px">"arrow_back"</span>
-                        " Back"
-                    </button>
-                    <div class="login-passkey-prompt">
-                        <div class="login-passkey-ring-wrap">
-                            <div class="login-passkey-ring">
-                                <span class="material-symbols-outlined login-icon-fill" style="font-size:40px">"fingerprint"</span>
+                    LoginScreen::MagicSent => view! {
+                        <div class="login-screen login-screen--active login-screen--center">
+                            <div class="login-status-circle login-status-circle--green">
+                                <span class="material-symbols-outlined login-icon-fill" style="font-size:40px" aria-hidden="true">"mark_email_read"</span>
                             </div>
-                            <div class="login-passkey-ring-badge">
-                                <span class="material-symbols-outlined login-icon-fill" style="font-size:13px">"fingerprint"</span>
+                            <h1 class="login-auth-h1">"Check your email"</h1>
+                            <p class="login-auth-sub" style="margin-bottom:0.35rem">"We sent a sign-in link to"</p>
+                            <p class="login-sent-email">{move || email.get()}</p>
+                            <div class="login-cd-wrap">
+                                <div class="login-cd-hdr">
+                                    <span>"Link valid for "</span>
+                                    <span class="login-cd-time">{move || countdown_label()}</span>
+                                </div>
+                                <div class="login-cd-track">
+                                    <div class="login-cd-fill" style=move || countdown_pct()></div>
+                                </div>
+                            </div>
+                            <div class="login-stack-gap">
+                                <button
+                                    type="button"
+                                    class="login-resend-btn"
+                                    disabled=move || pending.get()
+                                    on:click=send_magic_link
+                                >
+                                    <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">"refresh"</span>
+                                    " Resend link"
+                                </button>
+                                <button type="button" class="login-btn-text" on:click=go_entry>
+                                    "Use a different email"
+                                </button>
                             </div>
                         </div>
-                        <h1 class="login-auth-h1">"Authenticate with your passkey"</h1>
-                        <p class="login-auth-sub">
-                            {move || if passkey_pending.get() {
-                                "Your device will prompt you for Face ID, Touch ID, or PIN."
-                            } else if err.get().is_some() {
-                                "Authentication didn’t complete. Try again, or use a magic link."
-                            } else {
-                                "Your device will prompt you for Face ID, Touch ID, or PIN."
-                            }}
-                        </p>
-                        <div class="login-dots" aria-hidden="true" class:login-dots--hidden=move || !passkey_pending.get()>
-                            <span class="login-dot login-dot--1"></span>
-                            <span class="login-dot login-dot--2"></span>
-                            <span class="login-dot login-dot--3"></span>
-                        </div>
-                        <p class="login-field-error" class:login-field-error--show=move || err.get().is_some()>
-                            {move || err.get().unwrap_or_default()}
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        class="login-auth-btn login-auth-btn--green"
-                        disabled=move || passkey_pending.get()
-                        on:click=retry_passkey
-                    >
-                        <span class="material-symbols-outlined login-icon-fill" style="font-size:18px">"fingerprint"</span>
-                        {move || if passkey_pending.get() { "Waiting for device…" } else { "Authenticate with Passkey" }}
-                    </button>
-                    <button type="button" class="login-btn-text" on:click=use_magic_instead>
-                        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:0.25rem">"mail"</span>
-                        "Use a magic link instead"
-                    </button>
-                </div>
-
-                // ── 2B · Magic link request + email preview ───────────────
-                <div class="login-screen" class:login-screen--active=move || screen.get() == LoginScreen::MagicRequest>
-                    <button type="button" class="login-back-btn" on:click=go_entry>
-                        <span class="material-symbols-outlined" style="font-size:16px">"arrow_back"</span>
-                        " Back"
-                    </button>
-                    <h1 class="login-auth-h1">"Sign in with email"</h1>
-                    <p class="login-auth-sub">
-                        "We'll send a secure sign-in link to "
-                        <strong>{move || email.get()}</strong>
-                        ". It expires in 15 minutes."
-                    </p>
-                    <div class="login-email-preview">
-                        <div class="login-email-preview-hdr">
-                            <div class="login-email-icon">"F"</div>
-                            <div>
-                                <div class="login-email-subj">"Sign in to Folio"</div>
-                                <div class="login-email-from">"no-reply@folio.app"</div>
-                            </div>
-                        </div>
-                        <div class="login-email-body">
-                            <p>"Click the link below to sign in securely. This link expires in 15 minutes and can only be used once."</p>
-                            <span class="login-email-cta">
-                                <span class="material-symbols-outlined" style="font-size:13px">"login"</span>
-                                " Log In Now"
-                            </span>
-                        </div>
-                    </div>
-                    <p class="login-field-error" class:login-field-error--show=move || err.get().is_some()>
-                        {move || err.get().unwrap_or_default()}
-                    </p>
-                    <button
-                        type="button"
-                        class="login-auth-btn"
-                        id="login-send-magic"
-                        disabled=move || pending.get()
-                        on:click=send_magic_link
-                    >
-                        <span class="login-btn-content" style=move || if pending.get() { "display:none" } else { "display:inline-flex;align-items:center;gap:8px" }>
-                            <span class="material-symbols-outlined" style="font-size:18px">"send"</span>
-                            "Send magic link"
-                        </span>
-                        <span class="login-btn-content" style=move || if pending.get() { "display:inline-flex;align-items:center;gap:8px" } else { "display:none" }>
-                            <span class="login-btn-spinner"></span>
-                            "Sending…"
-                        </span>
-                    </button>
-                </div>
-
-                // ── 3 · Sent + countdown ──────────────────────────────────
-                <div
-                    class="login-screen login-screen--center"
-                    class:login-screen--active=move || screen.get() == LoginScreen::MagicSent
-                >
-                    <div class="login-status-circle login-status-circle--green">
-                        <span class="material-symbols-outlined login-icon-fill" style="font-size:40px">"mark_email_read"</span>
-                    </div>
-                    <h1 class="login-auth-h1">"Check your email"</h1>
-                    <p class="login-auth-sub" style="margin-bottom:0.35rem">"We sent a sign-in link to"</p>
-                    <p class="login-sent-email">{move || email.get()}</p>
-                    <div class="login-cd-wrap">
-                        <div class="login-cd-hdr">
-                            <span>"Link valid for"</span>
-                            <span class="login-cd-time">{move || countdown_label()}</span>
-                        </div>
-                        <div class="login-cd-track">
-                            <div class="login-cd-fill" style=move || countdown_pct()></div>
-                        </div>
-                    </div>
-                    <div class="login-stack-gap">
-                        <button
-                            type="button"
-                            class="login-resend-btn"
-                            disabled=move || pending.get()
-                            on:click=send_magic_link
-                        >
-                            <span class="material-symbols-outlined" style="font-size:16px">"refresh"</span>
-                            " Resend link"
-                        </button>
-                        <button type="button" class="login-btn-text" on:click=go_entry>
-                            "Use a different email"
-                        </button>
-                    </div>
-                </div>
+                    }.into_any(),
+                }}
             </div>
         </main>
     }

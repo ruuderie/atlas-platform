@@ -5335,7 +5335,13 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
 }
 .login-mobile-logo .login-logo-text { color: var(--login-text); }
 
-.login-screen { display: none; flex-direction: column; animation: login-fade-up .28s ease-out both; }
+.login-screen {
+  display: flex;
+  flex-direction: column;
+  animation: login-fade-up .28s ease-out both;
+}
+/* Kept for passkey_setup / legacy markup that still toggles visibility. */
+.login-screen:not(.login-screen--active) { display: none; }
 .login-screen--active { display: flex; }
 .login-screen--center { align-items: center; text-align: center; }
 @keyframes login-fade-up {
