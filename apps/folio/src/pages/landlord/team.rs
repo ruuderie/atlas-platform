@@ -344,12 +344,16 @@ pub fn LandlordTeam() -> impl IntoView {
                                     icon: "apartment",
                                     title: "Fellow landlords & owners",
                                     body: "Share Folio with owners in your circle so you can coordinate vendors and compare notes.",
-                                },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                                 AngleCard {
                                     icon: "handyman",
                                     title: "Trusted contractors",
                                     body: "Invite trades you already use. Dispatch and invoice live on Folio next time.",
-                                },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                             ]
                             show_stats=true
                             show_history=true

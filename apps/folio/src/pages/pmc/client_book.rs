@@ -25,12 +25,16 @@ pub fn ClientBook() -> impl IntoView {
                     icon: "apartment",
                     title: "Existing owner clients",
                     body: "Invite landlords you already manage. They see statements here while you keep operations centralized.",
-                },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                 AngleCard {
                     icon: "campaign",
                     title: "Prospects & referrals",
                     body: "When pitching a new owner, send a Folio invite instead of a PDF.",
-                },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
             ]
             section_title="Invite a new client".to_string()
             send_label="Send Owner Invite".to_string()

@@ -1,6 +1,6 @@
 // apps/folio/src/pages/onboarding/landlord_wizard.rs
 //
-// LandlordWizard — /onboard/landlord
+// LandlordWizard — /onboarding
 //
 // 5 steps mirroring wiz_landlord_onboard/code.html:
 //   1. Your Profile
@@ -18,7 +18,7 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::wizard_shell::{
-    resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
+    resolve_invite_code, ResolvedInviteCode, WizardCtxStep, WizardShell, WizardStepDesc,
 };
 use crate::pages::onboarding::invite_codes_client::accept_invite_code;
 
@@ -123,30 +123,64 @@ fn country_to_jurisdiction(country: &str) -> String {
 // ── Steps (labels match wiz_landlord_onboard) ─────────────────────────────────
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc {
-        id: "profile",
-        label: "Your Profile",
-        skippable: false,
+    WizardStepDesc { id: "profile", label: "Your Profile", skippable: false },
+    WizardStepDesc { id: "portfolio", label: "Portfolio Setup", skippable: false },
+    WizardStepDesc { id: "property", label: "First Property", skippable: false },
+    WizardStepDesc { id: "workspace", label: "Workspace & Invites", skippable: true },
+    WizardStepDesc { id: "launch", label: "Ready to Launch", skippable: false },
+];
+
+/// Left-rail copy from stitch `wiz_landlord_onboard` `ctx` array.
+const CTX_STEPS: &[WizardCtxStep] = &[
+    WizardCtxStep {
+        glyph: "person",
+        headline: "Let's get to know you",
+        body: "Your profile is how tenants, vendors, and your team will recognise you across the platform.",
+        bullets: &[
+            "Shown on lease documents and communications",
+            "Displayed to tenants in their portal",
+            "Used for legal signature attribution",
+        ],
     },
-    WizardStepDesc {
-        id: "portfolio",
-        label: "Portfolio Setup",
-        skippable: false,
+    WizardCtxStep {
+        glyph: "apartment",
+        headline: "Define your portfolio",
+        body: "We configure the right tools based on your property type, location, and management style.",
+        bullets: &[
+            "Activates LTR, STR, or commercial toolsets",
+            "Sets default currency and tax region",
+            "Determines available integrations",
+        ],
     },
-    WizardStepDesc {
-        id: "property",
-        label: "First Property",
-        skippable: false,
+    WizardCtxStep {
+        glyph: "home",
+        headline: "Start with a real property",
+        body: "Adding your first property brings your workspace to life with actual data and analytics.",
+        bullets: &[
+            "Enables lease and tenant management",
+            "Powers your maintenance queue",
+            "Unlocks financial reporting",
+        ],
     },
-    WizardStepDesc {
-        id: "workspace",
-        label: "Workspace Settings",
-        skippable: true,
+    WizardCtxStep {
+        glyph: "settings",
+        headline: "Bring your people with you",
+        body: "Invite other landlords and the contractors you already trust. Every invite grows a network that makes maintenance and referrals easier for everyone.",
+        bullets: &[
+            "Landlords share vendors and playbooks",
+            "Contractors you know join ready to dispatch",
+            "Optional. Skip and invite anytime.",
+        ],
     },
-    WizardStepDesc {
-        id: "launch",
-        label: "Ready to Launch",
-        skippable: false,
+    WizardCtxStep {
+        glyph: "verified",
+        headline: "Your workspace is live",
+        body: "Everything is configured. You can refine any setting from your dashboard at any time.",
+        bullets: &[
+            "Full property management suite active",
+            "Invite more owners and vendors anytime",
+            "Ready for your first lease or booking",
+        ],
     },
 ];
 
@@ -171,11 +205,7 @@ pub fn LandlordWizard() -> impl IntoView {
 
     let is_last = Signal::derive(move || current_idx.get() == total - 1);
     let next_label = Signal::derive(move || {
-        if is_last.get() {
-            "Launch Folio"
-        } else {
-            "Continue"
-        }
+        if is_last.get() { "Go to Dashboard" } else { "Continue" }
     });
 
     // Profile
@@ -183,28 +213,27 @@ pub fn LandlordWizard() -> impl IntoView {
     let last_name = RwSignal::new(String::new());
     let display_name = RwSignal::new(String::new());
     let phone = RwSignal::new(String::new());
-    let account_type = RwSignal::new("individual".to_string()); // individual | company
+    let account_type = RwSignal::new("individual".to_string());
 
     // Portfolio
     let business_name = RwSignal::new(String::new());
     let country = RwSignal::new("US".to_string());
     let currency = RwSignal::new("USD".to_string());
-    let portfolio_size = RwSignal::new("1-5".to_string());
+    let portfolio_size = RwSignal::new("26-100".to_string());
     let type_ltr = RwSignal::new(true);
     let type_str = RwSignal::new(false);
     let type_commercial = RwSignal::new(false);
 
     // Property
-    let prop_name = RwSignal::new(String::new());
     let prop_address = RwSignal::new(String::new());
     let prop_city = RwSignal::new(String::new());
-    let prop_state = RwSignal::new("FL".to_string());
+    let prop_state = RwSignal::new(String::new());
     let prop_postal = RwSignal::new(String::new());
+    let prop_country = RwSignal::new("US".to_string());
     let prop_type = RwSignal::new("apartment".to_string());
     let unit_count = RwSignal::new("1".to_string());
     let beds = RwSignal::new("2".to_string());
     let monthly_rent = RwSignal::new(String::new());
-    let str_eligible = RwSignal::new(false);
 
     // Workspace
     let notify_maint = RwSignal::new(true);
@@ -222,18 +251,10 @@ pub fn LandlordWizard() -> impl IntoView {
         if let Some(Ok(d)) = draft.get() {
             if let Some(v) = d.first_name {
                 first_name.set(v.clone());
-                display_name.update(|dn| {
-                    if dn.is_empty() {
-                        *dn = v;
-                    }
-                });
+                display_name.update(|dn| { if dn.is_empty() { *dn = v; } });
             }
-            if let Some(v) = d.last_name {
-                last_name.set(v);
-            }
-            if let Some(v) = d.phone {
-                phone.set(v);
-            }
+            if let Some(v) = d.last_name { last_name.set(v); }
+            if let Some(v) = d.phone { phone.set(v); }
         }
     });
 
@@ -248,20 +269,13 @@ pub fn LandlordWizard() -> impl IntoView {
             save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_profile(f, l, ph, j, String::new()).await {
-                    Ok(_) => {
-                        saving.set(false);
-                        current_idx.set(idx + 1);
-                    }
-                    Err(e) => {
-                        saving.set(false);
-                        save_error.set(Some(e.to_string()));
-                    }
+                    Ok(_) => { saving.set(false); current_idx.set(idx + 1); }
+                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
                 }
             });
             return;
         }
         if idx == 1 {
-            // Portfolio is local + jurisdiction refresh from country
             let f = first_name.get();
             let l = last_name.get();
             let ph = phone.get();
@@ -270,42 +284,30 @@ pub fn LandlordWizard() -> impl IntoView {
             save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_profile(f, l, ph, j, String::new()).await {
-                    Ok(_) => {
-                        saving.set(false);
-                        current_idx.set(idx + 1);
-                    }
-                    Err(e) => {
-                        saving.set(false);
-                        save_error.set(Some(e.to_string()));
-                    }
+                    Ok(_) => { saving.set(false); current_idx.set(idx + 1); }
+                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
                 }
             });
             return;
         }
         if idx == 2 {
-            let n = if prop_name.get().trim().is_empty() {
-                format!("{} property", prop_city.get())
-            } else {
-                prop_name.get()
+            let n = {
+                let city = prop_city.get();
+                if city.trim().is_empty() { "First property".to_string() }
+                else { format!("{city} property") }
             };
             let a = prop_address.get();
             let c = prop_city.get();
             let s = prop_state.get();
             let t = prop_type.get();
             let u = unit_count.get();
-            let st = str_eligible.get() || type_str.get() || enable_str.get();
+            let st = type_str.get() || enable_str.get();
             saving.set(true);
             save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_property(n, a, c, s, t, u, st).await {
-                    Ok(_) => {
-                        saving.set(false);
-                        current_idx.set(idx + 1);
-                    }
-                    Err(e) => {
-                        saving.set(false);
-                        save_error.set(Some(e.to_string()));
-                    }
+                    Ok(_) => { saving.set(false); current_idx.set(idx + 1); }
+                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
                 }
             });
             return;
@@ -326,23 +328,18 @@ pub fn LandlordWizard() -> impl IntoView {
 
     let on_prev = Callback::new(move |_| {
         let idx = current_idx.get();
-        if idx > 0 {
-            current_idx.set(idx - 1);
-        }
+        if idx > 0 { current_idx.set(idx - 1); }
     });
 
-    let ctx_body = ViewFn::from(|| {
-        view! {
-            <p class="wiz-ctx-p">
-                "Your profile is how tenants, vendors, and your team will recognise you across the platform."
-            </p>
-            <ul class="wiz-ctx-list">
-                <li><span class="ms msf">"check_circle"</span>"Shown on lease documents and communications"</li>
-                <li><span class="ms msf">"check_circle"</span>"Displayed to tenants in their portal"</li>
-                <li><span class="ms msf">"check_circle"</span>"Used for legal signature attribution"</li>
-            </ul>
-        }
+    let initials = Signal::derive(move || {
+        let f = first_name.get();
+        let l = last_name.get();
+        let a = f.chars().next().unwrap_or('F');
+        let b = l.chars().next().unwrap_or('O');
+        format!("{}{}", a.to_ascii_uppercase(), b.to_ascii_uppercase())
     });
+
+    let ctx_body = ViewFn::from(|| view! { <span></span> });
 
     view! {
         <WizardShell
@@ -354,6 +351,9 @@ pub fn LandlordWizard() -> impl IntoView {
             panel_bg="#0f1117"
             ctx_headline="Let's get to know you"
             ctx_body=ctx_body
+            ctx_steps=CTX_STEPS.to_vec()
+            progress_label="Your progress"
+            nav_detail="5 steps, ~4 min"
             invite_code=invite_sig
             on_next=on_next
             on_prev=on_prev
@@ -370,12 +370,24 @@ pub fn LandlordWizard() -> impl IntoView {
             // ── Step 1: Your Profile ────────────────────────────────────────
             <Show when=move || current_idx.get() == 0>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                    <div class="wiz-s-badge">
                         <span class="ms" style="font-size:13px;">"person"</span>
                         "Step 1 of 5"
                     </div>
                     <h1 class="wiz-s-title">"Your Profile"</h1>
                     <p class="wiz-s-sub">"How should people see you in the platform? This appears on leases, comms, and your team's workspace."</p>
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"Profile Photo"</div>
+                        <label class="wiz-av-up">
+                            <div class="wiz-av-circle">{move || initials.get()}</div>
+                            <div>
+                                <div class="wiz-av-label">"Upload a photo"</div>
+                                <div class="wiz-av-hint">"JPG, PNG · Max 5 MB · Recommended 400×400"</div>
+                            </div>
+                            <input type="file" accept="image/*" style="display:none"/>
+                        </label>
+                    </div>
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"Name & Contact"</div>
@@ -394,7 +406,10 @@ pub fn LandlordWizard() -> impl IntoView {
                             </div>
                         </div>
                         <div class="wiz-f">
-                            <label class="wiz-label">"Display Name"</label>
+                            <label class="wiz-label">
+                                "Display Name "
+                                <span class="wiz-label-hint">"(visible to tenants & vendors)"</span>
+                            </label>
                             <input class="wiz-inp" type="text" placeholder="e.g. Ruud Erie or Meridian Property Group"
                                 prop:value=move || display_name.get()
                                 on:input=move |e| display_name.set(event_target_value(&e))/>
@@ -413,14 +428,20 @@ pub fn LandlordWizard() -> impl IntoView {
                             <button type="button"
                                 class=move || if account_type.get() == "individual" { "wiz-oc sel" } else { "wiz-oc" }
                                 on:click=move |_| account_type.set("individual".into())>
-                                <span class="ms msf">"person"</span>
+                                <div class="wiz-oc-row">
+                                    <span class="ms msf">"person"</span>
+                                    <div class="wiz-oc-chk"></div>
+                                </div>
                                 <div class="wiz-oc-label">"Individual"</div>
                                 <div class="wiz-oc-desc">"I manage properties personally"</div>
                             </button>
                             <button type="button"
                                 class=move || if account_type.get() == "company" { "wiz-oc sel" } else { "wiz-oc" }
                                 on:click=move |_| account_type.set("company".into())>
-                                <span class="ms msf">"apartment"</span>
+                                <div class="wiz-oc-row">
+                                    <span class="ms msf">"apartment"</span>
+                                    <div class="wiz-oc-chk"></div>
+                                </div>
                                 <div class="wiz-oc-label">"Company / LLC"</div>
                                 <div class="wiz-oc-desc">"I operate under a business entity"</div>
                             </button>
@@ -432,7 +453,7 @@ pub fn LandlordWizard() -> impl IntoView {
             // ── Step 2: Portfolio Setup ─────────────────────────────────────
             <Show when=move || current_idx.get() == 1>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                    <div class="wiz-s-badge">
                         <span class="ms" style="font-size:13px;">"apartment"</span>
                         "Step 2 of 5"
                     </div>
@@ -453,10 +474,13 @@ pub fn LandlordWizard() -> impl IntoView {
                                 <select class="wiz-inp"
                                     prop:value=move || country.get()
                                     on:change=move |e| country.set(event_target_value(&e))>
-                                    <option value="US">"United States"</option>
-                                    <option value="CA">"Canada"</option>
-                                    <option value="GB">"United Kingdom"</option>
-                                    <option value="BR">"Brazil"</option>
+                                    <option value="US">"🇺🇸 United States"</option>
+                                    <option value="CA">"🇨🇦 Canada"</option>
+                                    <option value="GB">"🇬🇧 United Kingdom"</option>
+                                    <option value="FR">"🇫🇷 France"</option>
+                                    <option value="BR">"🇧🇷 Brazil"</option>
+                                    <option value="PT">"🇵🇹 Portugal"</option>
+                                    <option value="OTHER">"🌍 Other"</option>
                                 </select>
                             </div>
                             <div class="wiz-f">
@@ -464,11 +488,11 @@ pub fn LandlordWizard() -> impl IntoView {
                                 <select class="wiz-inp"
                                     prop:value=move || currency.get()
                                     on:change=move |e| currency.set(event_target_value(&e))>
-                                    <option value="USD">"USD – US Dollar"</option>
-                                    <option value="CAD">"CAD – Dollar"</option>
-                                    <option value="EUR">"EUR – Euro"</option>
-                                    <option value="GBP">"GBP – Pound"</option>
-                                    <option value="BRL">"BRL – Real"</option>
+                                    <option value="USD">"USD - US Dollar"</option>
+                                    <option value="CAD">"CAD - Dollar"</option>
+                                    <option value="EUR">"EUR - Euro"</option>
+                                    <option value="GBP">"GBP - Pound"</option>
+                                    <option value="BRL">"BRL - Real"</option>
                                 </select>
                             </div>
                         </div>
@@ -477,16 +501,19 @@ pub fn LandlordWizard() -> impl IntoView {
                             <select class="wiz-inp"
                                 prop:value=move || portfolio_size.get()
                                 on:change=move |e| portfolio_size.set(event_target_value(&e))>
-                                <option value="1-5">"1–5 units"</option>
-                                <option value="6-25">"6–25 units"</option>
-                                <option value="26-100">"26–100 units"</option>
+                                <option value="1-5">"1-5 units"</option>
+                                <option value="6-25">"6-25 units"</option>
+                                <option value="26-100">"26-100 units"</option>
                                 <option value="100+">"100+ units"</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="wiz-card">
-                        <div class="wiz-ct">"Portfolio Type"</div>
+                        <div class="wiz-ct">
+                            "Portfolio Type "
+                            <span class="wiz-ct-hint">"Select all that apply"</span>
+                        </div>
                         <div class="wiz-og wiz-og3">
                             <button type="button"
                                 class=move || if type_ltr.get() { "wiz-oc sel" } else { "wiz-oc" }
@@ -517,7 +544,7 @@ pub fn LandlordWizard() -> impl IntoView {
             // ── Step 3: First Property ──────────────────────────────────────
             <Show when=move || current_idx.get() == 2>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                    <div class="wiz-s-badge">
                         <span class="ms" style="font-size:13px;">"home"</span>
                         "Step 3 of 5"
                     </div>
@@ -554,10 +581,14 @@ pub fn LandlordWizard() -> impl IntoView {
                                     on:input=move |e| prop_postal.set(event_target_value(&e))/>
                             </div>
                             <div class="wiz-f">
-                                <label class="wiz-label">"Property Name (optional)"</label>
-                                <input class="wiz-inp" type="text" placeholder="The Meridian"
-                                    prop:value=move || prop_name.get()
-                                    on:input=move |e| prop_name.set(event_target_value(&e))/>
+                                <label class="wiz-label">"Country"</label>
+                                <select class="wiz-inp"
+                                    prop:value=move || prop_country.get()
+                                    on:change=move |e| prop_country.set(event_target_value(&e))>
+                                    <option value="US">"🇺🇸 United States"</option>
+                                    <option value="CA">"🇨🇦 Canada"</option>
+                                    <option value="GB">"🇬🇧 United Kingdom"</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -615,29 +646,19 @@ pub fn LandlordWizard() -> impl IntoView {
                                 prop:value=move || monthly_rent.get()
                                 on:input=move |e| monthly_rent.set(event_target_value(&e))/>
                         </div>
-                        <div class="wiz-tr">
-                            <div>
-                                <div class="wiz-tr-label">"STR Eligible"</div>
-                                <div class="wiz-tr-desc">"Allow short-term bookings on this property"</div>
-                            </div>
-                            <button type="button"
-                                class=move || if str_eligible.get() { "wiz-toggle on" } else { "wiz-toggle" }
-                                on:click=move |_| str_eligible.update(|v| *v = !*v)
-                            ></button>
-                        </div>
                     </div>
                 </div>
             </Show>
 
-            // ── Step 4: Workspace Settings ──────────────────────────────────
+            // ── Step 4: Workspace & Invites ─────────────────────────────────
             <Show when=move || current_idx.get() == 3>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                    <div class="wiz-s-badge">
                         <span class="ms" style="font-size:13px;">"settings"</span>
                         "Step 4 of 5"
                     </div>
                     <h1 class="wiz-s-title">"Workspace Settings"</h1>
-                    <p class="wiz-s-sub">"Configure notifications, invite your team, and choose platform features. Adjustable any time."</p>
+                    <p class="wiz-s-sub">"Configure notifications, invite landlords and contractors you trust, and choose platform features. Adjustable any time."</p>
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"Notifications"</div>
@@ -693,16 +714,21 @@ pub fn LandlordWizard() -> impl IntoView {
                                     AngleCard {
                                         icon: "apartment",
                                         title: "Fellow landlords & owners",
-                                        body: "Share Folio with owners in your circle so you can coordinate vendors and compare notes.",
+                                        body: "Share Folio with owners in your circle so you can coordinate vendors and compare notes on the same platform.",
+                                        benefit_icon: Some("group_add"),
+                                        benefit_label: Some("Stronger owner network"),
                                     },
                                     AngleCard {
                                         icon: "handyman",
                                         title: "Trusted contractors",
-                                        body: "Invite your plumber, HVAC tech, or cleaner. Dispatch and invoice live on Folio next time.",
+                                        body: "Invite your plumber, HVAC tech, or cleaner. Next time you need work done, dispatch and invoice live on Folio.",
+                                        benefit_icon: Some("bolt"),
+                                        benefit_label: Some("Faster maintenance"),
                                     },
                                 ]
                                 section_title="Grow your network".to_string()
-                                footnote="Folio works better with people you already trust. Skip if you like. Invite anytime from your dashboard.".to_string()
+                                intro="Folio works better with people you already trust. Invite them now if you like. You can always do this later from your dashboard.".to_string()
+                                footnote="They'll get a personal invite link into Folio, pre-linked to you where it makes sense.".to_string()
                                 show_history=false
                             />
                         }
@@ -737,52 +763,88 @@ pub fn LandlordWizard() -> impl IntoView {
             // ── Step 5: Ready to Launch ─────────────────────────────────────
             <Show when=move || current_idx.get() == 4>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(16,185,129,.1); color:#059669;">
+                    <div class="wiz-s-badge wiz-s-badge-done">
                         <span class="ms msf" style="font-size:13px;">"check_circle"</span>
                         "All done!"
                     </div>
                     <h1 class="wiz-s-title">"You're ready to launch"</h1>
                     <p class="wiz-s-sub">"Your Folio workspace is configured. Here's what you can do first."</p>
 
-                    <div class="wiz-card" style="background:linear-gradient(135deg,#0f1117 0%,#1a1b2e 100%);color:#fff;border:none;">
-                        <div style="text-align:center;padding:12px 0 4px;">
-                            <div style="width:68px;height:68px;background:rgba(16,185,129,.12);border:2px solid rgba(16,185,129,.35);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
-                                <span class="ms msf" style="font-size:32px;color:#10b981;">"verified"</span>
+                    <div class="wiz-done-card">
+                        <div class="wiz-done-inner">
+                            <div class="wiz-done-ico">
+                                <span class="ms msf">"verified"</span>
                             </div>
-                            <div style="font-size:22px;font-weight:800;margin-bottom:6px;">"Workspace ready"</div>
-                            <div style="font-size:13px;color:rgba(255,255,255,.55);">
+                            <div class="wiz-done-h">"Workspace ready"</div>
+                            <div class="wiz-done-p">
                                 {move || {
                                     let brand = business_name.get();
-                                    let brand = if brand.trim().is_empty() { "Your portfolio".to_string() } else { brand };
-                                    format!("{brand} · 1 property")
+                                    let brand = if brand.trim().is_empty() {
+                                        "Your portfolio".to_string()
+                                    } else {
+                                        brand
+                                    };
+                                    let mode = if type_str.get() && type_ltr.get() {
+                                        "LTR + STR enabled"
+                                    } else if type_str.get() {
+                                        "STR enabled"
+                                    } else {
+                                        "LTR enabled"
+                                    };
+                                    format!("{brand} · 1 property · {mode}")
                                 }}
+                            </div>
+                            <div class="wiz-stats">
+                                <div class="wiz-stat">
+                                    <div class="wiz-stat-v">"1"</div>
+                                    <div class="wiz-stat-l">"Properties"</div>
+                                </div>
+                                <div class="wiz-stat">
+                                    <div class="wiz-stat-v">"0"</div>
+                                    <div class="wiz-stat-l">"Tenants"</div>
+                                </div>
+                                <div class="wiz-stat">
+                                    <div class="wiz-stat-v">"0"</div>
+                                    <div class="wiz-stat-l">"Open Items"</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"What to do next"</div>
-                        <div class="wiz-na-row">
+                        <a class="wiz-na-row" href="/l/leases/new">
                             <span class="ms msf" style="font-size:28px;color:#6366f1;">"description"</span>
-                            <div>
-                                <div style="font-size:14px;font-weight:600;">"Create a lease"</div>
-                                <div style="font-size:12px;color:#64748b;">"Add a tenant to your first property"</div>
+                            <div class="wiz-na-text">
+                                <div class="wiz-na-label">"Create a lease"</div>
+                                <div class="wiz-na-desc">"Add a tenant to your first property"</div>
                             </div>
-                        </div>
-                        <div class="wiz-na-row">
-                            <span class="ms msf" style="font-size:28px;color:#10b981;">"add_home"</span>
-                            <div>
-                                <div style="font-size:14px;font-weight:600;">"Add more properties"</div>
-                                <div style="font-size:12px;color:#64748b;">"Import from CSV or add individually"</div>
+                            <span class="ms wiz-na-arrow">"arrow_forward"</span>
+                        </a>
+                        <a class="wiz-na-row" href="/l/team">
+                            <span class="ms msf" style="font-size:28px;color:#10b981;">"handyman"</span>
+                            <div class="wiz-na-text">
+                                <div class="wiz-na-label">"Invite a trusted contractor"</div>
+                                <div class="wiz-na-desc">"Get your plumber or HVAC tech onto Folio"</div>
                             </div>
-                        </div>
-                        <div class="wiz-na-row">
+                            <span class="ms wiz-na-arrow">"arrow_forward"</span>
+                        </a>
+                        <a class="wiz-na-row" href="/l/team">
+                            <span class="ms msf" style="font-size:28px;color:#a78bfa;">"group_add"</span>
+                            <div class="wiz-na-text">
+                                <div class="wiz-na-label">"Invite another landlord"</div>
+                                <div class="wiz-na-desc">"Share Folio with an owner in your circle"</div>
+                            </div>
+                            <span class="ms wiz-na-arrow">"arrow_forward"</span>
+                        </a>
+                        <a class="wiz-na-row" href="/l">
                             <span class="ms msf" style="font-size:28px;color:#f59e0b;">"dashboard"</span>
-                            <div>
-                                <div style="font-size:14px;font-weight:600;">"Explore your dashboard"</div>
-                                <div style="font-size:12px;color:#64748b;">"See your full portfolio at a glance"</div>
+                            <div class="wiz-na-text">
+                                <div class="wiz-na-label">"Explore your dashboard"</div>
+                                <div class="wiz-na-desc">"See your full portfolio at a glance"</div>
                             </div>
-                        </div>
+                            <span class="ms wiz-na-arrow">"arrow_forward"</span>
+                        </a>
                     </div>
                 </div>
             </Show>

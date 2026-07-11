@@ -90,6 +90,17 @@ pub struct WizardStepDesc {
     pub skippable: bool,
 }
 
+/// Per-step left-rail copy (stitch `ctx` array). When provided, the shell
+/// renders step-aware tag + icon + headline/body/bullets instead of a static
+/// persona pill.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct WizardCtxStep {
+    pub glyph: &'static str,
+    pub headline: &'static str,
+    pub body: &'static str,
+    pub bullets: &'static [&'static str],
+}
+
 // ── WizardShell component ─────────────────────────────────────────────────────
 
 /// Shared split-panel wizard shell.
@@ -101,8 +112,11 @@ pub struct WizardStepDesc {
 /// - `persona_icon` — Material Symbol name (filled), e.g. "apartment"
 /// - `accent_color` — CSS color for pill / icon accent, e.g. "#0284c7"
 /// - `panel_bg`    — dark panel background, e.g. "#0e1c36"
-/// - `ctx_headline` — context panel headline
-/// - `ctx_body`    — context panel body text / feature list (any view)
+/// - `ctx_headline` — context panel headline (ignored when `ctx_steps` is set)
+/// - `ctx_body`    — context panel body text / feature list (ignored when `ctx_steps` is set)
+/// - `ctx_steps`   — optional per-step left-rail copy (stitch parity)
+/// - `progress_label` — sidebar progress heading (default "Setup progress")
+/// - `nav_detail` — optional topnav suffix when authenticated (e.g. "5 steps, ~4 min")
 /// - `invite_code`  — resolved invite code signal (or None)
 /// - `on_next` / `on_prev` — navigation callbacks
 /// - `is_last_step` — if true, Next becomes primary CTA
@@ -119,6 +133,14 @@ pub fn WizardShell(
     panel_bg: &'static str,
     ctx_headline: &'static str,
     #[prop(into)] ctx_body: ViewFn,
+    /// Stitch-style per-step context. When set, replaces persona pill + static headline/body.
+    #[prop(optional)]
+    ctx_steps: Option<Vec<WizardCtxStep>>,
+    #[prop(optional)]
+    progress_label: Option<&'static str>,
+    /// Shown in topnav after persona name when authenticated, e.g. "5 steps, ~4 min".
+    #[prop(optional)]
+    nav_detail: Option<&'static str>,
     #[prop(optional)] invite_code: Option<RwSignal<Option<ResolvedInviteCode>>>,
     /// Set this signal to receive the verified email from the OTP pre-step.
     /// If the user was already authenticated, it is populated from the session.
@@ -132,6 +154,10 @@ pub fn WizardShell(
 ) -> impl IntoView {
     let total = steps.len();
     let steps_store = StoredValue::new(steps);
+    let children_store = StoredValue::new(children);
+    let ctx_steps_store = StoredValue::new(ctx_steps);
+    let progress_label = progress_label.unwrap_or("Setup progress");
+    let nav_detail = nav_detail;
 
     // ── Pre-auth phase ─────────────────────────────────────────────────────────
     // For unauthenticated users (cold QR scan / direct mail), we show an email + OTP
@@ -139,6 +165,8 @@ pub fn WizardShell(
 
     // Whether the pre-auth step has been completed (either via OTP or existing session)
     let pre_auth_done: RwSignal<bool> = RwSignal::new(false);
+    // False until the mount session probe finishes — prevents OTP flash for authed users.
+    let session_checked: RwSignal<bool> = RwSignal::new(false);
 
     // Local OTP flow state
     let otp_email: RwSignal<String> = RwSignal::new(String::new());
@@ -148,23 +176,30 @@ pub fn WizardShell(
     let otp_verifying: RwSignal<bool> = RwSignal::new(false);
     let otp_error: RwSignal<Option<String>> = RwSignal::new(None);
 
-    // On mount: check if user already has a session
+    // On mount: resolve session before painting OTP or wizard steps.
+    // Fresh magic-link users often have a valid cookie while /api/folio/me is still
+    // 403 (no Folio role yet) — peek_auth_session covers that case.
     let session_email_sig = session_email;
     Effect::new(move |_| {
         let se = session_email_sig;
         leptos::task::spawn_local(async move {
             match crate::auth::get_session().await {
                 Ok(info) => {
-                    // Already authenticated — skip pre-auth, populate email
                     if let Some(sig) = se {
                         sig.set(Some(info.email));
                     }
                     pre_auth_done.set(true);
                 }
                 Err(_) => {
-                    // Not authenticated — pre-auth step will render
+                    if let Ok(peek) = crate::auth::peek_auth_session().await {
+                        if let Some(sig) = se {
+                            sig.set(Some(peek.email));
+                        }
+                        pre_auth_done.set(true);
+                    }
                 }
             }
+            session_checked.set(true);
         });
     });
 
@@ -237,9 +272,8 @@ pub fn WizardShell(
     });
 
     let panel_style = format!(
-        "background:{panel_bg}; color:#fff; width:360px; min-width:280px; \
-         max-width:360px; overflow-y:auto; position:relative; display:flex; \
-         flex-direction:column; padding:36px 28px; flex-shrink:0;",
+        "background:{panel_bg}; color:#fff; overflow-y:auto; position:relative; \
+         display:flex; flex-direction:column; padding:40px 32px;",
     );
 
     let pill_style = format!(
@@ -264,17 +298,31 @@ pub fn WizardShell(
                 <span class="wiz-logo-name">"Folio"</span>
             </div>
             <div class="wiz-nav-center">
-                {persona_pill}" Setup \u{b7} "
-                <strong>
-                    {move || {
-                        if !pre_auth_done.get() {
-                            "Verify email".to_string()
-                        } else {
-                            let idx = current_idx.get();
-                            format!("Step {} of {}", idx + 1, total)
-                        }
-                    }}
-                </strong>
+                {move || {
+                    if !session_checked.get() {
+                        return view! {
+                            <span>{persona_pill}" Setup"</span>
+                        }.into_any();
+                    }
+                    if !pre_auth_done.get() {
+                        return view! {
+                            <span>{persona_pill}" Setup \u{b7} "<strong>"Verify email"</strong></span>
+                        }.into_any();
+                    }
+                    if let Some(detail) = nav_detail {
+                        view! {
+                            <span><strong>{persona_pill}" Setup"</strong>" \u{b7} "{detail}</span>
+                        }.into_any()
+                    } else {
+                        let idx = current_idx.get();
+                        view! {
+                            <span>
+                                {persona_pill}" Setup \u{b7} "
+                                <strong>{format!("Step {} of {}", idx + 1, total)}</strong>
+                            </span>
+                        }.into_any()
+                    }
+                }}
             </div>
             <a href="/dashboard" class="wiz-exit">
                 <span class="ms">"close"</span>
@@ -288,8 +336,8 @@ pub fn WizardShell(
             // ── Context panel ─────────────────────────────────────────────────
             <aside class="wiz-ctx" style=panel_style>
                 <div class="wiz-ctx-glow" style=format!(
-                    "background: radial-gradient(ellipse at 80% 0%, {}44 0%, transparent 55%), \
-                                 radial-gradient(ellipse at 10% 90%, rgba(16,185,129,.18) 0%, transparent 50%);",
+                    "background: radial-gradient(ellipse at 70% 0%, {}47 0%, transparent 60%), \
+                                 radial-gradient(ellipse at 20% 95%, rgba(16,185,129,.16) 0%, transparent 50%);",
                     accent_color
                 )></div>
                 <div class="wiz-ctx-inner">
@@ -347,6 +395,35 @@ pub fn WizardShell(
                                     </div>
                                 </div>
                             }.into_any()
+                        } else if ctx_steps_store.with_value(|c| c.is_some()) {
+                            let idx = if pre_auth_done.get() { current_idx.get() } else { 0 };
+                            let step = ctx_steps_store.with_value(|c| {
+                                c.as_ref().and_then(|steps| steps.get(idx).copied())
+                            });
+                            if let Some(step) = step {
+                                let tag = if pre_auth_done.get() {
+                                    format!("Step {} of {}", idx + 1, total)
+                                } else {
+                                    "Verify email".to_string()
+                                };
+                                view! {
+                                    <div>
+                                        <div class="wiz-ctx-tag">{tag}</div>
+                                        <div class="wiz-ctx-icon">
+                                            <span class="ms msf">{step.glyph}</span>
+                                        </div>
+                                        <h2 class="wiz-ctx-h">{step.headline}</h2>
+                                        <p class="wiz-ctx-p">{step.body}</p>
+                                        <ul class="wiz-ctx-list">
+                                            {step.bullets.iter().map(|b| view! {
+                                                <li><span class="ms msf">"check_circle"</span>{*b}</li>
+                                            }).collect_view()}
+                                        </ul>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! { <span></span> }.into_any()
+                            }
                         } else {
                             // Generic persona copy from caller
                             view! {
@@ -366,7 +443,7 @@ pub fn WizardShell(
 
                     // Step navigation (always shown)
                     <div class="wiz-ctx-div"></div>
-                    <div class="wiz-nav-label">"Setup progress"</div>
+                    <div class="wiz-nav-label">{progress_label}</div>
                     <div class="wiz-ctx-steps">
                         {steps_store.with_value(|steps| {
                             steps.iter().enumerate().map(|(i, step)| {
@@ -394,48 +471,123 @@ pub fn WizardShell(
 
             // ── Form panel ────────────────────────────────────────────────────
             <main class="wiz-fp">
-                // Show pre-auth step when user has no session yet.
-                // On success, pre_auth_done flips to true and the wizard renders.
                 <Show
-                    when=move || pre_auth_done.get()
+                    when=move || session_checked.get()
                     fallback=move || {
-                        // ── Pre-auth step (email → OTP) ──────────────────────
                         view! {
-                            <div class="pre-auth-wrap">
-                                <Show when=move || !otp_sent.get() fallback=move || {
-                                    // ── Sub-step 2: Enter OTP code ───────────
-                                    view! {
+                            <div class="pre-auth-wrap wiz-session-loading">
+                                <div class="pre-auth-card pre-auth-card--quiet">
+                                    <div class="pre-auth-header">
+                                        <span class="ms msf pre-auth-ico">"hourglass_empty"</span>
+                                        <div class="pre-auth-title">"Preparing your setup"</div>
+                                        <div class="pre-auth-sub">"Just a moment…"</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                >
+                    <Show
+                        when=move || pre_auth_done.get()
+                        fallback=move || {
+                            // ── Pre-auth step (email → OTP) ──────────────────
+                            view! {
+                                <div class="pre-auth-wrap">
+                                    <Show when=move || !otp_sent.get() fallback=move || {
+                                        // ── Sub-step 2: Enter OTP code ───────
+                                        view! {
+                                            <div class="pre-auth-card">
+                                                <div class="pre-auth-header">
+                                                    <span class="ms msf pre-auth-ico">"mark_email_read"</span>
+                                                    <div class="pre-auth-title">"Check your email"</div>
+                                                    <div class="pre-auth-sub">
+                                                        "We sent a 6-digit code to "
+                                                        <strong>{move || otp_email.get()}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="pre-auth-body">
+                                                    <label class="pre-auth-label">"Verification code"</label>
+                                                    <input
+                                                        id="otp-code-input"
+                                                        type="text"
+                                                        inputmode="numeric"
+                                                        autocomplete="one-time-code"
+                                                        placeholder="000 000"
+                                                        maxlength="7"
+                                                        class="pre-auth-input pre-auth-code"
+                                                        prop:value=move || otp_code.get()
+                                                        on:input=move |ev| {
+                                                            otp_code.set(event_target_value(&ev));
+                                                        }
+                                                        on:keydown=move |ev| {
+                                                            if ev.key() == "Enter" {
+                                                                let email = verify_email_clone.get();
+                                                                let code  = verify_code_clone.get();
+                                                                if !code.trim().is_empty() {
+                                                                    otp_error.set(None);
+                                                                    otp_verifying.set(true);
+                                                                    verify_action.dispatch((email, code));
+                                                                }
+                                                            }
+                                                        }
+                                                    />
+                                                    {move || otp_error.get().map(|e| view! {
+                                                        <div class="pre-auth-error">{e}</div>
+                                                    })}
+                                                    <button
+                                                        id="otp-verify-btn"
+                                                        class="pre-auth-btn"
+                                                        on:click=on_verify
+                                                        disabled=move || otp_verifying.get()
+                                                    >
+                                                        {move || if otp_verifying.get() {
+                                                            "Verifying…".to_string()
+                                                        } else {
+                                                            "Verify & Continue →".to_string()
+                                                        }}
+                                                    </button>
+                                                    <button
+                                                        class="pre-auth-link"
+                                                        on:click=move |_| {
+                                                            otp_sent.set(false);
+                                                            otp_code.set(String::new());
+                                                            otp_error.set(None);
+                                                        }
+                                                    >
+                                                        "← Change email"
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                    }>
+                                        // ── Sub-step 1: Enter email ───────────
                                         <div class="pre-auth-card">
                                             <div class="pre-auth-header">
-                                                <span class="ms msf pre-auth-ico">"mark_email_read"</span>
-                                                <div class="pre-auth-title">"Check your email"</div>
+                                                <span class="ms msf pre-auth-ico">"person_add"</span>
+                                                <div class="pre-auth-title">"Let's get you set up"</div>
                                                 <div class="pre-auth-sub">
-                                                    "We sent a 6-digit code to "
-                                                    <strong>{move || otp_email.get()}</strong>
+                                                    "Enter your email — we'll send you a quick verification code"
                                                 </div>
                                             </div>
                                             <div class="pre-auth-body">
-                                                <label class="pre-auth-label">"Verification code"</label>
+                                                <label class="pre-auth-label" for="otp-email-input">"Email address"</label>
                                                 <input
-                                                    id="otp-code-input"
-                                                    type="text"
-                                                    inputmode="numeric"
-                                                    autocomplete="one-time-code"
-                                                    placeholder="000 000"
-                                                    maxlength="7"
-                                                    class="pre-auth-input pre-auth-code"
-                                                    prop:value=move || otp_code.get()
+                                                    id="otp-email-input"
+                                                    type="email"
+                                                    autocomplete="email"
+                                                    placeholder="you@example.com"
+                                                    class="pre-auth-input"
+                                                    prop:value=move || otp_email.get()
                                                     on:input=move |ev| {
-                                                        otp_code.set(event_target_value(&ev));
+                                                        otp_email.set(event_target_value(&ev));
                                                     }
                                                     on:keydown=move |ev| {
                                                         if ev.key() == "Enter" {
-                                                            let email = verify_email_clone.get();
-                                                            let code  = verify_code_clone.get();
-                                                            if !code.trim().is_empty() {
+                                                            let email = send_email_clone.get();
+                                                            if !email.trim().is_empty() {
                                                                 otp_error.set(None);
-                                                                otp_verifying.set(true);
-                                                                verify_action.dispatch((email, code));
+                                                                otp_sending.set(true);
+                                                                send_action.dispatch(email);
                                                             }
                                                         }
                                                     }
@@ -444,120 +596,65 @@ pub fn WizardShell(
                                                     <div class="pre-auth-error">{e}</div>
                                                 })}
                                                 <button
-                                                    id="otp-verify-btn"
+                                                    id="otp-send-btn"
                                                     class="pre-auth-btn"
-                                                    on:click=on_verify
-                                                    disabled=move || otp_verifying.get()
+                                                    on:click=on_send
+                                                    disabled=move || otp_sending.get()
                                                 >
-                                                    {move || if otp_verifying.get() {
-                                                        "Verifying…".to_string()
+                                                    {move || if otp_sending.get() {
+                                                        "Sending…".to_string()
                                                     } else {
-                                                        "Verify & Continue →".to_string()
+                                                        "Send Code →".to_string()
                                                     }}
                                                 </button>
-                                                <button
-                                                    class="pre-auth-link"
-                                                    on:click=move |_| {
-                                                        otp_sent.set(false);
-                                                        otp_code.set(String::new());
-                                                        otp_error.set(None);
-                                                    }
-                                                >
-                                                    "← Change email"
-                                                </button>
+                                                <div class="pre-auth-footer-note">
+                                                    "Already have an account? "
+                                                    <a href="/login" class="pre-auth-link-inline">"Sign in →"</a>
+                                                </div>
                                             </div>
                                         </div>
-                                    }
-                                }>
-                                    // ── Sub-step 1: Enter email ───────────────
-                                    <div class="pre-auth-card">
-                                        <div class="pre-auth-header">
-                                            <span class="ms msf pre-auth-ico">"person_add"</span>
-                                            <div class="pre-auth-title">"Let's get you set up"</div>
-                                            <div class="pre-auth-sub">
-                                                "Enter your email — we'll send you a quick verification code"
-                                            </div>
-                                        </div>
-                                        <div class="pre-auth-body">
-                                            <label class="pre-auth-label" for="otp-email-input">"Email address"</label>
-                                            <input
-                                                id="otp-email-input"
-                                                type="email"
-                                                autocomplete="email"
-                                                placeholder="you@example.com"
-                                                class="pre-auth-input"
-                                                prop:value=move || otp_email.get()
-                                                on:input=move |ev| {
-                                                    otp_email.set(event_target_value(&ev));
-                                                }
-                                                on:keydown=move |ev| {
-                                                    if ev.key() == "Enter" {
-                                                        let email = send_email_clone.get();
-                                                        if !email.trim().is_empty() {
-                                                            otp_error.set(None);
-                                                            otp_sending.set(true);
-                                                            send_action.dispatch(email);
-                                                        }
-                                                    }
-                                                }
-                                            />
-                                            {move || otp_error.get().map(|e| view! {
-                                                <div class="pre-auth-error">{e}</div>
-                                            })}
-                                            <button
-                                                id="otp-send-btn"
-                                                class="pre-auth-btn"
-                                                on:click=on_send
-                                                disabled=move || otp_sending.get()
-                                            >
-                                                {move || if otp_sending.get() {
-                                                    "Sending…".to_string()
-                                                } else {
-                                                    "Send Code →".to_string()
-                                                }}
-                                            </button>
-                                            <div class="pre-auth-footer-note">
-                                                "Already have an account? "
-                                                <a href="/auth/login" class="pre-auth-link-inline">"Sign in →"</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Show>
-                            </div>
+                                    </Show>
+                                </div>
+                            }
                         }
-                    }
-                >
-                    // ── Normal wizard content (authenticated) ─────────────────
-                    <div class="wiz-fi">
-                        {children()}
-                    </div>
-                    // ── Sticky footer ─────────────────────────────────────────
-                    <footer class="wiz-ftr">
-                        <div class="wiz-ftr-in">
-                            <div class="wiz-step-ind">
-                                "Step " <strong>{move || current_idx.get() + 1}</strong>
-                                " of " <strong>{total}</strong>
-                            </div>
-                            <div class="wiz-btn-g">
-                                <Show when=move || { current_idx.get() > 0 }>
-                                    <button class="wiz-btn wiz-btn-ghost" on:click=move |_| on_prev.run(())>
-                                        <span class="ms">"arrow_back"</span>
-                                        "Back"
-                                    </button>
-                                </Show>
-                                <button
-                                    class=move || {
-                                        if is_last_step.get() { "wiz-btn wiz-btn-success" }
-                                        else { "wiz-btn wiz-btn-primary" }
-                                    }
-                                    on:click=move |_| on_next.run(())
-                                >
-                                    {move || next_label.get()}
-                                    <span class="ms">"arrow_forward"</span>
-                                </button>
-                            </div>
+                    >
+                        // ── Normal wizard content (authenticated) ─────────────
+                        <div class="wiz-fi">
+                            {children_store.with_value(|children| children())}
                         </div>
-                    </footer>
+                        // ── Sticky footer ─────────────────────────────────────
+                        <footer class="wiz-ftr">
+                            <div class="wiz-ftr-in">
+                                <div class="wiz-step-ind">
+                                    "Step " <strong>{move || current_idx.get() + 1}</strong>
+                                    " of " <strong>{total}</strong>
+                                </div>
+                                <div class="wiz-btn-g">
+                                    <Show when=move || { current_idx.get() > 0 }>
+                                        <button class="wiz-btn wiz-btn-ghost" on:click=move |_| on_prev.run(())>
+                                            <span class="ms">"arrow_back"</span>
+                                            "Back"
+                                        </button>
+                                    </Show>
+                                    <button
+                                        class=move || {
+                                            if is_last_step.get() { "wiz-btn wiz-btn-success" }
+                                            else { "wiz-btn wiz-btn-primary" }
+                                        }
+                                        on:click=move |_| on_next.run(())
+                                    >
+                                        <Show when=move || is_last_step.get()>
+                                            <span class="ms msf">"rocket_launch"</span>
+                                        </Show>
+                                        {move || next_label.get()}
+                                        <Show when=move || !is_last_step.get()>
+                                            <span class="ms">"arrow_forward"</span>
+                                        </Show>
+                                    </button>
+                                </div>
+                            </div>
+                        </footer>
+                    </Show>
                 </Show>
             </main>
 
@@ -585,27 +682,27 @@ const WIZARD_CSS: &str = r#"
 html, body { height: 100%; }
 body { font-family: 'Inter', sans-serif; margin: 0; }
 
-/* Topnav */
+/* Topnav — stitch wiz_landlord_onboard tokens */
 .wiz-nav {
-    background: #fff; border-bottom: 1px solid #e2e8f0;
+    background: #fff; border-bottom: 1px solid #e5e7eb;
     height: 56px; padding: 0 24px;
     display: flex; align-items: center; justify-content: space-between;
     position: sticky; top: 0; z-index: 100; flex-shrink: 0;
 }
 .wiz-logo { display: flex; align-items: center; gap: 10px; }
 .wiz-logo-mark {
-    width: 32px; height: 32px; background: #0f172a;
+    width: 32px; height: 32px; background: #111827;
     border-radius: 8px; display: flex; align-items: center; justify-content: center;
 }
-.wiz-logo-name { font-size: 15px; font-weight: 700; letter-spacing: -.02em; color: #0f172a; }
-.wiz-nav-center { font-size: 13px; color: #64748b; }
-.wiz-nav-center strong { color: #0f172a; }
+.wiz-logo-name { font-size: 15px; font-weight: 700; letter-spacing: -.02em; color: #111827; }
+.wiz-nav-center { font-size: 13px; color: #6b7280; text-align: center; }
+.wiz-nav-center strong { color: #111827; }
 .wiz-exit {
     display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: #64748b; text-decoration: none;
+    font-size: 13px; color: #6b7280; text-decoration: none;
     padding: 6px 10px; border-radius: 8px; transition: .15s;
 }
-.wiz-exit:hover { background: #f4f6fb; color: #0f172a; }
+.wiz-exit:hover { background: #f4f6f9; color: #111827; }
 
 /* Split */
 .wiz-split {
@@ -614,7 +711,7 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 }
 
 /* Context panel */
-.wiz-ctx { position: relative; }
+.wiz-ctx { position: relative; min-width: 0; }
 .wiz-ctx-glow {
     position: absolute; inset: 0; pointer-events: none;
 }
@@ -622,19 +719,45 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
     position: relative; z-index: 1;
     display: flex; flex-direction: column; height: 100%;
 }
+.wiz-ctx-tag {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .1em; color: rgba(255,255,255,.4); margin-bottom: 28px;
+}
+.wiz-ctx-icon {
+    width: 52px; height: 52px;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+}
+.wiz-ctx-icon .ms { font-size: 24px; color: rgba(255,255,255,.9); }
 .wiz-ctx-h {
-    font-size: 20px; font-weight: 800;
+    font-size: 20px; font-weight: 800; line-height: 1.3;
     letter-spacing: -.02em; margin-bottom: 8px;
 }
-.wiz-ctx-div { height: 1px; background: rgba(255,255,255,.08); margin: 18px 0; }
+.wiz-ctx-p {
+    font-size: 13px; line-height: 1.7;
+    color: rgba(255,255,255,.5); margin-bottom: 28px;
+}
+.wiz-ctx-list {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.wiz-ctx-list li {
+    display: flex; align-items: flex-start; gap: 9px;
+    font-size: 13px; color: rgba(255,255,255,.6); line-height: 1.5;
+}
+.wiz-ctx-list .ms {
+    font-size: 17px; color: #10b981; flex-shrink: 0; margin-top: 1px;
+}
+.wiz-ctx-div { height: 1px; background: rgba(255,255,255,.08); margin: 28px 0; }
 .wiz-nav-label {
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: .1em; color: rgba(255,255,255,.3); margin-bottom: 14px;
 }
 .wiz-ctx-steps { display: flex; flex-direction: column; gap: 7px; }
 .wiz-ctx-si {
     display: flex; align-items: center; gap: 11px;
-    font-size: 13px; color: rgba(255,255,255,.3);
+    font-size: 13px; color: rgba(255,255,255,.3); transition: .2s;
 }
 .wiz-ctx-si.done  { color: rgba(255,255,255,.6); }
 .wiz-ctx-si.active { color: #fff; font-weight: 600; }
@@ -642,13 +765,13 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
     width: 22px; height: 22px; border-radius: 50%;
     border: 1.5px solid rgba(255,255,255,.2);
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    font-size: 11px; font-weight: 700; flex-shrink: 0; transition: .2s;
 }
 .wiz-ctx-si.done .wiz-ctx-num {
     background: #10b981; border-color: #10b981;
 }
 .wiz-ctx-si.active .wiz-ctx-num {
-    background: #fff; border-color: #fff; color: #0f172a;
+    background: #fff; border-color: #fff; color: #111827;
 }
 
 /* Invite resolved card */
@@ -685,26 +808,28 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 /* Form panel */
 .wiz-fp {
     overflow-y: auto; display: flex; flex-direction: column;
-    background: #f4f6fb;
-    min-height: 0; /* required for overflow-y scroll inside CSS grid */
+    background: #f4f6f9;
+    min-height: 0;
+    min-width: 0;
 }
 .wiz-fi {
-    flex: 1; max-width: 640px; width: 100%;
+    flex: 1; max-width: 620px; width: 100%;
     margin: 0 auto; padding: 44px 28px 120px;
+    box-sizing: border-box;
 }
 
 /* Footer */
 .wiz-ftr {
     position: sticky; bottom: 0;
-    background: #fff; border-top: 1px solid #e2e8f0;
+    background: #fff; border-top: 1px solid #e5e7eb;
     padding: 14px 28px;
 }
 .wiz-ftr-in {
-    max-width: 640px; width: 100%; margin: 0 auto;
+    max-width: 620px; width: 100%; margin: 0 auto;
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.wiz-step-ind { font-size: 13px; color: #64748b; }
-.wiz-step-ind strong { color: #0f172a; }
+.wiz-step-ind { font-size: 13px; color: #6b7280; }
+.wiz-step-ind strong { color: #111827; }
 .wiz-btn-g { display: flex; gap: 10px; }
 .wiz-btn {
     display: inline-flex; align-items: center; gap: 7px;
@@ -714,51 +839,74 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 }
 .wiz-btn .ms { font-size: 18px; }
 .wiz-btn-ghost {
-    background: none; color: #64748b;
-    border: 1.5px solid #cbd5e1;
+    background: none; color: #6b7280;
+    border: 1.5px solid #d1d5db;
 }
-.wiz-btn-ghost:hover { background: #f4f6fb; color: #0f172a; }
-.wiz-btn-primary { background: #0f172a; color: #fff; }
-.wiz-btn-primary:hover { background: #1e293b; }
+.wiz-btn-ghost:hover { background: #f4f6f9; color: #111827; }
+.wiz-btn-primary { background: #111827; color: #fff; }
+.wiz-btn-primary:hover { background: #1f2937; }
+.wiz-btn-primary:active,
+.wiz-btn-success:active,
+.wiz-btn-ghost:active {
+    transform: scale(0.97);
+    transition: transform 100ms ease-out;
+}
 .wiz-btn-success { background: #10b981; color: #fff; }
 .wiz-btn-success:hover { background: #059669; }
 
 /* Form primitives */
 .wiz-card {
-    background: #fff; border: 1px solid #e2e8f0;
+    background: #fff; border: 1px solid #e5e7eb;
     border-radius: 12px; padding: 22px;
-    margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.07);
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
 }
 .wiz-ct {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .07em; color: #64748b; margin-bottom: 18px;
+    letter-spacing: .07em; color: #6b7280; margin-bottom: 18px;
+}
+.wiz-ct-hint {
+    font-size: 10px; color: #9ca3af; text-transform: none;
+    letter-spacing: 0; font-weight: 400; margin-left: 4px;
 }
 .wiz-f { margin-bottom: 16px; }
 .wiz-f:last-child { margin-bottom: 0; }
 .wiz-label {
     display: block; font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .06em;
-    color: #64748b; margin-bottom: 5px;
+    color: #6b7280; margin-bottom: 5px;
+}
+.wiz-label-hint {
+    font-size: 10px; color: #9ca3af; text-transform: none;
+    letter-spacing: 0; font-weight: 400;
 }
 .wiz-inp {
-    width: 100%; background: #f4f6fb;
-    border: 1.5px solid #cbd5e1; border-radius: 8px;
+    width: 100%; background: #f4f6f9;
+    border: 1.5px solid #d1d5db; border-radius: 8px;
     padding: 10px 13px; font-size: 14px;
-    font-family: 'Inter', sans-serif; color: #0f172a;
+    font-family: 'Inter', sans-serif; color: #111827;
     outline: none; transition: .15s; box-sizing: border-box;
 }
 .wiz-inp:focus {
-    border-color: #0284c7;
-    box-shadow: 0 0 0 3px rgba(2,132,199,.1);
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.1);
 }
-.wiz-inp::placeholder { color: #94a3b8; }
+.wiz-inp::placeholder { color: #9ca3af; }
+select.wiz-inp {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 34px;
+    cursor: pointer;
+}
 .wiz-inp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .wiz-toggle {
     position: relative; width: 42px; height: 23px; flex-shrink: 0;
-    background: #cbd5e1; border-radius: 12px; border: none; cursor: pointer;
+    background: #d1d5db; border-radius: 12px; border: none; cursor: pointer;
     transition: .2s; padding: 0;
 }
-.wiz-toggle.on { background: #0284c7; }
+.wiz-toggle.on { background: #6366f1; }
 .wiz-toggle::after {
     content: ''; position: absolute; width: 17px; height: 17px; background: #fff;
     border-radius: 50%; top: 3px; left: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.2);
@@ -769,46 +917,119 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 .wiz-og2 { grid-template-columns: 1fr 1fr; }
 .wiz-og3 { grid-template-columns: 1fr 1fr 1fr; }
 .wiz-oc {
-    border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 13px 15px;
+    border: 1.5px solid #d1d5db; border-radius: 8px; padding: 13px 15px;
     cursor: pointer; transition: .15s; display: flex; flex-direction: column; gap: 7px;
     background: #fff; text-align: left; font-family: inherit; color: inherit;
 }
-.wiz-oc:hover { border-color: #0284c7; background: rgba(2,132,199,.03); }
-.wiz-oc.sel { border-color: #0284c7; background: rgba(2,132,199,.06); }
-.wiz-oc .ms { font-size: 22px; color: #64748b; }
-.wiz-oc.sel .ms { color: #0284c7; }
+.wiz-oc:hover { border-color: #6366f1; background: rgba(99,102,241,.03); }
+.wiz-oc.sel { border-color: #6366f1; background: rgba(99,102,241,.06); }
+.wiz-oc .ms { font-size: 22px; color: #6b7280; }
+.wiz-oc.sel .ms { color: #6366f1; }
+.wiz-oc-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.wiz-oc-chk {
+    width: 18px; height: 18px; border: 1.5px solid #d1d5db; border-radius: 50%;
+    margin-left: auto; display: flex; align-items: center; justify-content: center;
+    transition: .15s; flex-shrink: 0;
+}
+.wiz-oc.sel .wiz-oc-chk { background: #6366f1; border-color: #6366f1; }
+.wiz-oc.sel .wiz-oc-chk::after {
+    content: ''; width: 6px; height: 6px; background: #fff; border-radius: 50%;
+}
 .wiz-oc-label { font-size: 13px; font-weight: 600; }
-.wiz-oc-desc { font-size: 12px; color: #64748b; line-height: 1.4; }
+.wiz-oc-desc { font-size: 12px; color: #6b7280; line-height: 1.4; }
 .wiz-tr {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 13px 0; border-bottom: 1px solid #e2e8f0;
+    padding: 13px 0; border-bottom: 1px solid #e5e7eb;
 }
 .wiz-tr:last-child { border-bottom: none; padding-bottom: 0; }
 .wiz-tr:first-child { padding-top: 0; }
-.wiz-tr-label { font-size: 14px; font-weight: 500; color: #0f172a; }
-.wiz-tr-desc { font-size: 12px; color: #64748b; margin-top: 1px; }
+.wiz-tr-label { font-size: 14px; font-weight: 500; color: #111827; }
+.wiz-tr-desc { font-size: 12px; color: #6b7280; margin-top: 1px; }
+
+/* Avatar upload */
+.wiz-av-up {
+    display: flex; align-items: center; gap: 18px; padding: 18px;
+    background: #f4f6f9; border: 1.5px dashed #d1d5db; border-radius: 12px;
+    cursor: pointer; transition: .15s;
+}
+.wiz-av-up:hover { border-color: #6366f1; background: rgba(99,102,241,.03); }
+.wiz-av-circle {
+    width: 60px; height: 60px;
+    background: linear-gradient(135deg,#6366f1,#4f46e5);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.wiz-av-label { font-size: 14px; font-weight: 600; margin-bottom: 2px; color: #111827; }
+.wiz-av-hint { font-size: 12px; color: #6b7280; }
+
+/* Completion */
+.wiz-done-card {
+    background: linear-gradient(135deg,#0f1117 0%,#1a1b2e 100%);
+    color: #fff; border-radius: 12px; padding: 36px 28px; text-align: center;
+    position: relative; overflow: hidden; margin-bottom: 14px;
+}
+.wiz-done-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%,rgba(99,102,241,.3) 0%,transparent 65%);
+}
+.wiz-done-inner { position: relative; z-index: 1; }
+.wiz-done-ico {
+    width: 68px; height: 68px;
+    background: rgba(16,185,129,.12); border: 2px solid rgba(16,185,129,.35);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px;
+}
+.wiz-done-ico .ms { font-size: 32px; color: #10b981; }
+.wiz-done-h { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 6px; }
+.wiz-done-p { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.6; }
+.wiz-stats {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+    margin-top: 22px;
+}
+.wiz-stat {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; padding: 14px; text-align: center;
+}
+.wiz-stat-v { font-size: 20px; font-weight: 800; }
+.wiz-stat-l { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 2px; }
+
 .wiz-na-row {
     display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-    border: 1.5px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px;
+    border: 1.5px solid #d1d5db; border-radius: 8px; margin-bottom: 10px;
+    cursor: pointer; transition: .15s; text-decoration: none; color: inherit;
 }
+.wiz-na-row:hover { border-color: #6366f1; background: rgba(99,102,241,.03); }
 .wiz-na-row:last-child { margin-bottom: 0; }
+.wiz-na-text { flex: 1; min-width: 0; }
+.wiz-na-label { font-size: 14px; font-weight: 600; color: #111827; }
+.wiz-na-desc { font-size: 12px; color: #6b7280; margin-top: 1px; }
+.wiz-na-arrow { margin-left: auto; color: #9ca3af; flex-shrink: 0; }
 .wiz-pay-option {
     display: flex; align-items: center; gap: 12px; padding: 14px;
-    border: 1.5px solid #e2e8f0; border-radius: 8px;
+    border: 1.5px solid #e5e7eb; border-radius: 8px;
 }
 .wiz-s-badge {
     display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(99,102,241,.08); color: #6366f1;
     font-size: 11px; font-weight: 700; text-transform: uppercase;
     letter-spacing: .08em; padding: 4px 10px; border-radius: 20px;
     margin-bottom: 14px;
 }
+.wiz-s-badge-done {
+    background: rgba(16,185,129,.1); color: #059669;
+}
 .wiz-s-title {
     font-size: 26px; font-weight: 800;
-    letter-spacing: -.03em; margin-bottom: 6px; color: #0f172a;
+    letter-spacing: -.03em; margin-bottom: 6px; color: #111827;
 }
 .wiz-s-sub {
-    font-size: 14px; color: #64748b;
+    font-size: 14px; color: #6b7280;
     line-height: 1.6; margin-bottom: 32px;
+}
+.wiz-error-banner {
+    display: flex; align-items: center; gap: 8px;
+    background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;
 }
 
 /* Animation */
@@ -818,6 +1039,19 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 }
 .wiz-anim { animation: wiz-slide .2s ease; }
 
+@media (prefers-reduced-motion: reduce) {
+    .wiz-anim {
+        animation: none;
+        transition: opacity 200ms ease;
+    }
+    .wiz-btn-primary:active,
+    .wiz-btn-success:active,
+    .wiz-btn-ghost:active,
+    .pre-auth-btn:active {
+        transform: none;
+    }
+}
+
 /* Responsive */
 @media (max-width: 900px) {
     .wiz-split {
@@ -825,13 +1059,23 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
         height: auto; overflow: visible;
     }
     .wiz-ctx { display: none; }
-    .wiz-fp { min-height: 100svh; }
+    .wiz-fp { min-height: calc(100svh - 56px); }
     .wiz-fi { padding: 28px 18px 120px; max-width: 100%; }
     .wiz-ftr { padding: 12px 18px; }
+    .wiz-og3 { grid-template-columns: 1fr 1fr; }
+    .pre-auth-wrap {
+        min-height: calc(100svh - 56px);
+        padding: 24px 16px;
+    }
+    .pre-auth-input { font-size: 16px; }
 }
 @media (max-width: 520px) {
-    .wiz-inp-row { grid-template-columns: 1fr; }
+    .wiz-inp-row, .wiz-og2, .wiz-og3 { grid-template-columns: 1fr; }
     .wiz-s-title { font-size: 22px; }
+    .wiz-stats { grid-template-columns: 1fr 1fr; }
+    .pre-auth-card { border-radius: 16px; }
+    .pre-auth-header { padding: 28px 20px 20px; }
+    .pre-auth-body { padding: 20px; }
 }
 "#;
 
@@ -839,10 +1083,12 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 
 const PRE_AUTH_CSS: &str = r#"
 .pre-auth-wrap {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    width: 100%;
+    min-height: 0;
     padding: 32px 24px;
     box-sizing: border-box;
 }
@@ -855,11 +1101,16 @@ const PRE_AUTH_CSS: &str = r#"
     overflow: hidden;
     box-shadow: 0 4px 24px rgba(0,0,0,.06);
 }
+.pre-auth-card--quiet .pre-auth-body { display: none; }
 .pre-auth-header {
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
     padding: 32px 28px 24px;
     text-align: center;
+}
+.pre-auth-card--quiet .pre-auth-header {
+    border-bottom: none;
+    padding-bottom: 32px;
 }
 .pre-auth-ico {
     font-size: 44px;
@@ -928,10 +1179,11 @@ const PRE_AUTH_CSS: &str = r#"
     font-weight: 700;
     font-family: 'Inter', sans-serif;
     cursor: pointer;
-    transition: background .15s;
+    transition: background .15s, transform 100ms ease-out;
     margin-top: 4px;
 }
 .pre-auth-btn:hover:not(:disabled) { background: #4f46e5; }
+.pre-auth-btn:active:not(:disabled) { transform: scale(0.97); }
 .pre-auth-btn:disabled { opacity: .6; cursor: default; }
 .pre-auth-error {
     font-size: 13px;

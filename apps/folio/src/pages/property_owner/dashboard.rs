@@ -100,12 +100,16 @@ pub fn PropertyOwnerDashboard() -> impl IntoView {
                             icon: "apartment",
                             title: "Other owners & landlords",
                             body: "Share Folio with owners in your circle so they can track value and vendors the same way you do.",
-                        },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                         AngleCard {
                             icon: "handyman",
                             title: "Vendors you recommend",
                             body: "Invite a contractor you trust. The next job stays on Folio with shared history and reviews.",
-                        },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                     ]
                     show_history=true
                 />

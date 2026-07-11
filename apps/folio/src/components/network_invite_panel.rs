@@ -31,6 +31,8 @@ pub struct AngleCard {
     pub icon: &'static str,
     pub title: &'static str,
     pub body: &'static str,
+    pub benefit_icon: Option<&'static str>,
+    pub benefit_label: Option<&'static str>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -211,6 +213,7 @@ pub fn NetworkInvitePanel(
     #[prop(optional, into)] section_title: Option<String>,
     #[prop(optional, into)] footnote: Option<String>,
     #[prop(optional, into)] send_label: Option<String>,
+    #[prop(optional, into)] intro: Option<String>,
 ) -> impl IntoView {
     let actor_role_c = actor_role.clone();
     let preferred_slug_send = RwSignal::new(preferred_slug);
@@ -269,6 +272,7 @@ pub fn NetworkInvitePanel(
     let send_btn = send_label.unwrap_or_else(|| "Send invites".into());
     let footnote_text = footnote
         .unwrap_or_else(|| "Optional. You can invite people anytime from your dashboard.".into());
+    let intro_text = intro;
 
     let on_send = move |_| {
         let pending: Vec<(String, String)> = rows
@@ -382,13 +386,27 @@ pub fn NetworkInvitePanel(
 
             <div class="ni-card">
                 <div class="ni-ct">{title}</div>
+                {intro_text.map(|t| view! { <p class="ni-intro">{t}</p> })}
                 <div class="ni-angles">
-                    {angles.into_iter().map(|a| view! {
-                        <div class="ni-angle">
-                            <span class="ms msf ni-angle-ico">{a.icon}</span>
-                            <div class="ni-angle-h">{a.title}</div>
-                            <div class="ni-angle-p">{a.body}</div>
-                        </div>
+                    {angles.into_iter().map(|a| {
+                        let benefit_icon = a.benefit_icon;
+                        let benefit_label = a.benefit_label;
+                        view! {
+                            <div class="ni-angle">
+                                <span class="ms msf ni-angle-ico">{a.icon}</span>
+                                <div class="ni-angle-h">{a.title}</div>
+                                <div class="ni-angle-p">{a.body}</div>
+                                {match (benefit_icon, benefit_label) {
+                                    (Some(ico), Some(lab)) => view! {
+                                        <div class="ni-benefit">
+                                            <span class="ms" style="font-size:14px;">{ico}</span>
+                                            {lab}
+                                        </div>
+                                    }.into_any(),
+                                    _ => view! { <span></span> }.into_any(),
+                                }}
+                            </div>
+                        }
                     }).collect_view()}
                 </div>
 
@@ -433,7 +451,7 @@ pub fn NetworkInvitePanel(
                                             }));
                                         }>
                                         <span class="ms">"add"</span>
-                                        "Add another"
+                                        "Add another invite"
                                     </button>
                                 </Show>
 
@@ -568,35 +586,39 @@ fn InviteRowEditor(
 const NI_CSS: &str = r#"
 .ni-panel{margin-top:4px}
 .ni-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.ni-stat{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.ni-stat-v{font-size:22px;font-weight:800}.ni-stat-l{font-size:12px;color:#64748b;margin-top:2px}
-.ni-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:22px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.ni-ct{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:14px}
-.ni-angles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.ni-angle{border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;background:#f8fafc}
-.ni-angle-ico{font-size:22px;color:#0284c7;display:block;margin-bottom:6px}
-.ni-angle-h{font-size:13px;font-weight:700;margin-bottom:4px}
-.ni-angle-p{font-size:12px;color:#64748b;line-height:1.45}
-.ni-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-.ni-chip{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:8px;padding:9px 12px}
-.ni-chip input{border:none;background:none;outline:none;font:inherit;font-size:14px;flex:1;min-width:0}
-.ni-select{background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;font-size:14px;min-width:140px}
+.ni-stat{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ni-stat-v{font-size:22px;font-weight:800}.ni-stat-l{font-size:12px;color:#6b7280;margin-top:2px}
+.ni-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:22px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05)}
+.ni-ct{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:14px}
+.ni-intro{font-size:13px;color:#6b7280;margin-bottom:14px;line-height:1.55}
+.ni-angles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.ni-angle{border:1.5px solid #d1d5db;border-radius:8px;padding:14px;background:#f4f6f9}
+.ni-angle-ico{font-size:22px;color:#6366f1;display:block;margin-bottom:8px}
+.ni-angle-h{font-size:13px;font-weight:700;margin-bottom:4px;color:#111827}
+.ni-angle-p{font-size:12px;color:#6b7280;line-height:1.45}
+.ni-benefit{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#6366f1;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:20px;margin-top:10px}
+.ni-row{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.ni-chip{flex:1;min-width:180px;display:flex;align-items:center;gap:10px;background:#f4f6f9;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 13px}
+.ni-chip .ms{font-size:17px;color:#6b7280}
+.ni-chip input{border:none;background:none;outline:none;font:inherit;font-size:14px;flex:1;min-width:0;color:#111827}
+.ni-select{background:#f4f6f9;border:1.5px solid #d1d5db;border-radius:8px;padding:10px 12px;font:inherit;font-size:14px;min-width:150px;width:150px;flex-shrink:0}
 .ni-remove{background:none;border:none;cursor:pointer;color:#94a3b8;padding:6px;display:inline-flex}
 .ni-remove:hover{color:#be123c}
-.ni-add{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#0284c7;background:none;border:none;cursor:pointer;padding:4px 0;margin-bottom:12px;font-family:inherit}
+.ni-add{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#6366f1;background:none;border:none;cursor:pointer;padding:4px 0;margin-bottom:0;font-family:inherit}
+.ni-add .ms{font-size:17px}
 .ni-note{margin-bottom:14px}
-.ni-note label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:5px}
-.ni-textarea{width:100%;min-height:72px;resize:vertical;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:8px;padding:10px 12px;font:inherit;font-size:14px}
-.ni-btn{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:10px 16px;border-radius:8px;border:none;cursor:pointer;background:#0f172a;color:#fff;font-family:inherit}
+.ni-note label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;margin-bottom:5px}
+.ni-textarea{width:100%;min-height:72px;resize:vertical;background:#f4f6f9;border:1.5px solid #d1d5db;border-radius:8px;padding:10px 12px;font:inherit;font-size:14px}
+.ni-btn{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:10px 16px;border-radius:8px;border:none;cursor:pointer;background:#111827;color:#fff;font-family:inherit}
 .ni-btn:disabled{opacity:.6;cursor:default}
-.ni-muted{font-size:12px;color:#94a3b8}
+.ni-muted{font-size:12px;color:#9ca3af;margin-top:12px}
 .ni-status{font-size:13px;color:#047857;margin-top:8px}
 .ni-history{margin-top:0}
 .ni-table{width:100%;border-collapse:collapse;font-size:13px}
-.ni-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;padding:0 0 8px;border-bottom:1px solid #e2e8f0}
-.ni-table td{padding:10px 0;border-bottom:1px solid #e2e8f0;vertical-align:middle}
+.ni-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;padding:0 0 8px;border-bottom:1px solid #e5e7eb}
+.ni-table td{padding:10px 0;border-bottom:1px solid #e5e7eb;vertical-align:middle}
 .ni-pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700}
-.ni-pill-sent{background:rgba(2,132,199,.1);color:#0284c7}
+.ni-pill-sent{background:rgba(99,102,241,.1);color:#6366f1}
 .ni-pill-joined{background:rgba(245,158,11,.12);color:#b45309}
 .ni-pill-done{background:rgba(16,185,129,.12);color:#047857}
 @media(max-width:600px){.ni-angles,.ni-stats{grid-template-columns:1fr}}

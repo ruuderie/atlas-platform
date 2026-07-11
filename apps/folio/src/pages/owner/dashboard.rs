@@ -41,12 +41,16 @@ pub fn OwnerDashboard() -> impl IntoView {
                                 icon: "star",
                                 title: "Other managed owners",
                                 body: "Fellow investors get the same visibility into statements and approvals.",
-                            },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                             AngleCard {
                                 icon: "apartment",
                                 title: "Self-managed landlords",
                                 body: "Share Folio with landlords who still track rent in spreadsheets.",
-                            },
+                                        benefit_icon: None,
+                                        benefit_label: None,
+                                    },
                         ]
                         allow_multi=false
                         send_label="Send invite".to_string()

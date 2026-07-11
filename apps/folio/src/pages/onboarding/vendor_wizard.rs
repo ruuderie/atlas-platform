@@ -582,11 +582,15 @@ pub fn VendorWizard() -> impl IntoView {
                                         icon: "home_work",
                                         title: "Past clients & owners",
                                         body: "Invite an owner from a recent job to log the work, request a review, and stay visible for the next dispatch.",
+                                        benefit_icon: None,
+                                        benefit_label: None,
                                     },
                                     AngleCard {
                                         icon: "engineering",
                                         title: "Other contractors",
                                         body: "Invite trades you trust. When a job needs a second specialty, refer each other inside Folio.",
+                                        benefit_icon: None,
+                                        benefit_label: None,
                                     },
                                 ]
                                 section_title="Send invites".to_string()

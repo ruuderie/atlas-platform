@@ -250,6 +250,61 @@ pub async fn get_session() -> Result<SessionInfo, ServerFnError> {
     res
 }
 
+/// Minimal auth identity for flows that run *before* Folio RBAC exists.
+///
+/// Fresh magic-link users often have a valid `session` cookie but
+/// `GET /api/folio/me` returns 403 (no tenant / folio role yet). Landlord
+/// onboarding must still treat them as authenticated and skip the OTP gate.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthPeek {
+    pub email: String,
+}
+
+/// Peek a valid platform session without requiring Folio RBAC.
+/// Uses `GET /api/auth/session/validate` (works with cookie alone).
+#[server(PeekAuthSession, "/api")]
+pub async fn peek_auth_session() -> Result<AuthPeek, ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token =
+        extract_bearer_token(&headers).ok_or_else(|| ServerFnError::new("No session token"))?;
+
+    #[cfg(feature = "ssr")]
+    {
+        #[derive(Deserialize)]
+        struct ValidateUser {
+            email: String,
+        }
+        #[derive(Deserialize)]
+        struct ValidateResp {
+            user: Option<ValidateUser>,
+        }
+
+        let resp = crate::atlas_client::authenticated_get::<ValidateResp>(
+            "/api/auth/session/validate",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| ServerFnError::new(format!("Session peek failed: {e}")))?;
+
+        let email = resp
+            .user
+            .map(|u| u.email)
+            .filter(|e| !e.is_empty())
+            .ok_or_else(|| ServerFnError::new("Session has no email"))?;
+
+        Ok(AuthPeek { email })
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = token;
+        Err(ServerFnError::new("Client fallback"))
+    }
+}
+
 /// Validate the current session and return the user's Folio identity.
 /// Calls `GET /api/folio/me` on the Atlas backend.
 #[server(CheckSession, "/api")]
