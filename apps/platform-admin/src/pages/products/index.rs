@@ -146,73 +146,79 @@ pub fn PlatformProducts() -> impl IntoView {
                                     let desc_text = p.tagline.clone()
                                         .unwrap_or_else(|| format!("Enterprise-grade service engine for {}.", p.name));
                                     let href = format!("/products/{}", p.id);
+                                    let name = p.name.clone();
 
                                     view! {
                                         <div
                                             class=format!(
-                                                "group relative flex flex-col gap-3 p-5 rounded-2xl border {} {} shadow-sm hover:shadow-md transition-all bg-surface-container-low",
+                                                "group relative flex flex-col gap-3 p-5 rounded-2xl border {} {} shadow-sm hover:shadow-md transition-all bg-surface-container-low product-card-nav",
                                                 accent_bg, accent_border
                                             )
                                         >
-                                            // ── Status badge — absolutely positioned top-right ──
-                                            <div class="flex items-start justify-between gap-2">
-                                                // Product icon dot
-                                                <div class=format!("w-9 h-9 rounded-xl {} flex items-center justify-center shrink-0", accent_bg)>
-                                                    <span class=format!("w-3 h-3 rounded-full {}", accent_dot)></span>
+                                            // Whole-card hit target → product detail (title/desc/stats all navigate)
+                                            <a
+                                                href=href.clone()
+                                                class="absolute inset-0 z-0 rounded-2xl"
+                                                aria-label=format!("Open {}", name)
+                                                style="text-decoration:none"
+                                            ></a>
+                                            <div class="relative z-10 flex flex-col gap-3 pointer-events-none">
+                                                <div class="flex items-start justify-between gap-2">
+                                                    <div class=format!("w-9 h-9 rounded-xl {} flex items-center justify-center shrink-0", accent_bg)>
+                                                        <span class=format!("w-3 h-3 rounded-full {}", accent_dot)></span>
+                                                    </div>
+                                                    <span class=if is_live {
+                                                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0"
+                                                    } else {
+                                                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-outline-variant/20 text-on-surface-variant border border-outline-variant/30 shrink-0"
+                                                    }>
+                                                        {if is_live { "● Live" } else { "○ Draft" }}
+                                                    </span>
                                                 </div>
-                                                // Live/Draft badge
-                                                <span class=if is_live {
-                                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0"
-                                                } else {
-                                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-outline-variant/20 text-on-surface-variant border border-outline-variant/30 shrink-0"
-                                                }>
-                                                    {if is_live { "● Live" } else { "○ Draft" }}
-                                                </span>
-                                            </div>
 
-                                            // ── Product name ──
-                                            <div class="space-y-0.5">
-                                                <p class="text-base font-extrabold text-on-surface leading-tight group-hover:text-primary transition-colors">
-                                                    {p.name.clone()}
+                                                <div class="space-y-0.5">
+                                                    <p class="text-base font-extrabold text-on-surface leading-tight group-hover:text-primary transition-colors">
+                                                        {name}
+                                                    </p>
+                                                    <p class="text-[10px] font-mono text-on-surface-variant/60 truncate">
+                                                        {domain_text}
+                                                    </p>
+                                                </div>
+
+                                                <p class="text-xs text-on-surface-variant/80 leading-relaxed line-clamp-2 flex-1">
+                                                    {desc_text}
                                                 </p>
-                                                <p class="text-[10px] font-mono text-on-surface-variant/60 truncate">
-                                                    {domain_text}
-                                                </p>
-                                            </div>
 
-                                            // ── Description ──
-                                            <p class="text-xs text-on-surface-variant/80 leading-relaxed line-clamp-2 flex-1">
-                                                {desc_text}
-                                            </p>
+                                                <div class="flex items-center gap-4 pt-2 border-t border-outline-variant/10 text-xs">
+                                                    {if p.waitlist_count == 0 && p.pre_order_sold == 0 {
+                                                        view! {
+                                                            <span class="text-on-surface-variant/60 italic">
+                                                                "No leads yet — share your page to start tracking"
+                                                            </span>
+                                                        }.into_any()
+                                                    } else {
+                                                        view! {
+                                                            <span class="text-on-surface-variant">
+                                                                <strong class="text-on-surface font-bold font-mono">{p.waitlist_count}</strong>
+                                                                " leads"
+                                                            </span>
+                                                            <span class="text-on-surface-variant">
+                                                                <strong class="text-on-surface font-bold font-mono">{p.pre_order_sold}</strong>
+                                                                " pre-orders"
+                                                            </span>
+                                                        }.into_any()
+                                                    }}
+                                                </div>
 
-                                            // ── Stats row ──
-                                            <div class="flex items-center gap-4 pt-2 border-t border-outline-variant/10 text-xs">
-                                                {if p.waitlist_count == 0 && p.pre_order_sold == 0 {
-                                                    view! {
-                                                        <span class="text-on-surface-variant/60 italic">
-                                                            "No leads yet — share your page to start tracking"
-                                                        </span>
-                                                    }.into_any()
-                                                } else {
-                                                    view! {
-                                                        <span class="text-on-surface-variant">
-                                                            <strong class="text-on-surface font-bold font-mono">{p.waitlist_count}</strong>
-                                                            " leads"
-                                                        </span>
-                                                        <span class="text-on-surface-variant">
-                                                            <strong class="text-on-surface font-bold font-mono">{p.pre_order_sold}</strong>
-                                                            " pre-orders"
-                                                        </span>
-                                                    }.into_any()
-                                                }}
-                                            </div>
-                                            <div class="flex items-center gap-2 pt-1">
-                                                <a href=href class="btn btn-ghost btn-sm" style="text-decoration:none">
-                                                    "Edit Product"
-                                                </a>
-                                                <a href="/landing-pages" class="btn btn-ghost btn-sm" style="text-decoration:none">
-                                                    "Acquisition Pages →"
-                                                </a>
+                                                // Secondary actions re-enable pointer events (nested links OK vs overlay)
+                                                <div class="flex items-center gap-2 pt-1 pointer-events-auto">
+                                                    <a href=href class="btn btn-ghost btn-sm" style="text-decoration:none">
+                                                        "Edit Product"
+                                                    </a>
+                                                    <a href="/landing-pages" class="btn btn-ghost btn-sm" style="text-decoration:none">
+                                                        "Acquisition Pages →"
+                                                    </a>
+                                                </div>
                                             </div>
                                         </div>
                                     }

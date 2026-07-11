@@ -1436,6 +1436,13 @@ thead th.sortable:hover::after { opacity: 1; }
   position: relative;
   overflow: hidden;
 }
+.product-card-nav {
+  cursor: pointer;
+  transition: transform 0.1s ease-out, box-shadow 0.15s ease-out, border-color 0.15s;
+}
+.product-card-nav:active {
+  transform: scale(0.99);
+}
 .product-card:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
 .product-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
 .pc-folio::before { background: var(--cobalt); }
