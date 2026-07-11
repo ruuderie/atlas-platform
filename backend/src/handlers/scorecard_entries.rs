@@ -6,32 +6,55 @@
 //! GET    /api/scorecard-templates?app_instance_id=&is_published=
 //!        -> 200 [TemplateListItem] — deployed+enabled for the instance
 //!
+//! GET    /api/scorecard-templates/:template_id
+//!        -> 200 TemplateDetailView — deployed+enabled detail (Configurator)
+//!
+//! PATCH  /api/scorecard-templates/:template_id
+//!        Body: { display_config?, description? }
+//!        -> 200 TemplateDetailView
+//!        -> 403 if template_scope / is_published / entity_type present
+//!
+//! GET    /api/scorecard-templates/:template_id/display-rules
+//!        -> 200 [DisplayRuleView] (empty array for Starter tenants)
+//!
+//! POST   /api/scorecard-templates/:template_id/display-rules
+//!        Body: CreateTenantDisplayRuleInput (template_id from path)
+//!        -> 201 DisplayRuleView
+//!
+//! PATCH  /api/scorecard-display-rules/:id
+//!        Body: UpdateTenantDisplayRuleInput
+//!        -> 200 DisplayRuleView
+//!
+//! DELETE /api/scorecard-display-rules/:id
+//!        -> 204 (soft-delete: is_active = false)
+//!
 //! PATCH  /api/scorecard-entries/:entry_id/verify
 //!        Body: { "confirmed": bool }
 //!        -> 204 on success
 //!        -> 404 if entry not found / wrong tenant
-//!
-//! GET    /api/scorecard-templates/:template_id/display-rules
-//!        -> 200 [DisplayRuleModel] (empty array for Starter tenants)
 //! ```
 
 use axum::{
     extract::{Extension, Path, Query, Json},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::{get, patch, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
+use sea_orm::{ActiveModelTrait, Set};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::user;
+use crate::entities::{
+    atlas_scorecard_display_rule as display_rules, atlas_scorecard_template as templates, user,
+};
 use crate::services::scorecard_service::ScorecardService;
 use crate::types::pm::TemplateScope;
 use crate::types::scorecard::{
-    ModeScope, RatingSessionStatus, RuleAction, RuleOperator, ScaleType, SessionType, SourceType,
-    TriggerCategory,
+    ColdStartStrategy, ModeScope, RatingSessionStatus, RuleAction, RuleOperator, ScaleType,
+    ScoringMethod, SessionType, SourceType, TriggerCategory,
 };
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -41,6 +64,10 @@ pub fn routes() -> Router<sea_orm::DatabaseConnection> {
         .route(
             "/api/scorecard-templates",
             get(list_deployed_templates),
+        )
+        .route(
+            "/api/scorecard-templates/{template_id}",
+            get(get_deployed_template).patch(patch_deployed_template),
         )
         .route(
             "/api/scorecards/get-or-create",
@@ -68,7 +95,11 @@ pub fn routes() -> Router<sea_orm::DatabaseConnection> {
         )
         .route(
             "/api/scorecard-templates/{template_id}/display-rules",
-            get(get_display_rules_for_session),
+            get(get_display_rules_for_session).post(create_tenant_display_rule),
+        )
+        .route(
+            "/api/scorecard-display-rules/{id}",
+            patch(update_tenant_display_rule).delete(delete_tenant_display_rule),
         )
 }
 
@@ -95,6 +126,45 @@ pub struct TemplateListItem {
     /// Alias of `is_published` for Folio Meridian deserializers that expect `is_active`.
     pub is_active: bool,
     pub template_scope: TemplateScope,
+}
+
+/// Full template detail for TenantAdmin Configurator (deployed+enabled only).
+#[derive(Debug, Serialize)]
+pub struct TemplateDetailView {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub name: String,
+    pub entity_type: String,
+    pub description: Option<String>,
+    pub scoring_method: ScoringMethod,
+    pub default_scale_min: Decimal,
+    pub default_scale_max: Decimal,
+    pub min_entries_to_publish: i32,
+    pub is_published: bool,
+    pub template_scope: TemplateScope,
+    pub cold_start_strategy: ColdStartStrategy,
+    pub cold_start_saturation_threshold: i32,
+    pub default_bayesian_prior_weight: Option<Decimal>,
+    pub calibration_minimum_entries: i32,
+    pub display_config: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// TenantAdmin-safe template patch — only `display_config` and `description`.
+///
+/// Presence of locked identity fields (`template_scope`, `is_published`, `entity_type`)
+/// is rejected with 403 so clients cannot silently ignore TenantAdmin locks.
+#[derive(Debug, Deserialize)]
+pub struct TenantUpdateTemplateInput {
+    pub display_config: Option<serde_json::Value>,
+    pub description: Option<String>,
+    /// Forbidden for TenantAdmin — reject if present.
+    pub template_scope: Option<serde_json::Value>,
+    /// Forbidden for TenantAdmin — reject if present.
+    pub is_published: Option<serde_json::Value>,
+    /// Forbidden for TenantAdmin — reject if present.
+    pub entity_type: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,11 +239,47 @@ pub struct VerifyEntryInput {
     pub confirmed: bool,
 }
 
+/// Create display rule (tenant path) — `template_id` comes from the URL path.
+#[derive(Debug, Deserialize)]
+pub struct CreateTenantDisplayRuleInput {
+    pub dimension_id: Option<Uuid>,
+    pub category_target: Option<String>,
+    pub trigger_category: TriggerCategory,
+    pub field_reference: Option<String>,
+    pub operator: RuleOperator,
+    pub value: Option<String>,
+    pub value_list: Option<serde_json::Value>,
+    pub action: RuleAction,
+    pub alert_message: Option<String>,
+    pub mode_scope: Option<ModeScope>,
+    pub priority: Option<i32>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateTenantDisplayRuleInput {
+    pub dimension_id: Option<Uuid>,
+    pub category_target: Option<String>,
+    pub trigger_category: Option<TriggerCategory>,
+    pub field_reference: Option<String>,
+    pub operator: Option<RuleOperator>,
+    pub value: Option<String>,
+    pub value_list: Option<serde_json::Value>,
+    pub action: Option<RuleAction>,
+    pub alert_message: Option<String>,
+    pub mode_scope: Option<ModeScope>,
+    pub priority: Option<i32>,
+    pub description: Option<String>,
+    pub is_active: Option<bool>,
+}
+
+/// Tenant-facing display rule view (mirrors admin `DisplayRuleAdminView` with typed enums).
 #[derive(Debug, Serialize)]
-struct DisplayRuleResponse {
+pub struct DisplayRuleView {
     pub id: Uuid,
     pub template_id: Uuid,
     pub dimension_id: Option<Uuid>,
+    pub tenant_id: Uuid,
     pub category_target: Option<String>,
     pub trigger_category: TriggerCategory,
     pub field_reference: Option<String>,
@@ -186,6 +292,8 @@ struct DisplayRuleResponse {
     pub priority: i32,
     pub is_active: bool,
     pub description: Option<String>,
+    pub created_by_user_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -239,6 +347,71 @@ async fn list_deployed_templates(
         .collect();
 
     Ok(axum::response::Json(items))
+}
+
+/// GET /api/scorecard-templates/{template_id}
+///
+/// Returns full template detail for Configurator when the template is
+/// deployed+enabled on the caller's resolved app instance.
+async fn get_deployed_template(
+    Extension(db): Extension<sea_orm::DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    headers: HeaderMap,
+    Query(query): Query<ListTemplatesQuery>,
+    Path(template_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
+    ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
+
+    let template = load_tenant_template(&db, tenant_id, template_id).await?;
+    ensure_template_deployed_enabled(&db, tenant_id, app_instance_id, template_id).await?;
+
+    Ok(Json(template_detail_view(template)?))
+}
+
+/// PATCH /api/scorecard-templates/{template_id}
+///
+/// TenantAdmin-safe update: `display_config` and `description` only.
+/// Attempts to change `template_scope`, `is_published`, or `entity_type` → 403.
+async fn patch_deployed_template(
+    Extension(db): Extension<sea_orm::DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    headers: HeaderMap,
+    Query(query): Query<ListTemplatesQuery>,
+    Path(template_id): Path<Uuid>,
+    Json(input): Json<TenantUpdateTemplateInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
+    ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
+
+    // Reject locked identity fields before any mutation.
+    if input.template_scope.is_some() || input.is_published.is_some() || input.entity_type.is_some()
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let template = load_tenant_template(&db, tenant_id, template_id).await?;
+    ensure_template_deployed_enabled(&db, tenant_id, app_instance_id, template_id).await?;
+
+    let mut am: templates::ActiveModel = template.into();
+    if let Some(v) = input.display_config {
+        am.display_config = Set(Some(v));
+    }
+    if let Some(v) = input.description {
+        am.description = Set(Some(v));
+    }
+    am.updated_at = Set(Utc::now());
+
+    let updated = am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %template_id, "patch_deployed_template error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(template_detail_view(updated)?))
 }
 
 /// POST /api/scorecards/get-or-create
@@ -319,6 +492,7 @@ async fn tenant_open_session(
         input.context_entity_type.as_deref(),
         input.context_entity_id,
         input.session_label.as_deref(),
+        Some(app_instance_id),
     )
     .await
     .map_err(|e| {
@@ -532,15 +706,23 @@ async fn verify_entry(
 /// GET /api/scorecard-templates/:template_id/display-rules
 ///
 /// Returns the active display rules for a template, ordered by priority.
+/// Template must be deployed+enabled on the caller's app instance.
 ///
 /// Starter tenants receive an empty array — all dimensions render
 /// unconditionally for them. The tier gate lives in `ScorecardService::get_display_rules`.
 async fn get_display_rules_for_session(
     Extension(db): Extension<sea_orm::DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
+    headers: HeaderMap,
+    Query(query): Query<ListTemplatesQuery>,
     Path(template_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
+    ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
+    let _ = load_tenant_template(&db, tenant_id, template_id).await?;
+    ensure_template_deployed_enabled(&db, tenant_id, app_instance_id, template_id).await?;
 
     let rules = ScorecardService::get_display_rules(&db, template_id, tenant_id)
         .await
@@ -549,30 +731,163 @@ async fn get_display_rules_for_session(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let response: Vec<DisplayRuleResponse> = rules
+    let response: Vec<DisplayRuleView> = rules
         .into_iter()
-        .filter_map(|r| {
-            Some(DisplayRuleResponse {
-                id: r.id,
-                template_id: r.template_id,
-                dimension_id: r.dimension_id,
-                category_target: r.category_target,
-                trigger_category: TriggerCategory::try_from(r.trigger_category).ok()?,
-                field_reference: r.field_reference,
-                operator: RuleOperator::try_from(r.operator).ok()?,
-                value: r.value,
-                value_list: r.value_list,
-                action: RuleAction::try_from(r.action).ok()?,
-                alert_message: r.alert_message,
-                mode_scope: ModeScope::try_from(r.mode_scope).ok()?,
-                priority: r.priority,
-                is_active: r.is_active,
-                description: r.description,
-            })
-        })
-        .collect();
+        .map(display_rule_view)
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(axum::response::Json(response))
+}
+
+/// POST /api/scorecard-templates/{template_id}/display-rules
+async fn create_tenant_display_rule(
+    Extension(db): Extension<sea_orm::DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    headers: HeaderMap,
+    Query(query): Query<ListTemplatesQuery>,
+    Path(template_id): Path<Uuid>,
+    Json(input): Json<CreateTenantDisplayRuleInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
+    ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
+    let _ = load_tenant_template(&db, tenant_id, template_id).await?;
+    ensure_template_deployed_enabled(&db, tenant_id, app_instance_id, template_id).await?;
+
+    // Basic coherence: dimension_id XOR category_target must be set
+    if input.dimension_id.is_none() && input.category_target.is_none() {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    let new_rule = display_rules::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        template_id: Set(template_id),
+        dimension_id: Set(input.dimension_id),
+        tenant_id: Set(tenant_id),
+        category_target: Set(input.category_target),
+        trigger_category: Set(input.trigger_category.to_string()),
+        field_reference: Set(input.field_reference),
+        operator: Set(input.operator.to_string()),
+        value: Set(input.value),
+        value_list: Set(input.value_list),
+        action: Set(input.action.to_string()),
+        alert_message: Set(input.alert_message),
+        mode_scope: Set(input
+            .mode_scope
+            .unwrap_or(ModeScope::Always)
+            .to_string()),
+        priority: Set(input.priority.unwrap_or(10)),
+        is_active: Set(true),
+        description: Set(input.description),
+        created_by_user_id: Set(Some(current_user.id)),
+        created_at: Set(Utc::now()),
+    };
+
+    let inserted = new_rule.insert(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %template_id, "create_tenant_display_rule error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(display_rule_view(inserted)?),
+    ))
+}
+
+/// PATCH /api/scorecard-display-rules/{id}
+async fn update_tenant_display_rule(
+    Extension(db): Extension<sea_orm::DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    headers: HeaderMap,
+    Query(query): Query<ListTemplatesQuery>,
+    Path(id): Path<Uuid>,
+    Json(input): Json<UpdateTenantDisplayRuleInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
+    ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
+
+    let rule = load_tenant_display_rule(&db, tenant_id, id).await?;
+    ensure_template_deployed_enabled(&db, tenant_id, app_instance_id, rule.template_id).await?;
+
+    let mut am: display_rules::ActiveModel = rule.into();
+
+    if let Some(v) = input.dimension_id {
+        am.dimension_id = Set(Some(v));
+    }
+    if let Some(v) = input.category_target {
+        am.category_target = Set(Some(v));
+    }
+    if let Some(v) = input.trigger_category {
+        am.trigger_category = Set(v.to_string());
+    }
+    if let Some(v) = input.field_reference {
+        am.field_reference = Set(Some(v));
+    }
+    if let Some(v) = input.operator {
+        am.operator = Set(v.to_string());
+    }
+    if let Some(v) = input.value {
+        am.value = Set(Some(v));
+    }
+    if let Some(v) = input.value_list {
+        am.value_list = Set(Some(v));
+    }
+    if let Some(v) = input.action {
+        am.action = Set(v.to_string());
+    }
+    if let Some(v) = input.alert_message {
+        am.alert_message = Set(Some(v));
+    }
+    if let Some(v) = input.mode_scope {
+        am.mode_scope = Set(v.to_string());
+    }
+    if let Some(v) = input.priority {
+        am.priority = Set(v);
+    }
+    if let Some(v) = input.description {
+        am.description = Set(Some(v));
+    }
+    if let Some(v) = input.is_active {
+        am.is_active = Set(v);
+    }
+
+    let updated = am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, rule_id = %id, "update_tenant_display_rule error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(axum::response::Json(display_rule_view(updated)?))
+}
+
+/// DELETE /api/scorecard-display-rules/{id}
+///
+/// Soft-delete: sets `is_active = false`. Hard delete is not exposed.
+async fn delete_tenant_display_rule(
+    Extension(db): Extension<sea_orm::DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    headers: HeaderMap,
+    Query(query): Query<ListTemplatesQuery>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let app_instance_id =
+        resolve_list_app_instance_id(&db, tenant_id, &headers, query.app_instance_id).await?;
+    ensure_instance_belongs_to_tenant(&db, tenant_id, app_instance_id).await?;
+
+    let rule = load_tenant_display_rule(&db, tenant_id, id).await?;
+    ensure_template_deployed_enabled(&db, tenant_id, app_instance_id, rule.template_id).await?;
+
+    let mut am: display_rules::ActiveModel = rule.into();
+    am.is_active = Set(false);
+    am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, rule_id = %id, "delete_tenant_display_rule error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 // ── Tenant / instance resolution helpers ──────────────────────────────────────
@@ -676,6 +991,98 @@ async fn ensure_template_deployed_enabled(
         return Err(StatusCode::FORBIDDEN);
     }
     Ok(())
+}
+
+/// Load a template owned by `tenant_id`, or 404 (no existence leak across tenants).
+async fn load_tenant_template(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: Uuid,
+    template_id: Uuid,
+) -> Result<templates::Model, StatusCode> {
+    use sea_orm::EntityTrait;
+
+    let template = templates::Entity::find_by_id(template_id)
+        .one(db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if template.tenant_id != tenant_id {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(template)
+}
+
+/// Load a display rule owned by `tenant_id`, or 404.
+async fn load_tenant_display_rule(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: Uuid,
+    rule_id: Uuid,
+) -> Result<display_rules::Model, StatusCode> {
+    use sea_orm::EntityTrait;
+
+    let rule = display_rules::Entity::find_by_id(rule_id)
+        .one(db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if rule.tenant_id != tenant_id {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(rule)
+}
+
+fn template_detail_view(t: templates::Model) -> Result<TemplateDetailView, StatusCode> {
+    Ok(TemplateDetailView {
+        id: t.id,
+        tenant_id: t.tenant_id,
+        name: t.name,
+        entity_type: t.entity_type,
+        description: t.description,
+        scoring_method: ScoringMethod::try_from(t.scoring_method)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        default_scale_min: t.default_scale_min,
+        default_scale_max: t.default_scale_max,
+        min_entries_to_publish: t.min_entries_to_publish,
+        is_published: t.is_published,
+        template_scope: TemplateScope::try_from(t.template_scope)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        cold_start_strategy: ColdStartStrategy::try_from(t.cold_start_strategy)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        cold_start_saturation_threshold: t.cold_start_saturation_threshold,
+        default_bayesian_prior_weight: t.default_bayesian_prior_weight,
+        calibration_minimum_entries: t.calibration_minimum_entries,
+        display_config: t.display_config,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+    })
+}
+
+fn display_rule_view(m: display_rules::Model) -> Result<DisplayRuleView, StatusCode> {
+    Ok(DisplayRuleView {
+        id: m.id,
+        template_id: m.template_id,
+        dimension_id: m.dimension_id,
+        tenant_id: m.tenant_id,
+        category_target: m.category_target,
+        trigger_category: TriggerCategory::try_from(m.trigger_category)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        field_reference: m.field_reference,
+        operator: RuleOperator::try_from(m.operator)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        value: m.value,
+        value_list: m.value_list,
+        action: RuleAction::try_from(m.action).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        alert_message: m.alert_message,
+        mode_scope: ModeScope::try_from(m.mode_scope)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+        priority: m.priority,
+        is_active: m.is_active,
+        description: m.description,
+        created_by_user_id: m.created_by_user_id,
+        created_at: m.created_at,
+    })
 }
 
 /// Accept global G-27 entity types plus PM provisioner vocabulary.

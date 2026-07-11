@@ -3,6 +3,7 @@ use leptos_router::components::Outlet;
 use crate::components::nav::{SidebarNav, TENANT_NAV};
 use crate::auth::SessionInfo;
 use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
+use crate::components::scorecard_nudge_host::ScorecardNudgeHost;
 
 /// Persistent shell for all /t/** tenant routes.
 /// Nav items driven by `TENANT_NAV` in `components/nav.rs`.
@@ -47,6 +48,7 @@ pub fn TenantLayout() -> impl IntoView {
                     })}
                 </Suspense>
                 <Outlet/>
+                <ScorecardNudgeHost/>
             </main>
         </div>
     }

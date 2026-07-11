@@ -161,6 +161,7 @@ async fn test_scorecard_open_session_and_submit_entry() {
         None,
         None,
         Some("Q1 qualification call"), // session_label: Option<&str>
+        None, // app_instance_id
     )
     .await
     .expect("open_session failed");
@@ -204,7 +205,7 @@ async fn test_scorecard_submit_entry_is_idempotent_per_contributor() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "review", None, None, None,
+        "review", None, None, None, None,
     ).await.unwrap();
 
     // First submit: OK
@@ -240,7 +241,7 @@ async fn test_recompute_aggregates_smoke() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "inspection", None, None, Some("90-day review"),
+        "inspection", None, None, Some("90-day review"), None,
     ).await.unwrap();
 
     ScorecardService::submit_entry(
@@ -389,7 +390,7 @@ async fn test_verify_entry_confirm() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
-        "call", None, None, None,
+        "call", None, None, None, None,
     ).await.unwrap();
 
     let entry_id = ScorecardService::submit_entry(
@@ -426,7 +427,7 @@ async fn test_verify_entry_reject() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
-        "call", None, None, None,
+        "call", None, None, None, None,
     ).await.unwrap();
 
     let entry_id = ScorecardService::submit_entry(
@@ -463,7 +464,7 @@ async fn test_submit_entry_transcript_inferred_source_type() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
-        "call", None, None, None,
+        "call", None, None, None, None,
     ).await.unwrap();
 
     let entry_id = ScorecardService::submit_entry(
@@ -501,7 +502,7 @@ async fn test_recompute_aggregates_inverted_dimension() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, Uuid::new_v4(), tenant.id, chrono::Utc::now(),
-        "review", None, None, None,
+        "review", None, None, None, None,
     ).await.unwrap();
 
     // Score of 20 (low = good for inverted: churn_rate)
@@ -913,6 +914,7 @@ async fn test_post_checkout_trigger_opens_session_and_submit_updates_aggregates(
     assert_eq!(session.context_entity_type.as_deref(), Some("atlas_reservation"));
     assert_eq!(session.context_entity_id, Some(reservation_id));
     assert_eq!(session.session_type, "stay");
+    assert_eq!(session.app_instance_id, Some(instance_id));
 
     // Submit entry (manual is auto-verified) + recompute → aggregates update
     ScorecardService::submit_entry(
@@ -956,4 +958,69 @@ async fn test_post_checkout_trigger_opens_session_and_submit_updates_aggregates(
         sc.total_entries,
         sc.total_sessions
     );
+}
+
+#[tokio::test]
+async fn test_case_resolved_trigger_opens_contractor_session() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let instance_id = create_test_app_instance(&db, tenant.id, "property_management").await;
+
+    crate::services::pm::scorecard_provisioner::seed_and_deploy_for_folio(&db, tenant.id)
+        .await
+        .expect("seed_and_deploy");
+
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use crate::entities::atlas_scorecard_template as templates;
+    use crate::entities::atlas_rating_session as sessions;
+
+    let contractor_template = templates::Entity::find()
+        .filter(templates::Column::TenantId.eq(tenant.id))
+        .filter(templates::Column::Name.eq("Contractor Performance"))
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("Contractor Performance template");
+
+    let case_id = Uuid::new_v4();
+    let provider_id = Uuid::new_v4();
+    let rater_id = Uuid::new_v4();
+
+    let opened = crate::services::scorecard_triggers::on_case_resolved(
+        &db,
+        tenant.id,
+        instance_id,
+        case_id,
+        provider_id,
+        rater_id,
+    )
+    .await
+    .expect("on_case_resolved");
+
+    assert_eq!(
+        opened.len(),
+        1,
+        "Contractor Performance deployment should open one case_resolved session"
+    );
+    assert_eq!(opened[0].template_id, contractor_template.id);
+
+    let session = sessions::Entity::find_by_id(opened[0].session_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("session row");
+    assert_eq!(session.context_entity_type.as_deref(), Some("atlas_case"));
+    assert_eq!(session.context_entity_id, Some(case_id));
+    assert_eq!(session.session_type, "job");
+    assert_eq!(session.app_instance_id, Some(instance_id));
+    assert_eq!(session.rater_user_id, rater_id);
+
+    use crate::entities::atlas_scorecard as scorecards;
+    let sc = scorecards::Entity::find_by_id(opened[0].scorecard_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("scorecard");
+    assert_eq!(sc.subject_entity_type, "atlas_service_provider");
+    assert_eq!(sc.subject_entity_id, provider_id);
 }

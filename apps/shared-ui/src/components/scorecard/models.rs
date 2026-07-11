@@ -81,6 +81,77 @@ pub enum RenderMode {
     Alert,
 }
 
+/// How dimension scores combine into a composite — mirrors backend `ScoringMethod`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ScoringMethod {
+    #[default]
+    WeightedMean,
+    SimpleMean,
+    PercentileRank,
+}
+
+/// Cold-start display strategy — mirrors backend `ColdStartStrategy`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ColdStartStrategy {
+    #[default]
+    Suppress,
+    Prior,
+    Category,
+}
+
+/// Platform vs tenant template scope — mirrors backend `TemplateScope`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TemplateScope {
+    Platform,
+    #[default]
+    Tenant,
+}
+
+/// Rating session occurrence type — mirrors backend `SessionType`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SessionType {
+    Job,
+    Stay,
+    Visit,
+    EventShift,
+    Purchase,
+    Flight,
+    Meeting,
+    DiscoveryCall,
+    Demo,
+    PipelineReview,
+    Call,
+    EmailThread,
+    TranscriptReview,
+    MonthlyReview,
+    QuarterlyReview,
+}
+
+/// How a scorecard entry was produced — mirrors backend `SourceType`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SourceType {
+    CommunityRating,
+    PeerReview,
+    SelfAssessment,
+    ManagerReview,
+    TestResult,
+    BehavioralSignal,
+    OfficialData,
+    TranscriptInferred,
+    Manual,
+    Inspection,
+}
+
 // ── Configurator mode / save payload ─────────────────────────────────────────
 
 /// Who is editing the template — drives which fields are editable.
@@ -109,14 +180,13 @@ pub struct TemplateForm {
     pub name: String,
     pub entity_type: String,
     pub description: String,
-    pub scoring_method: String,
+    pub scoring_method: ScoringMethod,
     pub default_scale_min: f64,
     pub default_scale_max: f64,
     pub min_entries_to_publish: i32,
     pub is_published: bool,
-    /// `platform` | `tenant` — see docs/contracts/g27_scorecard_platform.md
-    pub template_scope: String,
-    pub cold_start_strategy: String,
+    pub template_scope: TemplateScope,
+    pub cold_start_strategy: ColdStartStrategy,
     pub cold_start_saturation_threshold: i32,
     pub calibration_minimum_entries: i32,
     pub default_bayesian_prior_weight: Option<f64>,
@@ -130,13 +200,13 @@ impl Default for TemplateForm {
             name: String::new(),
             entity_type: "atlas_lead".to_string(),
             description: String::new(),
-            scoring_method: "weighted_mean".to_string(),
+            scoring_method: ScoringMethod::WeightedMean,
             default_scale_min: 1.0,
             default_scale_max: 10.0,
             min_entries_to_publish: 3,
             is_published: false,
-            template_scope: "tenant".to_string(),
-            cold_start_strategy: "suppress".to_string(),
+            template_scope: TemplateScope::Tenant,
+            cold_start_strategy: ColdStartStrategy::Suppress,
             cold_start_saturation_threshold: 50,
             calibration_minimum_entries: 100,
             default_bayesian_prior_weight: None,

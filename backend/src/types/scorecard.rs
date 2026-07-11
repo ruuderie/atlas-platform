@@ -1047,6 +1047,8 @@ pub enum ScorecardEntityType {
     AtlasPortfolio,
     /// G-23 reservation used as rating-session context (e.g. post_checkout).
     AtlasReservation,
+    /// G-13 maintenance case used as rating-session context (e.g. case_resolved).
+    AtlasCase,
     /// Platform-admin pilot: rate a customer tenant as a subject.
     Tenant,
     /// Platform-admin pilot: rate an app instance as a subject.
@@ -1080,6 +1082,7 @@ impl fmt::Display for ScorecardEntityType {
             Self::AtlasContact         => "atlas_contact",
             Self::AtlasPortfolio       => "atlas_portfolio",
             Self::AtlasReservation     => "atlas_reservation",
+            Self::AtlasCase            => "atlas_case",
             Self::Tenant               => "tenant",
             Self::AppInstance          => "app_instance",
             Self::Listing              => "listing",
@@ -1112,6 +1115,7 @@ impl TryFrom<String> for ScorecardEntityType {
             "atlas_contact"         => Ok(Self::AtlasContact),
             "atlas_portfolio"       => Ok(Self::AtlasPortfolio),
             "atlas_reservation"     => Ok(Self::AtlasReservation),
+            "atlas_case"            => Ok(Self::AtlasCase),
             "tenant"                => Ok(Self::Tenant),
             "app_instance"          => Ok(Self::AppInstance),
             "listing"               => Ok(Self::Listing),

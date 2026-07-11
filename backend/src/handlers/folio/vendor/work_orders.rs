@@ -217,11 +217,67 @@ async fn complete_work_order(
 
     let updated = active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // Best-effort G-27 case_resolved sessions for the landlord to rate the contractor.
+    if let Err(e) = trigger_case_resolved_sessions(&db, &updated).await {
+        tracing::warn!(
+            case_id = %updated.id,
+            "case_resolved trigger failed (non-fatal): {e:#}"
+        );
+    }
+
     Ok((StatusCode::OK, Json(serde_json::json!({
         "id": updated.id,
         "status": updated.status,
         "completed_at": updated.completed_at,
     }))))
+}
+
+/// Best-effort G-27 `case_resolved` session open after vendor work-order complete.
+async fn trigger_case_resolved_sessions(
+    db: &DatabaseConnection,
+    case: &atlas_case::Model,
+) -> anyhow::Result<()> {
+    use sea_orm::QueryOrder;
+
+    let Some(provider_id) = case.assigned_service_provider_id else {
+        tracing::debug!(case_id = %case.id, "case_resolved: no assigned_service_provider_id — skip");
+        return Ok(());
+    };
+    let Some(rater_user_id) = case.assigned_user_id else {
+        tracing::debug!(case_id = %case.id, "case_resolved: no assigned_user_id (landlord rater) — skip");
+        return Ok(());
+    };
+
+    let app_instance_id = crate::entities::app_instance::Entity::find()
+        .filter(crate::entities::app_instance::Column::TenantId.eq(case.tenant_id))
+        .filter(crate::entities::app_instance::Column::AppType.eq("property_management"))
+        .order_by_asc(crate::entities::app_instance::Column::CreatedAt)
+        .one(db)
+        .await?
+        .map(|i| i.id);
+
+    let Some(app_instance_id) = app_instance_id else {
+        tracing::debug!(tenant_id = %case.tenant_id, "case_resolved: no Folio app_instance — skip");
+        return Ok(());
+    };
+
+    let opened = crate::services::scorecard_triggers::on_case_resolved(
+        db,
+        case.tenant_id,
+        app_instance_id,
+        case.id,
+        provider_id,
+        rater_user_id,
+    )
+    .await?;
+
+    tracing::info!(
+        tenant_id = %case.tenant_id,
+        case_id = %case.id,
+        sessions = opened.len(),
+        "case_resolved: rating sessions opened"
+    );
+    Ok(())
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────

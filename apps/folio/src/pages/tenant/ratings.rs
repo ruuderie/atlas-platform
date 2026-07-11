@@ -145,8 +145,14 @@ fn dims_to_session(dims: Vec<DimensionDto>) -> Vec<SessionDimension> {
         .collect()
 }
 
+/// Shared pending-ratings UI for tenant (post_checkout) and landlord (case_resolved).
 #[component]
-pub fn TenantRatings() -> impl IntoView {
+pub fn PendingRatingsPage(
+    title: &'static str,
+    subtitle: &'static str,
+    empty_message: &'static str,
+    default_session_label: &'static str,
+) -> impl IntoView {
     let refresh = RwSignal::new(0u32);
     let error: RwSignal<Option<String>> = RwSignal::new(None);
     let active: RwSignal<Option<(PendingSession, Vec<SessionDimension>)>> = RwSignal::new(None);
@@ -160,8 +166,8 @@ pub fn TenantRatings() -> impl IntoView {
     view! {
         <div class="w-full">
             <div class="page-header">
-                <h1 class="page-title">"Rate your stay"</h1>
-                <p class="page-subtitle">"Pending ratings opened after check-out."</p>
+                <h1 class="page-title">{title}</h1>
+                <p class="page-subtitle">{subtitle}</p>
             </div>
 
             <Show when=move || error.get().is_some()>
@@ -178,7 +184,7 @@ pub fn TenantRatings() -> impl IntoView {
                                     Some(Ok(list)) if list.is_empty() => {
                                         view! {
                                             <div class="page-placeholder">
-                                                <p>"No pending ratings. Complete a stay check-out to get a nudge here."</p>
+                                                <p>{empty_message}</p>
                                             </div>
                                         }.into_any()
                                     }
@@ -243,7 +249,7 @@ pub fn TenantRatings() -> impl IntoView {
                     let session_id = session.session_id;
                     let scorecard_id = session.scorecard_id;
                     let label = session.session_label.clone()
-                        .unwrap_or_else(|| "Stay rating".into());
+                        .unwrap_or_else(|| default_session_label.to_string());
                     view! {
                         <ScorecardWidget
                             scorecard_id=scorecard_id
@@ -286,5 +292,17 @@ pub fn TenantRatings() -> impl IntoView {
                 }}
             </Show>
         </div>
+    }
+}
+
+#[component]
+pub fn TenantRatings() -> impl IntoView {
+    view! {
+        <PendingRatingsPage
+            title="Rate your stay"
+            subtitle="Pending ratings opened after check-out."
+            empty_message="No pending ratings. Complete a stay check-out to get a nudge here."
+            default_session_label="Stay rating"
+        />
     }
 }

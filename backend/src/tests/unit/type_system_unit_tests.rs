@@ -399,6 +399,7 @@ mod tests {
             (ScorecardEntityType::AtlasContact, "atlas_contact"),
             (ScorecardEntityType::AtlasPortfolio, "atlas_portfolio"),
             (ScorecardEntityType::AtlasReservation, "atlas_reservation"),
+            (ScorecardEntityType::AtlasCase, "atlas_case"),
             (ScorecardEntityType::AtlasCatalogEntry, "atlas_catalog_entry"),
             (ScorecardEntityType::AtlasServiceProvider, "atlas_service_provider"),
             (ScorecardEntityType::Tenant, "tenant"),

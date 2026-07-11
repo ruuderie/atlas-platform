@@ -38,6 +38,8 @@ pub struct Model {
     pub status: String,
     /// G-06 verification gate ID when verification is required
     pub verification_request_id: Option<Uuid>,
+    /// App instance that opened this session (nullable for legacy / admin paths).
+    pub app_instance_id: Option<Uuid>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
 }

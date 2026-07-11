@@ -1,7 +1,11 @@
 use leptos::prelude::*;
+use std::str::FromStr;
 use crate::components::scorecard::{
     DisplayRulesSection,
-    models::{DisplayRuleForm, DimensionForm, OptionForm, ScaleType, TemplateForm},
+    models::{
+        ColdStartStrategy, DisplayRuleForm, DimensionForm, OptionForm, ScaleType, ScoringMethod,
+        TemplateForm, TemplateScope,
+    },
 };
 
 /// Re-export for consumers that import from `configurator`.
@@ -451,91 +455,109 @@ fn TemplateOverviewSection(
                 </div>
 
                 // ── Entity Type ───────────────────────────────────────────
-                <div class="cfg-field">
-                    <label class="cfg-label">"Entity Type" <span class="cfg-required">"*"</span></label>
-                    <div class="cfg-select-wrap">
-                        <select
-                            class="cfg-select"
-                            prop:value=move || template.get().entity_type.clone()
-                            on:change=move |ev| template.update(|t| t.entity_type = event_target_value(&ev))
-                        >
-                            <option value="atlas_lead">"Lead"</option>
-                            <option value="atlas_account">"Account"</option>
-                            <option value="atlas_contact">"Contact"</option>
-                            <option value="atlas_opportunity">"Opportunity"</option>
-                            <option value="atlas_asset">"Asset"</option>
-                            <option value="atlas_case">"Case"</option>
-                            <option value="tenant">"Tenant"</option>
-                            <option value="app_instance">"App Instance"</option>
-                        </select>
+                <Show when=move || is_operator
+                    fallback=move || view! {
+                        <div class="cfg-field">
+                            <label class="cfg-label">"Entity Type"</label>
+                            <p class="cfg-hint">{move || template.get().entity_type.clone()}</p>
+                            <p class="cfg-hint">"Locked for tenant admins — platform catalog identity."</p>
+                        </div>
+                    }
+                >
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Entity Type" <span class="cfg-required">"*"</span></label>
+                        <div class="cfg-select-wrap">
+                            <select
+                                class="cfg-select"
+                                prop:value=move || template.get().entity_type.clone()
+                                on:change=move |ev| template.update(|t| t.entity_type = event_target_value(&ev))
+                            >
+                                <option value="atlas_lead">"Lead"</option>
+                                <option value="atlas_account">"Account"</option>
+                                <option value="atlas_contact">"Contact"</option>
+                                <option value="atlas_opportunity">"Opportunity"</option>
+                                <option value="atlas_asset">"Asset"</option>
+                                <option value="atlas_case">"Case"</option>
+                                <option value="tenant">"Tenant"</option>
+                                <option value="app_instance">"App Instance"</option>
+                            </select>
+                        </div>
+                        <p class="cfg-hint">"Scorecards from this template will be attached to records of this type."</p>
                     </div>
-                    <p class="cfg-hint">"Scorecards from this template will be attached to records of this type."</p>
-                </div>
+                </Show>
 
                 // ── Scoring Method ────────────────────────────────────────
-                <div class="cfg-field">
-                    <label class="cfg-label">"Scoring Method"</label>
-                    <div class="cfg-select-wrap">
-                        <select
-                            class="cfg-select"
-                            prop:value=move || template.get().scoring_method.clone()
-                            on:change=move |ev| template.update(|t| t.scoring_method = event_target_value(&ev))
-                        >
-                            <option value="weighted_mean">"Weighted Mean"</option>
-                            <option value="simple_mean">"Simple Mean"</option>
-                            <option value="percentile_rank">"Percentile Rank"</option>
-                        </select>
+                <Show when=move || is_operator>
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Scoring Method"</label>
+                        <div class="cfg-select-wrap">
+                            <select
+                                class="cfg-select"
+                                prop:value=move || template.get().scoring_method.to_string()
+                                on:change=move |ev| {
+                                    if let Ok(v) = ScoringMethod::from_str(&event_target_value(&ev)) {
+                                        template.update(|t| t.scoring_method = v);
+                                    }
+                                }
+                            >
+                                <option value="weighted_mean">"Weighted Mean"</option>
+                                <option value="simple_mean">"Simple Mean"</option>
+                                <option value="percentile_rank">"Percentile Rank"</option>
+                            </select>
+                        </div>
+                        <p class="cfg-hint">"How dimension scores are combined into a composite score."</p>
                     </div>
-                    <p class="cfg-hint">"How dimension scores are combined into a composite score."</p>
-                </div>
+                </Show>
 
                 // ── Scale range ───────────────────────────────────────────
-                <div class="cfg-field">
-                    <label class="cfg-label">"Default Scale Min"</label>
-                    <input
-                        type="number"
-                        class="cfg-input"
-                        step="0.1"
-                        prop:value=move || template.get().default_scale_min
-                        on:input=move |ev| {
-                            if let Ok(v) = event_target_value(&ev).parse::<f64>() {
-                                template.update(|t| t.default_scale_min = v);
+                <Show when=move || is_operator>
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Default Scale Min"</label>
+                        <input
+                            type="number"
+                            class="cfg-input"
+                            step="0.1"
+                            prop:value=move || template.get().default_scale_min
+                            on:input=move |ev| {
+                                if let Ok(v) = event_target_value(&ev).parse::<f64>() {
+                                    template.update(|t| t.default_scale_min = v);
+                                }
                             }
-                        }
-                    />
-                </div>
+                        />
+                    </div>
 
-                <div class="cfg-field">
-                    <label class="cfg-label">"Default Scale Max"</label>
-                    <input
-                        type="number"
-                        class="cfg-input"
-                        step="0.1"
-                        prop:value=move || template.get().default_scale_max
-                        on:input=move |ev| {
-                            if let Ok(v) = event_target_value(&ev).parse::<f64>() {
-                                template.update(|t| t.default_scale_max = v);
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Default Scale Max"</label>
+                        <input
+                            type="number"
+                            class="cfg-input"
+                            step="0.1"
+                            prop:value=move || template.get().default_scale_max
+                            on:input=move |ev| {
+                                if let Ok(v) = event_target_value(&ev).parse::<f64>() {
+                                    template.update(|t| t.default_scale_max = v);
+                                }
                             }
-                        }
-                    />
-                </div>
+                        />
+                    </div>
 
-                // ── Min entries to publish ────────────────────────────────
-                <div class="cfg-field">
-                    <label class="cfg-label">"Min Entries to Publish"</label>
-                    <input
-                        type="number"
-                        class="cfg-input"
-                        min="1"
-                        prop:value=move || template.get().min_entries_to_publish
-                        on:input=move |ev| {
-                            if let Ok(v) = event_target_value(&ev).parse::<i32>() {
-                                template.update(|t| t.min_entries_to_publish = v);
+                    // ── Min entries to publish ────────────────────────────────
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Min Entries to Publish"</label>
+                        <input
+                            type="number"
+                            class="cfg-input"
+                            min="1"
+                            prop:value=move || template.get().min_entries_to_publish
+                            on:input=move |ev| {
+                                if let Ok(v) = event_target_value(&ev).parse::<i32>() {
+                                    template.update(|t| t.min_entries_to_publish = v);
+                                }
                             }
-                        }
-                    />
-                    <p class="cfg-hint">"Composite score is hidden until this many entries exist."</p>
-                </div>
+                        />
+                        <p class="cfg-hint">"Composite score is hidden until this many entries exist."</p>
+                    </div>
+                </Show>
 
                 // ── Template scope (PlatformOperator only) ────────────────
                 <Show when=move || is_operator>
@@ -544,8 +566,12 @@ fn TemplateOverviewSection(
                         <div class="cfg-select-wrap">
                             <select
                                 class="cfg-select"
-                                prop:value=move || template.get().template_scope.clone()
-                                on:change=move |ev| template.update(|t| t.template_scope = event_target_value(&ev))
+                                prop:value=move || template.get().template_scope.to_string()
+                                on:change=move |ev| {
+                                    if let Ok(v) = TemplateScope::from_str(&event_target_value(&ev)) {
+                                        template.update(|t| t.template_scope = v);
+                                    }
+                                }
                             >
                                 <option value="platform">"Platform (benchmark-eligible)"</option>
                                 <option value="tenant">"Tenant (private)"</option>
@@ -562,12 +588,16 @@ fn TemplateOverviewSection(
                         <div class="cfg-select-wrap">
                             <select
                                 class="cfg-select"
-                                prop:value=move || template.get().cold_start_strategy.clone()
-                                on:change=move |ev| template.update(|t| t.cold_start_strategy = event_target_value(&ev))
+                                prop:value=move || template.get().cold_start_strategy.to_string()
+                                on:change=move |ev| {
+                                    if let Ok(v) = ColdStartStrategy::from_str(&event_target_value(&ev)) {
+                                        template.update(|t| t.cold_start_strategy = v);
+                                    }
+                                }
                             >
                                 <option value="suppress">"Suppress"</option>
-                                <option value="bayesian_prior">"Bayesian Prior"</option>
-                                <option value="show_raw">"Show Raw"</option>
+                                <option value="prior">"Bayesian Prior"</option>
+                                <option value="category">"Category Average"</option>
                             </select>
                         </div>
                     </div>
@@ -602,22 +632,24 @@ fn TemplateOverviewSection(
                 </Show>
 
                 // ── Published toggle ──────────────────────────────────────
-                <div class="cfg-field cfg-field--full">
-                    <div class="cfg-toggle-row">
-                        <div>
-                            <p class="cfg-label">"Published"</p>
-                            <p class="cfg-hint">"When live, scorecards can be rated by contributors and The Combinator uses it for matching."</p>
+                <Show when=move || is_operator>
+                    <div class="cfg-field cfg-field--full">
+                        <div class="cfg-toggle-row">
+                            <div>
+                                <p class="cfg-label">"Published"</p>
+                                <p class="cfg-hint">"When live, scorecards can be rated by contributors and The Combinator uses it for matching."</p>
+                            </div>
+                            <button
+                                class=move || if template.get().is_published { "cfg-toggle cfg-toggle--on" } else { "cfg-toggle" }
+                                role="switch"
+                                aria-checked=move || template.get().is_published.to_string()
+                                on:click=move |_| template.update(|t| t.is_published = !t.is_published)
+                            >
+                                <span class="cfg-toggle-thumb"></span>
+                            </button>
                         </div>
-                        <button
-                            class=move || if template.get().is_published { "cfg-toggle cfg-toggle--on" } else { "cfg-toggle" }
-                            role="switch"
-                            aria-checked=move || template.get().is_published.to_string()
-                            on:click=move |_| template.update(|t| t.is_published = !t.is_published)
-                        >
-                            <span class="cfg-toggle-thumb"></span>
-                        </button>
                     </div>
-                </div>
+                </Show>
             </div>
         </div>
     }

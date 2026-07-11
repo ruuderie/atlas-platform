@@ -50,7 +50,7 @@ pub async fn open_sessions_for_trigger(
         .filter(deployments::Column::TenantId.eq(tenant_id))
         .filter(deployments::Column::AppInstanceId.eq(app_instance_id))
         .filter(deployments::Column::IsEnabled.eq(true))
-        .filter(deployments::Column::TriggerEvent.eq(trigger))
+        .filter(deployments::Column::TriggerEvent.eq(trigger.clone()))
         .all(db)
         .await?;
 
@@ -90,6 +90,7 @@ pub async fn open_sessions_for_trigger(
             context_type.as_deref(),
             context_entity_id,
             session_label,
+            Some(app_instance_id),
         )
         .await
         {
@@ -114,6 +115,27 @@ pub async fn open_sessions_for_trigger(
             "scorecard_triggers: session opened"
         );
 
+        // Best-effort: enqueue nudge evaluation for the rater (WS / NudgePrompt).
+        if let Err(e) = enqueue_scorecard_nudge(
+            db,
+            tenant_id,
+            dep.template_id,
+            &subject_type,
+            subject_entity_id,
+            &trigger,
+            rater_user_id,
+            session_id,
+            scorecard_id,
+        )
+        .await
+        {
+            tracing::warn!(
+                %tenant_id,
+                %session_id,
+                "scorecard_triggers: nudge enqueue failed (non-fatal): {e:#}"
+            );
+        }
+
         opened.push(TriggerSessionOpened {
             deployment_id: dep.id,
             template_id: dep.template_id,
@@ -123,6 +145,48 @@ pub async fn open_sessions_for_trigger(
     }
 
     Ok(opened)
+}
+
+async fn enqueue_scorecard_nudge(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+    template_id: Uuid,
+    subject_entity_type: &str,
+    subject_entity_id: Uuid,
+    activity_type: &str,
+    rater_user_id: Uuid,
+    session_id: Uuid,
+    scorecard_id: Uuid,
+) -> Result<()> {
+    use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
+    use crate::entities::outbox_job;
+    use crate::types::outbox::OutboxJobType;
+    use serde_json::json;
+
+    let job = outbox_job::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        tenant_id: Set(tenant_id),
+        job_type: Set(OutboxJobType::EvaluateScorecardNudge.to_string()),
+        payload: Set(json!({
+            "template_id": template_id,
+            "subject_entity_type": subject_entity_type,
+            "subject_entity_id": subject_entity_id,
+            "activity_type": activity_type,
+            "rater_user_id": rater_user_id,
+            "session_id": session_id,
+            "scorecard_id": scorecard_id,
+        })),
+        status: Set("pending".to_owned()),
+        attempts: Set(0),
+        error_message: Set(None),
+        locked_by: Set(None),
+        locked_at: Set(None),
+        run_at: Set(Utc::now()),
+        created_at: Set(Utc::now()),
+    };
+    job.insert(db).await?;
+    Ok(())
 }
 
 /// STR check-out → `post_checkout` sessions for the reserved asset.
@@ -150,6 +214,37 @@ pub async fn on_str_checkout(
         Some(ScorecardEntityType::AtlasReservation),
         Some(reservation_id),
         Some("Post-checkout stay rating"),
+    )
+    .await
+}
+
+/// Maintenance work-order complete → `case_resolved` sessions for the contractor.
+///
+/// Subject: `atlas_service_provider` / `assigned_service_provider_id`
+///   (matches VendorService::onboard scorecard provisioning).
+/// Context: `atlas_case` / case id.
+/// Session type: `job`.
+/// Rater: landlord/PM (`assigned_user_id`), not the vendor.
+pub async fn on_case_resolved(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+    app_instance_id: Uuid,
+    case_id: Uuid,
+    service_provider_id: Uuid,
+    rater_user_id: Uuid,
+) -> Result<Vec<TriggerSessionOpened>> {
+    open_sessions_for_trigger(
+        db,
+        tenant_id,
+        app_instance_id,
+        DeploymentTriggerEvent::CaseResolved,
+        ScorecardEntityType::AtlasServiceProvider,
+        service_provider_id,
+        rater_user_id,
+        SessionType::Job,
+        Some(ScorecardEntityType::AtlasCase),
+        Some(case_id),
+        Some("Post-job contractor rating"),
     )
     .await
 }

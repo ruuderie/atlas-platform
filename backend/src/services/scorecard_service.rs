@@ -313,6 +313,7 @@ impl ScorecardService {
         context_entity_type: Option<&str>,
         context_entity_id: Option<Uuid>,
         session_label: Option<&str>,
+        app_instance_id: Option<Uuid>,
     ) -> Result<Uuid> {
         // Security: verify the scorecard belongs to this tenant before opening a session.
         // Prevents cross-tenant session injection by a caller who knows a foreign scorecard_id.
@@ -336,6 +337,7 @@ impl ScorecardService {
             session_label: Set(session_label.map(|s| s.to_owned())),
             status: Set("submitted".to_owned()),
             verification_request_id: Set(None),
+            app_instance_id: Set(app_instance_id),
             created_at: Set(Utc::now()),
         };
 

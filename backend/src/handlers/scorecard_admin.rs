@@ -222,6 +222,8 @@ pub struct OpenSessionInput {
     pub context_entity_type: Option<String>,
     pub context_entity_id: Option<Uuid>,
     pub session_label: Option<String>,
+    /// Optional app-instance attribution (Phase C).
+    pub app_instance_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -778,6 +780,7 @@ async fn open_session(
         input.context_entity_type.as_deref(),
         input.context_entity_id,
         input.session_label.as_deref(),
+        input.app_instance_id,
     )
     .await
     .map_err(|e| {

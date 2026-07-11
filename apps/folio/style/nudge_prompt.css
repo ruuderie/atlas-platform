@@ -1,0 +1,130 @@
+/* G-27 NudgePrompt floating card (shared-ui classes) */
+
+.nudge-prompt {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 80;
+  width: min(22rem, calc(100vw - 2rem));
+  background: var(--folio-surface, #0f172a);
+  border: 1px solid var(--folio-border, #1e293b);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  padding: 1rem 1.1rem;
+  color: var(--folio-fg, #e2e8f0);
+}
+
+.nudge-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.nudge-mode-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cobalt, #3b82f6);
+  margin-bottom: 0.25rem;
+}
+
+.nudge-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.nudge-subtitle {
+  font-size: 0.8rem;
+  color: var(--folio-muted, #94a3b8);
+  margin-top: 0.15rem;
+}
+
+.nudge-dismiss {
+  flex-shrink: 0;
+}
+
+.nudge-dimensions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.nudge-dim-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nudge-dim-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nudge-dim-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.nudge-dim-required {
+  font-size: 0.65rem;
+  color: #f87171;
+}
+
+.nudge-ai-badge {
+  font-size: 0.65rem;
+  color: #a78bfa;
+}
+
+.nudge-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.nudge-input--rating input,
+.nudge-input input[type="number"] {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--folio-border, #334155);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  color: inherit;
+}
+
+.nudge-input--boolean {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nudge-bool-btn {
+  flex: 1;
+  border-radius: 8px;
+  border: 1px solid var(--folio-border, #334155);
+  padding: 0.4rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nudge-bool-btn--active {
+  border-color: var(--cobalt, #3b82f6);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.nudge-inference-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nudge-inference-evidence {
+  font-size: 0.75rem;
+  color: var(--folio-muted, #94a3b8);
+}

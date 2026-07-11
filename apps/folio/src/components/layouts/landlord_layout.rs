@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos_router::components::Outlet;
 use crate::components::nav::{SidebarNav, LANDLORD_NAV};
 use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
+use crate::components::scorecard_nudge_host::ScorecardNudgeHost;
 use crate::auth::SessionInfo;
 
 /// Persistent shell for all /l/** landlord routes.
@@ -52,6 +53,7 @@ pub fn LandlordLayout() -> impl IntoView {
                     })}
                 </Suspense>
                 <Outlet/>
+                <ScorecardNudgeHost/>
             </main>
         </div>
     }

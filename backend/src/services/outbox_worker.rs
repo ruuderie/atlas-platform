@@ -386,7 +386,7 @@ impl OutboxWorker {
                     }
 
                     // ── Get nudge dimensions ─────────────────────────────────
-                    let nudges = crate::services::scorecard_service::ScorecardService::get_nudge_dimensions_for_activity(
+                    let mut nudges = crate::services::scorecard_service::ScorecardService::get_nudge_dimensions_for_activity(
                         db,
                         job.tenant_id,
                         template_id,
@@ -396,6 +396,44 @@ impl OutboxWorker {
                     )
                     .await
                     .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: get_nudge_dimensions: {e}")))?;
+
+                    // Trigger path fallback: no display-rule match → surface all
+                    // active template dimensions so post_checkout / case_resolved
+                    // still deliver a WS nudge when a session was opened.
+                    if nudges.is_empty() {
+                        if let Some(sid) = job.payload.get("session_id").and_then(|v| v.as_str()).and_then(|s| uuid::Uuid::parse_str(s).ok()) {
+                            let scorecard_id = job.payload.get("scorecard_id")
+                                .and_then(|v| v.as_str())
+                                .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                                .unwrap_or(entity_id);
+                            use crate::entities::atlas_scorecard_dimension as dims;
+                            let dim_rows = dims::Entity::find()
+                                .filter(dims::Column::TemplateId.eq(template_id))
+                                .filter(dims::Column::TenantId.eq(job.tenant_id))
+                                .filter(dims::Column::IsActive.eq(true))
+                                .all(db)
+                                .await
+                                .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: dim fallback: {e}")))?;
+                            nudges = dim_rows
+                                .into_iter()
+                                .map(|d| crate::services::scorecard_service::NudgeDimension {
+                                    dimension_id: d.id,
+                                    dimension_slug: d.slug,
+                                    dimension_name: d.name,
+                                    action: "surface_as_nudge".to_owned(),
+                                    scale_type: d.scale_type,
+                                    scorecard_id,
+                                    session_type_hint: act_type.clone(),
+                                })
+                                .collect();
+                            if !nudges.is_empty() {
+                                info!(
+                                    "evaluate_scorecard_nudge: fallback dims for session {} (trigger {})",
+                                    sid, act_type
+                                );
+                            }
+                        }
+                    }
 
                     if nudges.is_empty() {
                         info!("evaluate_scorecard_nudge: no nudge dimensions for '{}', skipping", act_type);

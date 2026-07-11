@@ -4,6 +4,7 @@
 
 @import url("configurator.css");
 @import url("scorecard_widget.css");
+@import url("nudge_prompt.css");
 
 /* ── Design tokens ──────────────────────────────────────────────────────── */
 :root {

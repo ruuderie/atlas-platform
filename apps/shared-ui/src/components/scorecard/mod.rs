@@ -34,6 +34,8 @@ pub mod widgets;
 pub use models::{
     TemplateForm, DimensionForm, OptionForm, DisplayRuleForm, SessionDimension,
     DisplayConfigForm, ConfiguratorMode, TemplateSavePayload, ScaleType, RenderMode,
+    ScoringMethod, ColdStartStrategy, TemplateScope, SessionType, SourceType,
+    TriggerCategory, RuleOperator, RuleAction, ModeScope,
 };
 
 // Configurator sections

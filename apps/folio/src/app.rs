@@ -46,6 +46,9 @@ use crate::pages::landlord::{
     listing_preview::ListingNetworkPreview,
     account_billing::LandlordAccountBilling,
     asset_alerts::AssetAlerts,
+    meridian_config::MeridianConfigurator,
+    ratings::LandlordRatings,
+    team::LandlordTeam,
 };
 
 // Tenant pages
@@ -123,7 +126,6 @@ use crate::pages::vendor::onboard::VendorOnboard;
 use crate::pages::vendor::job_link::VendorJobLink;
 use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
 use crate::pages::pmc::onboard::PmcOnboard;
-use crate::pages::landlord::meridian_config::MeridianConfigurator;
 use crate::pages::settings::Settings;
 use crate::pages::auth::passkey_setup::PasskeySetup;
 use crate::pages::onboarding::wizard::OnboardingWizard;
@@ -137,7 +139,6 @@ use crate::pages::onboarding::broker_wizard::BrokerWizard;
 use crate::pages::onboarding::pmc_wizard::PmcWizard;
 use crate::pages::onboarding::vendor_wizard::VendorWizard;
 use crate::pages::onboarding::invite_join::InviteJoin;
-use crate::pages::landlord::team::LandlordTeam;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -265,6 +266,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/wholesaling")   view=LandlordWholesaling/>
                     <Route path=path!("/account/billing")view=LandlordAccountBilling/>
                     <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
+                    <Route path=path!("/ratings") view=LandlordRatings/>
                     <Route path=path!("/team")           view=LandlordTeam/>
                 </ParentRoute>
 

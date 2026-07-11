@@ -4,3 +4,4 @@ pub mod layouts;
 pub mod onboarding_banner;
 pub mod lang;
 pub mod wizard_shell;
+pub mod scorecard_nudge_host;

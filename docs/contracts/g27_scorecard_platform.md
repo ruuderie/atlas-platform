@@ -15,7 +15,7 @@ Related: [`docs/architecture/g27/g27_scorecards_spec.md`](../architecture/g27/g2
 | **1. Platform catalog** | Templates with `template_scope=platform` | Benchmark-pool eligible. Still stored as rows with a `tenant_id` (provisioner seeds per tenant). Not a global singleton. |
 | **2. Tenant templates** | `template_scope=tenant`, or extension dims (`is_tenant_extension=true`) on a platform copy | Private to that tenant; excluded from cross-tenant pools when scope is tenant / dim is extension. |
 | **3. App-instance deployment** | `atlas_scorecard_template_deployments` | Controls which templates an app instance may list/use. |
-| **4. Runtime** | `atlas_scorecards` + `atlas_rating_sessions` + entries | Always scoped by **`tenant_id`**. Optional `app_instance_id` on sessions is **future** — not in MVP UI. |
+| **4. Runtime** | `atlas_scorecards` + `atlas_rating_sessions` + entries | Always scoped by **`tenant_id`**. Sessions may stamp nullable **`app_instance_id`** (Folio/trigger paths). |
 
 ### Customization paths
 
@@ -98,9 +98,11 @@ PK `(scorecard_id, dimension_id, period_start, period_type)`. Fields: `mean_scor
 
 ### Session — `atlas_rating_sessions`
 
-`id`, `scorecard_id`, `tenant_id`, `rater_user_id`, `occurred_at`, `session_type`, `context_entity_type`, `context_entity_id`, `session_label`, `status`, `verification_request_id`, `created_at`.
+`id`, `scorecard_id`, `tenant_id`, `rater_user_id`, `occurred_at`, `session_type`, `context_entity_type`, `context_entity_id`, `session_label`, `status`, `verification_request_id`, `app_instance_id` (nullable FK → `app_instances`), `created_at`.
 
 `status`: `draft` | `submitted` | `verified` | `disputed`.
+
+`app_instance_id` is stamped on tenant/trigger open paths; admin open may pass it optionally.
 
 ### Entry — `atlas_scorecard_entries`
 
@@ -184,6 +186,10 @@ Tenant/app Configurator lists **only templates deployed + enabled** for the curr
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/scorecard-templates?app_instance_id=&is_published=` | Deployed+enabled templates for the instance. Resolves instance from query → `x-app-instance-id` → tenant's first `property_management` instance. Foreign instance → 403. |
+| GET | `/api/scorecard-templates/{id}` | Deployed+enabled template detail (incl. `display_config`). |
+| PATCH | `/api/scorecard-templates/{id}` | TenantAdmin-safe: `display_config`, `description` only. Locked fields (`template_scope`, `is_published`, `entity_type`) → 403. |
+| GET/POST | `/api/scorecard-templates/{id}/display-rules` | List active rules / create rule (deployed-gated). |
+| PATCH/DELETE | `/api/scorecard-display-rules/{id}` | Update / soft-delete rule (deployed-gated). |
 
 **Auth:** `/api/admin/*` = platform operator session. Every handler verifies resource `tenant_id` matches path (or catalog rules). Foreign tenant → 403/404.
 
@@ -246,6 +252,6 @@ Stitch HTML API comment blocks must cite **this file** (path + section), not “
 
 ## 11. Out of scope (this contract revision)
 
-- Full trigger-event matrix UX (`post_checkout`, `deal_close`, …) — deployments MVP is list/enable + default `manual`.
-- `app_instance_id` on `atlas_rating_sessions`.
+- Full trigger-event matrix UX (`deal_close`, `lease_end`, …) beyond wired `post_checkout` / `case_resolved`.
+- Landlord maintenance `status→closed` API (today `case_resolved` fires on vendor work-order complete).
 - Transcript ingest / BYOC compute.

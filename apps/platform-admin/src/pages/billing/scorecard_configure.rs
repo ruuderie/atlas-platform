@@ -18,8 +18,9 @@ use leptos::task::spawn_local;
 use leptos_router::hooks::{use_navigate, use_params_map, use_query_map};
 use shared_ui::components::configurator::Configurator;
 use shared_ui::components::scorecard::models::{
-    ConfiguratorMode, DisplayConfigForm, DisplayRuleForm, DimensionForm, ModeScope, RuleAction,
-    RuleOperator, ScaleType, TemplateForm, TemplateSavePayload, TriggerCategory,
+    ColdStartStrategy, ConfiguratorMode, DisplayConfigForm, DisplayRuleForm, DimensionForm,
+    ModeScope, RuleAction, RuleOperator, ScaleType, ScoringMethod, TemplateForm,
+    TemplateSavePayload, TemplateScope, TriggerCategory,
 };
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -40,13 +41,16 @@ fn template_to_form(t: &ScorecardTemplate) -> TemplateForm {
         name: t.name.clone(),
         entity_type: t.entity_type.clone(),
         description: t.description.clone().unwrap_or_default(),
-        scoring_method: t.scoring_method.clone(),
+        scoring_method: ScoringMethod::from_str(&t.scoring_method)
+            .unwrap_or(ScoringMethod::WeightedMean),
         default_scale_min: parse_f64(&t.default_scale_min),
         default_scale_max: parse_f64(&t.default_scale_max),
         min_entries_to_publish: t.min_entries_to_publish,
         is_published: t.is_published,
-        template_scope: t.template_scope.clone(),
-        cold_start_strategy: t.cold_start_strategy.clone(),
+        template_scope: TemplateScope::from_str(&t.template_scope)
+            .unwrap_or(TemplateScope::Tenant),
+        cold_start_strategy: ColdStartStrategy::from_str(&t.cold_start_strategy)
+            .unwrap_or(ColdStartStrategy::Suppress),
         cold_start_saturation_threshold: t.cold_start_saturation_threshold,
         calibration_minimum_entries: t.calibration_minimum_entries,
         default_bayesian_prior_weight: t
@@ -631,13 +635,13 @@ async fn persist_payload(
                 name: t.name.clone(),
                 entity_type: t.entity_type.clone(),
                 description: Some(t.description.clone()).filter(|s| !s.is_empty()),
-                scoring_method: Some(t.scoring_method.clone()),
+                scoring_method: Some(t.scoring_method.to_string()),
                 default_scale_min: Some(t.default_scale_min),
                 default_scale_max: Some(t.default_scale_max),
                 min_entries_to_publish: Some(t.min_entries_to_publish),
                 is_published: Some(t.is_published),
-                template_scope: Some(t.template_scope.clone()),
-                cold_start_strategy: Some(t.cold_start_strategy.clone()),
+                template_scope: Some(t.template_scope.to_string()),
+                cold_start_strategy: Some(t.cold_start_strategy.to_string()),
                 cold_start_saturation_threshold: Some(t.cold_start_saturation_threshold),
                 default_bayesian_prior_weight: t.default_bayesian_prior_weight,
                 calibration_minimum_entries: Some(t.calibration_minimum_entries),
@@ -654,13 +658,13 @@ async fn persist_payload(
             &UpdateTemplateInput {
                 name: Some(t.name.clone()),
                 description: Some(t.description.clone()),
-                scoring_method: Some(t.scoring_method.clone()),
+                scoring_method: Some(t.scoring_method.to_string()),
                 default_scale_min: Some(t.default_scale_min),
                 default_scale_max: Some(t.default_scale_max),
                 min_entries_to_publish: Some(t.min_entries_to_publish),
                 is_published: Some(t.is_published),
-                template_scope: Some(t.template_scope.clone()),
-                cold_start_strategy: Some(t.cold_start_strategy.clone()),
+                template_scope: Some(t.template_scope.to_string()),
+                cold_start_strategy: Some(t.cold_start_strategy.to_string()),
                 cold_start_saturation_threshold: Some(t.cold_start_saturation_threshold),
                 default_bayesian_prior_weight: t.default_bayesian_prior_weight,
                 calibration_minimum_entries: Some(t.calibration_minimum_entries),
