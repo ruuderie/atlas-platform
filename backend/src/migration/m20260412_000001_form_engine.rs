@@ -7,7 +7,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        
+
         let sql = r#"
             CREATE TABLE IF NOT EXISTS form_schemas (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -36,15 +36,17 @@ impl MigrationTrait for Migration {
             -- Preseed base form_schemas if none exist for existing tenants? 
             -- Actually we will do this in the app-specific seed 000000_seed_oplystusa.
         "#;
-        
+
         db.execute_unprepared(sql).await?;
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        db.execute_unprepared("DROP TABLE IF EXISTS form_submissions;").await?;
-        db.execute_unprepared("DROP TABLE IF EXISTS form_schemas;").await?;
+        db.execute_unprepared("DROP TABLE IF EXISTS form_submissions;")
+            .await?;
+        db.execute_unprepared("DROP TABLE IF EXISTS form_schemas;")
+            .await?;
         Ok(())
     }
 }

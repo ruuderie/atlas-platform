@@ -98,7 +98,9 @@ impl MigrationTrait for Migration {
 
         db.execute_unprepared(alias_sql).await?;
 
-        tracing::info!("m20260501_000001: tenant_setting canonicalized from app_instances.settings");
+        tracing::info!(
+            "m20260501_000001: tenant_setting canonicalized from app_instances.settings"
+        );
 
         Ok(())
     }

@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 use std::str::FromStr;
+use strum_macros::Display;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "files")]
@@ -48,7 +48,7 @@ impl FromStr for StorageType {
             "S" => Ok(StorageType::S3),
             "D" => Ok(StorageType::Database),
             "C" => Ok(StorageType::Custom),
-            _ => Err(format!("Invalid storage type: {}", s))
+            _ => Err(format!("Invalid storage type: {}", s)),
         }
     }
 }

@@ -1,13 +1,13 @@
 #![allow(dead_code, unused)]
 
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use crate::entities::activity::ActivityType;
 use crate::entities::case;
-use crate::models::note::NoteModel;
 use crate::models::activity::ActivityModel;
 use crate::models::file::FileModel;
-use crate::entities::activity::ActivityType;
+use crate::models::note::NoteModel;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CaseModel {

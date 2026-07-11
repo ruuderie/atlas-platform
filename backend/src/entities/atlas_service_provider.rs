@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 /// GENERIC-12: AtlasServiceProvider
 /// Registry for vendors, contractors, adjusters, agents, etc.

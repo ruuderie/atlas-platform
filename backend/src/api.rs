@@ -1,4 +1,4 @@
-/* 
+/*
  * DONE — AtlasApp migration complete as of 2026-05-02.
  *
  * This file now contains ONLY Tier 3 platform infrastructure:
@@ -15,21 +15,31 @@
  * See the full integration protocol at: `docs/atlas_app_integration.md`
  * Architecture layer map: `docs/architecture/platform_layer_map.md`
  */
-use axum::{Router, Extension, routing::post, routing::get, routing::delete};
-use sea_orm::DatabaseConnection;
-use crate::handlers::{users, accounts, my_accounts, ab_testing, user_accounts, sessions, health, auth_frontend, setup};
-use crate::middleware::{auth_middleware, site_context_middleware};
-use tower_http::trace::TraceLayer;
-use crate::middleware::rate_limiter::RateLimiter;
-use axum::{extract::Request, middleware::Next};
-use std::env;
 use crate::handlers::version::version_header_middleware;
+use crate::handlers::{
+    ab_testing, accounts, auth_frontend, health, my_accounts, sessions, setup, user_accounts, users,
+};
+use crate::middleware::rate_limiter::RateLimiter;
+use crate::middleware::{auth_middleware, site_context_middleware};
+use axum::{Extension, Router, routing::delete, routing::get, routing::post};
+use axum::{extract::Request, middleware::Next};
+use sea_orm::DatabaseConnection;
+use std::env;
+use tower_http::trace::TraceLayer;
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Check environment
-    let is_production = env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()) == "production";
-    tracing::info!("Environment: {}", if is_production { "production" } else { "development" });
-    
+    let is_production =
+        env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()) == "production";
+    tracing::info!(
+        "Environment: {}",
+        if is_production {
+            "production"
+        } else {
+            "development"
+        }
+    );
+
     // Note: CORS is now solely managed at the top-level Router in main.rs
     // Auth routes with CORS headers - these should remain outside the /api prefix
     let auth_routes = Router::new()
@@ -39,13 +49,24 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/validate-session", get(sessions::validate_session))
         .route("/refresh-token", post(sessions::refresh_token))
         // Unified Atlas Auth Protocol endpoints (all apps should use these)
-        .route("/api/auth/session/validate", get(sessions::validate_session))
+        .route(
+            "/api/auth/session/validate",
+            get(sessions::validate_session),
+        )
         .route("/api/auth/session/revoke", post(sessions::revoke_session))
-        .route("/api/auth/impersonate/exchange", post(sessions::exchange_impersonate_code))
+        .route(
+            "/api/auth/impersonate/exchange",
+            post(sessions::exchange_impersonate_code),
+        )
         // Session management — list and targeted revoke
-        .route("/api/me/sessions", get(sessions::list_user_sessions)
-            .delete(sessions::revoke_all_other_sessions))
-        .route("/api/me/sessions/{session_id}", delete(sessions::revoke_other_session))
+        .route(
+            "/api/me/sessions",
+            get(sessions::list_user_sessions).delete(sessions::revoke_all_other_sessions),
+        )
+        .route(
+            "/api/me/sessions/{session_id}",
+            delete(sessions::revoke_other_session),
+        )
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 
@@ -56,7 +77,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     // AnchorApp and NetworkInstanceApp in get_active_apps().
     let mut public_routes = Router::<DatabaseConnection>::new()
         .merge(auth_frontend::public_routes())
-        .merge(crate::handlers::otp::public_routes())   // inline OTP for wizard pre-step
+        .merge(crate::handlers::otp::public_routes()) // inline OTP for wizard pre-step
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
@@ -65,9 +86,16 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         // ── Product Launch Engine — zero-auth, CDN-cacheable ─────────────────
         // Public product pages, variant pages, waitlist, pre-order, sitemap
         .merge(crate::handlers::pub_products::public_routes_raw())
+        // Landing page funnel events — fire-and-forget from public Folio pages
+        .route(
+            "/api/pub/lp-events",
+            post(crate::handlers::landing_pages::post_lp_event),
+        )
         // Domain resolver: folio.app / miami.folio.app → product/variant context
-        .route("/api/pub/resolve", get(crate::handlers::pub_resolve::resolve_domain));
-
+        .route(
+            "/api/pub/resolve",
+            get(crate::handlers::pub_resolve::resolve_domain),
+        );
 
     for app in crate::atlas_apps::get_active_apps() {
         public_routes = public_routes.merge(app.public_router(db.clone()));
@@ -92,7 +120,9 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(my_accounts::authenticated_routes())
         .merge(ab_testing::authenticated_routes())
         .merge(crate::handlers::passkeys::authenticated_routes())
-        .merge(crate::handlers::communications::authenticated_routes(db.clone()))
+        .merge(crate::handlers::communications::authenticated_routes(
+            db.clone(),
+        ))
         .merge(crate::handlers::crm_status_options::authenticated_routes())
         .merge(crate::handlers::telemetry::authenticated_routes())
         .merge(crate::handlers::notes::routes())
@@ -111,7 +141,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     // The version_header_middleware wraps the entire router so EVERY response
     // (including error responses from the auth middleware) carries X-Atlas-Version.
     Router::new()
-        .merge(auth_routes)  // Keep auth routes at the root level
+        .merge(auth_routes) // Keep auth routes at the root level
         .merge(public_routes.layer(Extension(rate_limiter.clone())))
         .merge(
             authenticated_routes

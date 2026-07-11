@@ -22,29 +22,19 @@ impl MigrationTrait for Migration {
                 Table::alter()
                     .table(Alias::new("platform_invite"))
                     .add_column_if_not_exists(
-                        ColumnDef::new(Alias::new("display_name"))
-                            .string()
-                            .null(),
+                        ColumnDef::new(Alias::new("display_name")).string().null(),
                     )
                     .add_column_if_not_exists(
-                        ColumnDef::new(Alias::new("app_role"))
-                            .string()
-                            .null(),
+                        ColumnDef::new(Alias::new("app_role")).string().null(),
                     )
                     .add_column_if_not_exists(
-                        ColumnDef::new(Alias::new("app_instance_id"))
-                            .uuid()
-                            .null(),
+                        ColumnDef::new(Alias::new("app_instance_id")).uuid().null(),
                     )
                     .add_column_if_not_exists(
-                        ColumnDef::new(Alias::new("target_app_url"))
-                            .string()
-                            .null(),
+                        ColumnDef::new(Alias::new("target_app_url")).string().null(),
                     )
                     .add_column_if_not_exists(
-                        ColumnDef::new(Alias::new("personal_message"))
-                            .text()
-                            .null(),
+                        ColumnDef::new(Alias::new("personal_message")).text().null(),
                     )
                     .to_owned(),
             )

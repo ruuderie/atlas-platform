@@ -1,8 +1,8 @@
 #![allow(dead_code, unused)]
 
+use crate::traits::telephony::{CallEvent, CallLog, PhoneNumber, TelephonyProvider};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use crate::traits::telephony::{CallEvent, CallLog, PhoneNumber, TelephonyProvider};
 
 pub struct TwilioAdapter {
     pub account_sid: String,
@@ -11,7 +11,10 @@ pub struct TwilioAdapter {
 
 impl TwilioAdapter {
     pub fn new(account_sid: String, auth_token: String) -> Self {
-        Self { account_sid, auth_token }
+        Self {
+            account_sid,
+            auth_token,
+        }
     }
 }
 
@@ -40,11 +43,30 @@ impl TelephonyProvider for TwilioAdapter {
     fn normalize_webhook(&self, payload: &serde_json::Value) -> Result<CallEvent> {
         // Extract required fields from Twilio's specific webhook payload format
         Ok(CallEvent {
-            call_id: payload.get("CallSid").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            to: payload.get("To").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            from: payload.get("From").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            status: payload.get("CallStatus").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            duration: payload.get("DialCallDuration").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()),
+            call_id: payload
+                .get("CallSid")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            to: payload
+                .get("To")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            from: payload
+                .get("From")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            status: payload
+                .get("CallStatus")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            duration: payload
+                .get("DialCallDuration")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok()),
             raw_payload: payload.clone(),
         })
     }

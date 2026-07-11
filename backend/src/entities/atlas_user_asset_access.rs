@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Per-asset permission grant.
 ///
@@ -34,16 +34,16 @@ use chrono::{DateTime, Utc};
 #[sea_orm(table_name = "atlas_user_asset_access")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id:              Uuid,
-    pub user_id:         Uuid,
-    pub asset_id:        Uuid,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub asset_id: Uuid,
     pub role_profile_id: Uuid,
-    pub granted_by:      Option<Uuid>,
+    pub granted_by: Option<Uuid>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
-    pub granted_at:      DateTime<Utc>,
+    pub granted_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone", nullable)]
-    pub expires_at:      Option<DateTime<Utc>>,
-    pub is_active:       bool,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub is_active: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -63,7 +63,15 @@ pub enum Relation {
     RoleProfile,
 }
 
-impl Related<super::user::Entity>               for Entity { fn to() -> RelationDef { Relation::User.def() } }
-impl Related<super::atlas_role_profiles::Entity> for Entity { fn to() -> RelationDef { Relation::RoleProfile.def() } }
+impl Related<super::user::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::User.def()
+    }
+}
+impl Related<super::atlas_role_profiles::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::RoleProfile.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

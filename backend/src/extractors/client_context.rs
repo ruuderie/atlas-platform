@@ -32,7 +32,7 @@
 use axum::{
     Extension,
     extract::FromRequestParts,
-    http::{HeaderMap, request::Parts, StatusCode},
+    http::{HeaderMap, StatusCode, request::Parts},
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use uuid::Uuid;
@@ -46,9 +46,9 @@ pub const CLIENT_ACCOUNT_HEADER: &str = "x-folio-client-account";
 #[derive(Clone, Debug)]
 pub struct ClientContext {
     /// The validated client account UUID.
-    pub account_id:    Uuid,
+    pub account_id: Uuid,
     /// Display name from the `account` table (for logging + UI rendering).
-    pub display_name:  String,
+    pub display_name: String,
 }
 
 impl<S> FromRequestParts<S> for ClientContext
@@ -121,7 +121,10 @@ where
 
         let display_name = account.name.clone();
 
-        let ctx = ClientContext { account_id, display_name };
+        let ctx = ClientContext {
+            account_id,
+            display_name,
+        };
         parts.extensions.insert(ctx.clone());
 
         Ok(ctx)

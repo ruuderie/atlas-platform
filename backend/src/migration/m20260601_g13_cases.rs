@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -60,7 +60,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AtlasCases::ReportedByUserId).uuid().null())
                     .col(ColumnDef::new(AtlasCases::AssetId).uuid().null()) // FK to atlas_assets
                     .col(ColumnDef::new(AtlasCases::ContractId).uuid().null()) // FK to atlas_contracts
-                    .col(ColumnDef::new(AtlasCases::AssignedServiceProviderId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCases::AssignedServiceProviderId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasCases::AssignedUserId).uuid().null())
                     .col(
                         ColumnDef::new(AtlasCases::Priority)
@@ -76,14 +80,38 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AtlasCases::Subject).string().not_null())
                     .col(ColumnDef::new(AtlasCases::Description).text().null())
-                    .col(ColumnDef::new(AtlasCases::ScheduledAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasCases::CompletedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasCases::EstimatedCostCents).big_integer().null())
-                    .col(ColumnDef::new(AtlasCases::ActualCostCents).big_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCases::ScheduledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCases::CompletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCases::EstimatedCostCents)
+                            .big_integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCases::ActualCostCents)
+                            .big_integer()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasCases::LedgerEntryId).uuid().null())
-                    .col(ColumnDef::new(AtlasCases::PrimaryAttachmentId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCases::PrimaryAttachmentId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasCases::WsRoomId).uuid().null())
-                    .col(ColumnDef::new(AtlasCases::CaseMetadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasCases::CaseMetadata)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCases::CreatedAt)
                             .timestamp_with_time_zone()

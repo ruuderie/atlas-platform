@@ -1,9 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::Serialize;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize)]
 #[sea_orm(table_name = "ad_purchase")]

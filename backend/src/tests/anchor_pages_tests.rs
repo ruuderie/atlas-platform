@@ -1,15 +1,15 @@
+use crate::tests::test_utils;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
 use http_body_util::BodyExt;
-use tower::ServiceExt;
 use serde_json::json;
-use crate::tests::test_utils;
+use tower::ServiceExt;
 use uuid::Uuid;
 
+use crate::entities::{app_domain, app_instance};
 use crate::tests::api_tests::setup_test_app;
-use crate::entities::{app_instance, app_domain};
 use sea_orm::{ActiveModelTrait, Set};
 
 #[tokio::test]
@@ -27,7 +27,10 @@ async fn test_anchor_pages_crud() {
         created_at: Set(chrono::Utc::now()),
         updated_at: Set(chrono::Utc::now()),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     // Create AppDomain
     app_domain::ActiveModel {
@@ -36,14 +39,17 @@ async fn test_anchor_pages_crud() {
         domain_name: Set("test-anchor.local".to_string()),
         created_at: Set(chrono::Utc::now()),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     let mut username = "anchortest".to_string();
-    let (status, login_response) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
+    let (status, login_response) =
+        test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
-    
-    let token = login_response["token"].as_str().unwrap().to_string();
 
+    let token = login_response["token"].as_str().unwrap().to_string();
 
     let create_payload = json!({
         "title": "About Us",
@@ -65,7 +71,7 @@ async fn test_anchor_pages_crud() {
 
     let create_resp = app.clone().oneshot(create_req).await.unwrap();
     assert_eq!(create_resp.status(), StatusCode::CREATED);
-    
+
     let body_bytes = create_resp.into_body().collect().await.unwrap().to_bytes();
     let created_page: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
     let page_id = created_page["id"].as_str().unwrap();
@@ -81,7 +87,7 @@ async fn test_anchor_pages_crud() {
 
     let list_resp = app.clone().oneshot(list_req).await.unwrap();
     assert_eq!(list_resp.status(), StatusCode::OK);
-    
+
     let body_bytes = list_resp.into_body().collect().await.unwrap().to_bytes();
     let pages: Vec<serde_json::Value> = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(pages.len(), 1);

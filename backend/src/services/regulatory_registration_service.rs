@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_regulatory_registration::{self, Entity as RegulatoryRegistrationEntity, ActiveModel as RegulatoryRegistrationActiveModel};
+use crate::entities::atlas_regulatory_registration::{
+    self, ActiveModel as RegulatoryRegistrationActiveModel, Entity as RegulatoryRegistrationEntity,
+};
 
 /// Service layer for GENERIC-16: AtlasRegulatoryRegistration
 /// Permits, licenses, certifications, compliance registrations.
@@ -68,10 +72,7 @@ impl RegulatoryRegistrationService {
             q = q.filter(atlas_regulatory_registration::Column::Status.eq(s.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn renew_registration(
@@ -80,7 +81,11 @@ impl RegulatoryRegistrationService {
         registration_id: Uuid,
         new_expiry: chrono::NaiveDate,
     ) -> Result<(), String> {
-        tracing::info!("Renewed regulatory registration {} until {}", registration_id, new_expiry);
+        tracing::info!(
+            "Renewed regulatory registration {} until {}",
+            registration_id,
+            new_expiry
+        );
         Ok(())
     }
 }

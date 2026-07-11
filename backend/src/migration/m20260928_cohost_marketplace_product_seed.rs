@@ -119,10 +119,8 @@ local experts who handle everything — and earn a share of every booking.',
         )
         .await?;
 
-        db.execute_unprepared(
-            "DELETE FROM platform_products WHERE slug = 'folio-cohost-market';",
-        )
-        .await?;
+        db.execute_unprepared("DELETE FROM platform_products WHERE slug = 'folio-cohost-market';")
+            .await?;
 
         Ok(())
     }

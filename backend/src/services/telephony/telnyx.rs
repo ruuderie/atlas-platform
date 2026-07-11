@@ -1,8 +1,8 @@
 #![allow(dead_code, unused)]
 
+use crate::traits::telephony::{CallEvent, CallLog, PhoneNumber, TelephonyProvider};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use crate::traits::telephony::{CallEvent, CallLog, PhoneNumber, TelephonyProvider};
 
 pub struct TelnyxAdapter {
     pub api_key: String,
@@ -39,14 +39,29 @@ impl TelephonyProvider for TelnyxAdapter {
     fn normalize_webhook(&self, payload: &serde_json::Value) -> Result<CallEvent> {
         // Extract required fields from Telnyx's specific webhook payload format
         let data = payload.get("data").and_then(|v| v.as_object());
-        let payload_type = data.and_then(|d| d.get("record_type")).and_then(|v| v.as_str()).unwrap_or_default();
-        let call_session_id = data.and_then(|d| d.get("call_session_id")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
-        
+        let payload_type = data
+            .and_then(|d| d.get("record_type"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        let call_session_id = data
+            .and_then(|d| d.get("call_session_id"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+
         // This is a simplified extraction example
         Ok(CallEvent {
             call_id: call_session_id,
-            to: data.and_then(|d| d.get("to")).and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-            from: data.and_then(|d| d.get("from")).and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            to: data
+                .and_then(|d| d.get("to"))
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            from: data
+                .and_then(|d| d.get("from"))
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
             status: payload_type.to_string(),
             duration: None, // May require additional logic to calculate
             raw_payload: payload.clone(),

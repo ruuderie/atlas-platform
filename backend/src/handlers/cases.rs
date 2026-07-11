@@ -1,35 +1,27 @@
-use uuid::Uuid;
-use chrono::Utc;
+use crate::entities::{activity, case, customer, note, user};
+use crate::models::activity::ActivityModel;
+use crate::models::case::{CaseModel, CreateCaseInput, UpdateCaseInput};
+use crate::models::file::FileAssociation;
+use crate::models::note::NoteModel;
 use axum::{
-    extract::{Extension, Path, Json, State},
+    Router,
+    extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    
-    ActiveModelTrait, 
-    Set, 
-    DatabaseConnection,
-     
-    EntityTrait, 
-    QueryFilter,
-    
-    ColumnTrait,
-};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
-use crate::entities::{case, activity, note, customer, user};
-use crate::models::case::{CaseModel, CreateCaseInput, UpdateCaseInput};
-use crate::models::activity::ActivityModel;
-use crate::models::note::NoteModel;
-use crate::models::file::FileAssociation;
+use uuid::Uuid;
 // ============================================================
 // LEGACY CRM HANDLER - CUTOVER IN PROGRESS
 // Cases and activities moving to CaseService + RealtimeService.
 // ============================================================
 
-use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, AssociatedEntityType};
+use crate::entities::activity::{
+    ActivityStatus, ActivityType, AssociatedEntity, AssociatedEntityType,
+};
 
 // Cutover: legacy cases/activities → CaseService + RealtimeService + DocumentService
 
@@ -74,9 +66,15 @@ pub async fn create_case(
         properties: Set(None),
     };
 
-    let inserted_case = new_case.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(CaseModel::from(inserted_case))))
+    let inserted_case = new_case
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(CaseModel::from(inserted_case)),
+    ))
 }
 
 pub async fn get_cases(
@@ -119,14 +117,27 @@ pub async fn update_case(
         .ok_or(StatusCode::NOT_FOUND)?
         .into();
 
-    if let Some(title) = input.title { case.title = Set(title); }
-    if let Some(description) = input.description { case.description = Set(description); }
-    if let Some(status) = input.status { case.status = Set(status); }
-    if let Some(priority) = input.priority { case.priority = Set(priority); }
-    if let Some(assigned_to) = input.assigned_to { case.assigned_to = Set(Some(assigned_to)); }
+    if let Some(title) = input.title {
+        case.title = Set(title);
+    }
+    if let Some(description) = input.description {
+        case.description = Set(description);
+    }
+    if let Some(status) = input.status {
+        case.status = Set(status);
+    }
+    if let Some(priority) = input.priority {
+        case.priority = Set(priority);
+    }
+    if let Some(assigned_to) = input.assigned_to {
+        case.assigned_to = Set(Some(assigned_to));
+    }
     case.updated_at = Set(Utc::now());
 
-    let updated_case = case.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_case = case
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(JsonResponse(CaseModel::from(updated_case)))
 }
@@ -159,7 +170,8 @@ pub async fn get_case_activities(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let activity_models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
+    let activity_models: Vec<ActivityModel> =
+        activities.into_iter().map(ActivityModel::from).collect();
     Ok(JsonResponse(activity_models))
 }
 
@@ -190,12 +202,11 @@ pub async fn create_case_activity(
         status: Set(ActivityStatus::Pending),
         due_date: Set(None),
         completed_at: Set(None),
-        associated_entities: Set(serde_json::to_value(vec![
-            AssociatedEntity {
-                entity_type: AssociatedEntityType::Case,
-                entity_id: case.id,
-            }
-        ]).unwrap()),
+        associated_entities: Set(serde_json::to_value(vec![AssociatedEntity {
+            entity_type: AssociatedEntityType::Case,
+            entity_id: case.id,
+        }])
+        .unwrap()),
         created_by: Set(current_user.id),
         assigned_to: Set(case.assigned_to),
         created_at: Set(Utc::now()),
@@ -206,8 +217,11 @@ pub async fn create_case_activity(
         .insert(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(inserted_activity))))
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(ActivityModel::from(inserted_activity)),
+    ))
 }
 
 pub async fn add_file_to_case(
@@ -239,7 +253,8 @@ pub async fn get_case_files(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let file_ids = case.get_associated_files(&db)
+    let file_ids = case
+        .get_associated_files(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -296,9 +311,15 @@ pub async fn create_case_note(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted_note = new_note.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(NoteModel::from(inserted_note))))
+    let inserted_note = new_note
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(NoteModel::from(inserted_note)),
+    ))
 }
 
 #[derive(Debug, Deserialize)]

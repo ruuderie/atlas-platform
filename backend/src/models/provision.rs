@@ -68,7 +68,9 @@ pub struct ProvisionTenantResponse {
 /// Validates a tenant slug: lowercase alphanum + hyphens, no leading/trailing hyphens.
 pub fn validate_slug(slug: &str) -> Result<(), validator::ValidationError> {
     let ok = !slug.is_empty()
-        && slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && slug
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         && !slug.starts_with('-')
         && !slug.ends_with('-');
     if ok {
@@ -88,10 +90,14 @@ pub fn validate_slug(slug: &str) -> Result<(), validator::ValidationError> {
 /// - Must not exceed 253 characters
 pub fn validate_domain(domain: &str) -> Result<(), String> {
     if domain.contains("://") {
-        return Err("Domain must not include a scheme (remove 'https://' or 'http://')".to_string());
+        return Err(
+            "Domain must not include a scheme (remove 'https://' or 'http://')".to_string(),
+        );
     }
     if domain.contains('/') {
-        return Err("Domain must not include a path (remove everything after the first '/')".to_string());
+        return Err(
+            "Domain must not include a path (remove everything after the first '/')".to_string(),
+        );
     }
     if domain.contains(':') {
         return Err("Domain must not include a port number".to_string());
@@ -105,10 +111,16 @@ pub fn validate_domain(domain: &str) -> Result<(), String> {
     // Each label must be 1–63 chars, alphanumeric + hyphen, no leading/trailing hyphen
     for label in domain.split('.') {
         if label.is_empty() || label.len() > 63 {
-            return Err(format!("Domain label '{}' is invalid (must be 1–63 characters)", label));
+            return Err(format!(
+                "Domain label '{}' is invalid (must be 1–63 characters)",
+                label
+            ));
         }
         if label.starts_with('-') || label.ends_with('-') {
-            return Err(format!("Domain label '{}' must not start or end with a hyphen", label));
+            return Err(format!(
+                "Domain label '{}' must not start or end with a hyphen",
+                label
+            ));
         }
     }
     Ok(())

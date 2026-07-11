@@ -1,9 +1,13 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
+use uuid::Uuid;
 
-use crate::entities::atlas_subscription::{self, Entity as SubscriptionEntity, ActiveModel as SubscriptionActiveModel};
+use crate::entities::atlas_subscription::{
+    self, ActiveModel as SubscriptionActiveModel, Entity as SubscriptionEntity,
+};
 
 /// Service layer for GENERIC-04: AtlasSubscription
 /// Recurring subscriptions, creator tiers, SaaS plans, membership, etc.
@@ -58,17 +62,14 @@ impl SubscriptionService {
         status: Option<atlas_subscription::SubscriptionStatus>,
         limit: u64,
     ) -> Result<Vec<atlas_subscription::Model>, String> {
-        let mut q = SubscriptionEntity::find()
-            .filter(atlas_subscription::Column::TenantId.eq(tenant_id));
+        let mut q =
+            SubscriptionEntity::find().filter(atlas_subscription::Column::TenantId.eq(tenant_id));
 
         if let Some(s) = status {
             q = q.filter(atlas_subscription::Column::Status.eq(s));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn cancel_subscription(
@@ -134,7 +135,10 @@ impl SubscriptionService {
     ) -> Result<usize, String> {
         let now = Utc::now();
         let overdue_subs = SubscriptionEntity::find()
-            .filter(atlas_subscription::Column::Status.eq(atlas_subscription::SubscriptionStatus::PastDue))
+            .filter(
+                atlas_subscription::Column::Status
+                    .eq(atlas_subscription::SubscriptionStatus::PastDue),
+            )
             .filter(atlas_subscription::Column::IsBillingExempt.eq(false))
             .filter(atlas_subscription::Column::GracePeriodEndsAt.lt(now))
             .all(db)

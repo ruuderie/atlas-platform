@@ -52,25 +52,62 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_attribution_touchpoints"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .uuid()
+                            .primary_key()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // ── Visitor identity (one or more populated) ──────────────
                     // Resolved user (set immediately if logged in, or on identity resolution)
                     .col(ColumnDef::new(Alias::new("user_id")).uuid().null())
                     // External contact (email captured from form fill before login)
-                    .col(ColumnDef::new(Alias::new("contact_email")).string_len(255).null())
+                    .col(
+                        ColumnDef::new(Alias::new("contact_email"))
+                            .string_len(255)
+                            .null(),
+                    )
                     // Client-side cookie / device fingerprint — resolved to user_id later
-                    .col(ColumnDef::new(Alias::new("anonymous_id")).string_len(128).null())
+                    .col(
+                        ColumnDef::new(Alias::new("anonymous_id"))
+                            .string_len(128)
+                            .null(),
+                    )
                     // ── Channel ───────────────────────────────────────────────
                     // VARCHAR — validated as `AttributionChannel` enum at service layer
                     // 'organic_search' | 'paid_search' | 'paid_social' | 'cold_email' | ...
-                    .col(ColumnDef::new(Alias::new("channel")).string_len(50).not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("channel"))
+                            .string_len(50)
+                            .not_null(),
+                    )
                     // ── UTM parameters ────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("utm_source")).string_len(100).null())
-                    .col(ColumnDef::new(Alias::new("utm_medium")).string_len(100).null())
-                    .col(ColumnDef::new(Alias::new("utm_campaign")).string_len(100).null())
-                    .col(ColumnDef::new(Alias::new("utm_content")).string_len(100).null())
-                    .col(ColumnDef::new(Alias::new("utm_term")).string_len(100).null())
+                    .col(
+                        ColumnDef::new(Alias::new("utm_source"))
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("utm_medium"))
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("utm_campaign"))
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("utm_content"))
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("utm_term"))
+                            .string_len(100)
+                            .null(),
+                    )
                     // ── Platform entity references ────────────────────────────
                     // Which campaign generated this touchpoint (if via a tracked campaign)
                     .col(ColumnDef::new(Alias::new("campaign_id")).uuid().null())
@@ -80,12 +117,28 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Alias::new("event_id")).uuid().null())
                     // ── Conversion (set when touchpoint is credited) ──────────
                     // What was converted ('atlas_reservations', 'atlas_applications', etc.)
-                    .col(ColumnDef::new(Alias::new("conversion_entity_type")).string_len(100).null())
-                    .col(ColumnDef::new(Alias::new("conversion_entity_id")).uuid().null())
+                    .col(
+                        ColumnDef::new(Alias::new("conversion_entity_type"))
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("conversion_entity_id"))
+                            .uuid()
+                            .null(),
+                    )
                     // GMV of the conversion in cents
-                    .col(ColumnDef::new(Alias::new("conversion_value_cents")).big_integer().null())
+                    .col(
+                        ColumnDef::new(Alias::new("conversion_value_cents"))
+                            .big_integer()
+                            .null(),
+                    )
                     // Credit allocated to this touchpoint by the attribution model
-                    .col(ColumnDef::new(Alias::new("attributed_revenue_cents")).big_integer().null())
+                    .col(
+                        ColumnDef::new(Alias::new("attributed_revenue_cents"))
+                            .big_integer()
+                            .null(),
+                    )
                     // VARCHAR — validated as `AttributionModel` enum at service layer
                     // 'first_touch' | 'last_touch' | 'linear' | 'time_decay' | 'position_based'
                     .col(
@@ -147,9 +200,7 @@ impl MigrationTrait for Migration {
         use sea_orm::ConnectionTrait;
         manager
             .get_connection()
-            .execute_unprepared(
-                "DROP TABLE IF EXISTS atlas_attribution_touchpoints CASCADE;",
-            )
+            .execute_unprepared("DROP TABLE IF EXISTS atlas_attribution_touchpoints CASCADE;")
             .await?;
         Ok(())
     }

@@ -1,22 +1,22 @@
-pub mod api_tests;
-pub mod test_utils;
-pub mod crm_tests;
-pub mod template_tests;
+pub mod account_tests;
 pub mod ad_purchase_tests;
 pub mod admin_tests;
-pub mod account_tests;
-pub mod crm_extended_tests;
-pub mod feed_tests;
-pub mod relational_dependencies_tests;
-pub mod tenant_settings_tests;
-pub mod billing_tests;
-pub mod magic_link_tests;
-pub mod telemetry_tests;
-pub mod audit_tests;
-pub mod webhook_tests;
 pub mod anchor_pages_tests;
+pub mod api_tests;
+pub mod audit_tests;
+pub mod billing_tests;
+pub mod crm_extended_tests;
+pub mod crm_tests;
+pub mod feed_tests;
+pub mod magic_link_tests;
+pub mod relational_dependencies_tests;
 pub mod search_tests;
+pub mod telemetry_tests;
+pub mod template_tests;
+pub mod tenant_settings_tests;
+pub mod test_utils;
 pub mod webauthn_registry_tests;
+pub mod webhook_tests;
 // Admin Module Registry — Phase 4 tests
 pub mod admin_module_tests;
 // Phase 2 — Provisioning API tests
@@ -45,4 +45,3 @@ pub mod instance_lifecycle_tests;
 
 // Waitlist endpoint — DB-backed integration tests (happy path, dedup, metadata, variants)
 pub mod waitlist_integration_tests;
-

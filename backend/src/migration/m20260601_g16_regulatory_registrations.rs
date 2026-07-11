@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -39,27 +39,87 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::RegistrationType).string().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::AssetId).uuid().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::ServiceProviderId).uuid().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::JurisdictionCode).string().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::IssuingAuthority).string().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::RegistrationNumber).string().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::VerificationRequestId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::RegistrationType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::AssetId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::ServiceProviderId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::JurisdictionCode)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::IssuingAuthority)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::RegistrationNumber)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::VerificationRequestId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasRegulatoryRegistrations::Status)
                             .string_len(30)
                             .not_null()
                             .default(Expr::val("pending_application")),
                     )
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::IssuedDate).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::ExpiresAt).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::LastInspectionDate).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::NextInspectionDue).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::AccessToken).string().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::AccessTokenExpiresAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::JurisdictionMetadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::IssuedDate)
+                            .date()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::ExpiresAt)
+                            .date()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::LastInspectionDate)
+                            .date()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::NextInspectionDue)
+                            .date()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::AccessToken)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::AccessTokenExpiresAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasRegulatoryRegistrations::JurisdictionMetadata)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasRegulatoryRegistrations::CreatedAt)
                             .timestamp_with_time_zone()
@@ -113,7 +173,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasRegulatoryRegistrations::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AtlasRegulatoryRegistrations::Table)
+                    .to_owned(),
+            )
             .await?;
 
         manager

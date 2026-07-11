@@ -37,15 +37,15 @@
 //! path (Axum deduplicates via `Parts` extension insertion).
 
 use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
     Extension,
+    extract::FromRequestParts,
+    http::{StatusCode, request::Parts},
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect};
 use uuid::Uuid;
 
-use crate::entities::{user, user_account};
 use crate::entities::user_account::UserRole;
+use crate::entities::{user, user_account};
 
 /// Resolved tenant context for the current request.
 ///
@@ -54,14 +54,14 @@ use crate::entities::user_account::UserRole;
 #[derive(Clone, Debug)]
 pub struct TenantContext {
     /// The tenant this user belongs to.
-    pub tenant_id:  Uuid,
+    pub tenant_id: Uuid,
     /// The user's platform-level role (Owner/Admin/Member/PlatformSuperAdmin).
     /// This is the coarse-grained platform role, NOT an app-specific role.
-    pub user_role:  UserRole,
+    pub user_role: UserRole,
     /// The account this user_account record belongs to.
     pub account_id: Uuid,
     /// The authenticated user's ID (convenience — same as `user::Model.id`).
-    pub user_id:    Uuid,
+    pub user_id: Uuid,
 }
 
 impl TenantContext {
@@ -88,15 +88,13 @@ where
             return Ok(ctx.clone());
         }
 
-        let Extension(db) =
-            Extension::<DatabaseConnection>::from_request_parts(parts, state)
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let Extension(db) = Extension::<DatabaseConnection>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let Extension(current_user) =
-            Extension::<user::Model>::from_request_parts(parts, state)
-                .await
-                .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let Extension(current_user) = Extension::<user::Model>::from_request_parts(parts, state)
+            .await
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         // Single query: join user_account + profile to get tenant_id
         // Takes the first active account (ordered by created_at ASC implicitly)
@@ -115,10 +113,10 @@ where
             .ok_or(StatusCode::FORBIDDEN)?;
 
         let ctx = TenantContext {
-            tenant_id:  profile.tenant_id,
-            user_role:  ua.role,
+            tenant_id: profile.tenant_id,
+            user_role: ua.role,
             account_id: ua.account_id,
-            user_id:    current_user.id,
+            user_id: current_user.id,
         };
 
         // Cache in request extensions so subsequent extractors reuse it

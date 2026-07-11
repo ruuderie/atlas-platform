@@ -10,11 +10,11 @@
 //!   Compile all to a specific folder:
 //!     cargo run --bin generate_market_reports -- --all --output ../docs/market-analysis/pdf
 
+use clap::Parser;
+use pulldown_cmark::{Event, Parser as MarkdownParser, Tag};
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use clap::Parser;
-use pulldown_cmark::{Parser as MarkdownParser, Event, Tag};
-use serde_json::Value;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -71,18 +71,91 @@ struct ReportItem {
 
 fn get_sector(filename: &str) -> &'static str {
     let lower = filename.to_lowercase();
-    
+
     let sectors = [
-        ("Real Estate & Construction", vec!["real_estate", "property", "brokerage", "construction", "ny_real", "nyc_real", "sao_paulo", "sao_bernardo"]),
-        ("Financial Services & Fintech", vec!["lending", "finance", "factoring", "fintech", "stablecoins", "traders", "rollup", "holding", "mergers"]),
-        ("Logistics & Infrastructure", vec!["freight", "logistics", "trucking", "equipment_rental", "parking", "energy"]),
-        ("Creative, Media & Festivals", vec!["creator", "music", "studio", "festivals", "media", "entertainment"]),
-        ("Healthcare & MedTech", vec!["health", "dental", "odontologia", "medical", "beauty"]),
-        ("Retail & Consumer Commerce", vec!["grocers", "supermercados", "retail", "reseller", "luxury"]),
-        ("Services & Local Governance", vec!["agency", "churches", "legal", "recruiting", "education", "vocational", "haiti", "dominican", "military"]),
-        ("Hospitality & Experiential", vec!["tourism", "passport_bros", "usvi", "restaurants", "catering"])
+        (
+            "Real Estate & Construction",
+            vec![
+                "real_estate",
+                "property",
+                "brokerage",
+                "construction",
+                "ny_real",
+                "nyc_real",
+                "sao_paulo",
+                "sao_bernardo",
+            ],
+        ),
+        (
+            "Financial Services & Fintech",
+            vec![
+                "lending",
+                "finance",
+                "factoring",
+                "fintech",
+                "stablecoins",
+                "traders",
+                "rollup",
+                "holding",
+                "mergers",
+            ],
+        ),
+        (
+            "Logistics & Infrastructure",
+            vec![
+                "freight",
+                "logistics",
+                "trucking",
+                "equipment_rental",
+                "parking",
+                "energy",
+            ],
+        ),
+        (
+            "Creative, Media & Festivals",
+            vec![
+                "creator",
+                "music",
+                "studio",
+                "festivals",
+                "media",
+                "entertainment",
+            ],
+        ),
+        (
+            "Healthcare & MedTech",
+            vec!["health", "dental", "odontologia", "medical", "beauty"],
+        ),
+        (
+            "Retail & Consumer Commerce",
+            vec!["grocers", "supermercados", "retail", "reseller", "luxury"],
+        ),
+        (
+            "Services & Local Governance",
+            vec![
+                "agency",
+                "churches",
+                "legal",
+                "recruiting",
+                "education",
+                "vocational",
+                "haiti",
+                "dominican",
+                "military",
+            ],
+        ),
+        (
+            "Hospitality & Experiential",
+            vec![
+                "tourism",
+                "passport_bros",
+                "usvi",
+                "restaurants",
+                "catering",
+            ],
+        ),
     ];
-    
+
     for (sector, keywords) in &sectors {
         for kw in keywords {
             if lower.contains(kw) {
@@ -90,7 +163,7 @@ fn get_sector(filename: &str) -> &'static str {
             }
         }
     }
-    
+
     "Specialized & Emerging Niches"
 }
 
@@ -98,7 +171,7 @@ fn parse_geo(filename: &str) -> String {
     let cleaned = filename.replace('-', "_");
     let parts: Vec<&str> = cleaned.split('_').collect();
     let mut geos = std::collections::HashSet::new();
-    
+
     let known_geos = [
         ("us", "United States"),
         ("brazil", "Brazil"),
@@ -112,9 +185,9 @@ fn parse_geo(filename: &str) -> String {
         ("sp", "São Paulo"),
         ("usvi", "US Virgin Islands"),
         ("ae", "United Arab Emirates"),
-        ("ht", "Haiti")
+        ("ht", "Haiti"),
     ];
-    
+
     for p in parts {
         let pl = p.to_lowercase();
         for (kw, name) in &known_geos {
@@ -123,7 +196,7 @@ fn parse_geo(filename: &str) -> String {
             }
         }
     }
-    
+
     if geos.is_empty() {
         "Not Specified".to_string()
     } else {
@@ -138,15 +211,19 @@ fn check_pdf_status(directory: &Path, filename_stem: &str) -> (String, Option<St
     if !pdf_dir.exists() || !pdf_dir.is_dir() {
         return ("[NO] Pending".to_string(), None);
     }
-    
+
     let mut newest_pdf: Option<(PathBuf, std::time::SystemTime)> = None;
-    
+
     if let Ok(entries) = fs::read_dir(pdf_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() && path.extension().map_or(false, |ext| ext == "pdf") {
                 let name = path.file_stem().unwrap().to_str().unwrap();
-                if name == filename_stem || (name.starts_with(filename_stem) && name.len() > filename_stem.len() && name.chars().nth(filename_stem.len()) == Some('_')) {
+                if name == filename_stem
+                    || (name.starts_with(filename_stem)
+                        && name.len() > filename_stem.len()
+                        && name.chars().nth(filename_stem.len()) == Some('_'))
+                {
                     if let Ok(meta) = fs::metadata(&path) {
                         if let Ok(modified) = meta.modified() {
                             if newest_pdf.is_none() || modified > newest_pdf.as_ref().unwrap().1 {
@@ -158,7 +235,7 @@ fn check_pdf_status(directory: &Path, filename_stem: &str) -> (String, Option<St
             }
         }
     }
-    
+
     if let Some((pdf_path, modified)) = newest_pdf {
         let date: chrono::DateTime<chrono::Local> = modified.into();
         let date_str = date.format("%Y-%m-%d").to_string();
@@ -173,13 +250,13 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let market_dir = docs_root.join("reports").join("market-analysis");
     let sales_dir = docs_root.join("reports").join("sales");
     let output_path = docs_root.join("reports").join("niches_tracked.md");
-    
+
     if !market_dir.exists() || !sales_dir.exists() {
         return Err("Reports directories do not exist. Check structure.".into());
     }
-    
+
     let mut reports = Vec::new();
-    
+
     // Scan market analyses
     if let Ok(entries) = fs::read_dir(&market_dir) {
         for entry in entries.flatten() {
@@ -192,7 +269,7 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
                     let title = format_title_case(&stem);
                     let sector = get_sector(&stem).to_string();
                     let geo = parse_geo(&stem);
-                    
+
                     reports.push(ReportItem {
                         filename: name.to_string(),
                         title,
@@ -220,7 +297,7 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
                     let title = format_title_case(&stem);
                     let sector = get_sector(&stem).to_string();
                     let geo = parse_geo(&stem);
-                    
+
                     reports.push(ReportItem {
                         filename: name.to_string(),
                         title,
@@ -235,70 +312,120 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     // Sort alphabetically by title
     reports.sort_by(|a, b| a.title.cmp(&b.title));
-    
+
     // Group by sector
-    let mut sectors: std::collections::BTreeMap<String, Vec<ReportItem>> = std::collections::BTreeMap::new();
+    let mut sectors: std::collections::BTreeMap<String, Vec<ReportItem>> =
+        std::collections::BTreeMap::new();
     for r in reports {
-        sectors.entry(r.sector.clone()).or_insert_with(Vec::new).push(r);
+        sectors
+            .entry(r.sector.clone())
+            .or_insert_with(Vec::new)
+            .push(r);
     }
-    
-    let total_market = sectors.values().flatten().filter(|r| r.report_type == "Market Analysis").count();
-    let total_sales = sectors.values().flatten().filter(|r| r.report_type == "Technical Sales").count();
+
+    let total_market = sectors
+        .values()
+        .flatten()
+        .filter(|r| r.report_type == "Market Analysis")
+        .count();
+    let total_sales = sectors
+        .values()
+        .flatten()
+        .filter(|r| r.report_type == "Technical Sales")
+        .count();
     let total_all = total_market + total_sales;
-    
+
     let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-    
+
     let mut md = Vec::new();
     md.push("# 📋 Strategic Niches & Go-To-Market Reports Catalog".to_string());
     md.push(format!("**Last Scanned:** {}  ", now));
-    md.push(format!("**Total Reports Scanned:** {} ({} Market Analyses, {} Sales Analyses)  ", total_all, total_market, total_sales));
+    md.push(format!(
+        "**Total Reports Scanned:** {} ({} Market Analyses, {} Sales Analyses)  ",
+        total_all, total_market, total_sales
+    ));
     md.push("".to_string());
     md.push("This dynamic catalog indexes every vertical niche we are currently tracking, mapping them to major economic sectors, geographic scopes, and compiled PDF version-controlled assets.".to_string());
     md.push("".to_string());
-    
+
     md.push("## 📊 Sector Summary Breakdown".to_string());
     md.push("".to_string());
     md.push("| Economic Sector | Active Reports | Market Analyses | Sales Analyses | PDF Compiled Ratio |".to_string());
     md.push("|-----------------|----------------|-----------------|----------------|--------------------|".to_string());
-    
+
     for (sec, items) in &sectors {
-        let m_count = items.iter().filter(|r| r.report_type == "Market Analysis").count();
-        let s_count = items.iter().filter(|r| r.report_type == "Technical Sales").count();
-        let compiled = items.iter().filter(|r| r.pdf_status.contains("[YES]")).count();
-        let ratio = format!("{}/{} ({}%)", compiled, items.len(), (compiled * 100) / items.len());
-        md.push(format!("| {} | **{}** | {} | {} | {} |", sec, items.len(), m_count, s_count, ratio));
+        let m_count = items
+            .iter()
+            .filter(|r| r.report_type == "Market Analysis")
+            .count();
+        let s_count = items
+            .iter()
+            .filter(|r| r.report_type == "Technical Sales")
+            .count();
+        let compiled = items
+            .iter()
+            .filter(|r| r.pdf_status.contains("[YES]"))
+            .count();
+        let ratio = format!(
+            "{}/{} ({}%)",
+            compiled,
+            items.len(),
+            (compiled * 100) / items.len()
+        );
+        md.push(format!(
+            "| {} | **{}** | {} | {} | {} |",
+            sec,
+            items.len(),
+            m_count,
+            s_count,
+            ratio
+        ));
     }
     md.push("".to_string());
     md.push("---".to_string());
     md.push("".to_string());
-    
+
     md.push("## 🗂️ Detailed Sector Index".to_string());
     md.push("".to_string());
-    
+
     for (sec, items) in &sectors {
         md.push(format!("### {}", sec));
         md.push("".to_string());
-        md.push("| Report Document Name | Type | Geographic Scope | PDF Output Status |".to_string());
-        md.push("|----------------------|------|------------------|-------------------|".to_string());
-        
+        md.push(
+            "| Report Document Name | Type | Geographic Scope | PDF Output Status |".to_string(),
+        );
+        md.push(
+            "|----------------------|------|------------------|-------------------|".to_string(),
+        );
+
         for r in items {
             let md_link = format!("[{}]({})", r.title, r.rel_path);
             let pdf_link = match &r.pdf_file {
                 Some(pdf) => format!("[{}](pdf/{})", r.pdf_status, pdf),
                 None => r.pdf_status.clone(),
             };
-            md.push(format!("| {} | {} | {} | {} |", md_link, r.report_type, r.geo, pdf_link));
+            md.push(format!(
+                "| {} | {} | {} | {} |",
+                md_link, r.report_type, r.geo, pdf_link
+            ));
         }
         md.push("".to_string());
     }
-    
+
     fs::write(&output_path, md.join("\n"))?;
-    println!("Successfully compiled dynamic strategy catalog natively in Rust to: {}", output_path.display());
-    println!("Tracking {} total reports across {} economic sectors.", total_all, sectors.len());
-    
+    println!(
+        "Successfully compiled dynamic strategy catalog natively in Rust to: {}",
+        output_path.display()
+    );
+    println!(
+        "Tracking {} total reports across {} economic sectors.",
+        total_all,
+        sectors.len()
+    );
+
     Ok(())
 }
 
@@ -322,9 +449,11 @@ fn generate_shared_markdown(manifest: &Value) -> Result<String, Box<dyn std::err
 
     lines.push("## PRODUCTION-READY INFRASTRUCTURE & ENGINES".to_string());
     lines.push("".to_string());
-    
-    let modules = manifest["infrastructure_modules"].as_array().ok_or("Missing infrastructure_modules in manifest")?;
-    
+
+    let modules = manifest["infrastructure_modules"]
+        .as_array()
+        .ok_or("Missing infrastructure_modules in manifest")?;
+
     lines.push("### Production-Ready Infrastructure (Available Now)".to_string());
     lines.push("".to_string());
     for m in modules {
@@ -358,10 +487,16 @@ fn generate_shared_markdown(manifest: &Value) -> Result<String, Box<dyn std::err
     lines.push("".to_string());
     lines.push("These are the platform generics that allow vertical apps to be rapidly assembled without re-building core business objects:".to_string());
     lines.push("".to_string());
-    lines.push("| Generic | What It Models | Revenue-Generating Use Case / Example | Status |".to_string());
-    lines.push("|---------|---------------|---------------------------------------|--------|".to_string());
-    
-    let generics = manifest["platform_generics"].as_array().ok_or("Missing platform_generics in manifest")?;
+    lines.push(
+        "| Generic | What It Models | Revenue-Generating Use Case / Example | Status |".to_string(),
+    );
+    lines.push(
+        "|---------|---------------|---------------------------------------|--------|".to_string(),
+    );
+
+    let generics = manifest["platform_generics"]
+        .as_array()
+        .ok_or("Missing platform_generics in manifest")?;
     for g in generics {
         let status = g["status"].as_str().unwrap_or("");
         let status_tag = if status == "Deployed" {
@@ -386,8 +521,10 @@ fn generate_shared_markdown(manifest: &Value) -> Result<String, Box<dyn std::err
     lines.push("".to_string());
     lines.push("| Missing Capability / Gap | Operational Impact | Resolution Path |".to_string());
     lines.push("|--------------------------|--------------------|-----------------|".to_string());
-    
-    let gaps = manifest["infrastructure_gaps"].as_array().ok_or("Missing infrastructure_gaps in manifest")?;
+
+    let gaps = manifest["infrastructure_gaps"]
+        .as_array()
+        .ok_or("Missing infrastructure_gaps in manifest")?;
     for gap in gaps {
         lines.push(format!(
             "| {} | {} | {} |",
@@ -401,13 +538,34 @@ fn generate_shared_markdown(manifest: &Value) -> Result<String, Box<dyn std::err
     lines.push("### Platform Technology Stack".to_string());
     lines.push("".to_string());
     let stack = &manifest["core_stack"];
-    lines.push(format!("- **Backend**: {}", stack["backend"].as_str().unwrap_or("")));
-    lines.push(format!("- **Frontend**: {}", stack["frontend"].as_str().unwrap_or("")));
-    lines.push(format!("- **Authentication**: {}", stack["authentication"].as_str().unwrap_or("")));
-    lines.push(format!("- **Cache**: {}", stack["cache"].as_str().unwrap_or("")));
-    lines.push(format!("- **Storage**: {}", stack["storage"].as_str().unwrap_or("")));
-    lines.push(format!("- **Observability**: {}", stack["observability"].as_str().unwrap_or("")));
-    lines.push(format!("- **Deployment**: {}", stack["deployment"].as_str().unwrap_or("")));
+    lines.push(format!(
+        "- **Backend**: {}",
+        stack["backend"].as_str().unwrap_or("")
+    ));
+    lines.push(format!(
+        "- **Frontend**: {}",
+        stack["frontend"].as_str().unwrap_or("")
+    ));
+    lines.push(format!(
+        "- **Authentication**: {}",
+        stack["authentication"].as_str().unwrap_or("")
+    ));
+    lines.push(format!(
+        "- **Cache**: {}",
+        stack["cache"].as_str().unwrap_or("")
+    ));
+    lines.push(format!(
+        "- **Storage**: {}",
+        stack["storage"].as_str().unwrap_or("")
+    ));
+    lines.push(format!(
+        "- **Observability**: {}",
+        stack["observability"].as_str().unwrap_or("")
+    ));
+    lines.push(format!(
+        "- **Deployment**: {}",
+        stack["deployment"].as_str().unwrap_or("")
+    ));
     lines.push("".to_string());
 
     Ok(lines.join("\n"))
@@ -419,52 +577,74 @@ fn update_prompt_file(
     shared_markdown: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let content = fs::read_to_string(file_path)?;
-    
+
     let start_tag = "<!-- PLATFORM_ARCH_START -->";
     let end_tag = "<!-- PLATFORM_ARCH_END -->";
-    
+
     let start_idx = content.find(start_tag).ok_or_else(|| {
-        format!("Error: Start tag '{}' not found in {}", start_tag, file_path.display())
+        format!(
+            "Error: Start tag '{}' not found in {}",
+            start_tag,
+            file_path.display()
+        )
     })?;
-    
+
     let end_idx = content.find(end_tag).ok_or_else(|| {
-        format!("Error: End tag '{}' not found in {}", end_tag, file_path.display())
+        format!(
+            "Error: End tag '{}' not found in {}",
+            end_tag,
+            file_path.display()
+        )
     })?;
-    
-    let injected_segment = format!("{}\n{}\n\n{}\n{}", start_tag, header_content, shared_markdown, end_tag);
-    
+
+    let injected_segment = format!(
+        "{}\n{}\n\n{}\n{}",
+        start_tag, header_content, shared_markdown, end_tag
+    );
+
     let new_content = format!(
         "{}{}{}",
         &content[..start_idx],
         injected_segment,
         &content[end_idx + end_tag.len()..]
     );
-    
+
     fs::write(file_path, new_content)?;
-    println!("Successfully synchronized template prompt: {}", file_path.file_name().unwrap().to_str().unwrap());
+    println!(
+        "Successfully synchronized template prompt: {}",
+        file_path.file_name().unwrap().to_str().unwrap()
+    );
     Ok(())
 }
 
 fn run_sync(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let manifest_path = docs_root.join("architecture").join("platform_manifest.json");
+    let manifest_path = docs_root
+        .join("architecture")
+        .join("platform_manifest.json");
     if !manifest_path.exists() {
         return Err(format!("Manifest file not found at {}", manifest_path.display()).into());
     }
-    
+
     let manifest_str = fs::read_to_string(&manifest_path)?;
     let manifest: Value = serde_json::from_str(&manifest_str)?;
-    
+
     let shared_markdown = generate_shared_markdown(&manifest)?;
-    
+
     let market_prompt_path = docs_root.join("prompts").join("market_analysis_prompt.md");
-    update_prompt_file(&market_prompt_path, "## PLATFORM ARCHITECTURE SUMMARY", &shared_markdown)?;
-    
-    let sales_prompt_path = docs_root.join("prompts").join("technical_sales_analysis_prompt.md");
+    update_prompt_file(
+        &market_prompt_path,
+        "## PLATFORM ARCHITECTURE SUMMARY",
+        &shared_markdown,
+    )?;
+
+    let sales_prompt_path = docs_root
+        .join("prompts")
+        .join("technical_sales_analysis_prompt.md");
     let sales_header = "## ATLAS PLATFORM — WHAT IT IS\n\n\
         Atlas is a **multi-tenant, vertically-agnostic SaaS substrate** built in Rust (Axum) + Leptos (SSR/WASM) + PostgreSQL. It is not a finished product — it is a **platform-as-substrate**: a composable infrastructure layer from which vertical SaaS applications (\"AtlasApps\") are assembled without rebuilding common infrastructure.\n\n\
         Think of Atlas as the operating system your business runs on — not a tool you add to your stack, but the stack itself.";
     update_prompt_file(&sales_prompt_path, sales_header, &shared_markdown)?;
-    
+
     println!("All template prompts are now synchronized natively in Rust!");
     Ok(())
 }
@@ -485,7 +665,9 @@ fn format_target_block_market(profile: &Value) -> String {
         - **Cross-Border / Multi-Rail Payout Cases**: {}\n\
         - **Expected Customer Revenue Model**: {}\n\
         - **Existing Legacy Software Spend / WTP Signals**: {}\n",
-        profile["target_market"].as_str().unwrap_or("Undefined Vertical"),
+        profile["target_market"]
+            .as_str()
+            .unwrap_or("Undefined Vertical"),
         profile["vertical"].as_str().unwrap_or("Unknown"),
         profile["geography"].as_str().unwrap_or("Global"),
         params["size_and_sweet_spot"].as_str().unwrap_or("N/A"),
@@ -501,17 +683,17 @@ fn format_target_block_market(profile: &Value) -> String {
 
 fn format_target_block_sales(profile: &Value) -> String {
     let params = &profile["parameters"];
-    
+
     let staff_headcount = params["staff_headcount"]
         .as_str()
         .or_else(|| params["adjuster_headcount"].as_str())
         .unwrap_or("N/A");
-        
+
     let volume_scale = params["volume_scale"]
         .as_str()
         .or_else(|| params["claims_volume"].as_str())
         .unwrap_or("N/A");
-        
+
     let key_relationships = params["key_relationships"]
         .as_str()
         .or_else(|| params["carrier_clients"].as_str())
@@ -533,7 +715,9 @@ fn format_target_block_sales(profile: &Value) -> String {
         - {}\n\n\
         What they want from Atlas:\n\
         - Standardize and automate core workflows: {}\n",
-        profile["target_market"].as_str().unwrap_or("Undefined Customer"),
+        profile["target_market"]
+            .as_str()
+            .unwrap_or("Undefined Customer"),
         profile["vertical"].as_str().unwrap_or("Unknown"),
         profile["geography"].as_str().unwrap_or("Global"),
         staff_headcount,
@@ -547,15 +731,17 @@ fn format_target_block_sales(profile: &Value) -> String {
     )
 }
 
-
-async fn call_gemini_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+async fn call_gemini_api(
+    api_key: &str,
+    prompt: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={}",
         api_key
     );
-    
+
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "contents": [
             {
@@ -569,31 +755,33 @@ async fn call_gemini_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn 
             "maxOutputTokens": 8192
         }
     });
-    
+
     println!("Sending request to Google Gemini API (gemini-1.5-pro)...");
-    
-    let response = client.post(&url)
-        .json(&payload)
-        .send()
-        .await?;
-        
+
+    let response = client.post(&url).json(&payload).send().await?;
+
     if !response.status().is_success() {
         let err_text = response.text().await?;
         return Err(format!("Gemini API error: {}", err_text).into());
     }
-    
+
     let res_json: serde_json::Value = response.json().await?;
     let content = &res_json["candidates"][0]["content"]["parts"][0]["text"];
-    let text = content.as_str().ok_or("Gemini returned empty or invalid text part")?;
-    
+    let text = content
+        .as_str()
+        .ok_or("Gemini returned empty or invalid text part")?;
+
     Ok(text.to_string())
 }
 
-async fn call_claude_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+async fn call_claude_api(
+    api_key: &str,
+    prompt: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
     let url = "https://api.anthropic.com/v1/messages";
-    
+
     let client = reqwest::Client::new();
-    
+
     let payload = serde_json::json!({
         "model": "claude-3-5-sonnet-20241022",
         "max_tokens": 8000,
@@ -605,26 +793,29 @@ async fn call_claude_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn 
             }
         ]
     });
-    
+
     println!("Sending request to Anthropic Claude API (claude-3-5-sonnet)...");
-    
-    let response = client.post(url)
+
+    let response = client
+        .post(url)
         .header("x-api-key", api_key)
         .header("anthropic-version", "2023-06-01")
         .header("content-type", "application/json")
         .json(&payload)
         .send()
         .await?;
-        
+
     if !response.status().is_success() {
         let err_text = response.text().await?;
         return Err(format!("Anthropic API error: {}", err_text).into());
     }
-    
+
     let res_json: serde_json::Value = response.json().await?;
     let content = &res_json["content"][0]["text"];
-    let text = content.as_str().ok_or("Anthropic returned empty or invalid text part")?;
-    
+    let text = content
+        .as_str()
+        .ok_or("Anthropic returned empty or invalid text part")?;
+
     Ok(text.to_string())
 }
 
@@ -635,17 +826,20 @@ async fn run_generate(
     dry_run: bool,
     custom_output: &Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let profile_path = docs_root.join("reports").join("profiles").join(format!("{}.json", niche));
+    let profile_path = docs_root
+        .join("reports")
+        .join("profiles")
+        .join(format!("{}.json", niche));
     if !profile_path.exists() {
         return Err(format!(
             "Error: Target profile not found at: {}\nAvailable profiles are under docs/reports/profiles/",
             profile_path.display()
         ).into());
     }
-    
+
     let profile_str = fs::read_to_string(&profile_path)?;
     let profile: Value = serde_json::from_str(&profile_str)?;
-    
+
     let prompt_file = if report_type == "market_analysis" {
         "market_analysis_prompt.md"
     } else {
@@ -655,38 +849,54 @@ async fn run_generate(
     if !prompt_path.exists() {
         return Err(format!("Prompt template not found at: {}", prompt_path.display()).into());
     }
-    
+
     let template = fs::read_to_string(&prompt_path)?;
-    
+
     let (niche_block, placeholder) = if report_type == "market_analysis" {
-        (format_target_block_market(&profile), "[TARGET MARKET BLOCK GOES HERE]")
+        (
+            format_target_block_market(&profile),
+            "[TARGET MARKET BLOCK GOES HERE]",
+        )
     } else {
-        (format_target_block_sales(&profile), "[CUSTOMER PROFILE BLOCK GOES HERE]")
+        (
+            format_target_block_sales(&profile),
+            "[CUSTOMER PROFILE BLOCK GOES HERE]",
+        )
     };
-    
+
     let final_prompt = if template.contains(placeholder) {
         template.replace(placeholder, &niche_block)
     } else {
-        println!("Warning: Placeholder '{}' not found in template. Appending niche block to end.", placeholder);
+        println!(
+            "Warning: Placeholder '{}' not found in template. Appending niche block to end.",
+            placeholder
+        );
         format!("{}\n\n{}", template, niche_block)
     };
-    
+
     if dry_run {
         let tmp_path = docs_root.join("reports").join("tmp_prompt.md");
         fs::write(&tmp_path, &final_prompt)?;
         println!("\n[DRY RUN SUCCESS]");
-        println!("Surgically stitched SSoT Platform specifications with your '{}' parameters!", niche);
+        println!(
+            "Surgically stitched SSoT Platform specifications with your '{}' parameters!",
+            niche
+        );
         println!("Saved complete prompt block to: {}", tmp_path.display());
-        println!("\nPreview of injected Niche Block:\n----------------------------------------------------------------");
+        println!(
+            "\nPreview of injected Niche Block:\n----------------------------------------------------------------"
+        );
         println!("{}", niche_block);
-        println!("----------------------------------------------------------------\nRun again without --dry-run to compile live via the API.");
+        println!(
+            "----------------------------------------------------------------\nRun again without --dry-run to compile live via the API."
+        );
         return Ok(());
     }
-    
+
     // Live Generation: read environment variables
     let gemini_key = std::env::var("GEMINI_API_KEY").ok();
     let anthropic_key = std::env::var("ANTHROPIC_API_KEY").ok();
-    
+
     let report_content = if let Some(ref key) = gemini_key {
         call_gemini_api(key, &final_prompt).await?
     } else if let Some(ref key) = anthropic_key {
@@ -694,18 +904,21 @@ async fn run_generate(
     } else {
         return Err("Error: No API key found. Please export GEMINI_API_KEY or ANTHROPIC_API_KEY in your terminal session or .env file.".into());
     };
-    
+
     let out_dir = if report_type == "market_analysis" {
         docs_root.join("reports").join("market-analysis")
     } else {
         docs_root.join("reports").join("sales")
     };
-    
+
     fs::create_dir_all(&out_dir)?;
     let out_md_path = out_dir.join(format!("{}.md", niche));
     fs::write(&out_md_path, &report_content)?;
-    println!("Saved generated Markdown report to: {}", out_md_path.display());
-    
+    println!(
+        "Saved generated Markdown report to: {}",
+        out_md_path.display()
+    );
+
     // Native compilation to PDF
     compile_report(&out_md_path, custom_output)?;
     println!("\nSuccessfully generated and compiled report PDF natively in Rust!");
@@ -745,7 +958,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let report_type = args.report_type.as_ref().ok_or_else(|| {
             "Error: --report-type <market_analysis|sales> is required when --niche is specified."
         })?;
-        
+
         run_generate(&docs_root, niche, report_type, args.dry_run, &args.output).await?;
         return Ok(());
     }
@@ -775,7 +988,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if path.is_dir() {
                 if let Some(name) = path.file_name() {
                     let name_str = name.to_string_lossy().to_string();
-                    if name_str != "pdf" && name_str != "tmp_compile" && !name_str.starts_with('.') {
+                    if name_str != "pdf" && name_str != "tmp_compile" && !name_str.starts_with('.')
+                    {
                         categories.push(name_str);
                     }
                 }
@@ -798,13 +1012,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for entry in entries {
                 let entry = entry?;
                 let path = entry.path();
-                if path.is_file() && path.extension().map_or(false, |ext| ext == "md") && path.file_name().unwrap().to_str().unwrap().to_lowercase() != "readme.md" {
+                if path.is_file()
+                    && path.extension().map_or(false, |ext| ext == "md")
+                    && path.file_name().unwrap().to_str().unwrap().to_lowercase() != "readme.md"
+                {
                     // Smart check: Only compile if no PDF exists yet (from today or in past version control),
                     // or if the newest existing PDF is older than the MD file (meaning it has been updated since).
                     let existing_pdf = find_existing_pdf(&path, &args.output);
                     let should_compile = if let Some(ref pdf_path) = existing_pdf {
-                        if let (Ok(md_meta), Ok(pdf_meta)) = (fs::metadata(&path), fs::metadata(pdf_path)) {
-                            if let (Ok(md_mod), Ok(pdf_mod)) = (md_meta.modified(), pdf_meta.modified()) {
+                        if let (Ok(md_meta), Ok(pdf_meta)) =
+                            (fs::metadata(&path), fs::metadata(pdf_path))
+                        {
+                            if let (Ok(md_mod), Ok(pdf_mod)) =
+                                (md_meta.modified(), pdf_meta.modified())
+                            {
                                 md_mod > pdf_mod
                             } else {
                                 true
@@ -824,7 +1045,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     } else {
                         files_skipped += 1;
-                        println!("Skipping up-to-date document: {}", path.file_name().unwrap().to_str().unwrap());
+                        println!(
+                            "Skipping up-to-date document: {}",
+                            path.file_name().unwrap().to_str().unwrap()
+                        );
                     }
                 }
             }
@@ -837,13 +1061,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("No Markdown files (.md) found in supported categories.");
             }
         } else {
-            println!("\nSuccessfully generated {} documents (skipped {} up-to-date).", files_processed, files_skipped);
+            println!(
+                "\nSuccessfully generated {} documents (skipped {} up-to-date).",
+                files_processed, files_skipped
+            );
         }
     } else if let Some(file_path) = args.file {
         if !file_path.exists() {
             return Err(format!("Specified file does not exist: {}", file_path.display()).into());
         }
-        
+
         // Handle creating output directory if specified
         if let Some(ref out_dir) = args.output {
             if !out_dir.exists() && out_dir.extension().is_none() {
@@ -855,7 +1082,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         compile_report(&file_path, &args.output)?;
         println!("\nSuccessfully generated report PDF!");
     } else {
-        println!("Error: Please specify either --all, --file <PATH>, --sync, --niches, or --catalog");
+        println!(
+            "Error: Please specify either --all, --file <PATH>, --sync, --niches, or --catalog"
+        );
         println!("Run with --help for all available options.");
         std::process::exit(1);
     }
@@ -901,12 +1130,13 @@ fn latex_escape(s: &str) -> String {
             '🔵' => escaped.push_str("[INFO] "),
             '🏆' => escaped.push_str("[WINNER] "),
             '🔑' => escaped.push_str("[KEY] "),
-            '\u{FE0F}' | '\u{FE00}' | '\u{FE01}' | '\u{FE02}' | '\u{FE03}' | '\u{FE04}' | '\u{FE05}' | '\u{FE06}' | '\u{FE07}' | '\u{FE08}' | '\u{FE09}' | '\u{FE0A}' | '\u{FE0B}' | '\u{FE0C}' | '\u{FE0D}' | '\u{FE0E}' | '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{200E}' | '\u{200F}' => {}
+            '\u{FE0F}' | '\u{FE00}' | '\u{FE01}' | '\u{FE02}' | '\u{FE03}' | '\u{FE04}'
+            | '\u{FE05}' | '\u{FE06}' | '\u{FE07}' | '\u{FE08}' | '\u{FE09}' | '\u{FE0A}'
+            | '\u{FE0B}' | '\u{FE0C}' | '\u{FE0D}' | '\u{FE0E}' | '\u{200B}' | '\u{200C}'
+            | '\u{200D}' | '\u{200E}' | '\u{200F}' => {}
             _ => {
                 let code = c as u32;
-                if (code >= 0x2600 && code <= 0x27BF) 
-                    || (code >= 0x1F000 && code <= 0x1FFFF)
-                {
+                if (code >= 0x2600 && code <= 0x27BF) || (code >= 0x1F000 && code <= 0x1FFFF) {
                     // Skip generic emojis to prevent LaTeX compilation issues
                 } else {
                     escaped.push(c);
@@ -959,10 +1189,15 @@ fn find_existing_pdf(md_path: &Path, custom_output: &Option<PathBuf>) -> Option<
                 if path.is_file() && path.extension().map_or(false, |ext| ext == "pdf") {
                     let name = path.file_stem().unwrap().to_str().unwrap();
                     // Match either exact name or name with date suffix: {file_stem} or {file_stem}_{YYYY-MM-DD}
-                    if name == file_stem || (name.starts_with(file_stem) && name.len() > file_stem.len() && name.chars().nth(file_stem.len()) == Some('_')) {
+                    if name == file_stem
+                        || (name.starts_with(file_stem)
+                            && name.len() > file_stem.len()
+                            && name.chars().nth(file_stem.len()) == Some('_'))
+                    {
                         if let Ok(meta) = fs::metadata(&path) {
                             if let Ok(modified) = meta.modified() {
-                                if newest_pdf.is_none() || modified > newest_pdf.as_ref().unwrap().1 {
+                                if newest_pdf.is_none() || modified > newest_pdf.as_ref().unwrap().1
+                                {
                                     newest_pdf = Some((path, modified));
                                 }
                             }
@@ -1024,7 +1259,11 @@ fn get_category_name(path: &Path) -> String {
         if p.file_name().map_or(false, |n| n == "reports") {
             for ancestor in path.ancestors() {
                 if ancestor.parent() == Some(p) {
-                    return ancestor.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    return ancestor
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                 }
             }
         }
@@ -1056,8 +1295,12 @@ impl LanguageAssets {
         match lang {
             DocLanguage::Portuguese => {
                 let header = match category_name {
-                    "market-analysis" => "Análise de Mercado Vertical da Atlas Platform · CONFIDENCIAL".to_string(),
-                    "sales" | "sales-analysis" => "Análise de Vendas Técnicas da Atlas Platform · CONFIDENCIAL".to_string(),
+                    "market-analysis" => {
+                        "Análise de Mercado Vertical da Atlas Platform · CONFIDENCIAL".to_string()
+                    }
+                    "sales" | "sales-analysis" => {
+                        "Análise de Vendas Técnicas da Atlas Platform · CONFIDENCIAL".to_string()
+                    }
                     _ => format!("Atlas Platform {} · CONFIDENCIAL", category_title),
                 };
                 Self {
@@ -1068,8 +1311,12 @@ impl LanguageAssets {
             }
             DocLanguage::Spanish => {
                 let header = match category_name {
-                    "market-analysis" => "Análisis de Mercado de Atlas Platform · CONFIDENCIAL".to_string(),
-                    "sales" | "sales-analysis" => "Análisis de Ventas Técnicas de Atlas Platform · CONFIDENCIAL".to_string(),
+                    "market-analysis" => {
+                        "Análisis de Mercado de Atlas Platform · CONFIDENCIAL".to_string()
+                    }
+                    "sales" | "sales-analysis" => {
+                        "Análisis de Ventas Técnicas de Atlas Platform · CONFIDENCIAL".to_string()
+                    }
                     _ => format!("Atlas Platform {} · CONFIDENCIAL", category_title),
                 };
                 Self {
@@ -1080,8 +1327,12 @@ impl LanguageAssets {
             }
             DocLanguage::English => {
                 let header = match category_name {
-                    "market-analysis" => "Atlas Platform Vertical Market Analysis · CONFIDENTIAL".to_string(),
-                    "sales" | "sales-analysis" => "Atlas Platform Technical Sales Analysis · CONFIDENTIAL".to_string(),
+                    "market-analysis" => {
+                        "Atlas Platform Vertical Market Analysis · CONFIDENTIAL".to_string()
+                    }
+                    "sales" | "sales-analysis" => {
+                        "Atlas Platform Technical Sales Analysis · CONFIDENTIAL".to_string()
+                    }
                     _ => format!("Atlas Platform {} · CONFIDENTIAL", category_title),
                 };
                 Self {
@@ -1095,8 +1346,16 @@ impl LanguageAssets {
 }
 
 fn detect_language(md_path: &Path, content: &str) -> DocLanguage {
-    let file_name = md_path.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-    if file_name.ends_with("_pt_br.md") || file_name.ends_with("_br.md") || file_name.contains("_pt_br") || file_name.contains("_br_") {
+    let file_name = md_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_lowercase();
+    if file_name.ends_with("_pt_br.md")
+        || file_name.ends_with("_br.md")
+        || file_name.contains("_pt_br")
+        || file_name.contains("_br_")
+    {
         return DocLanguage::Portuguese;
     }
     if file_name.ends_with("_es.md") || file_name.contains("_es_") {
@@ -1105,14 +1364,30 @@ fn detect_language(md_path: &Path, content: &str) -> DocLanguage {
 
     // Fallback: simple heuristic scanning for common unique stopwords
     let content_lower = content.to_lowercase();
-    
+
     // We check for highly specific keywords
-    let pt_indicators = ["relação", "geração", "serviço", "portfólios", "recomendações", "empreendedor", "infraestrutura"];
-    let es_indicators = ["relación", "generación", "servicio", "portafolios", "recomendaciones", "emprendedor", "infraestructura"];
-    
+    let pt_indicators = [
+        "relação",
+        "geração",
+        "serviço",
+        "portfólios",
+        "recomendações",
+        "empreendedor",
+        "infraestrutura",
+    ];
+    let es_indicators = [
+        "relación",
+        "generación",
+        "servicio",
+        "portafolios",
+        "recomendaciones",
+        "emprendedor",
+        "infraestructura",
+    ];
+
     let mut pt_count = 0;
     let mut es_count = 0;
-    
+
     for &word in &pt_indicators {
         if content_lower.contains(word) {
             pt_count += 1;
@@ -1123,7 +1398,7 @@ fn detect_language(md_path: &Path, content: &str) -> DocLanguage {
             es_count += 1;
         }
     }
-    
+
     if pt_count > es_count && pt_count >= 2 {
         DocLanguage::Portuguese
     } else if es_count > pt_count && es_count >= 2 {
@@ -1139,7 +1414,7 @@ fn compile_report(
     custom_output: &Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let md_content = fs::read_to_string(md_path)?;
-    
+
     // Resolve output PDF path
     let pdf_path = get_pdf_path(md_path, custom_output);
 
@@ -1292,79 +1567,84 @@ fn compile_report(
 
     for event in parser {
         match event {
-            Event::Start(tag) => {
-                match tag {
-                    Tag::Heading { level, .. } => {
-                        state.active_heading_level = Some(level);
-                        state.current_block.clear();
-                    }
-                    Tag::Paragraph => {
-                        state.current_block.clear();
-                    }
-                    Tag::Strong => {
-                        if state.in_table_cell {
-                            state.current_cell.push_str("\\textbf{");
-                        } else {
-                            state.current_block.push_str("\\textbf{");
-                        }
-                    }
-                    Tag::Emphasis => {
-                        if state.in_table_cell {
-                            state.current_cell.push_str("\\textit{");
-                        } else {
-                            state.current_block.push_str("\\textit{");
-                        }
-                    }
-                    Tag::Link { dest_url, .. } => {
-                        let escaped_dest = latex_escape(&dest_url);
-                        if state.in_table_cell {
-                            state.current_cell.push_str(&format!("\\href{{{}}}{{", escaped_dest));
-                        } else {
-                            state.current_block.push_str(&format!("\\href{{{}}}{{", escaped_dest));
-                        }
-                    }
-                    Tag::List(start_num) => {
-                        state.in_list_level += 1;
-                        if start_num.is_some() {
-                            state.in_ordered_list.push(true);
-                            state.tex_content.push_str("\\begin{enumerate}\n");
-                        } else {
-                            state.in_ordered_list.push(false);
-                            state.tex_content.push_str("\\begin{itemize}\n");
-                        }
-                    }
-                    Tag::Item => {
-                        state.tex_content.push_str("\\item ");
-                        state.current_block.clear();
-                    }
-                    Tag::CodeBlock(_) => {
-                        state.in_code_block = true;
-                        state.code_block_content.clear();
-                    }
-                    Tag::Table(alignments) => {
-                        state.in_table = true;
-                        state.table_alignments = alignments.clone();
-                        state.table_rows.clear();
-                    }
-                    Tag::TableHead => {
-                        state.current_row.clear();
-                    }
-                    Tag::TableRow => {
-                        state.current_row.clear();
-                    }
-                    Tag::TableCell => {
-                        state.in_table_cell = true;
-                        state.current_cell.clear();
-                    }
-                    _ => {}
+            Event::Start(tag) => match tag {
+                Tag::Heading { level, .. } => {
+                    state.active_heading_level = Some(level);
+                    state.current_block.clear();
                 }
-            }
+                Tag::Paragraph => {
+                    state.current_block.clear();
+                }
+                Tag::Strong => {
+                    if state.in_table_cell {
+                        state.current_cell.push_str("\\textbf{");
+                    } else {
+                        state.current_block.push_str("\\textbf{");
+                    }
+                }
+                Tag::Emphasis => {
+                    if state.in_table_cell {
+                        state.current_cell.push_str("\\textit{");
+                    } else {
+                        state.current_block.push_str("\\textit{");
+                    }
+                }
+                Tag::Link { dest_url, .. } => {
+                    let escaped_dest = latex_escape(&dest_url);
+                    if state.in_table_cell {
+                        state
+                            .current_cell
+                            .push_str(&format!("\\href{{{}}}{{", escaped_dest));
+                    } else {
+                        state
+                            .current_block
+                            .push_str(&format!("\\href{{{}}}{{", escaped_dest));
+                    }
+                }
+                Tag::List(start_num) => {
+                    state.in_list_level += 1;
+                    if start_num.is_some() {
+                        state.in_ordered_list.push(true);
+                        state.tex_content.push_str("\\begin{enumerate}\n");
+                    } else {
+                        state.in_ordered_list.push(false);
+                        state.tex_content.push_str("\\begin{itemize}\n");
+                    }
+                }
+                Tag::Item => {
+                    state.tex_content.push_str("\\item ");
+                    state.current_block.clear();
+                }
+                Tag::CodeBlock(_) => {
+                    state.in_code_block = true;
+                    state.code_block_content.clear();
+                }
+                Tag::Table(alignments) => {
+                    state.in_table = true;
+                    state.table_alignments = alignments.clone();
+                    state.table_rows.clear();
+                }
+                Tag::TableHead => {
+                    state.current_row.clear();
+                }
+                Tag::TableRow => {
+                    state.current_row.clear();
+                }
+                Tag::TableCell => {
+                    state.in_table_cell = true;
+                    state.current_cell.clear();
+                }
+                _ => {}
+            },
             Event::End(tag_end) => {
                 use pulldown_cmark::TagEnd;
                 match tag_end {
                     TagEnd::Heading(_) => {
                         let text = state.current_block.trim();
-                        let level = state.active_heading_level.take().unwrap_or(pulldown_cmark::HeadingLevel::H2);
+                        let level = state
+                            .active_heading_level
+                            .take()
+                            .unwrap_or(pulldown_cmark::HeadingLevel::H2);
                         if state.first_h1 && level == pulldown_cmark::HeadingLevel::H1 {
                             state.tex_content.push_str(&format!(
                                 r#"
@@ -1375,8 +1655,7 @@ fn compile_report(
 \end{{center}}
 \vspace{{10pt}}
 "#,
-                                text,
-                                lang_assets.header_text
+                                text, lang_assets.header_text
                             ));
                             state.first_h1 = false;
                         } else {
@@ -1387,12 +1666,16 @@ fn compile_report(
                                 pulldown_cmark::HeadingLevel::H4 => "mysubsubsection",
                                 _ => "mysubsection",
                             };
-                            state.tex_content.push_str(&format!("\\{}{{{}}}\n", cmd, text));
+                            state
+                                .tex_content
+                                .push_str(&format!("\\{}{{{}}}\n", cmd, text));
                         }
                     }
                     TagEnd::Paragraph => {
                         if !state.current_block.trim().is_empty() {
-                            state.tex_content.push_str(&format!("{}\n\n", state.current_block.trim()));
+                            state
+                                .tex_content
+                                .push_str(&format!("{}\n\n", state.current_block.trim()));
                         }
                         state.current_block.clear();
                     }
@@ -1428,7 +1711,9 @@ fn compile_report(
                     }
                     TagEnd::Item => {
                         if !state.current_block.trim().is_empty() {
-                            state.tex_content.push_str(&format!("{}\n", state.current_block.trim()));
+                            state
+                                .tex_content
+                                .push_str(&format!("{}\n", state.current_block.trim()));
                         }
                         state.current_block.clear();
                     }
@@ -1440,7 +1725,8 @@ fn compile_report(
                     }
                     TagEnd::Table => {
                         state.in_table = false;
-                        let table_latex = generate_latex_table(&state.table_rows, &state.table_alignments);
+                        let table_latex =
+                            generate_latex_table(&state.table_rows, &state.table_alignments);
                         state.tex_content.push_str(&table_latex);
                         state.tex_content.push_str("\n");
                     }
@@ -1554,7 +1840,9 @@ fn compile_report(
                 }
             }
             Event::Rule => {
-                state.tex_content.push_str("\\vspace{8pt}\\textcolor{bordersoft}{\\hrule height 0.8pt}\\vspace{8pt}\n\n");
+                state.tex_content.push_str(
+                    "\\vspace{8pt}\\textcolor{bordersoft}{\\hrule height 0.8pt}\\vspace{8pt}\n\n",
+                );
             }
             _ => {}
         }
@@ -1599,12 +1887,17 @@ fn compile_report(
                 // produces a valid PDF. Check if the output file actually exists.
                 let pdf_produced = temp_dir.join("report.pdf").exists();
                 if pdf_produced {
-                    println!("Note: pdflatex exited with warnings (non-zero) but PDF was produced successfully.");
+                    println!(
+                        "Note: pdflatex exited with warnings (non-zero) but PDF was produced successfully."
+                    );
                     true
                 } else {
                     let stderr = String::from_utf8_lossy(&out.stderr);
                     let stdout = String::from_utf8_lossy(&out.stdout);
-                    println!("LaTeX Compilation failed!\nSTDOUT:\n{}\nSTDERR:\n{}", stdout, stderr);
+                    println!(
+                        "LaTeX Compilation failed!\nSTDOUT:\n{}\nSTDERR:\n{}",
+                        stdout, stderr
+                    );
                     false
                 }
             }
@@ -1636,10 +1929,7 @@ fn compile_report(
 }
 
 /// Helper: Formats table rows into beautiful, high-fidelity LaTeX tabularx code
-fn generate_latex_table(
-    rows: &[Vec<String>],
-    alignments: &[pulldown_cmark::Alignment],
-) -> String {
+fn generate_latex_table(rows: &[Vec<String>], alignments: &[pulldown_cmark::Alignment]) -> String {
     if rows.is_empty() {
         return String::new();
     }
@@ -1652,21 +1942,23 @@ fn generate_latex_table(
     let mut latex = String::new();
     latex.push_str("\\vspace{10pt}\n");
     latex.push_str("\\noindent\n");
-    
+
     // Column specifier: map alignments to L, R, C
     let mut spec = String::new();
     for i in 0..col_count {
-        let align = alignments.get(i).unwrap_or(&pulldown_cmark::Alignment::None);
+        let align = alignments
+            .get(i)
+            .unwrap_or(&pulldown_cmark::Alignment::None);
         match align {
             pulldown_cmark::Alignment::Left | pulldown_cmark::Alignment::None => spec.push_str("L"),
             pulldown_cmark::Alignment::Right => spec.push_str("R"),
             pulldown_cmark::Alignment::Center => spec.push_str("C"),
         }
     }
-    
+
     latex.push_str("\\rowcolors{2}{tagbg}{white}\n");
     latex.push_str(&format!("\\begin{{tabularx}}{{\\textwidth}}{{{}}}\n", spec));
-    
+
     // Render Header Row
     latex.push_str("\\rowcolor{brand}\n");
     let header_row = &rows[0];
@@ -1677,18 +1969,15 @@ fn generate_latex_table(
     latex.push_str(&formatted_headers.join(" & "));
     latex.push_str(" \\\\\n");
     latex.push_str("\\arrayrulecolor{bordersoft}\\hline\n");
-    
+
     // Render Body Rows
     for row in rows.iter().skip(1) {
-        let formatted_cells: Vec<String> = row
-            .iter()
-            .map(|cell| cell.trim().to_string())
-            .collect();
+        let formatted_cells: Vec<String> = row.iter().map(|cell| cell.trim().to_string()).collect();
         latex.push_str(&formatted_cells.join(" & "));
         latex.push_str(" \\\\\n");
         latex.push_str("\\arrayrulecolor{bordersoft}\\hline\n");
     }
-    
+
     latex.push_str("\\end{tabularx}\n");
     latex.push_str("\\vspace{10pt}\n");
     latex

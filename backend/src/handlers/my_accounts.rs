@@ -1,17 +1,19 @@
 use axum::{
-    extract::{State, Path, Extension, Json},
+    Router,
+    extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, delete},
-    Router,
+    routing::{delete, get, post},
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, ModelTrait};
+use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
+};
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
-use chrono::Utc;
 
-use crate::entities::{user, account, profile, user_account};
+use crate::entities::{account, profile, user, user_account};
 
 #[derive(Deserialize)]
 pub struct CreateAccountPayload {
@@ -56,7 +58,8 @@ pub async fn list_accounts(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let accounts_data: Vec<_> = user_accounts.into_iter()
+    let accounts_data: Vec<_> = user_accounts
+        .into_iter()
         .filter_map(|(ua, acc_opt)| {
             acc_opt.map(|acc| {
                 json!({
@@ -86,9 +89,10 @@ pub async fn create_account(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted_account = new_account.insert(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let inserted_account = new_account
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let new_ua = user_account::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -100,9 +104,10 @@ pub async fn create_account(
         updated_at: Set(Utc::now()),
     };
 
-    new_ua.insert(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    new_ua
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok((StatusCode::CREATED, Json(inserted_account)))
 }
@@ -122,7 +127,8 @@ pub async fn list_account_users(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let users_data: Vec<_> = users.into_iter()
+    let users_data: Vec<_> = users
+        .into_iter()
         .filter_map(|(ua, u_opt)| {
             u_opt.map(|u| {
                 json!({
@@ -166,9 +172,10 @@ pub async fn create_profile(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted = new_profile.insert(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let inserted = new_profile
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok((StatusCode::CREATED, Json(inserted)))
 }
@@ -198,7 +205,10 @@ pub async fn invite_user(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
         if existing.is_some() {
-            return Err((StatusCode::CONFLICT, "User is already in this account".into()));
+            return Err((
+                StatusCode::CONFLICT,
+                "User is already in this account".into(),
+            ));
         }
 
         let new_ua = user_account::ActiveModel {
@@ -211,10 +221,16 @@ pub async fn invite_user(
             updated_at: Set(Utc::now()),
         };
 
-        let inserted = new_ua.insert(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        let inserted = new_ua
+            .insert(&db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         Ok((StatusCode::CREATED, Json(inserted)))
     } else {
-        Err((StatusCode::NOT_FOUND, "User not found. They must register first.".into()))
+        Err((
+            StatusCode::NOT_FOUND,
+            "User not found. They must register first.".into(),
+        ))
     }
 }
 
@@ -233,14 +249,27 @@ pub async fn remove_user(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if let Some(ua_model) = ua {
-        ua_model.delete(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        Ok((StatusCode::OK, Json(json!({"message": "User removed from account"}))))
+        ua_model
+            .delete(&db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        Ok((
+            StatusCode::OK,
+            Json(json!({"message": "User removed from account"})),
+        ))
     } else {
-        Err((StatusCode::NOT_FOUND, "User is not part of this account".into()))
+        Err((
+            StatusCode::NOT_FOUND,
+            "User is not part of this account".into(),
+        ))
     }
 }
 
-async fn check_user_account_access(db: &DatabaseConnection, user_id: Uuid, account_id: Uuid) -> Result<(), (StatusCode, String)> {
+async fn check_user_account_access(
+    db: &DatabaseConnection,
+    user_id: Uuid,
+    account_id: Uuid,
+) -> Result<(), (StatusCode, String)> {
     let ua = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(user_id))
         .filter(user_account::Column::AccountId.eq(account_id))
@@ -249,8 +278,11 @@ async fn check_user_account_access(db: &DatabaseConnection, user_id: Uuid, accou
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if ua.is_none() {
-        return Err((StatusCode::FORBIDDEN, "You do not have access to this account".into()));
+        return Err((
+            StatusCode::FORBIDDEN,
+            "You do not have access to this account".into(),
+        ));
     }
-    
+
     Ok(())
 }

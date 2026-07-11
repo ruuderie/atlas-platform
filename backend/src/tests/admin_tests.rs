@@ -11,22 +11,22 @@ use crate::tests::test_utils;
 #[tokio::test]
 async fn test_admin_user_management() {
     let (app, db) = setup_test_app().await;
-    
+
     // Create admin user
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    
+
     // Create a regular user
     let tenant = test_utils::create_test_tenant(&db).await;
     let mut username = format!("regularuser{}", Uuid::new_v4());
     let (status, login_res) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
 
-    
     assert_eq!(status, StatusCode::CREATED);
-    
+
     let regular_user_id = login_res["user"]["id"].as_str().unwrap().to_string();
-    
+
     // 1. List users
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -39,9 +39,10 @@ async fn test_admin_user_management() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // 2. Get specific user
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -54,9 +55,10 @@ async fn test_admin_user_management() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // 3. Toggle admin status
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -75,9 +77,10 @@ async fn test_admin_user_management() {
 async fn test_admin_listing_approvals() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    
+
     // 1. Fetch pending listings
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -96,9 +99,10 @@ async fn test_admin_listing_approvals() {
 async fn test_admin_statistics() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    
+
     // 1. Tenant Stats
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -111,9 +115,10 @@ async fn test_admin_statistics() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
-    
+
     // 2. Ad Purchases Stats
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -132,13 +137,13 @@ async fn test_admin_statistics() {
 async fn test_admin_domain_management() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    
+
     let tenant = test_utils::create_test_tenant(&db).await;
     let instance_id = Uuid::new_v4(); // Mocking an instance UUID for test
-    
+
     // Create App Instance manually to satisfy foreign key constraints if they exist
     use crate::entities::app_instance;
-    use sea_orm::{Set, ActiveModelTrait};
+    use sea_orm::{ActiveModelTrait, Set};
     let new_instance = app_instance::ActiveModel {
         id: Set(instance_id),
         tenant_id: Set(tenant.id),
@@ -157,8 +162,9 @@ async fn test_admin_domain_management() {
     let domain_payload = serde_json::json!({
         "domain_name": "test.routing.local"
     });
-    
-    let response = app.clone()
+
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -174,7 +180,8 @@ async fn test_admin_domain_management() {
     assert!(response.status().is_success());
 
     // 2. Get Domains
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
@@ -189,12 +196,19 @@ async fn test_admin_domain_management() {
     assert!(response.status().is_success());
 
     // 3. Remove Domain
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/api/admin/platform/apps/{}/domains/test.routing.local", instance_id).as_str())
+                .uri(
+                    format!(
+                        "/api/admin/platform/apps/{}/domains/test.routing.local",
+                        instance_id
+                    )
+                    .as_str(),
+                )
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),

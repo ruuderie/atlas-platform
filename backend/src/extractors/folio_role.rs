@@ -28,7 +28,7 @@
 
 use axum::{
     extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
+    http::{StatusCode, request::Parts},
 };
 
 use crate::extractors::tenant::TenantContext;
@@ -63,16 +63,15 @@ where
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?
             .clone();
 
-        let role_slug =
-            RbacService::get_user_app_role(&db, ctx.user_id, ctx.tenant_id, "folio")
-                .await
-                .ok_or_else(|| {
-                    tracing::warn!(
-                        user_id = %ctx.user_id, tenant_id = %ctx.tenant_id,
-                        "RequireFolioRole: no folio role assigned"
-                    );
-                    StatusCode::FORBIDDEN
-                })?;
+        let role_slug = RbacService::get_user_app_role(&db, ctx.user_id, ctx.tenant_id, "folio")
+            .await
+            .ok_or_else(|| {
+                tracing::warn!(
+                    user_id = %ctx.user_id, tenant_id = %ctx.tenant_id,
+                    "RequireFolioRole: no folio role assigned"
+                );
+                StatusCode::FORBIDDEN
+            })?;
 
         let role = FolioRole::try_from(role_slug.as_str()).map_err(|e| {
             tracing::warn!(
@@ -254,4 +253,3 @@ where
         Ok(BrokerageOnly(role))
     }
 }
-

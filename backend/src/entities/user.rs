@@ -1,15 +1,14 @@
 #![allow(dead_code, unused_imports)]
+use crate::entities::{file, file_association};
+use crate::models::file::{FileAssociation, FileModel};
+use crate::services::search_sync;
+use crate::traits::file::FileAssociable;
+use chrono::{DateTime, Utc};
+use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use sea_orm::Set;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::traits::file::FileAssociable;
-use crate::models::file::{FileAssociation, FileModel};
-use crate::entities::{file_association,file}; 
-use crate::services::search_sync;
 use serde_json::json;
-
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "user")]
@@ -46,7 +45,7 @@ impl RelationTrait for Relation {
         match self {
             Self::UserAccount => Entity::has_many(super::user_account::Entity).into(),
             Self::Session => Entity::has_many(super::session::Entity).into(),
-            Self::RequestLog => Entity::has_many(super::request_log::Entity).into(), 
+            Self::RequestLog => Entity::has_many(super::request_log::Entity).into(),
             Self::FileAssociation => Entity::has_many(super::file_association::Entity).into(),
             Self::Passkey => Entity::has_many(super::passkey::Entity).into(),
             Self::MagicLinkToken => Entity::has_many(super::magic_link_token::Entity).into(),
@@ -96,37 +95,26 @@ impl Related<super::magic_link_token::Entity> for Entity {
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {
-    async fn after_save<C>(
-        model: Model,
-        db: &C,
-        _insert: bool,
-    ) -> Result<Model, DbErr>
+    async fn after_save<C>(model: Model, db: &C, _insert: bool) -> Result<Model, DbErr>
     where
         C: ConnectionTrait,
     {
-        let text_payload = format!("{} {} {}", model.username, model.first_name, model.last_name);
+        let text_payload = format!(
+            "{} {} {}",
+            model.username, model.first_name, model.last_name
+        );
         let metadata = json!({
             "title": format!("{} {}", model.first_name, model.last_name),
             "subtitle": model.email.clone(),
         });
 
-        search_sync::upsert_search_index(
-            db,
-            "User",
-            model.id,
-            None,
-            &text_payload,
-            metadata,
-        )
-        .await?;
+        search_sync::upsert_search_index(db, "User", model.id, None, &text_payload, metadata)
+            .await?;
 
         Ok(model)
     }
 
-    async fn after_delete<C>(
-        self,
-        db: &C,
-    ) -> Result<Self, DbErr>
+    async fn after_delete<C>(self, db: &C) -> Result<Self, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -138,7 +126,6 @@ impl ActiveModelBehavior for ActiveModel {
         Ok(self)
     }
 }
-
 
 impl FileAssociable for Entity {
     fn entity_type() -> &'static str {
@@ -158,7 +145,9 @@ impl FileAssociation for Model {
             file_id: Set(file.id),
             associated_entity_type: Set(Entity::entity_type().to_string()),
             associated_entity_id: Set(self.id),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }

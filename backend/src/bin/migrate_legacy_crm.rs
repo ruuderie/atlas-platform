@@ -7,14 +7,14 @@
 //! This binary is **not** intended for production. It is the tooling to get dev and uat
 //! cleanly onto the new unified model so we can remove legacy CRM dependencies.
 
-use std::env;
 use dotenv::dotenv;
 use sea_orm::Database;
+use std::env;
 use uuid::Uuid;
 
 use atlas_backend::services::unification_data_migration::{
-    migrate_tenant_legacy_crm, migrate_known_tenants, find_tenants_with_legacy_data,
-    migrate_buildwithruud_dev_sample,
+    find_tenants_with_legacy_data, migrate_buildwithruud_dev_sample, migrate_known_tenants,
+    migrate_tenant_legacy_crm,
 };
 
 #[tokio::main]
@@ -24,7 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
 
     let dry_run = args.iter().any(|a| a == "--dry-run" || a == "-n");
-    let all_flag = args.iter().any(|a| a == "--all" || a == "--all-with-legacy");
+    let all_flag = args
+        .iter()
+        .any(|a| a == "--all" || a == "--all-with-legacy");
 
     let db_url = env::var("DATABASE_URL")
         .or_else(|_| env::var("LOCAL_DATABASE_URL"))
@@ -64,7 +66,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Convert to the expected slice format
-        let tenant_refs: Vec<(Uuid, &str)> = discovered.iter().map(|(id, name)| (*id, name.as_str())).collect();
+        let tenant_refs: Vec<(Uuid, &str)> = discovered
+            .iter()
+            .map(|(id, name)| (*id, name.as_str()))
+            .collect();
 
         let reports = migrate_known_tenants(&db, &tenant_refs, dry_run).await?;
         for r in reports {
@@ -80,7 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn print_help() {
-    println!(r#"
+    println!(
+        r#"
 Legacy CRM → Platform Generics One-Time Migration (dev/uat only)
 
 Options:
@@ -96,5 +102,6 @@ Examples:
   cargo run --bin migrate_legacy_crm -- --tenant 35f95f2a-db97-4166-be66-5215654cac84 --dry-run
 
 This tool has no production path and creates no dependency on any specific tenant.
-"#);
+"#
+    );
 }

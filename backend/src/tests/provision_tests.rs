@@ -1,12 +1,15 @@
-use axum::{body::Body, http::{Request, StatusCode}};
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
 use http_body_util::BodyExt;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde_json::json;
 use tower::ServiceExt;
 
-use crate::entities::{app_domain, app_instance, account, tenant, user, user_account};
-use crate::models::provision::validate_domain;
 use super::api_tests::setup_test_app;
+use crate::entities::{account, app_domain, app_instance, tenant, user, user_account};
+use crate::models::provision::validate_domain;
 
 // ── validate_domain unit tests (no DB) ────────────────────────────────────────
 
@@ -43,11 +46,17 @@ fn validate_domain_accepts_localhost() {
 
 /// Unique domain per test to avoid conflicts when tests share a DB.
 fn unique_domain() -> String {
-    format!("test-{}.provisiontest.io", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())
+    format!(
+        "test-{}.provisiontest.io",
+        uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+    )
 }
 
 fn unique_slug() -> String {
-    format!("test-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())
+    format!(
+        "test-{}",
+        uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+    )
 }
 
 async fn do_provision(
@@ -56,7 +65,8 @@ async fn do_provision(
     slug: &str,
     domain: &str,
 ) -> (StatusCode, serde_json::Value) {
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -64,15 +74,18 @@ async fn do_provision(
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .header("Host", "localhost")
-                .body(Body::from(json!({
-                    "tenant_name": slug,
-                    "display_name": format!("Test Tenant {}", slug),
-                    "domain": domain,
-                    "admin_email": format!("admin@{}", domain),
-                    "admin_first_name": "Test",
-                    "admin_last_name": "Admin",
-                    "bypass_dns_verification": true
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "tenant_name": slug,
+                        "display_name": format!("Test Tenant {}", slug),
+                        "domain": domain,
+                        "admin_email": format!("admin@{}", domain),
+                        "admin_first_name": "Test",
+                        "admin_last_name": "Admin",
+                        "bypass_dns_verification": true
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -98,42 +111,62 @@ async fn provision_creates_all_required_rows() {
     let (status, body) = do_provision(&app, &admin_token, &slug, &domain).await;
     assert_eq!(status, StatusCode::CREATED, "Expected 201, got: {:?}", body);
 
-    let tenant_id: uuid::Uuid = body["tenant_id"].as_str()
+    let tenant_id: uuid::Uuid = body["tenant_id"]
+        .as_str()
         .and_then(|s| s.parse().ok())
         .expect("tenant_id in response");
-    let account_id: uuid::Uuid = body["account_id"].as_str()
+    let account_id: uuid::Uuid = body["account_id"]
+        .as_str()
         .and_then(|s| s.parse().ok())
         .expect("account_id in response");
 
     // Assert: tenant row
-    let t = tenant::Entity::find_by_id(tenant_id).one(&db).await.unwrap();
+    let t = tenant::Entity::find_by_id(tenant_id)
+        .one(&db)
+        .await
+        .unwrap();
     assert!(t.is_some(), "tenant row should exist");
     assert_eq!(t.unwrap().name, slug);
 
     // Assert: account row
-    let a = account::Entity::find_by_id(account_id).one(&db).await.unwrap();
+    let a = account::Entity::find_by_id(account_id)
+        .one(&db)
+        .await
+        .unwrap();
     assert!(a.is_some(), "account row should exist");
     assert_eq!(a.unwrap().tenant_id, tenant_id);
 
     // Assert: app_instance row (anchor)
     let instances = app_instance::Entity::find()
         .filter(app_instance::Column::TenantId.eq(tenant_id))
-        .all(&db).await.unwrap();
-    assert!(!instances.is_empty(), "at least one app_instance should exist");
-    assert!(instances.iter().any(|i| i.app_type == "anchor"), "anchor instance required");
+        .all(&db)
+        .await
+        .unwrap();
+    assert!(
+        !instances.is_empty(),
+        "at least one app_instance should exist"
+    );
+    assert!(
+        instances.iter().any(|i| i.app_type == "anchor"),
+        "anchor instance required"
+    );
 
     // Assert: app_domain row
     let anchor_instance = instances.iter().find(|i| i.app_type == "anchor").unwrap();
     let domains = app_domain::Entity::find()
         .filter(app_domain::Column::AppInstanceId.eq(anchor_instance.id))
-        .all(&db).await.unwrap();
+        .all(&db)
+        .await
+        .unwrap();
     assert!(!domains.is_empty(), "app_domain row should exist");
     assert_eq!(domains[0].domain_name, domain);
 
     // Assert: user row
     let users = user::Entity::find()
         .filter(user::Column::Email.eq(format!("admin@{}", domain)))
-        .all(&db).await.unwrap();
+        .all(&db)
+        .await
+        .unwrap();
     assert!(!users.is_empty(), "admin user should exist");
     let user_id = users[0].id;
 
@@ -141,14 +174,22 @@ async fn provision_creates_all_required_rows() {
     let ua = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(user_id))
         .filter(user_account::Column::AccountId.eq(account_id))
-        .one(&db).await.unwrap();
+        .one(&db)
+        .await
+        .unwrap();
     assert!(ua.is_some(), "user_account row should exist");
     assert_eq!(ua.unwrap().role, user_account::UserRole::Owner);
 
     // Assert: setup_url in response
     let setup_url = body["setup_url"].as_str().expect("setup_url in response");
-    assert!(setup_url.contains(&domain), "setup_url should contain the domain");
-    assert!(setup_url.contains("setup-passkey"), "setup_url should point to the passkey setup page");
+    assert!(
+        setup_url.contains(&domain),
+        "setup_url should contain the domain"
+    );
+    assert!(
+        setup_url.contains("setup-passkey"),
+        "setup_url should point to the passkey setup page"
+    );
 }
 
 /// Second provision call with same domain returns 409.
@@ -161,11 +202,21 @@ async fn provision_is_idempotent_on_duplicate_domain() {
 
     // First call — should succeed
     let (status, body) = do_provision(&app, &admin_token, &unique_slug(), &domain).await;
-    assert_eq!(status, StatusCode::CREATED, "First provision should succeed: {:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "First provision should succeed: {:?}",
+        body
+    );
 
     // Second call with same domain — should conflict
     let (status2, body2) = do_provision(&app, &admin_token, &unique_slug(), &domain).await;
-    assert_eq!(status2, StatusCode::CONFLICT, "Duplicate domain should return 409: {:?}", body2);
+    assert_eq!(
+        status2,
+        StatusCode::CONFLICT,
+        "Duplicate domain should return 409: {:?}",
+        body2
+    );
 }
 
 /// Second provision call with same slug returns 409.
@@ -180,7 +231,12 @@ async fn provision_rejects_duplicate_slug() {
     assert_eq!(status, StatusCode::CREATED);
 
     let (status2, body2) = do_provision(&app, &admin_token, &slug, &unique_domain()).await;
-    assert_eq!(status2, StatusCode::CONFLICT, "Duplicate slug should return 409: {:?}", body2);
+    assert_eq!(
+        status2,
+        StatusCode::CONFLICT,
+        "Duplicate slug should return 409: {:?}",
+        body2
+    );
 }
 
 /// Non-SuperAdmin callers are rejected.
@@ -191,34 +247,48 @@ async fn provision_rejected_without_super_admin_role() {
     // Create a regular tenant user (Owner role on a tenant, not PlatformSuperAdmin)
     let tenant = super::test_utils::create_test_tenant(&db).await;
     let mut username = format!("owner_{}", uuid::Uuid::new_v4());
-    let (status, login_body) = super::test_utils::register_test_user(&app, tenant.id, &mut username).await;
+    let (status, login_body) =
+        super::test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     let owner_token = login_body["token"].as_str().unwrap().to_string();
 
     let (status, body) = do_provision(&app, &owner_token, &unique_slug(), &unique_domain()).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "Owner role should be rejected: {:?}", body);
+    assert_eq!(
+        status,
+        StatusCode::FORBIDDEN,
+        "Owner role should be rejected: {:?}",
+        body
+    );
 
     // Unauthenticated
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/api/admin/tenants/provision")
                 .header("Content-Type", "application/json")
                 .header("Host", "localhost")
-                .body(Body::from(json!({
-                    "tenant_name": unique_slug(),
-                    "display_name": "Test",
-                    "domain": unique_domain(),
-                    "admin_email": "a@b.com",
-                    "admin_first_name": "A",
-                    "admin_last_name": "B"
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "tenant_name": unique_slug(),
+                        "display_name": "Test",
+                        "domain": unique_domain(),
+                        "admin_email": "a@b.com",
+                        "admin_first_name": "A",
+                        "admin_last_name": "B"
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "Unauthenticated should return 401");
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "Unauthenticated should return 401"
+    );
 }
 
 /// Bad domain format returns 400.
@@ -227,14 +297,11 @@ async fn provision_rejects_invalid_domain_format() {
     let (app, db) = setup_test_app().await;
     let (_, admin_token) = super::test_utils::create_and_login_admin_user(&app, &db).await;
 
-    let bad_domains = vec![
-        "https://acme.com",
-        "acme.com/path",
-        "acme.com:8080",
-    ];
+    let bad_domains = vec!["https://acme.com", "acme.com/path", "acme.com:8080"];
 
     for bad_domain in bad_domains {
-        let response = app.clone()
+        let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -242,21 +309,26 @@ async fn provision_rejects_invalid_domain_format() {
                     .header("Content-Type", "application/json")
                     .header("Authorization", format!("Bearer {}", admin_token))
                     .header("Host", "localhost")
-                    .body(Body::from(json!({
-                        "tenant_name": unique_slug(),
-                        "display_name": "Test",
-                        "domain": bad_domain,
-                        "admin_email": "admin@test.com",
-                        "admin_first_name": "A",
-                        "admin_last_name": "B"
-                    }).to_string()))
+                    .body(Body::from(
+                        json!({
+                            "tenant_name": unique_slug(),
+                            "display_name": "Test",
+                            "domain": bad_domain,
+                            "admin_email": "admin@test.com",
+                            "admin_first_name": "A",
+                            "admin_last_name": "B"
+                        })
+                        .to_string(),
+                    ))
                     .unwrap(),
             )
             .await
             .unwrap();
         assert_eq!(
-            response.status(), StatusCode::BAD_REQUEST,
-            "domain '{}' should return 400", bad_domain
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "domain '{}' should return 400",
+            bad_domain
         );
     }
 }
@@ -282,7 +354,8 @@ async fn provision_adds_domain_to_cors_registry() {
     let res_before = app.clone().oneshot(req_before).await.unwrap();
     let allow_origin_before = res_before.headers().get("access-control-allow-origin");
     assert!(
-        allow_origin_before.is_none() || allow_origin_before.unwrap() != &format!("https://{}", domain),
+        allow_origin_before.is_none()
+            || allow_origin_before.unwrap() != &format!("https://{}", domain),
         "Domain should not be CORS-allowed before provisioning"
     );
 
@@ -300,8 +373,10 @@ async fn provision_adds_domain_to_cors_registry() {
         .body(Body::empty())
         .unwrap();
     let res_after = app.clone().oneshot(req_after).await.unwrap();
-    
-    let allow_origin_after = res_after.headers().get("access-control-allow-origin")
+
+    let allow_origin_after = res_after
+        .headers()
+        .get("access-control-allow-origin")
         .expect("CORS header Access-Control-Allow-Origin must be present after provisioning");
     assert_eq!(
         allow_origin_after,
@@ -320,7 +395,8 @@ async fn provision_fails_without_dns_bypass_and_missing_txt() {
     let domain = unique_domain();
 
     // Trigger without bypass_dns_verification (should attempt real DNS challenge and fail)
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -328,15 +404,18 @@ async fn provision_fails_without_dns_bypass_and_missing_txt() {
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .header("Host", "localhost")
-                .body(Body::from(json!({
-                    "tenant_name": slug,
-                    "display_name": format!("Test Tenant {}", slug),
-                    "domain": domain,
-                    "admin_email": format!("admin@{}", domain),
-                    "admin_first_name": "Test",
-                    "admin_last_name": "Admin",
-                    "bypass_dns_verification": false
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "tenant_name": slug,
+                        "display_name": format!("Test Tenant {}", slug),
+                        "domain": domain,
+                        "admin_email": format!("admin@{}", domain),
+                        "admin_first_name": "Test",
+                        "admin_last_name": "Admin",
+                        "bypass_dns_verification": false
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -346,7 +425,11 @@ async fn provision_fails_without_dns_bypass_and_missing_txt() {
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
     let msg = body["message"].as_str().unwrap_or("");
-    assert!(msg.contains("DNS verification failed"), "Expected DNS verification error, got: {}", msg);
+    assert!(
+        msg.contains("DNS verification failed"),
+        "Expected DNS verification error, got: {}",
+        msg
+    );
 }
 
 /// Folio-only tenant (no anchor) succeeds — domain binds to the folio instance.
@@ -358,7 +441,8 @@ async fn provision_folio_only_without_anchor_succeeds() {
     let slug = unique_slug();
     let domain = unique_domain();
 
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -366,41 +450,59 @@ async fn provision_folio_only_without_anchor_succeeds() {
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .header("Host", "localhost")
-                .body(Body::from(json!({
-                    "tenant_name": slug,
-                    "display_name": format!("Test Folio Tenant {}", slug),
-                    "domain": domain,
-                    "admin_email": format!("admin@{}", domain),
-                    "admin_first_name": "Test",
-                    "admin_last_name": "Admin",
-                    "bypass_dns_verification": true,
-                    "apps": ["property_management"]
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "tenant_name": slug,
+                        "display_name": format!("Test Folio Tenant {}", slug),
+                        "domain": domain,
+                        "admin_email": format!("admin@{}", domain),
+                        "admin_first_name": "Test",
+                        "admin_last_name": "Admin",
+                        "bypass_dns_verification": true,
+                        "apps": ["property_management"]
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::CREATED, "Folio-only provision should succeed");
+    assert_eq!(
+        response.status(),
+        StatusCode::CREATED,
+        "Folio-only provision should succeed"
+    );
 
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
-    let tenant_id: uuid::Uuid = body["tenant_id"].as_str()
+    let tenant_id: uuid::Uuid = body["tenant_id"]
+        .as_str()
         .and_then(|s| s.parse().ok())
         .expect("tenant_id in response");
 
     // Verify folio instance was created
     let instances = app_instance::Entity::find()
         .filter(app_instance::Column::TenantId.eq(tenant_id))
-        .all(&db).await.unwrap();
+        .all(&db)
+        .await
+        .unwrap();
     assert_eq!(instances.len(), 1, "only one instance should exist");
-    assert_eq!(instances[0].app_type, "property_management", "folio instance should have canonical app_type");
+    assert_eq!(
+        instances[0].app_type, "property_management",
+        "folio instance should have canonical app_type"
+    );
 
     // Verify domain is bound to the folio instance (not anchor)
     let domains = app_domain::Entity::find()
         .filter(app_domain::Column::AppInstanceId.eq(instances[0].id))
-        .all(&db).await.unwrap();
-    assert!(!domains.is_empty(), "domain should be bound to the folio instance");
+        .all(&db)
+        .await
+        .unwrap();
+    assert!(
+        !domains.is_empty(),
+        "domain should be bound to the folio instance"
+    );
     assert_eq!(domains[0].domain_name, domain);
 }
 
@@ -413,7 +515,8 @@ async fn provision_rejects_unknown_app_type() {
     let slug = unique_slug();
     let domain = unique_domain();
 
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -421,22 +524,29 @@ async fn provision_rejects_unknown_app_type() {
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .header("Host", "localhost")
-                .body(Body::from(json!({
-                    "tenant_name": slug,
-                    "display_name": "Bad App Test",
-                    "domain": domain,
-                    "admin_email": format!("admin@{}", domain),
-                    "admin_first_name": "Test",
-                    "admin_last_name": "Admin",
-                    "bypass_dns_verification": true,
-                    "apps": ["folio"]   // "folio" is the short alias, not the canonical ID
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "tenant_name": slug,
+                        "display_name": "Bad App Test",
+                        "domain": domain,
+                        "admin_email": format!("admin@{}", domain),
+                        "admin_first_name": "Test",
+                        "admin_last_name": "Admin",
+                        "bypass_dns_verification": true,
+                        "apps": ["folio"]   // "folio" is the short alias, not the canonical ID
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST, "Unknown app type should return 400");
+    assert_eq!(
+        response.status(),
+        StatusCode::BAD_REQUEST,
+        "Unknown app type should return 400"
+    );
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
     let msg = body["message"].as_str().unwrap_or("");

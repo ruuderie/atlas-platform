@@ -1,11 +1,13 @@
 #![allow(dead_code, unused)]
 
-use uuid::Uuid;
+use crate::entities::activity::{
+    ActivityStatus, ActivityType, AssociatedEntity, AssociatedEntityType,
+};
+use crate::models::file::{FileAssociation, FileModel};
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sea_orm::DatabaseConnection;
-use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, AssociatedEntityType};
-use crate::models::file::{FileModel, FileAssociation};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActivityModel {
     pub id: Uuid,
@@ -91,7 +93,10 @@ impl From<crate::entities::activity::Model> for ActivityModel {
             status: activity.status,
             due_date: activity.due_date,
             completed_at: activity.completed_at,
-            associated_entities: associated_entities.into_iter().map(|entity| entity.into()).collect(),
+            associated_entities: associated_entities
+                .into_iter()
+                .map(|entity| entity.into())
+                .collect(),
             created_by: activity.created_by,
             assigned_to: activity.assigned_to,
             created_at: activity.created_at,
@@ -102,7 +107,10 @@ impl From<crate::entities::activity::Model> for ActivityModel {
 }
 
 impl ActivityModel {
-    pub async fn from_with_files(activity: crate::entities::activity::Model, db: &DatabaseConnection) -> Self {
+    pub async fn from_with_files(
+        activity: crate::entities::activity::Model,
+        db: &DatabaseConnection,
+    ) -> Self {
         let mut model = Self::from(activity.clone());
         model.files = activity.get_associated_files(db).await.unwrap_or_default();
         model

@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "feed_item")]
@@ -50,5 +50,5 @@ impl Related<super::feed::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Feed.def()
     }
-} 
+}
 impl ActiveModelBehavior for ActiveModel {}

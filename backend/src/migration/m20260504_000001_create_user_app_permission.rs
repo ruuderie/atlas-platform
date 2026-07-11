@@ -11,11 +11,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(UserAppPermission::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(UserAppPermission::UserId)
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(UserAppPermission::UserId).uuid().not_null())
                     .col(
                         ColumnDef::new(UserAppPermission::TenantId)
                             .uuid()
@@ -37,7 +33,7 @@ impl MigrationTrait for Migration {
                             .name("pk_user_app_permission")
                             .col(UserAppPermission::UserId)
                             .col(UserAppPermission::TenantId)
-                            .col(UserAppPermission::AppSlug)
+                            .col(UserAppPermission::AppSlug),
                     )
                     .foreign_key(
                         ForeignKey::create()
@@ -45,7 +41,7 @@ impl MigrationTrait for Migration {
                             .from(UserAppPermission::Table, UserAppPermission::UserId)
                             .to(User::Table, User::Id)
                             .on_delete(ForeignKeyAction::Cascade)
-                            .on_update(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
@@ -53,7 +49,7 @@ impl MigrationTrait for Migration {
                             .from(UserAppPermission::Table, UserAppPermission::TenantId)
                             .to(Tenant::Table, Tenant::Id)
                             .on_delete(ForeignKeyAction::Cascade)
-                            .on_update(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )

@@ -35,13 +35,13 @@ pub struct CallEvent {
 pub trait TelephonyProvider: Send + Sync {
     /// Provision a new phone number based on a specific area code
     async fn provision_number(&self, area_code: &str) -> Result<PhoneNumber>;
-    
+
     /// Send an SMS message
     async fn send_sms(&self, to: &str, body: &str) -> Result<()>;
-    
+
     /// Retrieve call logs for a specific number since a specific time
     async fn get_call_logs(&self, number: &str, since: DateTime<Utc>) -> Result<Vec<CallLog>>;
-    
+
     /// Normalize a provider-specific webhook payload into a standard CallEvent
     fn normalize_webhook(&self, payload: &serde_json::Value) -> Result<CallEvent>;
 }

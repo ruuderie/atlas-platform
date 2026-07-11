@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
-use sea_orm::entity::prelude::*;
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
+use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, NaiveDate, Utc};
 
 /// GENERIC-26 (table 2 of 3): AtlasCatalogRateRule
 ///

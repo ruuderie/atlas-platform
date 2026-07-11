@@ -97,8 +97,16 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AtlasCampaigns::TenantId).uuid().not_null())
                     // Identity
-                    .col(ColumnDef::new(AtlasCampaigns::Name).string_len(255).not_null())
-                    .col(ColumnDef::new(AtlasCampaigns::CampaignType).string_len(30).not_null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::Name)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::CampaignType)
+                            .string_len(30)
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCampaigns::Status)
                             .string_len(30)
@@ -106,13 +114,33 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("draft")),
                     )
                     // Audience
-                    .col(ColumnDef::new(AtlasCampaigns::AudienceFilter).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::AudienceFilter)
+                            .json_binary()
+                            .null(),
+                    )
                     // Goal
-                    .col(ColumnDef::new(AtlasCampaigns::GoalType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCampaigns::GoalEntityType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCampaigns::TargetConversionCount).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::GoalType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::GoalEntityType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::TargetConversionCount)
+                            .integer()
+                            .null(),
+                    )
                     // Budget
-                    .col(ColumnDef::new(AtlasCampaigns::BudgetCents).big_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::BudgetCents)
+                            .big_integer()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCampaigns::Currency)
                             .char_len(3)
@@ -132,25 +160,86 @@ impl MigrationTrait for Migration {
                             .default(30),
                     )
                     // External system
-                    .col(ColumnDef::new(AtlasCampaigns::ExternalCampaignId).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::ExternalCampaignId)
+                            .string_len(255)
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasCampaigns::IntegrationId).uuid().null()) // FK atlas_external_integrations
                     // Linked entity (what this campaign is FOR — polymorphic)
-                    .col(ColumnDef::new(AtlasCampaigns::SubjectEntityType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCampaigns::SubjectEntityId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::SubjectEntityType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::SubjectEntityId)
+                            .uuid()
+                            .null(),
+                    )
                     // Dates
-                    .col(ColumnDef::new(AtlasCampaigns::StartsAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasCampaigns::EndsAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::StartsAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::EndsAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     // UTM
-                    .col(ColumnDef::new(AtlasCampaigns::UtmSource).string_len(100).null())
-                    .col(ColumnDef::new(AtlasCampaigns::UtmMedium).string_len(100).null())
-                    .col(ColumnDef::new(AtlasCampaigns::UtmCampaign).string_len(100).null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::UtmSource)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::UtmMedium)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::UtmCampaign)
+                            .string_len(100)
+                            .null(),
+                    )
                     // Computed counters (updated by CampaignService)
-                    .col(ColumnDef::new(AtlasCampaigns::TotalContacts).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasCampaigns::TotalOpens).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasCampaigns::TotalClicks).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasCampaigns::TotalReplies).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasCampaigns::TotalConversions).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasCampaigns::CreatedByUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::TotalContacts)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::TotalOpens)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::TotalClicks)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::TotalReplies)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::TotalConversions)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaigns::CreatedByUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCampaigns::CreatedAt)
                             .timestamp_with_time_zone()
@@ -198,25 +287,73 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasSequenceSteps::CampaignId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::StepNumber).integer().not_null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::StepType).string_len(30).not_null())
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::CampaignId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::StepNumber)
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::StepType)
+                            .string_len(30)
+                            .not_null(),
+                    )
                     // 'email', 'sms', 'wait', 'condition', 'task', 'linkedin'
-                    .col(ColumnDef::new(AtlasSequenceSteps::SubjectTemplate).text().null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::BodyTemplate).text().null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::WaitDays).integer().null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::WaitHours).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::SubjectTemplate)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::BodyTemplate)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::WaitDays)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::WaitHours)
+                            .integer()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasSequenceSteps::SendTimePreference)
                             .string_len(20)
                             .not_null()
                             .default(Expr::val("business_hours")),
                     )
-                    .col(ColumnDef::new(AtlasSequenceSteps::ConditionType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::ConditionValue).json_binary().null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::OnTrueStep).integer().null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::OnFalseStep).integer().null())
-                    .col(ColumnDef::new(AtlasSequenceSteps::AbVariants).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::ConditionType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::ConditionValue)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::OnTrueStep)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::OnFalseStep)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSequenceSteps::AbVariants)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasSequenceSteps::ExitOnReply)
                             .boolean()
@@ -264,13 +401,37 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::CampaignId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::TenantId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::CampaignId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // Who is enrolled
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ContactUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ContactEmail).string_len(255).null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ContactName).string_len(200).null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ContactMetadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ContactUserId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ContactEmail)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ContactName)
+                            .string_len(200)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ContactMetadata)
+                            .json_binary()
+                            .null(),
+                    )
                     // Progress
                     .col(
                         ColumnDef::new(AtlasCampaignEnrollments::Status)
@@ -285,14 +446,38 @@ impl MigrationTrait for Migration {
                             .default(1),
                     )
                     // Exit tracking
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ExitReason).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ExitAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ExitReason)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ExitAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     // Conversion
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ConvertedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ConversionEntityType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ConversionEntityId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ConvertedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ConversionEntityType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ConversionEntityId)
+                            .uuid()
+                            .null(),
+                    )
                     // External reference (Instantly lead ID, etc.)
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::ExternalEnrollmentId).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::ExternalEnrollmentId)
+                            .string_len(255)
+                            .null(),
+                    )
                     // Timing
                     .col(
                         ColumnDef::new(AtlasCampaignEnrollments::EnrolledAt)
@@ -300,7 +485,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .col(ColumnDef::new(AtlasCampaignEnrollments::NextStepAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEnrollments::NextStepAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -351,17 +540,49 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCampaignEvents::EnrollmentId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCampaignEvents::CampaignId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCampaignEvents::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCampaignEvents::SequenceStepId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::EnrollmentId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::CampaignId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::SequenceStepId)
+                            .uuid()
+                            .null(),
+                    )
                     // 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced',
                     // 'unsubscribed', 'spam_reported', 'converted', 'form_fill'
-                    .col(ColumnDef::new(AtlasCampaignEvents::EventType).string_len(50).not_null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::EventType)
+                            .string_len(50)
+                            .not_null(),
+                    )
                     // 'email', 'sms', 'ppc_click', 'social', 'event'
-                    .col(ColumnDef::new(AtlasCampaignEvents::Channel).string_len(30).not_null())
-                    .col(ColumnDef::new(AtlasCampaignEvents::LinkClicked).string_len(512).null())
-                    .col(ColumnDef::new(AtlasCampaignEvents::Metadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::Channel)
+                            .string_len(30)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::LinkClicked)
+                            .string_len(512)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCampaignEvents::Metadata)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCampaignEvents::OccurredAt)
                             .timestamp_with_time_zone()
@@ -403,7 +624,11 @@ impl MigrationTrait for Migration {
             .drop_table(Table::drop().table(AtlasCampaignEvents::Table).to_owned())
             .await?;
         manager
-            .drop_table(Table::drop().table(AtlasCampaignEnrollments::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AtlasCampaignEnrollments::Table)
+                    .to_owned(),
+            )
             .await?;
         manager
             .drop_table(Table::drop().table(AtlasSequenceSteps::Table).to_owned())

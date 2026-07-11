@@ -1,10 +1,8 @@
 use crate::entities::outbox_job;
-use sea_orm::{
-    ActiveModelTrait, DatabaseConnection, EntityTrait, Set
-};
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use std::time::Duration;
-use tracing::{info, error};
+use tracing::{error, info};
 
 pub struct OutboxWorker;
 
@@ -13,7 +11,7 @@ impl OutboxWorker {
         tokio::spawn(async move {
             info!("Starting OutboxWorker background worker.");
             let mut interval = tokio::time::interval(Duration::from_millis(1500)); // Tick every 1.5s
-            
+
             loop {
                 interval.tick().await;
                 if let Err(e) = Self::process_next_job(&db).await {
@@ -59,38 +57,53 @@ impl OutboxWorker {
             .await?;
 
         if let Some(job) = opt_job {
-            info!("OutboxWorker: checked out job {} (type: {})", job.id, job.job_type);
+            info!(
+                "OutboxWorker: checked out job {} (type: {})",
+                job.id, job.job_type
+            );
 
             let start_time = std::time::Instant::now();
             let tenant_str = job.tenant_id.to_string();
 
             // Parse job type at the read boundary — unknown type is an immediate
             // logged error rather than a silent _ arm match.
-            let job_type_enum = match crate::types::outbox::OutboxJobType::try_from(job.job_type.as_str()) {
-                Ok(jt) => jt,
-                Err(e) => {
-                    error!("OutboxWorker: unregistered job type '{}': {}", job.job_type, e);
-                    // Mark as failed so it is not retried forever
-                    let mut active: outbox_job::ActiveModel = job.into();
-                    active.status = Set(crate::types::outbox::OutboxJobStatus::Failed.to_string());
-                    active.error_message = Set(Some(format!("unregistered job type: {e}")));
-                    active.locked_by = Set(None);
-                    active.locked_at = Set(None);
-                    active.update(db).await?;
-                    return Ok(());
-                }
-            };
+            let job_type_enum =
+                match crate::types::outbox::OutboxJobType::try_from(job.job_type.as_str()) {
+                    Ok(jt) => jt,
+                    Err(e) => {
+                        error!(
+                            "OutboxWorker: unregistered job type '{}': {}",
+                            job.job_type, e
+                        );
+                        // Mark as failed so it is not retried forever
+                        let mut active: outbox_job::ActiveModel = job.into();
+                        active.status =
+                            Set(crate::types::outbox::OutboxJobStatus::Failed.to_string());
+                        active.error_message = Set(Some(format!("unregistered job type: {e}")));
+                        active.locked_by = Set(None);
+                        active.locked_at = Set(None);
+                        active.update(db).await?;
+                        return Ok(());
+                    }
+                };
 
             let result = match job_type_enum {
                 crate::types::outbox::OutboxJobType::SendMagicLinkEmail => {
-                    match serde_json::from_value::<crate::handlers::communications::SendEmailPayload>(job.payload.clone()) {
+                    match serde_json::from_value::<crate::handlers::communications::SendEmailPayload>(
+                        job.payload.clone(),
+                    ) {
                         Ok(email_payload) => {
                             match crate::handlers::communications::send_email_handler(
                                 axum::extract::State(db.clone()),
                                 axum::extract::Json(email_payload),
-                            ).await {
+                            )
+                            .await
+                            {
                                 Ok(_) => Ok(()),
-                                Err((status, msg)) => Err(format!("Email send failed with status {:?}: {}", status, msg)),
+                                Err((status, msg)) => Err(format!(
+                                    "Email send failed with status {:?}: {}",
+                                    status, msg
+                                )),
                             }
                         }
                         Err(e) => Err(format!("Failed to deserialize email payload: {:?}", e)),
@@ -101,17 +114,35 @@ impl OutboxWorker {
                 // Sent to every new lead immediately after atlas_lead is inserted.
                 // Payload: { to_email, name, product_slug, variant_slug? }
                 crate::types::outbox::OutboxJobType::SendWaitlistConfirmation => {
-                    let to_email = job.payload.get("to_email").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                    let name     = job.payload.get("name").and_then(|v| v.as_str()).unwrap_or("there").to_string();
-                    let product  = job.payload.get("product_slug").and_then(|v| v.as_str()).unwrap_or("folio").to_string();
+                    let to_email = job
+                        .payload
+                        .get("to_email")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let name = job
+                        .payload
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("there")
+                        .to_string();
+                    let product = job
+                        .payload
+                        .get("product_slug")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("folio")
+                        .to_string();
 
                     if to_email.is_empty() {
-                        return Err(sea_orm::DbErr::Custom("send_waitlist_confirmation: missing to_email in payload".to_string()));
+                        return Err(sea_orm::DbErr::Custom(
+                            "send_waitlist_confirmation: missing to_email in payload".to_string(),
+                        ));
                     }
 
                     let first_name = name.split_whitespace().next().unwrap_or(&name).to_string();
 
-                    let body_html = format!(r#"<!DOCTYPE html>
+                    let body_html = format!(
+                        r#"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -190,12 +221,14 @@ impl OutboxWorker {
     </td></tr>
   </table>
 </body>
-</html>"#, first_name = first_name);
+</html>"#,
+                        first_name = first_name
+                    );
 
                     let email_payload = crate::handlers::communications::SendEmailPayload {
-                        tenant_id:   job.tenant_id,
+                        tenant_id: job.tenant_id,
                         to_email,
-                        subject:     format!("You're on the Folio waitlist, {}!", first_name),
+                        subject: format!("You're on the Folio waitlist, {}!", first_name),
                         body_html,
                         attachments: vec![],
                     };
@@ -203,12 +236,17 @@ impl OutboxWorker {
                     match crate::handlers::communications::send_email_handler(
                         axum::extract::State(db.clone()),
                         axum::extract::Json(email_payload),
-                    ).await {
+                    )
+                    .await
+                    {
                         Ok(_) => {
                             tracing::info!(product = %product, "waitlist confirmation email sent");
                             Ok(())
                         }
-                        Err((status, msg)) => Err(format!("waitlist confirmation email failed ({:?}): {}", status, msg)),
+                        Err((status, msg)) => Err(format!(
+                            "waitlist confirmation email failed ({:?}): {}",
+                            status, msg
+                        )),
                     }
                 }
 
@@ -219,7 +257,8 @@ impl OutboxWorker {
                 // The payload may contain {"scorecard_id": "<uuid>"} to target a single
                 // scorecard, or be absent to scan all stale scorecards for the tenant.
                 crate::types::outbox::OutboxJobType::RecomputeScorecardAggregates => {
-                    let maybe_id = job.payload
+                    let maybe_id = job
+                        .payload
                         .get("scorecard_id")
                         .and_then(|v| v.as_str())
                         .and_then(|s| uuid::Uuid::parse_str(s).ok());
@@ -233,8 +272,8 @@ impl OutboxWorker {
                         .map_err(|e| format!("recompute_aggregates({scorecard_id}) failed: {e}"))
                     } else {
                         // Tenant-wide sweep: recompute all stale scorecards for this tenant.
-                        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                         use crate::entities::atlas_scorecard;
+                        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
                         let stale = match atlas_scorecard::Entity::find()
                             .filter(atlas_scorecard::Column::TenantId.eq(job.tenant_id))
@@ -242,9 +281,11 @@ impl OutboxWorker {
                             .await
                         {
                             Ok(v) => v,
-                            Err(e) => return Err(sea_orm::DbErr::Custom(
-                                format!("recompute_scorecard_aggregates: failed to fetch scorecards: {e}")
-                            )),
+                            Err(e) => {
+                                return Err(sea_orm::DbErr::Custom(format!(
+                                    "recompute_scorecard_aggregates: failed to fetch scorecards: {e}"
+                                )));
+                            }
                         };
 
                         let mut errors: Vec<String> = Vec::new();
@@ -257,7 +298,11 @@ impl OutboxWorker {
                         if errors.is_empty() {
                             Ok(())
                         } else {
-                            Err(format!("recompute_aggregates sweep had {} failures: {}", errors.len(), errors.join("; ")))
+                            Err(format!(
+                                "recompute_aggregates sweep had {} failures: {}",
+                                errors.len(),
+                                errors.join("; ")
+                            ))
                         }
                     }
                 }
@@ -268,8 +313,8 @@ impl OutboxWorker {
                 // refresh_time_series_for_dimension internally handles both period types
                 // (monthly and quarterly) — no period arg needed.
                 crate::types::outbox::OutboxJobType::RefreshScorecardTimeSeries => {
-                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::{atlas_scorecard, atlas_scorecard_dimension};
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
                     let scorecards = match atlas_scorecard::Entity::find()
                         .filter(atlas_scorecard::Column::TenantId.eq(job.tenant_id))
@@ -277,16 +322,20 @@ impl OutboxWorker {
                         .await
                     {
                         Ok(v) => v,
-                        Err(e) => return Err(sea_orm::DbErr::Custom(
-                            format!("refresh_scorecard_time_series: failed to fetch scorecards: {e}")
-                        )),
+                        Err(e) => {
+                            return Err(sea_orm::DbErr::Custom(format!(
+                                "refresh_scorecard_time_series: failed to fetch scorecards: {e}"
+                            )));
+                        }
                     };
 
                     let mut errors: Vec<String> = Vec::new();
 
                     for sc in &scorecards {
                         let dimensions = match atlas_scorecard_dimension::Entity::find()
-                            .filter(atlas_scorecard_dimension::Column::TemplateId.eq(sc.template_id))
+                            .filter(
+                                atlas_scorecard_dimension::Column::TemplateId.eq(sc.template_id),
+                            )
                             .filter(atlas_scorecard_dimension::Column::IsActive.eq(true))
                             .all(db)
                             .await
@@ -314,11 +363,13 @@ impl OutboxWorker {
                     if errors.is_empty() {
                         Ok(())
                     } else {
-                        Err(format!("refresh_scorecard_time_series had {} failures: {}", errors.len(), errors.join("; ")))
+                        Err(format!(
+                            "refresh_scorecard_time_series had {} failures: {}",
+                            errors.len(),
+                            errors.join("; ")
+                        ))
                     }
                 }
-
-
 
                 // G-27: Evaluate display rules after an activity is logged and dispatch
                 // the resulting nudge dimensions to the rater via WebSocket (G-07).
@@ -504,7 +555,6 @@ impl OutboxWorker {
                     }.await
                 }
 
-
                 // G-27 Phase 3: Refresh mv_scorecard_portfolio_analytics + batch-update
                 // percentile ranks for all scorecards in every template for this tenant.
                 // Runs every 4 hours (interval_seconds = 14400).
@@ -518,8 +568,8 @@ impl OutboxWorker {
                 // the freshly-refreshed MV data is used by peer_pool_snapshot() in
                 // G27SC_ByocComputeCalloutController requests.
                 crate::types::outbox::OutboxJobType::RefreshScorecardPortfolio => {
-                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::atlas_scorecard_template;
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
                     let templates = match atlas_scorecard_template::Entity::find()
                         .filter(atlas_scorecard_template::Column::TenantId.eq(job.tenant_id))
@@ -528,9 +578,11 @@ impl OutboxWorker {
                         .await
                     {
                         Ok(v) => v,
-                        Err(e) => return Err(sea_orm::DbErr::Custom(
-                            format!("refresh_scorecard_portfolio: failed to fetch templates: {e}")
-                        )),
+                        Err(e) => {
+                            return Err(sea_orm::DbErr::Custom(format!(
+                                "refresh_scorecard_portfolio: failed to fetch templates: {e}"
+                            )));
+                        }
                     };
 
                     if templates.is_empty() {
@@ -571,7 +623,6 @@ impl OutboxWorker {
                     }
                 }
 
-
                 // G-27 Phase 4: Compute per-contributor bias_offset + scale_factor for all
                 // published templates for this tenant. Runs weekly (interval_seconds = 604800).
                 //
@@ -586,8 +637,8 @@ impl OutboxWorker {
                 // (contributor_user_id, dimension_id)) and applied per-entry in
                 // compute_numeric_aggregate.
                 crate::types::outbox::OutboxJobType::CalibrateScorecardContributors => {
-                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::atlas_scorecard_template;
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
                     let templates = match atlas_scorecard_template::Entity::find()
                         .filter(atlas_scorecard_template::Column::TenantId.eq(job.tenant_id))
@@ -596,9 +647,11 @@ impl OutboxWorker {
                         .await
                     {
                         Ok(v) => v,
-                        Err(e) => return Err(sea_orm::DbErr::Custom(
-                            format!("calibrate_scorecard_contributors: failed to fetch templates: {e}")
-                        )),
+                        Err(e) => {
+                            return Err(sea_orm::DbErr::Custom(format!(
+                                "calibrate_scorecard_contributors: failed to fetch templates: {e}"
+                            )));
+                        }
                     };
 
                     if templates.is_empty() {
@@ -634,7 +687,9 @@ impl OutboxWorker {
 
                     info!(
                         "calibrate_scorecard_contributors: tenant {} → {} total rows upserted across {} templates",
-                        job.tenant_id, total_upserted, templates.len()
+                        job.tenant_id,
+                        total_upserted,
+                        templates.len()
                     );
 
                     if errors.is_empty() {
@@ -660,20 +715,25 @@ impl OutboxWorker {
                 // Dispatches telegram / whatsapp / sms / email to one channel per job.
                 // Records delivery status in atlas_notification.channels_attempted.
                 crate::types::outbox::OutboxJobType::NotifyChannel => {
-                    use crate::services::notification_service::{NotifyChannelPayload, channels};
                     use crate::entities::atlas_notification;
-                    use sea_orm::{EntityTrait, ActiveModelTrait, Set};
+                    use crate::services::notification_service::{NotifyChannelPayload, channels};
                     use chrono::Utc;
+                    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
-                    let payload = match serde_json::from_value::<NotifyChannelPayload>(job.payload.clone()) {
-                        Ok(p)  => p,
-                        Err(e) => return Err(sea_orm::DbErr::Custom(format!("NotifyChannel: failed to deserialise payload: {e}"))),
-                    };
+                    let payload =
+                        match serde_json::from_value::<NotifyChannelPayload>(job.payload.clone()) {
+                            Ok(p) => p,
+                            Err(e) => {
+                                return Err(sea_orm::DbErr::Custom(format!(
+                                    "NotifyChannel: failed to deserialise payload: {e}"
+                                )));
+                            }
+                        };
 
                     // Fetch tenant settings for channel credentials
                     let settings: std::collections::HashMap<String, String> = {
                         use crate::entities::tenant_setting;
-                        use sea_orm::{QueryFilter, ColumnTrait};
+                        use sea_orm::{ColumnTrait, QueryFilter};
                         tenant_setting::Entity::find()
                             .filter(tenant_setting::Column::TenantId.eq(payload.tenant_id))
                             .all(db)
@@ -688,18 +748,26 @@ impl OutboxWorker {
 
                     // Write delivery receipt into atlas_notification.channels_attempted
                     let receipt = match &result {
-                        channels::ChannelResult::Delivered      => serde_json::json!({ "channel": payload.channel, "status": "delivered",  "attempted_at": Utc::now() }),
-                        channels::ChannelResult::Skipped { reason } => serde_json::json!({ "channel": payload.channel, "status": "skipped",   "attempted_at": Utc::now(), "reason": reason }),
-                        channels::ChannelResult::Failed { error }   => serde_json::json!({ "channel": payload.channel, "status": "failed",    "attempted_at": Utc::now(), "error": error }),
+                        channels::ChannelResult::Delivered => {
+                            serde_json::json!({ "channel": payload.channel, "status": "delivered",  "attempted_at": Utc::now() })
+                        }
+                        channels::ChannelResult::Skipped { reason } => {
+                            serde_json::json!({ "channel": payload.channel, "status": "skipped",   "attempted_at": Utc::now(), "reason": reason })
+                        }
+                        channels::ChannelResult::Failed { error } => {
+                            serde_json::json!({ "channel": payload.channel, "status": "failed",    "attempted_at": Utc::now(), "error": error })
+                        }
                     };
 
                     // Append receipt to channels_attempted via read-modify-write
-                    if let Ok(Some(notif)) = atlas_notification::Entity::find_by_id(payload.notification_id)
-                        .one(db)
-                        .await
+                    if let Ok(Some(notif)) =
+                        atlas_notification::Entity::find_by_id(payload.notification_id)
+                            .one(db)
+                            .await
                     {
                         use sea_orm::{ActiveModelTrait, Set};
-                        let mut existing: Vec<serde_json::Value> = notif.channels_attempted
+                        let mut existing: Vec<serde_json::Value> = notif
+                            .channels_attempted
                             .as_array()
                             .cloned()
                             .unwrap_or_default();
@@ -710,14 +778,18 @@ impl OutboxWorker {
                     }
 
                     match result {
-                        channels::ChannelResult::Delivered                => Ok(()),
-                        channels::ChannelResult::Skipped { reason }       => {
-                            info!("NotifyChannel: skipped channel={} reason={}", payload.channel, reason);
+                        channels::ChannelResult::Delivered => Ok(()),
+                        channels::ChannelResult::Skipped { reason } => {
+                            info!(
+                                "NotifyChannel: skipped channel={} reason={}",
+                                payload.channel, reason
+                            );
                             Ok(()) // Skipped is not an error
                         }
-                        channels::ChannelResult::Failed { error }         => {
-                            Err(format!("NotifyChannel: channel={} error={}", payload.channel, error))
-                        }
+                        channels::ChannelResult::Failed { error } => Err(format!(
+                            "NotifyChannel: channel={} error={}",
+                            payload.channel, error
+                        )),
                     }
                 }
             };
@@ -732,7 +804,8 @@ impl OutboxWorker {
             let job_id = active.id.as_ref().clone();
             match result {
                 Ok(_) => {
-                    active.status = Set(crate::types::outbox::OutboxJobStatus::Completed.to_string());
+                    active.status =
+                        Set(crate::types::outbox::OutboxJobStatus::Completed.to_string());
                     active.error_message = Set(None);
                     active.locked_by = Set(None);
                     active.locked_at = Set(None);
@@ -754,13 +827,13 @@ impl OutboxWorker {
                     active.error_message = Set(Some(err_msg));
                     active.locked_by = Set(None);
                     active.locked_at = Set(None);
-                    
+
                     // Simple exponential backoff for retries: retry after 2^attempts * 10 seconds
                     let attempts = active.attempts.as_ref();
                     let backoff_secs = 2i64.pow(*attempts as u32) * 10;
                     let next_run = Utc::now() + chrono::Duration::seconds(backoff_secs);
                     active.run_at = Set(next_run);
-                    
+
                     active.update(db).await?;
                 }
             }

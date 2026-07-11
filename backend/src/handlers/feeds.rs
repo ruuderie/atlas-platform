@@ -1,28 +1,29 @@
 #![allow(dead_code)]
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    Json,
-    response::IntoResponse,
-};
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, QueryOrder, Order
-};
+use crate::entities::attachment::{self, Entity as Attachment};
 use crate::entities::feed::{self, Entity as Feed};
 use crate::entities::feed_item::{self, Entity as FeedItem};
-use crate::entities::attachment::{self, Entity as Attachment};
-use crate::models::feed::{FeedModel, CreateFeed, UpdateFeed, FeedWithItems};
-use crate::models::feed_item::FeedItemModel;
 use crate::models::attachment::AttachmentModel;
+use crate::models::feed::{CreateFeed, FeedModel, FeedWithItems, UpdateFeed};
+use crate::models::feed_item::FeedItemModel;
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use chrono::Utc;
-use uuid::Uuid;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Order, QueryFilter, QueryOrder,
+    Set,
+};
 use serde_json::json;
+use uuid::Uuid;
 
+use crate::handlers::{feed_items, feeds};
 use axum::{
     Router,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
 };
-use crate::handlers::{feeds, feed_items};
 
 /// State-free public route definitions.
 /// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
@@ -32,12 +33,21 @@ pub fn public_routes_raw() -> Router<DatabaseConnection> {
         .route("/feeds", get(feeds::get_feeds))
         .route("/feeds/{feed_id}", get(feeds::get_feed_by_id))
         .route("/feeds/{feed_id}/items", get(feeds::get_feed_with_items))
-        .route("/feeds/network/{tenant_id}", get(feeds::get_feeds_by_network))
+        .route(
+            "/feeds/network/{tenant_id}",
+            get(feeds::get_feeds_by_network),
+        )
         .route("/feeds/{feed_id}/json", get(feeds::get_json_feed))
         // Feed item routes
         .route("/feed-items", get(feed_items::get_feed_items))
-        .route("/feed-items/{feed_item_id}", get(feed_items::get_feed_item_by_id))
-        .route("/feed-items/feed/{feed_id}", get(feed_items::get_feed_items_by_feed))
+        .route(
+            "/feed-items/{feed_item_id}",
+            get(feed_items::get_feed_item_by_id),
+        )
+        .route(
+            "/feed-items/feed/{feed_id}",
+            get(feed_items::get_feed_items_by_feed),
+        )
 }
 
 /// State-free authenticated route definitions.
@@ -50,8 +60,14 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/feeds/{feed_id}", delete(feeds::delete_feed))
         // Feed item management routes
         .route("/api/feed-items", post(feed_items::create_feed_item))
-        .route("/api/feed-items/{feed_item_id}", put(feed_items::update_feed_item))
-        .route("/api/feed-items/{feed_item_id}", delete(feed_items::delete_feed_item))
+        .route(
+            "/api/feed-items/{feed_item_id}",
+            put(feed_items::update_feed_item),
+        )
+        .route(
+            "/api/feed-items/{feed_item_id}",
+            delete(feed_items::delete_feed_item),
+        )
 }
 
 /// Legacy state-finalized constructor. Used by api.rs during transition period.
@@ -69,18 +85,12 @@ pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection
 pub async fn get_feeds(
     State(db): State<DatabaseConnection>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let feeds = Feed::find()
-        .all(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let feeds = Feed::find().all(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let feed_models: Vec<FeedModel> = feeds
-        .into_iter()
-        .map(FeedModel::from)
-        .collect();
+    let feed_models: Vec<FeedModel> = feeds.into_iter().map(FeedModel::from).collect();
 
     Ok((StatusCode::OK, Json(feed_models)))
 }
@@ -125,10 +135,8 @@ pub async fn get_feed_with_items(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let mut feed_item_models: Vec<FeedItemModel> = feed_items
-        .into_iter()
-        .map(FeedItemModel::from)
-        .collect();
+    let mut feed_item_models: Vec<FeedItemModel> =
+        feed_items.into_iter().map(FeedItemModel::from).collect();
 
     // Fetch attachments for each feed item
     for feed_item in &mut feed_item_models {
@@ -142,9 +150,8 @@ pub async fn get_feed_with_items(
             })?;
 
         if !attachments.is_empty() {
-            feed_item.attachments = Some(
-                attachments.into_iter().map(AttachmentModel::from).collect()
-            );
+            feed_item.attachments =
+                Some(attachments.into_iter().map(AttachmentModel::from).collect());
         }
     }
 
@@ -179,10 +186,7 @@ pub async fn get_feeds_by_network(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let feed_models: Vec<FeedModel> = feeds
-        .into_iter()
-        .map(FeedModel::from)
-        .collect();
+    let feed_models: Vec<FeedModel> = feeds.into_iter().map(FeedModel::from).collect();
 
     Ok((StatusCode::OK, Json(feed_models)))
 }
@@ -193,16 +197,14 @@ pub async fn create_feed(
 ) -> Result<impl IntoResponse, StatusCode> {
     // Generate a unique ID for the feed
     let feed_id = Uuid::new_v4();
-    
+
     // Create the feed URL if not provided
-    let feed_url = payload.feed_url.unwrap_or_else(|| {
-        format!("/api/feeds/{}/json", feed_id)
-    });
-    
+    let feed_url = payload
+        .feed_url
+        .unwrap_or_else(|| format!("/api/feeds/{}/json", feed_id));
+
     // Create the home page URL if not provided
-    let home_page_url = payload.home_page_url.unwrap_or_else(|| {
-        format!("/blog")
-    });
+    let home_page_url = payload.home_page_url.unwrap_or_else(|| format!("/blog"));
 
     let new_feed = feed::ActiveModel {
         id: Set(feed_id),
@@ -218,13 +220,11 @@ pub async fn create_feed(
         updated_at: Set(Utc::now()),
     };
 
-    let feed = new_feed.insert(&db)
-        .await
-        .map_err(|err| {
-            println!("DB ERROR: {:?}", err);
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let feed = new_feed.insert(&db).await.map_err(|err| {
+        println!("DB ERROR: {:?}", err);
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok((StatusCode::CREATED, Json(FeedModel::from(feed))))
 }
@@ -275,12 +275,10 @@ pub async fn update_feed(
 
     feed_model.updated_at = Set(Utc::now());
 
-    let updated_feed = feed_model.update(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let updated_feed = feed_model.update(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok((StatusCode::OK, Json(FeedModel::from(updated_feed))))
 }
@@ -321,13 +319,10 @@ pub async fn delete_feed(
     }
 
     // Finally, delete the feed
-    Feed::delete_by_id(feed_id)
-        .exec(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    Feed::delete_by_id(feed_id).exec(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -369,15 +364,18 @@ pub async fn get_json_feed(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-        let json_attachments = attachments.iter().map(|attachment| {
-            json!({
-                "url": attachment.url,
-                "mime_type": attachment.mime_type,
-                "title": attachment.title,
-                "size_in_bytes": attachment.size_in_bytes,
-                "duration_in_seconds": attachment.duration_in_seconds
+        let json_attachments = attachments
+            .iter()
+            .map(|attachment| {
+                json!({
+                    "url": attachment.url,
+                    "mime_type": attachment.mime_type,
+                    "title": attachment.title,
+                    "size_in_bytes": attachment.size_in_bytes,
+                    "duration_in_seconds": attachment.duration_in_seconds
+                })
             })
-        }).collect::<Vec<_>>();
+            .collect::<Vec<_>>();
 
         let mut item = json!({
             "id": feed_item.id.to_string(),
@@ -448,4 +446,4 @@ pub async fn get_json_feed(
     }
 
     Ok((StatusCode::OK, Json(json_feed)))
-} 
+}

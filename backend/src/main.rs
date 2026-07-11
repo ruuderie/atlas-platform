@@ -1,61 +1,58 @@
+mod admin;
 mod api;
+pub mod atlas_apps;
 mod auth;
+mod config;
 mod db;
 mod entities;
-mod migration;
-mod middleware;
-mod handlers;
-mod admin;
-mod models;
-mod traits;
-mod config;
-mod services;
-mod types;
 mod extractors; // G-32: Axum extractors for declarative role enforcement
-mod webauthn_registry;
-pub mod atlas_apps;
+mod handlers;
 pub mod metrics;
+mod middleware;
+mod migration;
+mod models;
+mod services;
+mod traits;
+mod types;
+mod webauthn_registry;
 
-use axum::http::{self, HeaderMap, HeaderValue, Method, Request, StatusCode, header};
-use axum::body::Body;
-use axum::middleware::{from_fn, from_fn_with_state};
-use axum::{
-    Router,
-    Extension,
-    routing::get,
-};
-use tower_http::cors::CorsLayer;
-use tower::ServiceBuilder;
-use crate::sea_orm::Database;
-use sea_orm_migration::prelude::*;
-use migration::{Migrator};
-use std::net::SocketAddr;
-use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
-use tracing::Level;
-use tokio::net::TcpListener;
 use crate::api::create_router;
+use crate::sea_orm::Database;
+use axum::body::Body;
+use axum::http::{self, HeaderMap, HeaderValue, Method, Request, StatusCode, header};
+use axum::middleware::{from_fn, from_fn_with_state};
+use axum::{Extension, Router, routing::get};
+use migration::Migrator;
+use sea_orm_migration::prelude::*;
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
+use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::middleware::{
-    request_logger::RequestLogger,
-    rate_limiter::RateLimiter,
-    middleware::log_request_middleware,
-    request_id::request_id_middleware,
-    DynamicCorsRegistry,
-    dynamic_cors_layer,
+    DynamicCorsRegistry, dynamic_cors_layer, middleware::log_request_middleware,
+    rate_limiter::RateLimiter, request_id::request_id_middleware, request_logger::RequestLogger,
 };
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 // webauthn_rs::prelude::* intentionally not imported — symbols pulled in via explicit crate::handlers::passkeys items
-use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
+use crate::handlers::passkeys::{WebauthnState, WebauthnStateRaw};
+use crate::services::ingress_provisioner::IngressProvisioner;
 use crate::webauthn_registry::WebauthnRegistry;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::services::ingress_provisioner::IngressProvisioner;
 
 #[allow(dead_code)]
-async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http::StatusCode, String) {
+async fn handle_error(
+    error: Box<dyn std::error::Error + Send + Sync>,
+) -> (http::StatusCode, String) {
     tracing::error!("Unhandled error: {:?}", error);
-    (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Internal Server Error".to_string(),
+    )
 }
 
 #[allow(dead_code)]
@@ -69,8 +66,12 @@ fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
         tower_http::cors::AllowOrigin::predicate(|_, _| true)
     } else {
         let mut origins = vec![
-            network_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
-            admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://admin:5150".parse().unwrap()),
+            network_client
+                .parse::<HeaderValue>()
+                .unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
+            admin_client
+                .parse::<HeaderValue>()
+                .unwrap_or_else(|_| "http://admin:5150".parse().unwrap()),
         ];
 
         if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
@@ -80,13 +81,19 @@ fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
                 }
             }
         }
-        
+
         tower_http::cors::AllowOrigin::list(origins)
     };
 
     CorsLayer::new()
         .allow_origin(allow_origin)
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([
             header::AUTHORIZATION,
             header::ACCEPT,
@@ -139,15 +146,16 @@ async fn main() {
     crate::metrics::register_metrics();
 
     // Determine database URL based on environment
-    let database_url = if std::env::var("USE_LOCAL_DB").unwrap_or_else(|_| "false".to_string()) == "true" {
-        std::env::var("LOCAL_DATABASE_URL").unwrap_or_else(|_| {
-            // Fallback to a default local connection string
-            "postgresql://postgres:postgres@localhost:5432/oplydb".to_string()
-        })
-    } else {
-        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set")
-    };
-    
+    let database_url =
+        if std::env::var("USE_LOCAL_DB").unwrap_or_else(|_| "false".to_string()) == "true" {
+            std::env::var("LOCAL_DATABASE_URL").unwrap_or_else(|_| {
+                // Fallback to a default local connection string
+                "postgresql://postgres:postgres@localhost:5432/oplydb".to_string()
+            })
+        } else {
+            std::env::var("DATABASE_URL").expect("DATABASE_URL must be set")
+        };
+
     let _admin_email = std::env::var("ADMIN_USER").expect("ADMIN_USER must be set");
     let _admin_password = std::env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set");
     let create_admin = std::env::var("CREATE_ADMIN_ON_STARTUP")
@@ -155,7 +163,13 @@ async fn main() {
         .parse::<bool>()
         .unwrap_or(true);
     tracing::info!("Create admin on startup: {}", create_admin);
-    tracing::info!("Using database URL: {}", database_url.replace(|c: char| !c.is_ascii_alphabetic() && !c.is_ascii_punctuation(), "*"));
+    tracing::info!(
+        "Using database URL: {}",
+        database_url.replace(
+            |c: char| !c.is_ascii_alphabetic() && !c.is_ascii_punctuation(),
+            "*"
+        )
+    );
 
     // Connect to the database
     let conn = Database::connect(&database_url)
@@ -167,11 +181,15 @@ async fn main() {
     use sea_orm::{ConnectionTrait, Statement};
 
     if std::env::var("WIPE_DB_ON_STARTUP").unwrap_or_else(|_| "false".to_string()) == "true" {
-        tracing::warn!("WIPE_DB_ON_STARTUP is enabled! Wiping the database to start from scratch...");
+        tracing::warn!(
+            "WIPE_DB_ON_STARTUP is enabled! Wiping the database to start from scratch..."
+        );
         conn.execute(Statement::from_string(
             sea_orm::DatabaseBackend::Postgres,
             "DROP SCHEMA public CASCADE; CREATE SCHEMA public;".to_owned(),
-        )).await.expect("Failed to recreate public schema");
+        ))
+        .await
+        .expect("Failed to recreate public schema");
     }
 
     // Fix renamed migrations in the database before running Migrator.
@@ -183,13 +201,22 @@ async fn main() {
     tracing::info!("Ensuring legacy migration names are updated in seaql_migrations...");
     let legacy_renames: &[(&str, &str)] = &[
         // 2023 renames — original filename-based names → timestamped names
-        ("m20230912_create_users_table",         "m20230912_000000_create_users_table"),
-        ("m20230912_create_user_accounts_table", "m20230912_000001_create_user_accounts_table"),
+        (
+            "m20230912_create_users_table",
+            "m20230912_000000_create_users_table",
+        ),
+        (
+            "m20230912_create_user_accounts_table",
+            "m20230912_000001_create_user_accounts_table",
+        ),
         // G19/G23/G26 — registered via CorePlatformApp as m20260701_* names,
         // superseded by standalone base-vec migrations with new timestamps.
-        ("m20260701_g23_reservations",           "m20260802_g23_atlas_reservations"),
-        ("m20260701_g26_catalog",                "m20260803_g26_atlas_catalog"),
-        ("m20260701_g19_campaigns",              "m20260804_g19_atlas_campaigns"),
+        (
+            "m20260701_g23_reservations",
+            "m20260802_g23_atlas_reservations",
+        ),
+        ("m20260701_g26_catalog", "m20260803_g26_atlas_catalog"),
+        ("m20260701_g19_campaigns", "m20260804_g19_atlas_campaigns"),
     ];
     for (old_ver, new_ver) in legacy_renames {
         // Step 1: If BOTH old and new exist, delete the old (new is already applied).
@@ -197,9 +224,19 @@ async fn main() {
             "DELETE FROM seaql_migrations WHERE version = '{old_ver}' \
              AND EXISTS (SELECT 1 FROM seaql_migrations WHERE version = '{new_ver}')"
         );
-        match conn.execute(Statement::from_string(sea_orm::DatabaseBackend::Postgres, sql_delete)).await {
+        match conn
+            .execute(Statement::from_string(
+                sea_orm::DatabaseBackend::Postgres,
+                sql_delete,
+            ))
+            .await
+        {
             Ok(r) if r.rows_affected() > 0 => {
-                tracing::info!("seaql_migrations: removed duplicate old row '{}' (new '{}' already applied)", old_ver, new_ver);
+                tracing::info!(
+                    "seaql_migrations: removed duplicate old row '{}' (new '{}' already applied)",
+                    old_ver,
+                    new_ver
+                );
             }
             Ok(_) => {}
             Err(e) => tracing::warn!("seaql_migrations DELETE '{}' failed: {}", old_ver, e),
@@ -210,12 +247,23 @@ async fn main() {
              WHERE version = '{old_ver}' \
              AND NOT EXISTS (SELECT 1 FROM seaql_migrations WHERE version = '{new_ver}')"
         );
-        match conn.execute(Statement::from_string(sea_orm::DatabaseBackend::Postgres, sql_update)).await {
+        match conn
+            .execute(Statement::from_string(
+                sea_orm::DatabaseBackend::Postgres,
+                sql_update,
+            ))
+            .await
+        {
             Ok(r) if r.rows_affected() > 0 => {
                 tracing::info!("seaql_migrations: renamed '{}' → '{}'", old_ver, new_ver);
             }
             Ok(_) => {}
-            Err(e) => tracing::warn!("seaql_migrations rename '{}' → '{}' failed: {}", old_ver, new_ver, e),
+            Err(e) => tracing::warn!(
+                "seaql_migrations rename '{}' → '{}' failed: {}",
+                old_ver,
+                new_ver,
+                e
+            ),
         }
     }
 
@@ -224,21 +272,32 @@ async fn main() {
 
     tracing::info!("Migrations completed");
 
-    let table_exists = &conn.execute_unprepared("SELECT 1 FROM request_log LIMIT 1").await.is_ok();
+    let table_exists = &conn
+        .execute_unprepared("SELECT 1 FROM request_log LIMIT 1")
+        .await
+        .is_ok();
     tracing::info!("request_log table exists: {}", table_exists);
 
     if create_admin {
-        let admin_email = std::env::var("ADMIN_USER").unwrap_or_else(|_| "admin@oply.co".to_string());
-        if let Err(e) = crate::admin::setup::create_admin_user_if_not_exists(&conn, &admin_email, &_admin_password).await {
+        let admin_email =
+            std::env::var("ADMIN_USER").unwrap_or_else(|_| "admin@oply.co".to_string());
+        if let Err(e) = crate::admin::setup::create_admin_user_if_not_exists(
+            &conn,
+            &admin_email,
+            &_admin_password,
+        )
+        .await
+        {
             tracing::error!("Failed to create admin user: {}", e);
         } else {
-            tracing::info!("Successfully verified root administrative account for {}", admin_email);
+            tracing::info!(
+                "Successfully verified root administrative account for {}",
+                admin_email
+            );
         }
     }
 
     tracing::info!("Successfully connected to the database and ran migrations");
-
-
 
     let sync_db = conn.clone();
     crate::services::data_sync::DataSyncService::start_worker(sync_db).await;
@@ -255,7 +314,10 @@ async fn main() {
         let mut interval = tokio::time::interval(Duration::from_secs(3600));
         loop {
             interval.tick().await;
-            if let Err(e) = crate::services::telemetry::TelemetryService::process_daily_metrics(&telemetry_db).await {
+            if let Err(e) =
+                crate::services::telemetry::TelemetryService::process_daily_metrics(&telemetry_db)
+                    .await
+            {
                 tracing::error!("Background telemetry processing failed: {}", e);
             }
         }
@@ -264,25 +326,29 @@ async fn main() {
     let webhook_db = conn.clone();
     crate::services::webhook::start_webhook_sweeper(webhook_db).await;
 
-    let network_client = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5001".to_string());
-    let admin_client = std::env::var("ADMIN_URL").unwrap_or_else(|_| "http://localhost:5002".to_string());
+    let network_client =
+        std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5001".to_string());
+    let admin_client =
+        std::env::var("ADMIN_URL").unwrap_or_else(|_| "http://localhost:5002".to_string());
     tracing::info!("Network URL: {}", network_client);
     tracing::info!("Admin URL: {}", admin_client);
 
     let cors_registry = Arc::new(DynamicCorsRegistry::new(conn.clone()));
-    cors_registry.hydrate(&[network_client.clone(), admin_client.clone()]).await;
+    cors_registry
+        .hydrate(&[network_client.clone(), admin_client.clone()])
+        .await;
     let cors = dynamic_cors_layer(cors_registry.clone());
 
     let rate_limiter = RateLimiter::new();
 
     let rp_origin_str = std::env::var("WEBAUTHN_ORIGIN").unwrap_or_else(|_| admin_client.clone());
-    let rp_origin = url::Url::parse(&rp_origin_str)
-        .unwrap_or_else(|_| url::Url::parse("https://platform-admin.atlas-platform.orb.local").unwrap());
-    
-    let rp_id = std::env::var("RP_ID").unwrap_or_else(|_| {
-        rp_origin.host_str().unwrap_or("localhost").to_string()
+    let rp_origin = url::Url::parse(&rp_origin_str).unwrap_or_else(|_| {
+        url::Url::parse("https://platform-admin.atlas-platform.orb.local").unwrap()
     });
-    
+
+    let rp_id = std::env::var("RP_ID")
+        .unwrap_or_else(|_| rp_origin.host_str().unwrap_or("localhost").to_string());
+
     let primary_host = rp_origin.host_str().map(|s| s.to_string());
     let primary_rp_id = Some(rp_id.clone());
 
@@ -292,7 +358,7 @@ async fn main() {
         primary_host.clone(),
         primary_rp_id.clone(),
     ));
-    
+
     // Seed primary platform origin
     if let Err(e) = registry.seed(&rp_id, &rp_origin).await {
         tracing::error!("Failed to seed WebauthnRegistry: {}", e);
@@ -305,11 +371,14 @@ async fn main() {
     // get_or_create via the DB-verify path — no pod restart needed.
     {
         use crate::entities::app_domain;
-        
+
         use sea_orm::EntityTrait;
         match app_domain::Entity::find().all(&conn).await {
             Ok(domains) => {
-                tracing::info!("Pre-warming WebAuthn registry for {} tenant domain(s)...", domains.len());
+                tracing::info!(
+                    "Pre-warming WebAuthn registry for {} tenant domain(s)...",
+                    domains.len()
+                );
                 for domain in domains {
                     let origin_str = format!("https://{}", domain.domain_name);
                     match url::Url::parse(&origin_str) {
@@ -326,7 +395,9 @@ async fn main() {
                                 }
                             }
                             let domain_host = origin_url.host_str().unwrap_or(&domain.domain_name);
-                            let domain_rp_id = if let (Some(prim_host), Some(prim_rp_id)) = (&primary_host, &primary_rp_id) {
+                            let domain_rp_id = if let (Some(prim_host), Some(prim_rp_id)) =
+                                (&primary_host, &primary_rp_id)
+                            {
                                 if domain_host.eq_ignore_ascii_case(prim_host) {
                                     prim_rp_id.clone()
                                 } else {
@@ -338,31 +409,35 @@ async fn main() {
                             if let Err(e) = registry.seed(&domain_rp_id, &origin_url).await {
                                 tracing::warn!(
                                     "Could not pre-warm WebAuthn for domain '{}': {}",
-                                    domain.domain_name, e
+                                    domain.domain_name,
+                                    e
                                 );
                             }
                         }
                         Err(e) => {
                             tracing::warn!(
                                 "Skipping WebAuthn pre-warm for invalid domain '{}': {}",
-                                domain.domain_name, e
+                                domain.domain_name,
+                                e
                             );
                         }
                     }
                 }
             }
             Err(e) => {
-                tracing::warn!("Could not load app_domain records for WebAuthn pre-warm: {}", e);
+                tracing::warn!(
+                    "Could not load app_domain records for WebAuthn pre-warm: {}",
+                    e
+                );
             }
         }
     }
-    
+
     // Additional origins (e.g. tenant custom domains listed in ADDITIONAL_ALLOWED_ORIGINS).
     // Must use eTLD+1 as rp_id — the same rule applied in get_or_create() and the tenant
     // pre-warm loop above. Using the full host (e.g. "dev.buildwithruud.com") as rp_id
     // would cause browsers to reject challenges for passkeys registered under "buildwithruud.com".
     if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
-        
         for origin in additional_origins.split(',') {
             let trimmed = origin.trim();
             if let Ok(parsed) = url::Url::parse(trimmed) {
@@ -378,29 +453,35 @@ async fn main() {
                     }
                 }
                 let host = parsed.host_str().unwrap_or("localhost");
-                let add_rp_id = if let (Some(prim_host), Some(prim_rp_id)) = (&primary_host, &primary_rp_id) {
-                    if host.eq_ignore_ascii_case(prim_host) {
-                        prim_rp_id.clone()
+                let add_rp_id =
+                    if let (Some(prim_host), Some(prim_rp_id)) = (&primary_host, &primary_rp_id) {
+                        if host.eq_ignore_ascii_case(prim_host) {
+                            prim_rp_id.clone()
+                        } else {
+                            host.to_string()
+                        }
                     } else {
                         host.to_string()
-                    }
-                } else {
-                    host.to_string()
-                };
+                    };
                 if let Err(e) = registry.seed(&add_rp_id, &parsed).await {
                     tracing::warn!(
                         "Could not seed WebAuthn registry for additional origin '{}': {}",
-                        trimmed, e
+                        trimmed,
+                        e
                     );
                 }
             }
         }
     }
-    
+
     let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {
         registry,
-        reg_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
-        auth_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
+        reg_state: Cache::builder()
+            .time_to_live(Duration::from_secs(300))
+            .build(),
+        auth_state: Cache::builder()
+            .time_to_live(Duration::from_secs(300))
+            .build(),
     });
 
     let ingress_provisioner = Arc::new(IngressProvisioner::new());
@@ -409,7 +490,7 @@ async fn main() {
         .merge(create_router(conn.clone()))
         .route("/metrics", get(metrics_endpoint))
         .layer(cors)
-        .layer(from_fn(request_id_middleware))           // request_id for correlation
+        .layer(from_fn(request_id_middleware)) // request_id for correlation
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -421,12 +502,15 @@ async fn main() {
                         request.headers()
                     );
                 })
-                .on_response(DefaultOnResponse::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(
             ServiceBuilder::new()
-                .layer(from_fn_with_state(conn.clone(), log_request_middleware::<Body>))
-                .into_inner()
+                .layer(from_fn_with_state(
+                    conn.clone(),
+                    log_request_middleware::<Body>,
+                ))
+                .into_inner(),
         )
         .layer(Extension(conn.clone()))
         .layer(Extension(rate_limiter))
@@ -437,8 +521,5 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("Listening on {}", addr);
     let listener = TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app)
-        .await
-        .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
-

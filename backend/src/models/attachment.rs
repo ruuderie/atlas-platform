@@ -1,7 +1,7 @@
+use crate::entities::attachment;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::entities::attachment;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AttachmentModel {
@@ -30,4 +30,4 @@ impl From<attachment::Model> for AttachmentModel {
             updated_at: attachment.updated_at,
         }
     }
-} 
+}

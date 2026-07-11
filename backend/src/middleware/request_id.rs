@@ -5,20 +5,17 @@ use axum::{
     http::{Request, Response},
     middleware::Next,
 };
-use uuid::Uuid;
 use tracing;
+use uuid::Uuid;
 
 /// Middleware that generates a unique `request_id` for every incoming HTTP request
 /// and injects it into the request extensions so handlers can use it for structured logging.
-pub async fn request_id_middleware(
-    mut req: Request<Body>,
-    next: Next,
-) -> Response<Body> {
+pub async fn request_id_middleware(mut req: Request<Body>, next: Next) -> Response<Body> {
     let request_id = Uuid::new_v4();
-    
+
     // Inject into extensions so handlers can access it
     req.extensions_mut().insert(request_id);
-    
+
     // Also log it at the very start of the request
     tracing::info!(
         event = "http.request.started",
@@ -26,9 +23,9 @@ pub async fn request_id_middleware(
         method = %req.method(),
         path = %req.uri().path()
     );
-    
+
     let response = next.run(req).await;
-    
+
     response
 }
 

@@ -26,7 +26,7 @@ use crate::entities::{
     atlas_app_deployment_config::{AppDeploymentMode, FolioMode},
     atlas_app_instance_syndication::SyndicationStatus,
     atlas_syndication_offer::{SyndicationLinkType, SyndicationOfferStatus},
-    atlas_syndication_outbox::{self, event_type, MAX_RETRY_COUNT},
+    atlas_syndication_outbox::{self, MAX_RETRY_COUNT, event_type},
 };
 use crate::types::outbox::{OutboxJobStatus, OutboxJobType};
 
@@ -70,7 +70,7 @@ mod folio_mode_variants {
     fn modes_are_mutually_exclusive() {
         assert_ne!(FolioMode::Standard, FolioMode::Pmc);
         assert_ne!(FolioMode::Standard, FolioMode::Brokerage);
-        assert_ne!(FolioMode::Pmc,      FolioMode::Brokerage);
+        assert_ne!(FolioMode::Pmc, FolioMode::Brokerage);
     }
 
     #[test]
@@ -107,12 +107,18 @@ mod app_deployment_mode_variants {
 
     #[test]
     fn internal_operator_mode_db_value_is_snake_case() {
-        assert_eq!(db_str(AppDeploymentMode::InternalOperator), "internal_operator");
+        assert_eq!(
+            db_str(AppDeploymentMode::InternalOperator),
+            "internal_operator"
+        );
     }
 
     #[test]
     fn deployment_modes_are_distinct() {
-        assert_ne!(AppDeploymentMode::Standard, AppDeploymentMode::InternalOperator);
+        assert_ne!(
+            AppDeploymentMode::Standard,
+            AppDeploymentMode::InternalOperator
+        );
     }
 
     #[test]
@@ -146,38 +152,59 @@ mod folio_ni_config_matrix {
 
     #[test]
     fn standard_with_branded_portal_is_valid() {
-        assert!(is_valid_combo(&FolioMode::Standard, &SyndicationLinkType::BrandedPortal));
+        assert!(is_valid_combo(
+            &FolioMode::Standard,
+            &SyndicationLinkType::BrandedPortal
+        ));
     }
 
     #[test]
     fn standard_with_marketplace_syndication_is_valid() {
-        assert!(is_valid_combo(&FolioMode::Standard, &SyndicationLinkType::MarketplaceSyndication));
+        assert!(is_valid_combo(
+            &FolioMode::Standard,
+            &SyndicationLinkType::MarketplaceSyndication
+        ));
     }
 
     #[test]
     fn pmc_with_branded_portal_is_valid() {
-        assert!(is_valid_combo(&FolioMode::Pmc, &SyndicationLinkType::BrandedPortal));
+        assert!(is_valid_combo(
+            &FolioMode::Pmc,
+            &SyndicationLinkType::BrandedPortal
+        ));
     }
 
     #[test]
     fn pmc_with_marketplace_syndication_is_valid() {
-        assert!(is_valid_combo(&FolioMode::Pmc, &SyndicationLinkType::MarketplaceSyndication));
+        assert!(is_valid_combo(
+            &FolioMode::Pmc,
+            &SyndicationLinkType::MarketplaceSyndication
+        ));
     }
 
     #[test]
     fn brokerage_with_branded_portal_is_valid() {
-        assert!(is_valid_combo(&FolioMode::Brokerage, &SyndicationLinkType::BrandedPortal));
+        assert!(is_valid_combo(
+            &FolioMode::Brokerage,
+            &SyndicationLinkType::BrandedPortal
+        ));
     }
 
     #[test]
     fn brokerage_with_marketplace_syndication_is_valid() {
-        assert!(is_valid_combo(&FolioMode::Brokerage, &SyndicationLinkType::MarketplaceSyndication));
+        assert!(is_valid_combo(
+            &FolioMode::Brokerage,
+            &SyndicationLinkType::MarketplaceSyndication
+        ));
     }
 
     #[test]
     fn all_six_mode_link_combos_are_covered() {
         let modes = [FolioMode::Standard, FolioMode::Pmc, FolioMode::Brokerage];
-        let types = [SyndicationLinkType::BrandedPortal, SyndicationLinkType::MarketplaceSyndication];
+        let types = [
+            SyndicationLinkType::BrandedPortal,
+            SyndicationLinkType::MarketplaceSyndication,
+        ];
         let mut count = 0;
         for m in &modes {
             for t in &types {
@@ -206,17 +233,26 @@ mod syndication_link_type_tests {
 
     #[test]
     fn marketplace_syndication_db_value_is_correct() {
-        assert_eq!(db_str(SyndicationLinkType::MarketplaceSyndication), "marketplace_syndication");
+        assert_eq!(
+            db_str(SyndicationLinkType::MarketplaceSyndication),
+            "marketplace_syndication"
+        );
     }
 
     #[test]
     fn link_types_are_not_equal() {
-        assert_ne!(SyndicationLinkType::BrandedPortal, SyndicationLinkType::MarketplaceSyndication);
+        assert_ne!(
+            SyndicationLinkType::BrandedPortal,
+            SyndicationLinkType::MarketplaceSyndication
+        );
     }
 
     #[test]
     fn all_link_type_db_values_use_snake_case() {
-        for t in [SyndicationLinkType::BrandedPortal, SyndicationLinkType::MarketplaceSyndication] {
+        for t in [
+            SyndicationLinkType::BrandedPortal,
+            SyndicationLinkType::MarketplaceSyndication,
+        ] {
             let val = db_str(t);
             assert!(!val.contains('-'), "DB value must use underscores: '{val}'");
             assert_eq!(val, val.to_lowercase());
@@ -246,7 +282,10 @@ mod syndication_offer_status_tests {
 
     #[test]
     fn active_and_retired_are_not_equal() {
-        assert_ne!(SyndicationOfferStatus::Active, SyndicationOfferStatus::Retired);
+        assert_ne!(
+            SyndicationOfferStatus::Active,
+            SyndicationOfferStatus::Retired
+        );
     }
 }
 
@@ -357,7 +396,10 @@ mod outbox_event_type_tests {
     #[test]
     fn all_event_types_use_dot_notation() {
         for et in all_event_types() {
-            assert!(et.contains('.'), "'{et}' must use entity.action dot notation");
+            assert!(
+                et.contains('.'),
+                "'{et}' must use entity.action dot notation"
+            );
         }
     }
 
@@ -384,8 +426,15 @@ mod outbox_event_type_tests {
 
     #[test]
     fn listing_events_group_under_listing_prefix() {
-        for et in [event_type::LISTING_PUBLISHED, event_type::LISTING_UPDATED, event_type::LISTING_UNPUBLISHED] {
-            assert!(et.starts_with("listing."), "'{et}' must start with 'listing.'");
+        for et in [
+            event_type::LISTING_PUBLISHED,
+            event_type::LISTING_UPDATED,
+            event_type::LISTING_UNPUBLISHED,
+        ] {
+            assert!(
+                et.starts_with("listing."),
+                "'{et}' must start with 'listing.'"
+            );
         }
     }
 
@@ -420,10 +469,20 @@ mod outbox_event_type_tests {
         use uuid::Uuid;
         let p = build_event_payload(
             event_type::LISTING_PUBLISHED,
-            Uuid::new_v4(), "listing",
-            Uuid::new_v4(), Uuid::new_v4(),
+            Uuid::new_v4(),
+            "listing",
+            Uuid::new_v4(),
+            Uuid::new_v4(),
         );
-        for key in ["event_type", "entity_id", "entity_type", "source_config_id", "link_id", "data", "timestamp"] {
+        for key in [
+            "event_type",
+            "entity_id",
+            "entity_type",
+            "source_config_id",
+            "link_id",
+            "data",
+            "timestamp",
+        ] {
             assert!(p.get(key).is_some(), "Payload must have '{key}' field");
         }
     }
@@ -431,15 +490,33 @@ mod outbox_event_type_tests {
     #[test]
     fn payload_event_type_matches_real_constant() {
         use uuid::Uuid;
-        let p = build_event_payload(event_type::ASSET_CREATED, Uuid::new_v4(), "asset", Uuid::new_v4(), Uuid::new_v4());
+        let p = build_event_payload(
+            event_type::ASSET_CREATED,
+            Uuid::new_v4(),
+            "asset",
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
         assert_eq!(p["event_type"], event_type::ASSET_CREATED);
     }
 
     #[test]
     fn two_payloads_for_same_event_have_different_entity_ids() {
         use uuid::Uuid;
-        let p1 = build_event_payload(event_type::LISTING_UPDATED, Uuid::new_v4(), "listing", Uuid::new_v4(), Uuid::new_v4());
-        let p2 = build_event_payload(event_type::LISTING_UPDATED, Uuid::new_v4(), "listing", Uuid::new_v4(), Uuid::new_v4());
+        let p1 = build_event_payload(
+            event_type::LISTING_UPDATED,
+            Uuid::new_v4(),
+            "listing",
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
+        let p2 = build_event_payload(
+            event_type::LISTING_UPDATED,
+            Uuid::new_v4(),
+            "listing",
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
         assert_ne!(p1["entity_id"], p2["entity_id"]);
     }
 }
@@ -456,7 +533,10 @@ mod outbox_enqueue_logic {
     }
 
     fn count_enqueueable(links: &[(SyndicationStatus, bool)]) -> usize {
-        links.iter().filter(|(s, has_url)| should_enqueue(s, *has_url)).count()
+        links
+            .iter()
+            .filter(|(s, has_url)| should_enqueue(s, *has_url))
+            .count()
     }
 
     #[test]
@@ -507,11 +587,11 @@ mod outbox_enqueue_logic {
     #[test]
     fn mixed_links_counts_only_active_with_webhook() {
         let links = [
-            (SyndicationStatus::Active,  true),   // ✓
-            (SyndicationStatus::Paused,  true),   // ✗ paused
-            (SyndicationStatus::Revoked, true),   // ✗ revoked
-            (SyndicationStatus::Active,  false),  // ✗ no URL
-            (SyndicationStatus::Active,  true),   // ✓
+            (SyndicationStatus::Active, true),  // ✓
+            (SyndicationStatus::Paused, true),  // ✗ paused
+            (SyndicationStatus::Revoked, true), // ✗ revoked
+            (SyndicationStatus::Active, false), // ✗ no URL
+            (SyndicationStatus::Active, true),  // ✓
         ];
         assert_eq!(count_enqueueable(&links), 2);
     }
@@ -587,14 +667,21 @@ mod outbox_backoff {
     #[test]
     fn is_dead_letter_false_below_max() {
         for i in 0..MAX_RETRY_COUNT {
-            assert!(next_attempt_delay_secs(i).is_some(), "retry_count={i} should not be dead-letter");
+            assert!(
+                next_attempt_delay_secs(i).is_some(),
+                "retry_count={i} should not be dead-letter"
+            );
         }
     }
 
     #[test]
     fn backoff_schedule_is_monotonically_non_decreasing() {
         for window in BACKOFF_SECS.windows(2) {
-            assert!(window[1] >= window[0], "Back-off must be non-decreasing: {:?}", BACKOFF_SECS);
+            assert!(
+                window[1] >= window[0],
+                "Back-off must be non-decreasing: {:?}",
+                BACKOFF_SECS
+            );
         }
     }
 
@@ -613,8 +700,8 @@ mod outbox_hmac {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
         type HmacSha256 = Hmac<Sha256>;
-        let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-            .expect("HMAC accepts any key size");
+        let mut mac =
+            HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key size");
         mac.update(payload);
         format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
     }
@@ -677,9 +764,12 @@ mod outbox_hmac {
 
     #[test]
     fn header_name_conventions() {
-        assert_eq!("X-Atlas-Signature-256".to_lowercase(), "x-atlas-signature-256");
-        assert_eq!("X-Atlas-Event".to_lowercase(),         "x-atlas-event");
-        assert_eq!("X-Atlas-Delivery".to_lowercase(),      "x-atlas-delivery");
+        assert_eq!(
+            "X-Atlas-Signature-256".to_lowercase(),
+            "x-atlas-signature-256"
+        );
+        assert_eq!("X-Atlas-Event".to_lowercase(), "x-atlas-event");
+        assert_eq!("X-Atlas-Delivery".to_lowercase(), "x-atlas-delivery");
     }
 }
 
@@ -705,7 +795,10 @@ mod syndication_offer_mandatory_tiers {
     fn empty_mandatory_tiers_never_matches_any_tier() {
         let tiers = json!([]);
         for t in billing_tiers() {
-            assert!(!is_mandatory_for(&tiers, t), "Empty tier list must not match '{t}'");
+            assert!(
+                !is_mandatory_for(&tiers, t),
+                "Empty tier list must not match '{t}'"
+            );
         }
     }
 
@@ -840,7 +933,7 @@ mod operational_config_semantics {
     fn patch_preserves_unrelated_jurisdiction_keys() {
         let mut cfg = config_for_mode(&FolioMode::Standard, "growth");
         cfg["jurisdiction_code"] = json!("US-FL");
-        cfg["market_config"]     = json!("MiamiDadeMarket");
+        cfg["market_config"] = json!("MiamiDadeMarket");
         apply_patch(&mut cfg, &json!({ "folio_mode": "pmc" }));
         assert_eq!(cfg["jurisdiction_code"], "US-FL");
         assert_eq!(cfg["market_config"], "MiamiDadeMarket");
@@ -852,7 +945,10 @@ mod operational_config_semantics {
         let valid_slugs = ["standard", "pmc", "brokerage"];
         for mode in [FolioMode::Standard, FolioMode::Pmc, FolioMode::Brokerage] {
             let slug = folio_db_str(mode);
-            assert!(valid_slugs.contains(&slug.as_str()), "'{slug}' is not a valid DB folio_mode value");
+            assert!(
+                valid_slugs.contains(&slug.as_str()),
+                "'{slug}' is not a valid DB folio_mode value"
+            );
         }
     }
 }
@@ -863,58 +959,61 @@ mod integration_event_log {
     use uuid::Uuid;
 
     struct IntegrationEvent {
-        outbox_id:   Option<Uuid>,
-        link_id:     Uuid,
-        event_type:  &'static str,
-        direction:   &'static str,
-        outcome:     &'static str,
+        outbox_id: Option<Uuid>,
+        link_id: Uuid,
+        event_type: &'static str,
+        direction: &'static str,
+        outcome: &'static str,
         http_status: Option<i32>,
-        latency_ms:  Option<i32>,
+        latency_ms: Option<i32>,
         attempt_num: i32,
     }
 
     fn success_event(link_id: Uuid, outbox_id: Uuid) -> IntegrationEvent {
         IntegrationEvent {
-            outbox_id:   Some(outbox_id),
+            outbox_id: Some(outbox_id),
             link_id,
-            event_type:  "listing.published",
-            direction:   "outbound",
-            outcome:     "success",
+            event_type: "listing.published",
+            direction: "outbound",
+            outcome: "success",
             http_status: Some(200),
-            latency_ms:  Some(145),
+            latency_ms: Some(145),
             attempt_num: 1,
         }
     }
 
     fn failed_event(link_id: Uuid, http_status: Option<i32>, attempt: i32) -> IntegrationEvent {
         IntegrationEvent {
-            outbox_id:   Some(Uuid::new_v4()),
+            outbox_id: Some(Uuid::new_v4()),
             link_id,
-            event_type:  "listing.published",
-            direction:   "outbound",
-            outcome:     "failed",
+            event_type: "listing.published",
+            direction: "outbound",
+            outcome: "failed",
             http_status,
-            latency_ms:  Some(5000),
+            latency_ms: Some(5000),
             attempt_num: attempt,
         }
     }
 
     fn skipped_event(link_id: Uuid) -> IntegrationEvent {
         IntegrationEvent {
-            outbox_id:   None,
+            outbox_id: None,
             link_id,
-            event_type:  "listing.published",
-            direction:   "outbound",
-            outcome:     "skipped",
+            event_type: "listing.published",
+            direction: "outbound",
+            outcome: "skipped",
             http_status: None,
-            latency_ms:  None,
+            latency_ms: None,
             attempt_num: 1,
         }
     }
 
     #[test]
     fn success_outcome_is_correct() {
-        assert_eq!(success_event(Uuid::new_v4(), Uuid::new_v4()).outcome, "success");
+        assert_eq!(
+            success_event(Uuid::new_v4(), Uuid::new_v4()).outcome,
+            "success"
+        );
     }
 
     #[test]
@@ -991,16 +1090,39 @@ mod outbox_job_type_tests {
     #[test]
     fn all_known_job_types_roundtrip_display_to_try_from() {
         let cases = [
-            (OutboxJobType::SendMagicLinkEmail,             "send_magic_link_email"),
-            (OutboxJobType::RecomputeScorecardAggregates,   "recompute_scorecard_aggregates"),
-            (OutboxJobType::RefreshScorecardTimeSeries,     "refresh_scorecard_time_series"),
-            (OutboxJobType::RefreshScorecardPortfolio,      "refresh_scorecard_portfolio"),
-            (OutboxJobType::CalibrateScorecardContributors, "calibrate_scorecard_contributors"),
-            (OutboxJobType::EvaluateScorecardNudge,         "evaluate_scorecard_nudge"),
-            (OutboxJobType::ReleaseExpiredReservationHolds, "release_expired_reservation_holds"),
+            (OutboxJobType::SendMagicLinkEmail, "send_magic_link_email"),
+            (
+                OutboxJobType::RecomputeScorecardAggregates,
+                "recompute_scorecard_aggregates",
+            ),
+            (
+                OutboxJobType::RefreshScorecardTimeSeries,
+                "refresh_scorecard_time_series",
+            ),
+            (
+                OutboxJobType::RefreshScorecardPortfolio,
+                "refresh_scorecard_portfolio",
+            ),
+            (
+                OutboxJobType::CalibrateScorecardContributors,
+                "calibrate_scorecard_contributors",
+            ),
+            (
+                OutboxJobType::EvaluateScorecardNudge,
+                "evaluate_scorecard_nudge",
+            ),
+            (
+                OutboxJobType::ReleaseExpiredReservationHolds,
+                "release_expired_reservation_holds",
+            ),
         ];
         for (variant, slug) in &cases {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
+            assert_eq!(
+                variant.to_string(),
+                *slug,
+                "Display mismatch for {:?}",
+                variant
+            );
             let parsed = OutboxJobType::try_from(*slug).expect("TryFrom must succeed");
             assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{slug}'");
         }
@@ -1008,8 +1130,10 @@ mod outbox_job_type_tests {
 
     #[test]
     fn unknown_job_type_slug_returns_err() {
-        assert!(OutboxJobType::try_from("dispatch_syndication_event").is_err(),
-            "dispatch_syndication_event is G-05 specific and not an OutboxJobType");
+        assert!(
+            OutboxJobType::try_from("dispatch_syndication_event").is_err(),
+            "dispatch_syndication_event is G-05 specific and not an OutboxJobType"
+        );
         assert!(OutboxJobType::try_from("").is_err());
     }
 }
@@ -1022,13 +1146,18 @@ mod outbox_job_status_tests {
     #[test]
     fn all_status_values_roundtrip() {
         let cases = [
-            (OutboxJobStatus::Pending,    "pending"),
+            (OutboxJobStatus::Pending, "pending"),
             (OutboxJobStatus::Processing, "processing"),
-            (OutboxJobStatus::Completed,  "completed"),
-            (OutboxJobStatus::Failed,     "failed"),
+            (OutboxJobStatus::Completed, "completed"),
+            (OutboxJobStatus::Failed, "failed"),
         ];
         for (variant, slug) in &cases {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
+            assert_eq!(
+                variant.to_string(),
+                *slug,
+                "Display mismatch for {:?}",
+                variant
+            );
             let parsed = OutboxJobStatus::try_from(slug.to_string()).expect("TryFrom must succeed");
             assert_eq!(&parsed, variant);
         }
@@ -1037,7 +1166,9 @@ mod outbox_job_status_tests {
     #[test]
     fn unknown_status_slug_returns_err() {
         assert!(OutboxJobStatus::try_from("queued".to_string()).is_err());
-        assert!(OutboxJobStatus::try_from("delivered".to_string()).is_err(),
-            "'delivered' is a syndication outbox status, not an OutboxJobStatus");
+        assert!(
+            OutboxJobStatus::try_from("delivered".to_string()).is_err(),
+            "'delivered' is a syndication outbox status, not an OutboxJobStatus"
+        );
     }
 }

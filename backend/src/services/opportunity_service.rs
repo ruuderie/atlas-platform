@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_opportunity::{self, Entity as OpportunityEntity, ActiveModel as OpportunityActiveModel};
+use crate::entities::atlas_opportunity::{
+    self, ActiveModel as OpportunityActiveModel, Entity as OpportunityEntity,
+};
 
 /// Service layer for GENERIC-15: AtlasOpportunity
 /// Pipeline / deal tracking with flexible financial modeling (JSONB inputs/outputs).
@@ -62,17 +66,14 @@ impl OpportunityService {
         status: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_opportunity::Model>, String> {
-        let mut q = OpportunityEntity::find()
-            .filter(atlas_opportunity::Column::TenantId.eq(tenant_id));
+        let mut q =
+            OpportunityEntity::find().filter(atlas_opportunity::Column::TenantId.eq(tenant_id));
 
         if let Some(s) = status {
             q = q.filter(atlas_opportunity::Column::Status.eq(s.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     /// Mark opportunity as won (sets won_at, status, optional final amount).
@@ -86,7 +87,8 @@ impl OpportunityService {
         // For v1 we demonstrate the intent and rely on caller to re-fetch.
         tracing::info!(
             "Opportunity {} marked won (final_amount={:?}). Full update implementation pending transaction helper.",
-            opportunity_id, final_amount_cents
+            opportunity_id,
+            final_amount_cents
         );
         Ok(())
     }
@@ -101,7 +103,8 @@ impl OpportunityService {
     ) -> Result<(), String> {
         tracing::info!(
             "Updating opportunity {} probability/financials (prob={:?}).",
-            opportunity_id, probability_pct
+            opportunity_id,
+            probability_pct
         );
         Ok(())
     }

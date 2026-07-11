@@ -28,7 +28,8 @@ impl MigrationTrait for Migration {
             backend,
             "ALTER TABLE atlas_scorecard_templates \
              ADD COLUMN IF NOT EXISTS template_scope VARCHAR(20) NOT NULL DEFAULT 'tenant' \
-             CHECK (template_scope IN ('platform', 'tenant'));".to_owned(),
+             CHECK (template_scope IN ('platform', 'tenant'));"
+                .to_owned(),
         ))
         .await?;
 
@@ -36,7 +37,8 @@ impl MigrationTrait for Migration {
         db.execute(sea_orm::Statement::from_string(
             backend,
             "ALTER TABLE atlas_scorecard_dimensions \
-             ADD COLUMN IF NOT EXISTS is_tenant_extension BOOLEAN NOT NULL DEFAULT false;".to_owned(),
+             ADD COLUMN IF NOT EXISTS is_tenant_extension BOOLEAN NOT NULL DEFAULT false;"
+                .to_owned(),
         ))
         .await?;
 
@@ -50,14 +52,16 @@ impl MigrationTrait for Migration {
         db.execute(sea_orm::Statement::from_string(
             backend,
             "ALTER TABLE atlas_scorecard_templates \
-             DROP COLUMN IF EXISTS template_scope;".to_owned(),
+             DROP COLUMN IF EXISTS template_scope;"
+                .to_owned(),
         ))
         .await?;
 
         db.execute(sea_orm::Statement::from_string(
             backend,
             "ALTER TABLE atlas_scorecard_dimensions \
-             DROP COLUMN IF EXISTS is_tenant_extension;".to_owned(),
+             DROP COLUMN IF EXISTS is_tenant_extension;"
+                .to_owned(),
         ))
         .await?;
 

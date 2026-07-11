@@ -1,12 +1,6 @@
 #![allow(dead_code)]
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-    Extension,
-};
-use sea_orm::{DatabaseBackend, Statement, DatabaseConnection, ConnectionTrait};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use serde::Serialize;
 use serde_json::json;
 use std::time::Instant;
@@ -20,43 +14,43 @@ pub struct AuthHealthResponse {
     pub message: String,
 }
 
-pub async fn health_check(
-    Extension(db): Extension<DatabaseConnection>
-) -> impl IntoResponse {
-    let health_result = db.execute(
-        Statement::from_string(
+pub async fn health_check(Extension(db): Extension<DatabaseConnection>) -> impl IntoResponse {
+    let health_result = db
+        .execute(Statement::from_string(
             DatabaseBackend::Postgres,
-            "SELECT 1 AS health_check".to_string()
-        )
-    ).await;
+            "SELECT 1 AS health_check".to_string(),
+        ))
+        .await;
 
     match health_result {
-        Ok(_) => {
-            (StatusCode::OK, Json(json!({
+        Ok(_) => (
+            StatusCode::OK,
+            Json(json!({
                 "status": "healthy",
                 "database": "connected",
                 "version": env!("CARGO_PKG_VERSION"),
                 "timestamp": chrono::Utc::now().to_rfc3339()
-            })))
-        }
+            })),
+        ),
         Err(db_error) => {
             eprintln!("Database health check failed: {:?}", db_error);
-            (StatusCode::SERVICE_UNAVAILABLE, Json(json!({
-                "status": "unhealthy",
-                "database": "disconnected",
-                "error": db_error.to_string(),
-                "version": env!("CARGO_PKG_VERSION"),
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            })))
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({
+                    "status": "unhealthy",
+                    "database": "disconnected",
+                    "error": db_error.to_string(),
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "timestamp": chrono::Utc::now().to_rfc3339()
+                })),
+            )
         }
     }
 }
 
 /// Auth-specific health check endpoint that returns current SLO status
 /// Can be used by monitoring tools or the admin dashboard
-pub async fn auth_health_check(
-    State(_db): State<DatabaseConnection>,
-) -> impl IntoResponse {
+pub async fn auth_health_check(State(_db): State<DatabaseConnection>) -> impl IntoResponse {
     let start = Instant::now();
 
     // In production this would query Prometheus or a metrics cache.

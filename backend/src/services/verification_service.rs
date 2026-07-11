@@ -1,9 +1,13 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
+use uuid::Uuid;
 
-use crate::entities::atlas_verification_request::{self, Entity as VerificationRequestEntity, ActiveModel as VerificationRequestActiveModel};
+use crate::entities::atlas_verification_request::{
+    self, ActiveModel as VerificationRequestActiveModel, Entity as VerificationRequestEntity,
+};
 
 /// Service layer for GENERIC-06: AtlasVerificationRequest
 /// Human-in-the-loop verification queue (KYC, document review, manual approvals, etc.).
@@ -59,10 +63,7 @@ impl VerificationService {
             q = q.filter(atlas_verification_request::Column::Status.eq(s.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn assign_and_start(
@@ -71,7 +72,11 @@ impl VerificationService {
         verification_id: Uuid,
         reviewed_by_user_id: Uuid,
     ) -> Result<(), String> {
-        tracing::info!("Verification request {} assigned/reviewed by {}", verification_id, reviewed_by_user_id);
+        tracing::info!(
+            "Verification request {} assigned/reviewed by {}",
+            verification_id,
+            reviewed_by_user_id
+        );
         Ok(())
     }
 
@@ -82,7 +87,12 @@ impl VerificationService {
         status: &str,
         rejection_reason: Option<&str>,
     ) -> Result<(), String> {
-        tracing::info!("Verification {} completed as {} (reason: {:?})", verification_id, status, rejection_reason);
+        tracing::info!(
+            "Verification {} completed as {} (reason: {:?})",
+            verification_id,
+            status,
+            rejection_reason
+        );
         Ok(())
     }
 }

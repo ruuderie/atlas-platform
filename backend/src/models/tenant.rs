@@ -1,8 +1,8 @@
-use chrono::{Utc, DateTime};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use sea_orm::ActiveValue::Set;
 use crate::entities::tenant;
+use chrono::{DateTime, Utc};
+use sea_orm::ActiveValue::Set;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TenantModel {

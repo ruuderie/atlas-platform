@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
     use crate::entities::atlas_note::Model;
     use crate::types::note::NoteVisibility;
+    use uuid::Uuid;
 
     // ── Helper: construct a minimal note ──────────────────────────────────────
 
@@ -79,9 +79,9 @@ mod tests {
     #[test]
     fn visibility_typed_returns_correct_variant_for_each_slug() {
         for (slug, expected) in &[
-            ("public",   NoteVisibility::Public),
+            ("public", NoteVisibility::Public),
             ("internal", NoteVisibility::Internal),
-            ("private",  NoteVisibility::Private),
+            ("private", NoteVisibility::Private),
         ] {
             let note = make_note(slug, false, None);
             assert_eq!(
@@ -115,7 +115,13 @@ mod tests {
 
     #[test]
     fn new_general_note_type_typed_returns_general() {
-        let note = Model::new_general("body", Uuid::new_v4(), "atlas_lead", Uuid::new_v4(), Uuid::new_v4());
+        let note = Model::new_general(
+            "body",
+            Uuid::new_v4(),
+            "atlas_lead",
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
         assert_eq!(note.note_type_typed().to_string(), "general");
     }
 
@@ -123,13 +129,13 @@ mod tests {
     fn note_type_typed_known_slugs_roundtrip() {
         use crate::types::note::NoteType;
         let cases = [
-            ("call_log",             NoteType::CallLog),
-            ("site_visit",           NoteType::SiteVisit),
-            ("inspection",           NoteType::Inspection),
+            ("call_log", NoteType::CallLog),
+            ("site_visit", NoteType::SiteVisit),
+            ("inspection", NoteType::Inspection),
             ("underwriting_comment", NoteType::UnderwritingComment),
-            ("legal_memo",           NoteType::LegalMemo),
-            ("compliance_note",      NoteType::ComplianceNote),
-            ("coach_feedback",       NoteType::CoachFeedback),
+            ("legal_memo", NoteType::LegalMemo),
+            ("compliance_note", NoteType::ComplianceNote),
+            ("coach_feedback", NoteType::CoachFeedback),
         ];
         for (slug, expected) in &cases {
             let mut note = make_note("internal", false, None);

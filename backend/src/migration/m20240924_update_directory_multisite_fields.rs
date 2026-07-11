@@ -15,23 +15,19 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(Directory::EnabledModules)
                             .unsigned()
                             .not_null()
-                            .default(0)
+                            .default(0),
                     )
-                    .add_column(
-                        ColumnDef::new(Directory::Theme)
-                            .string()
-                            .null()
-                    )
+                    .add_column(ColumnDef::new(Directory::Theme).string().null())
                     .add_column(
                         ColumnDef::new(Directory::CustomSettings)
                             .json_binary()
-                            .null()
+                            .null(),
                     )
                     .add_column(
                         ColumnDef::new(Directory::SiteStatus)
                             .string()
                             .not_null()
-                            .default("active")
+                            .default("active"),
                     )
                     .to_owned(),
             )
@@ -61,4 +57,4 @@ enum Directory {
     Theme,
     CustomSettings,
     SiteStatus,
-} 
+}

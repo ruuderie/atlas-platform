@@ -3,9 +3,9 @@ use axum::{
     http::{Request, StatusCode},
 };
 // use sea_orm_migration::MigratorTrait; // unused - removed
-use tower::ServiceExt;
-use serde_json::json;
 use super::test_utils;
+use serde_json::json;
+use tower::ServiceExt;
 
 use crate::tests::api_tests::setup_test_app;
 
@@ -40,11 +40,18 @@ async fn test_template_crud() {
 
     let create_res = app.clone().oneshot(create_req).await.unwrap();
     let status = create_res.status();
-    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
     if status != StatusCode::OK && status != StatusCode::CREATED {
-        panic!("Failed to create template. Status: {}, Body: {}", status, String::from_utf8_lossy(&body_bytes));
+        panic!(
+            "Failed to create template. Status: {}, Body: {}",
+            status,
+            String::from_utf8_lossy(&body_bytes)
+        );
     }
-    let template: crate::models::template::TemplateModel = serde_json::from_slice(&body_bytes).unwrap();
+    let template: crate::models::template::TemplateModel =
+        serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(template.name, "Standard Template");
 
     // Get Template

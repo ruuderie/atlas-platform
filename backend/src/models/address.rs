@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use validator::Validate;
 use sea_orm::FromJsonQueryResult;
 use sea_orm::Value as Json;
+use serde::{Deserialize, Serialize};
+use validator::Validate;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Validate)]
 pub struct Address {

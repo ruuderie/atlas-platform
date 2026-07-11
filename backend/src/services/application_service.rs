@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_application::{self, Entity as ApplicationEntity, ActiveModel as ApplicationActiveModel};
+use crate::entities::atlas_application::{
+    self, ActiveModel as ApplicationActiveModel, Entity as ApplicationEntity,
+};
 
 /// Service layer for GENERIC-18: AtlasApplication
 /// Structured applications, onboarding flows, submissions with rich JSONB data.
@@ -54,8 +58,8 @@ impl ApplicationService {
         status: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_application::Model>, String> {
-        let mut q = ApplicationEntity::find()
-            .filter(atlas_application::Column::TenantId.eq(tenant_id));
+        let mut q =
+            ApplicationEntity::find().filter(atlas_application::Column::TenantId.eq(tenant_id));
 
         if let Some(at) = application_type {
             q = q.filter(atlas_application::Column::ApplicationType.eq(at.to_string()));
@@ -64,10 +68,7 @@ impl ApplicationService {
             q = q.filter(atlas_application::Column::Status.eq(s.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn submit_application(

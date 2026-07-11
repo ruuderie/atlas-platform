@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "attachment")]
@@ -17,11 +17,11 @@ pub struct Model {
     pub duration_in_seconds: Option<i32>,
 
     // --- Vault / R2 extensions (GENERIC-02) ---
-    pub access_level: Option<String>,      // 'private', 'shared', etc.
+    pub access_level: Option<String>, // 'private', 'shared', etc.
     pub r2_bucket: Option<String>,
     pub r2_key: Option<String>,
     pub checksum_sha256: Option<String>,
-    pub upload_status: Option<String>,     // 'pending_upload', 'uploading', 'complete', 'failed'
+    pub upload_status: Option<String>, // 'pending_upload', 'uploading', 'complete', 'failed'
 
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,

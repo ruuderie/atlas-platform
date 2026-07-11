@@ -37,7 +37,8 @@ impl MigrationTrait for Migration {
             );
             CREATE INDEX IF NOT EXISTS idx_activity_attachment_activity ON activity_attachment (activity_id);
         "#;
-        db.execute_unprepared(create_activity_attachment_sql).await?;
+        db.execute_unprepared(create_activity_attachment_sql)
+            .await?;
 
         // 3. Seed rev_intake form schema for buildwithruud to fix missing page form issue
         let seed_rev_intake_sql = r#"
@@ -120,8 +121,10 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        db.execute_unprepared("DROP TABLE IF EXISTS activity_attachment;").await?;
-        db.execute_unprepared("DROP TABLE IF EXISTS email_template;").await?;
+        db.execute_unprepared("DROP TABLE IF EXISTS activity_attachment;")
+            .await?;
+        db.execute_unprepared("DROP TABLE IF EXISTS email_template;")
+            .await?;
         Ok(())
     }
 }

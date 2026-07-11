@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 /// G-29: atlas_activity — Universal Polymorphic Activity Log.
 ///
@@ -137,9 +137,14 @@ impl Model {
     pub fn is_completed_communication(&self) -> bool {
         self.outcome_typed()
             .map(|r| {
-                r.unwrap_or_else(|e| panic!("corrupt activity outcome '{}': {}", 
-                    self.outcome.as_deref().unwrap_or(""), e))
-                 .is_completed_interaction()
+                r.unwrap_or_else(|e| {
+                    panic!(
+                        "corrupt activity outcome '{}': {}",
+                        self.outcome.as_deref().unwrap_or(""),
+                        e
+                    )
+                })
+                .is_completed_interaction()
             })
             .unwrap_or(false)
     }
@@ -148,9 +153,7 @@ impl Model {
     ///
     /// Returns `None` if `outcome` is `NULL` (task/event without an outcome).
     /// Returns `Err` if the stored value is not a known variant.
-    pub fn outcome_typed(
-        &self,
-    ) -> Option<Result<crate::types::activity::ActivityOutcome, String>> {
+    pub fn outcome_typed(&self) -> Option<Result<crate::types::activity::ActivityOutcome, String>> {
         self.outcome
             .as_ref()
             .map(|s| crate::types::activity::ActivityOutcome::try_from(s.clone()))
@@ -177,9 +180,7 @@ impl Model {
     }
 
     /// Parse `activity_type` into the typed `ActivityType` enum.
-    pub fn activity_type_typed(
-        &self,
-    ) -> Result<crate::types::activity::ActivityType, String> {
+    pub fn activity_type_typed(&self) -> Result<crate::types::activity::ActivityType, String> {
         crate::types::activity::ActivityType::try_from(self.activity_type.clone())
     }
 
@@ -191,7 +192,7 @@ impl Model {
     ) -> Result<Option<crate::types::activity::ActivityMetadata>, serde_json::Error> {
         match &self.activity_metadata {
             Some(v) => serde_json::from_value(v.clone()).map(Some),
-            None    => Ok(None),
+            None => Ok(None),
         }
     }
 }

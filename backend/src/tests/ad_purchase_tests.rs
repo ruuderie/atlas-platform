@@ -4,12 +4,12 @@ use axum::{
 };
 use sea_orm::ActiveModelTrait;
 // use sea_orm_migration::MigratorTrait; // unused - removed
-use tower::ServiceExt;
-use serde_json::json;
-use uuid::Uuid;
-use chrono::Utc;
 use super::test_utils;
 use crate::models::ad_purchase::AdPurchase;
+use chrono::Utc;
+use serde_json::json;
+use tower::ServiceExt;
+use uuid::Uuid;
 
 use crate::tests::api_tests::setup_test_app;
 
@@ -32,7 +32,10 @@ async fn test_ad_purchase_crud() {
         created_at: sea_orm::Set(Utc::now()),
         updated_at: sea_orm::Set(Utc::now()),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     // Create user_account mapping
     crate::entities::user_account::ActiveModel {
@@ -43,7 +46,10 @@ async fn test_ad_purchase_crud() {
         created_at: sea_orm::Set(Utc::now()),
         updated_at: sea_orm::Set(Utc::now()),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     // Create profile
     let profile = crate::entities::profile::ActiveModel {
@@ -58,7 +64,10 @@ async fn test_ad_purchase_crud() {
         created_at: sea_orm::Set(Utc::now()),
         updated_at: sea_orm::Set(Utc::now()),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     let profile_id = profile.id;
 
@@ -82,7 +91,10 @@ async fn test_ad_purchase_crud() {
         created_at: sea_orm::Set(Utc::now()),
         updated_at: sea_orm::Set(Utc::now()),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     let listing_id = listing.id;
 
@@ -108,14 +120,20 @@ async fn test_ad_purchase_crud() {
         .unwrap();
 
     let create_res = app.clone().oneshot(create_req).await.unwrap();
-    
+
     // Print the response if not CREATED to help with debugging FK errors
     let status = create_res.status();
-    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
     if status != StatusCode::CREATED {
-        panic!("Failed to create ad purchase. Status: {}, Body: {}", status, String::from_utf8_lossy(&body_bytes));
+        panic!(
+            "Failed to create ad purchase. Status: {}, Body: {}",
+            status,
+            String::from_utf8_lossy(&body_bytes)
+        );
     }
-    
+
     assert_eq!(status, StatusCode::CREATED, "Failed to create ad_purchase");
     let ad_purchase: AdPurchase = serde_json::from_slice(&body_bytes).unwrap();
 

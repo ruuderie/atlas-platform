@@ -1,27 +1,30 @@
 // src/handlers/ad_purchases.rs
 
+use crate::entities::{ad_purchase, profile, user, user_account};
+use crate::models::ad_purchase::*;
 use axum::{
-    extract::{Extension, Path, Json},
+    Router,
+    extract::{Extension, Json, Path},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
     routing::{get, post},
-    Router,
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait,
-};
-use crate::entities::{
-    ad_purchase, profile, user_account, user,
-};
-use crate::models::ad_purchase::*;
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use uuid::Uuid;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/ad-purchases", post(create_ad_purchase).get(get_ad_purchases))
-        .route("/api/ad-purchases/{id}", get(get_ad_purchase_by_id).put(update_ad_purchase).delete(delete_ad_purchase))
+        .route(
+            "/api/ad-purchases",
+            post(create_ad_purchase).get(get_ad_purchases),
+        )
+        .route(
+            "/api/ad-purchases/{id}",
+            get(get_ad_purchase_by_id)
+                .put(update_ad_purchase)
+                .delete(delete_ad_purchase),
+        )
 }
 
 pub async fn create_ad_purchase(
@@ -54,16 +57,23 @@ pub async fn create_ad_purchase(
         .one(&db)
         .await
         .map_err(|err| {
-            println!("TEST LOG: Error checking user_account association: {:?}", err);
+            println!(
+                "TEST LOG: Error checking user_account association: {:?}",
+                err
+            );
             tracing::error!("Error checking user_account association: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
     if user_account_exists.is_none() {
-        tracing::warn!("User {} not associated with profile {}", current_user.id, input.profile_id);
+        tracing::warn!(
+            "User {} not associated with profile {}",
+            current_user.id,
+            input.profile_id
+        );
         return Err(StatusCode::FORBIDDEN);
     }
-    
+
     // Create the ad purchase
     let new_ad_purchase = ad_purchase::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -156,16 +166,20 @@ pub async fn update_ad_purchase(
 
     // Check network isolation
     if !tenant_ids.contains(&profile.tenant_id) {
-        tracing::warn!("User {} not authorized to update ad purchase {}", current_user.id, id);
+        tracing::warn!(
+            "User {} not authorized to update ad purchase {}",
+            current_user.id,
+            id
+        );
         return Err(StatusCode::FORBIDDEN);
     }
 
-    // Update the ad purchase   
+    // Update the ad purchase
     let mut updated_ad_purchase: ad_purchase::ActiveModel = ad_purchase.into();
     updated_ad_purchase.listing_id = Set(input.listing_id);
     updated_ad_purchase.start_date = Set(input.start_date);
     updated_ad_purchase.end_date = Set(input.end_date);
-    updated_ad_purchase.status = Set(AdStatus::Pending.to_string()); 
+    updated_ad_purchase.status = Set(AdStatus::Pending.to_string());
     updated_ad_purchase.price = Set(input.price);
     updated_ad_purchase.updated_at = Set(Utc::now());
 
@@ -214,7 +228,11 @@ pub async fn delete_ad_purchase(
 
     // Check network isolation
     if !tenant_ids.contains(&profile.tenant_id) {
-        tracing::warn!("User {} not authorized to delete ad purchase {}", current_user.id, id);
+        tracing::warn!(
+            "User {} not authorized to delete ad purchase {}",
+            current_user.id,
+            id
+        );
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -267,7 +285,11 @@ pub async fn get_ad_purchase_by_id(
 
     // Check network isolation
     if !tenant_ids.contains(&profile.tenant_id) {
-        tracing::warn!("User {} not authorized to view ad purchase {}", current_user.id, id);
+        tracing::warn!(
+            "User {} not authorized to view ad purchase {}",
+            current_user.id,
+            id
+        );
         return Err(StatusCode::FORBIDDEN);
     }
 

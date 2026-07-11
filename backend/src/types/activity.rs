@@ -30,8 +30,8 @@ pub enum ActivityType {
 impl fmt::Display for ActivityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Log   => "Log",
-            Self::Task  => "Task",
+            Self::Log => "Log",
+            Self::Task => "Task",
             Self::Event => "Event",
         })
     }
@@ -41,10 +41,10 @@ impl TryFrom<String> for ActivityType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "Log"   => Ok(Self::Log),
-            "Task"  => Ok(Self::Task),
+            "Log" => Ok(Self::Log),
+            "Task" => Ok(Self::Task),
             "Event" => Ok(Self::Event),
-            other   => Err(format!("unknown ActivityType: '{other}'")),
+            other => Err(format!("unknown ActivityType: '{other}'")),
         }
     }
 }
@@ -71,8 +71,8 @@ impl ActivityStatus {
 impl fmt::Display for ActivityStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Open      => "Open",
-            Self::Pending   => "Pending",
+            Self::Open => "Open",
+            Self::Pending => "Pending",
             Self::Completed => "Completed",
         })
     }
@@ -82,10 +82,10 @@ impl TryFrom<String> for ActivityStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "Open"      => Ok(Self::Open),
-            "Pending"   => Ok(Self::Pending),
+            "Open" => Ok(Self::Open),
+            "Pending" => Ok(Self::Pending),
             "Completed" => Ok(Self::Completed),
-            other       => Err(format!("unknown ActivityStatus: '{other}'")),
+            other => Err(format!("unknown ActivityStatus: '{other}'")),
         }
     }
 }
@@ -122,9 +122,9 @@ impl fmt::Display for ActivityCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Communication => "communication",
-            Self::Meeting       => "meeting",
-            Self::Task          => "task",
-            Self::SystemEvent   => "system_event",
+            Self::Meeting => "meeting",
+            Self::Task => "task",
+            Self::SystemEvent => "system_event",
             Self::PipelineEvent => "pipeline_event",
         })
     }
@@ -134,12 +134,12 @@ impl TryFrom<String> for ActivityCategory {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "communication"  => Ok(Self::Communication),
-            "meeting"        => Ok(Self::Meeting),
-            "task"           => Ok(Self::Task),
-            "system_event"   => Ok(Self::SystemEvent),
+            "communication" => Ok(Self::Communication),
+            "meeting" => Ok(Self::Meeting),
+            "task" => Ok(Self::Task),
+            "system_event" => Ok(Self::SystemEvent),
             "pipeline_event" => Ok(Self::PipelineEvent),
-            other            => Err(format!("unknown ActivityCategory: '{other}'")),
+            other => Err(format!("unknown ActivityCategory: '{other}'")),
         }
     }
 }
@@ -161,9 +161,9 @@ pub enum ActivityDirection {
 impl fmt::Display for ActivityDirection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Inbound  => "inbound",
+            Self::Inbound => "inbound",
             Self::Outbound => "outbound",
-            Self::Na       => "n_a",
+            Self::Na => "n_a",
         })
     }
 }
@@ -172,10 +172,10 @@ impl TryFrom<String> for ActivityDirection {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "inbound"  => Ok(Self::Inbound),
+            "inbound" => Ok(Self::Inbound),
             "outbound" => Ok(Self::Outbound),
-            "n_a"      => Ok(Self::Na),
-            other      => Err(format!("unknown ActivityDirection: '{other}'")),
+            "n_a" => Ok(Self::Na),
+            other => Err(format!("unknown ActivityDirection: '{other}'")),
         }
     }
 }
@@ -225,14 +225,14 @@ impl ActivityOutcome {
 impl fmt::Display for ActivityOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Connected  => "connected",
-            Self::Voicemail  => "voicemail",
-            Self::NoAnswer   => "no_answer",
-            Self::Bounced    => "bounced",
+            Self::Connected => "connected",
+            Self::Voicemail => "voicemail",
+            Self::NoAnswer => "no_answer",
+            Self::Bounced => "bounced",
             Self::MeetingHeld => "meeting_held",
-            Self::NoShow     => "no_show",
-            Self::Completed  => "completed",
-            Self::Cancelled  => "cancelled",
+            Self::NoShow => "no_show",
+            Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
         })
     }
 }
@@ -241,15 +241,15 @@ impl TryFrom<String> for ActivityOutcome {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "connected"   => Ok(Self::Connected),
-            "voicemail"   => Ok(Self::Voicemail),
-            "no_answer"   => Ok(Self::NoAnswer),
-            "bounced"     => Ok(Self::Bounced),
+            "connected" => Ok(Self::Connected),
+            "voicemail" => Ok(Self::Voicemail),
+            "no_answer" => Ok(Self::NoAnswer),
+            "bounced" => Ok(Self::Bounced),
             "meeting_held" => Ok(Self::MeetingHeld),
-            "no_show"     => Ok(Self::NoShow),
-            "completed"   => Ok(Self::Completed),
-            "cancelled"   => Ok(Self::Cancelled),
-            other         => Err(format!("unknown ActivityOutcome: '{other}'")),
+            "no_show" => Ok(Self::NoShow),
+            "completed" => Ok(Self::Completed),
+            "cancelled" => Ok(Self::Cancelled),
+            other => Err(format!("unknown ActivityOutcome: '{other}'")),
         }
     }
 }

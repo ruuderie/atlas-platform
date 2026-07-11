@@ -1,6 +1,6 @@
 #![allow(dead_code, unused)]
-use std::collections::HashSet;
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
 
 static BLOCKED_DOMAINS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     let mut s = HashSet::new();
@@ -22,7 +22,8 @@ pub fn validate_and_sanitize_phone(phone: &str) -> Result<String, String> {
     }
 
     // Keep only digits and the leading plus symbol
-    let cleaned: String = trimmed.chars()
+    let cleaned: String = trimmed
+        .chars()
         .filter(|c| c.is_ascii_digit() || *c == '+')
         .collect();
 
@@ -66,7 +67,10 @@ pub async fn validate_email_deep(email: &str) -> Result<String, String> {
 
     // 2. Filter domain blocks
     if BLOCKED_DOMAINS.contains(domain.as_str()) {
-        return Err(format!("The domain '{}' is blocked or reserved for testing. Please use a valid email domain.", domain));
+        return Err(format!(
+            "The domain '{}' is blocked or reserved for testing. Please use a valid email domain.",
+            domain
+        ));
     }
 
     // 3. DNS Host resolution verification
@@ -77,11 +81,15 @@ pub async fn validate_email_deep(email: &str) -> Result<String, String> {
             if addrs.next().is_some() {
                 Ok(trimmed.to_string())
             } else {
-                Err(format!("The email domain '{}' could not be resolved. Please verify the spelling or domain status.", domain))
+                Err(format!(
+                    "The email domain '{}' could not be resolved. Please verify the spelling or domain status.",
+                    domain
+                ))
             }
         }
-        Err(_) => {
-            Err(format!("The email domain '{}' does not resolve to an active mail handler or host.", domain))
-        }
+        Err(_) => Err(format!(
+            "The email domain '{}' does not resolve to an active mail handler or host.",
+            domain
+        )),
     }
 }

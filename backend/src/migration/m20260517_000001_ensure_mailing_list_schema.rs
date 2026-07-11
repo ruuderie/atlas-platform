@@ -24,7 +24,8 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
 
         // Create table if it doesn't exist yet (fresh DB or if legacy table was dropped).
-        db.execute_unprepared(r#"
+        db.execute_unprepared(
+            r#"
             CREATE TABLE IF NOT EXISTS mailing_list (
                 id          SERIAL PRIMARY KEY,
                 email       TEXT NOT NULL,
@@ -33,16 +34,18 @@ impl MigrationTrait for Migration {
                 tenant_id   UUID,
                 created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
-        "#).await?;
+        "#,
+        )
+        .await?;
 
         // Add missing columns defensively in case the table exists with old schema.
         db.execute_unprepared(
-            "ALTER TABLE mailing_list ADD COLUMN IF NOT EXISTS preferences JSONB;"
-        ).await?;
+            "ALTER TABLE mailing_list ADD COLUMN IF NOT EXISTS preferences JSONB;",
+        )
+        .await?;
 
-        db.execute_unprepared(
-            "ALTER TABLE mailing_list ADD COLUMN IF NOT EXISTS tenant_id UUID;"
-        ).await?;
+        db.execute_unprepared("ALTER TABLE mailing_list ADD COLUMN IF NOT EXISTS tenant_id UUID;")
+            .await?;
 
         Ok(())
     }

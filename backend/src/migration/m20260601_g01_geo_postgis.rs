@@ -103,16 +103,38 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()")),
                     )
                     .col(ColumnDef::new(GeoServiceAreas::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(GeoServiceAreas::OwnerEntityType).string().not_null())
+                    .col(
+                        ColumnDef::new(GeoServiceAreas::OwnerEntityType)
+                            .string()
+                            .not_null(),
+                    )
                     // Examples: 'agency', 'adjuster', 'property', 'listing', 'vendor'
-                    .col(ColumnDef::new(GeoServiceAreas::OwnerEntityId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(GeoServiceAreas::OwnerEntityId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(GeoServiceAreas::Label).string().null())
                     // Geometry for polygons (MultiPolygon in SRID 4326)
-                    .col(ColumnDef::new(GeoServiceAreas::Geom).custom(sea_orm::sea_query::Alias::new("geometry(MultiPolygon, 4326)")).null())
+                    .col(
+                        ColumnDef::new(GeoServiceAreas::Geom)
+                            .custom(sea_orm::sea_query::Alias::new(
+                                "geometry(MultiPolygon, 4326)",
+                            ))
+                            .null(),
+                    )
                     // Geography point for fast radius / distance queries
-                    .col(ColumnDef::new(GeoServiceAreas::Point).custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)")).null())
+                    .col(
+                        ColumnDef::new(GeoServiceAreas::Point)
+                            .custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)"))
+                            .null(),
+                    )
                     // Optional zip code list for fallback matching
-                    .col(ColumnDef::new(GeoServiceAreas::ZipCodes).json_binary().null())
+                    .col(
+                        ColumnDef::new(GeoServiceAreas::ZipCodes)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(GeoServiceAreas::CreatedAt)
                             .timestamp_with_time_zone()

@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use async_trait::async_trait;
 use reqwest::Client;
-use std::env;
 use serde_json::json;
+use std::env;
 
 #[derive(Debug)]
 pub enum DnsError {
@@ -65,7 +65,9 @@ impl DnsProvider for CloudflareProvider {
             }
         });
 
-        let res = self.client.post(&url)
+        let res = self
+            .client
+            .post(&url)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .header("Content-Type", "application/json")
             .json(&payload)
@@ -79,12 +81,15 @@ impl DnsProvider for CloudflareProvider {
             return Err(DnsError::ProvisioningError(error_text));
         }
 
-        tracing::info!("Cloudflare custom hostname correctly provisioned for: {}", hostname);
+        tracing::info!(
+            "Cloudflare custom hostname correctly provisioned for: {}",
+            hostname
+        );
         Ok(())
     }
 
     async fn remove_hostname(&self, _hostname: &str) -> Result<(), DnsError> {
-        // Implementing removal dynamically requires querying the custom_hostname ID first 
+        // Implementing removal dynamically requires querying the custom_hostname ID first
         // to pass to the DELETE endpoint. We can stub it for future implementation.
         tracing::warn!("Cloudflare auto-delete domain not implemented natively yet.");
         Ok(())
@@ -95,23 +100,34 @@ impl DnsProvider for CloudflareProvider {
 pub async fn provision_domain(domain: &str) -> Result<(), String> {
     // Check if the administrator activated TLS_PROVIDER=cloudflare
     let provider_name = env::var("TLS_PROVIDER").unwrap_or_else(|_| "cloudflare".to_string());
-    
-    tracing::info!("Dispatching DNS provision routing via Provider: {}", provider_name);
-    
+
+    tracing::info!(
+        "Dispatching DNS provision routing via Provider: {}",
+        provider_name
+    );
+
     let provider: Box<dyn DnsProvider> = match provider_name.as_str() {
         "cloudflare" => {
             // Allow failing gracefully if secrets aren't set in local DEV.
             if env::var("CLOUDFLARE_API_TOKEN").is_err() {
-                tracing::warn!("DNS Abstraction caught Missing CLOUDFLARE_API_TOKEN inside dev context. Passing through gracefully to allow local testing!");
+                tracing::warn!(
+                    "DNS Abstraction caught Missing CLOUDFLARE_API_TOKEN inside dev context. Passing through gracefully to allow local testing!"
+                );
                 return Ok(());
             }
             Box::new(CloudflareProvider::new().map_err(|e| e.to_string())?)
-        },
+        }
         _ => {
-            tracing::warn!("Unknown edge provider: {}, passing through gracefully.", provider_name);
+            tracing::warn!(
+                "Unknown edge provider: {}, passing through gracefully.",
+                provider_name
+            );
             return Ok(());
         }
     };
 
-    provider.provision_hostname(domain).await.map_err(|e| e.to_string())
+    provider
+        .provision_hostname(domain)
+        .await
+        .map_err(|e| e.to_string())
 }

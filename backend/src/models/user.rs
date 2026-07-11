@@ -1,9 +1,9 @@
 #![allow(dead_code, unused)]
 
+use crate::entities::{profile, request_log, tenant, user, user_account};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use crate::entities::{user, user_account, profile, tenant, request_log};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct User {
@@ -27,7 +27,6 @@ pub struct UserRegistration {
     pub email: String,
     pub password: String,
     pub phone: String,
-
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,8 +46,7 @@ pub struct UserAdmin {
     pub is_active: bool,
 }
 
-
-#[derive(Clone, Debug, PartialEq,Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserAdminView {
     pub user: user::Model,
     pub user_accounts: Vec<user_account::Model>,

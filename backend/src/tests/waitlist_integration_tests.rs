@@ -17,15 +17,15 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use chrono::Utc;
 use http_body_util::BodyExt;
-use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, ColumnTrait, Set};
-use serde_json::{json, Value};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
-use chrono::Utc;
 
-use crate::tests::api_tests::setup_test_app;
 use crate::entities::{atlas_lead, platform_product};
+use crate::tests::api_tests::setup_test_app;
 
 // ── Test setup helper ─────────────────────────────────────────────────────────
 
@@ -46,27 +46,27 @@ async fn seed_folio_product(db: &sea_orm::DatabaseConnection) -> platform_produc
     }
 
     platform_product::ActiveModel {
-        id:                    Set(Uuid::new_v4()),
-        name:                  Set("Folio".to_string()),
-        slug:                  Set("folio".to_string()),
-        tagline:               Set(Some("Landlord OS — LTR + STR in one platform".to_string())),
-        status:                Set("active".to_string()),
+        id: Set(Uuid::new_v4()),
+        name: Set("Folio".to_string()),
+        slug: Set("folio".to_string()),
+        tagline: Set(Some("Landlord OS — LTR + STR in one platform".to_string())),
+        status: Set("active".to_string()),
         marketing_page_cms_id: Set(None),
-        deploy_hook_url:       Set(None),
-        launch_mode:           Set("waitlist".to_string()),
-        pre_order_enabled:     Set(false),
+        deploy_hook_url: Set(None),
+        launch_mode: Set("waitlist".to_string()),
+        pre_order_enabled: Set(false),
         pre_order_price_cents: Set(None),
-        pre_order_currency:    Set("USD".to_string()),
-        stripe_price_id:       Set(None),
-        pre_order_cap:         Set(None),
-        pre_order_sold:        Set(0),
-        waitlist_count:        Set(0),
-        sentinel_tenant_id:    Set(None),
-        apex_domain:           Set(None),
-        apex_domain_verified:  Set(false),
-        app_slug:              Set("folio".to_string()),
-        created_at:            Set(Utc::now().into()),
-        updated_at:            Set(Utc::now().into()),
+        pre_order_currency: Set("USD".to_string()),
+        stripe_price_id: Set(None),
+        pre_order_cap: Set(None),
+        pre_order_sold: Set(0),
+        waitlist_count: Set(0),
+        sentinel_tenant_id: Set(None),
+        apex_domain: Set(None),
+        apex_domain_verified: Set(false),
+        app_slug: Set("folio".to_string()),
+        created_at: Set(Utc::now().into()),
+        updated_at: Set(Utc::now().into()),
     }
     .insert(db)
     .await
@@ -97,17 +97,13 @@ async fn post_waitlist(slug: &str, payload: Value) -> (StatusCode, Value) {
         .unwrap();
 
     let status = resp.status();
-    let bytes  = resp.into_body().collect().await.unwrap().to_bytes();
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     let body: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
     (status, body)
 }
 
 /// POST to the variant-scoped waitlist endpoint.
-async fn post_waitlist_variant(
-    slug:    &str,
-    variant: &str,
-    payload: Value,
-) -> (StatusCode, Value) {
+async fn post_waitlist_variant(slug: &str, variant: &str, payload: Value) -> (StatusCode, Value) {
     let (app, db) = setup_test_app().await;
     seed_folio_product(&db).await;
 
@@ -125,7 +121,7 @@ async fn post_waitlist_variant(
         .unwrap();
 
     let status = resp.status();
-    let bytes  = resp.into_body().collect().await.unwrap().to_bytes();
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     let body: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
     (status, body)
 }
@@ -137,8 +133,7 @@ async fn test_waitlist_returns_201_with_position() {
     let email = format!("wl_{}@test.com", Uuid::new_v4().simple());
     let (status, body) = post_waitlist("folio", json!({ "email": email })).await;
 
-    assert_eq!(status, StatusCode::CREATED,
-        "expected 201; body: {body}");
+    assert_eq!(status, StatusCode::CREATED, "expected 201; body: {body}");
     assert!(
         body.get("position").and_then(|v| v.as_u64()).is_some(),
         "response must include a numeric 'position'; got: {body}"
@@ -155,18 +150,28 @@ async fn test_waitlist_returns_201_with_position() {
 #[tokio::test]
 async fn test_waitlist_response_shape_has_required_fields() {
     let email = format!("shape_{}@test.com", Uuid::new_v4().simple());
-    let (status, body) = post_waitlist("folio", json!({
-        "email":                email,
-        "role":                 "Landlord",
-        "portfolio_size_label": "6–20 units",
-        "utm_source":           "social",
-    })).await;
+    let (status, body) = post_waitlist(
+        "folio",
+        json!({
+            "email":                email,
+            "role":                 "Landlord",
+            "portfolio_size_label": "6–20 units",
+            "utm_source":           "social",
+        }),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::CREATED, "body: {body}");
-    assert!(body.get("position").is_some(), "missing 'position' in: {body}");
-    assert!(body.get("status").is_some(),   "missing 'status' in: {body}");
-    assert!(body.get("product").is_some(),  "missing 'product' in: {body}");
-    assert!(body.get("market").is_some(),   "missing 'market' in: {body}");
+    assert!(
+        body.get("position").is_some(),
+        "missing 'position' in: {body}"
+    );
+    assert!(body.get("status").is_some(), "missing 'status' in: {body}");
+    assert!(
+        body.get("product").is_some(),
+        "missing 'product' in: {body}"
+    );
+    assert!(body.get("market").is_some(), "missing 'market' in: {body}");
 }
 
 // ── Test: role + portfolio_size in lead_metadata ──────────────────────────────
@@ -184,11 +189,14 @@ async fn test_waitlist_stores_role_and_portfolio_size_in_metadata() {
                 .uri("/api/pub/products/folio/waitlist")
                 .header("Host", "localhost")
                 .header("Content-Type", "application/json")
-                .body(Body::from(json!({
-                    "email":                email,
-                    "role":                 "Property Manager",
-                    "portfolio_size_label": "21–100 units",
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "email":                email,
+                        "role":                 "Property Manager",
+                        "portfolio_size_label": "21–100 units",
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -202,9 +210,8 @@ async fn test_waitlist_stores_role_and_portfolio_size_in_metadata() {
         .expect("DB query failed")
         .expect("lead should exist after successful waitlist submission");
 
-    let meta: Value = serde_json::from_value(
-        lead.lead_metadata.unwrap_or(Value::Null)
-    ).unwrap_or(Value::Null);
+    let meta: Value =
+        serde_json::from_value(lead.lead_metadata.unwrap_or(Value::Null)).unwrap_or(Value::Null);
 
     assert_eq!(
         meta.get("role").and_then(|v| v.as_str()),
@@ -223,13 +230,14 @@ async fn test_waitlist_stores_role_and_portfolio_size_in_metadata() {
 #[tokio::test]
 async fn test_waitlist_variant_endpoint_returns_201() {
     let email = format!("var_{}@test.com", Uuid::new_v4().simple());
-    let (status, body) = post_waitlist_variant(
-        "folio", "folio-home-br-pt",
-        json!({ "email": email }),
-    ).await;
+    let (status, body) =
+        post_waitlist_variant("folio", "folio-home-br-pt", json!({ "email": email })).await;
 
-    assert_eq!(status, StatusCode::CREATED,
-        "variant waitlist should return 201; body: {body}");
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "variant waitlist should return 201; body: {body}"
+    );
     assert!(
         body.get("position").and_then(|v| v.as_u64()).is_some(),
         "position must be numeric; got: {body}"
@@ -243,8 +251,11 @@ async fn test_waitlist_minimal_email_only_payload_succeeds() {
     let email = format!("min_{}@test.com", Uuid::new_v4().simple());
     let (status, body) = post_waitlist("folio", json!({ "email": email })).await;
 
-    assert_eq!(status, StatusCode::CREATED,
-        "email-only payload should succeed; body: {body}");
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "email-only payload should succeed; body: {body}"
+    );
 }
 
 // ── Test: duplicate email dedup ───────────────────────────────────────────────
@@ -269,7 +280,11 @@ async fn test_waitlist_duplicate_email_does_not_create_second_lead() {
         )
         .await
         .unwrap();
-    assert_eq!(r1.status(), StatusCode::CREATED, "first submission should be 201");
+    assert_eq!(
+        r1.status(),
+        StatusCode::CREATED,
+        "first submission should be 201"
+    );
 
     // Second submission with same email
     let (app2, _) = setup_test_app().await;
@@ -287,7 +302,8 @@ async fn test_waitlist_duplicate_email_does_not_create_second_lead() {
         .unwrap();
     assert!(
         r2.status().is_success(),
-        "duplicate email must not cause a server error; got {}", r2.status()
+        "duplicate email must not cause a server error; got {}",
+        r2.status()
     );
 
     // Exactly one lead should exist for this email
@@ -298,8 +314,10 @@ async fn test_waitlist_duplicate_email_does_not_create_second_lead() {
         .expect("DB query failed")
         .len();
 
-    assert_eq!(count, 1,
-        "duplicate submission must not create a second atlas_lead row");
+    assert_eq!(
+        count, 1,
+        "duplicate submission must not create a second atlas_lead row"
+    );
 }
 
 // ── Test: missing email rejected ──────────────────────────────────────────────
@@ -308,10 +326,7 @@ async fn test_waitlist_duplicate_email_does_not_create_second_lead() {
 async fn test_waitlist_missing_email_is_rejected() {
     // No seed needed — the email validation in join_waitlist_inner fires before
     // the product lookup, so we get 422 regardless of whether folio exists.
-    let (status, _) = post_waitlist(
-        "folio",
-        json!({ "role": "Landlord" }),
-    ).await;
+    let (status, _) = post_waitlist("folio", json!({ "role": "Landlord" })).await;
 
     assert!(
         status.is_client_error(),

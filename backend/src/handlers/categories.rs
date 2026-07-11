@@ -1,15 +1,14 @@
+use crate::entities::category;
+use crate::models::category::{CategoryModel, CreateCategory, UpdateCategory};
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, QueryFilter, ColumnTrait};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde_json::json;
 use uuid::Uuid;
-use chrono::Utc;
-use crate::entities::category; 
-use crate::models::category::{CategoryModel, CreateCategory, UpdateCategory}; 
-
 
 pub async fn get_categories(
     axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
@@ -21,20 +20,15 @@ pub async fn get_categories(
             find_query = find_query.filter(category::Column::TenantId.eq(dir_id));
         }
     }
-    let categories = find_query
-        .all(&db)
-        .await
-        .map_err(|err| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "Failed to fetch categories", "details": err.to_string()})),
-            )
-        })?;
+    let categories = find_query.all(&db).await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Failed to fetch categories", "details": err.to_string()})),
+        )
+    })?;
 
-    let category_models: Vec<CategoryModel> = categories
-        .into_iter()
-        .map(CategoryModel::from) 
-        .collect();
+    let category_models: Vec<CategoryModel> =
+        categories.into_iter().map(CategoryModel::from).collect();
 
     Ok(Json(category_models))
 }
@@ -56,13 +50,16 @@ pub async fn get_category(
     if let Some(category) = category {
         Ok(Json(CategoryModel::from(category)))
     } else {
-        Err((StatusCode::NOT_FOUND, Json(json!({"error": "Category not found"}))))
+        Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Category not found"})),
+        ))
     }
 }
 
 pub async fn create_category(
     State(db): State<DatabaseConnection>,
-    Json(payload): Json<CreateCategory>, 
+    Json(payload): Json<CreateCategory>,
 ) -> Result<(StatusCode, Json<CategoryModel>), (StatusCode, Json<serde_json::Value>)> {
     println!("TEST LOG: from create_category and payload: {:?}", payload);
     let new_category = category::ActiveModel {
@@ -78,9 +75,11 @@ pub async fn create_category(
         is_active: Set(payload.is_active),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-
     };
-    println!("TEST LOG: from create_category and new_category: {:?}", new_category);
+    println!(
+        "TEST LOG: from create_category and new_category: {:?}",
+        new_category
+    );
     let insert_result = category::Entity::insert(new_category)
         .exec(&db)
         .await
@@ -122,12 +121,17 @@ pub async fn update_category(
 
     let category = match category_result {
         Some(c) => c,
-        None => return Err((StatusCode::NOT_FOUND, Json(json!({"error": "Category not found"})))),
+        None => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "Category not found"})),
+            ));
+        }
     };
 
     // Create an ActiveModel and apply the updates from the payload
     let mut category_active: category::ActiveModel = category.into();
-    
+
     // Apply updates from payload
     if let Some(name) = payload.name {
         category_active.name = Set(name);
@@ -148,7 +152,7 @@ pub async fn update_category(
     if let Some(is_active) = payload.is_active {
         category_active.is_active = Set(is_active);
     }
-    
+
     // Update the timestamp
     category_active.updated_at = Set(Utc::now());
 
@@ -166,7 +170,6 @@ pub async fn delete_category(
     Path(category_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
-
     let result = category::Entity::delete_by_id(category_id)
         .exec(&db)
         .await
@@ -178,7 +181,10 @@ pub async fn delete_category(
         })?;
 
     if result.rows_affected == 0 {
-        Err((StatusCode::NOT_FOUND, Json(json!({"error": "Category not found"}))))
+        Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Category not found"})),
+        ))
     } else {
         Ok(StatusCode::NO_CONTENT)
     }

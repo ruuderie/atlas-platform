@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 /// G-28: atlas_note — Universal Polymorphic Note.
 ///
@@ -128,7 +128,7 @@ impl Model {
     ) -> Result<Option<crate::types::note::NoteMetadata>, serde_json::Error> {
         match &self.note_metadata {
             Some(v) => serde_json::from_value(v.clone()).map(Some),
-            None    => Ok(None),
+            None => Ok(None),
         }
     }
 }

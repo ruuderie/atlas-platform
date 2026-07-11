@@ -9,14 +9,14 @@
 //!
 //! All writes go through the service layer (AccountService, ContactService, OpportunityService).
 
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
-use uuid::Uuid;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use std::collections::HashMap;
 use tracing;
+use uuid::Uuid;
 
+use crate::entities::activity as legacy_activity;
 use crate::entities::contact as legacy_contact;
 use crate::entities::lead as legacy_lead;
-use crate::entities::activity as legacy_activity;
 
 use crate::services::account_service::AccountService;
 use crate::services::contact_service::ContactService;
@@ -40,11 +40,13 @@ pub async fn migrate_tenant_legacy_crm(
 
     tracing::info!(
         "Legacy CRM migration starting for tenant {} (dry_run={})",
-        tenant_name, dry_run
+        tenant_name,
+        dry_run
     );
 
     // 1. Ensure we have at least one organization account for the tenant (via service)
-    let org_account_id = AccountService::find_or_create_tenant_account(db, tenant_id, tenant_name).await?;
+    let org_account_id =
+        AccountService::find_or_create_tenant_account(db, tenant_id, tenant_name).await?;
 
     // 2. Migrate Contacts using ContactService
     let legacy_contacts = legacy_contact::Entity::find()
@@ -66,7 +68,8 @@ pub async fn migrate_tenant_legacy_crm(
                     &lc.name,
                     lc.first_name.as_deref(),
                     lc.last_name.as_deref(),
-                ).await?
+                )
+                .await?
             } else {
                 // In dry run we still count it
                 report.accounts_created += 1;
@@ -83,7 +86,8 @@ pub async fn migrate_tenant_legacy_crm(
                 lc.last_name.as_deref(),
                 lc.email.as_deref(),
                 false,
-            ).await?;
+            )
+            .await?;
         }
         report.contacts_created += 1;
 
@@ -113,14 +117,16 @@ pub async fn migrate_tenant_legacy_crm(
                 None,
                 None,
                 ll.lead_status.as_deref(),
-            ).await?;
+            )
+            .await?;
         }
         report.opportunities_created += 1;
 
         report.notes.push(format!(
             "{}Migrated legacy lead {} ('{}') → atlas_opportunity",
             if dry_run { "[DRY RUN] " } else { "" },
-            ll.id, ll.name
+            ll.id,
+            ll.name
         ));
     }
 
@@ -145,7 +151,9 @@ pub async fn migrate_tenant_legacy_crm(
             ));
         }
         if activity_count > 3 {
-            report.notes.push(format!("  ... and {} more", activity_count - 3));
+            report
+                .notes
+                .push(format!("  ... and {} more", activity_count - 3));
         }
     }
 
@@ -184,18 +192,26 @@ impl std::fmt::Display for MigrationReport {
 }
 
 /// Convenience entry point for early dev validation only.
-/// 
+///
 /// IMPORTANT: This is intentionally hardcoded for the buildwithruud dev tenant
 /// so developers can quickly exercise the migration. It is **not** used in any
 /// production path and creates no tenant dependency on buildwithruud.
 /// Remove this function once the generic migration + CLI is proven.
-pub async fn migrate_buildwithruud_dev_sample(db: &DatabaseConnection, dry_run: bool) -> Result<MigrationReport, String> {
+pub async fn migrate_buildwithruud_dev_sample(
+    db: &DatabaseConnection,
+    dry_run: bool,
+) -> Result<MigrationReport, String> {
     let buildwithruud_tenant_id = Uuid::parse_str("35f95f2a-db97-4166-be66-5215654cac84")
         .map_err(|e| format!("Bad hardcoded dev tenant uuid: {}", e))?;
     let tenant_name = "buildwithruud";
 
-    tracing::info!("Starting legacy CRM unification migration (dev sample) for: {} (dry_run={})", tenant_name, dry_run);
-    let report = migrate_tenant_legacy_crm(db, buildwithruud_tenant_id, tenant_name, dry_run).await?;
+    tracing::info!(
+        "Starting legacy CRM unification migration (dev sample) for: {} (dry_run={})",
+        tenant_name,
+        dry_run
+    );
+    let report =
+        migrate_tenant_legacy_crm(db, buildwithruud_tenant_id, tenant_name, dry_run).await?;
     tracing::info!("Dev sample migration report:\n{}", report);
     Ok(report)
 }
@@ -218,15 +234,20 @@ pub async fn migrate_known_tenants(
 /// Discover tenants that still have rows in legacy CRM tables.
 /// Returns (tenant_id, tenant_name) for nice reporting.
 /// Useful for "migrate everything that needs it" runs in dev/uat.
-pub async fn find_tenants_with_legacy_data(db: &DatabaseConnection) -> Result<Vec<(Uuid, String)>, String> {
-    use crate::entities::lead as legacy_lead;
+pub async fn find_tenants_with_legacy_data(
+    db: &DatabaseConnection,
+) -> Result<Vec<(Uuid, String)>, String> {
     use crate::entities::contact as legacy_contact;
+    use crate::entities::lead as legacy_lead;
     use crate::entities::tenant as platform_tenant;
 
     let mut results: HashMap<Uuid, String> = HashMap::new();
 
     // Leads
-    let leads = legacy_lead::Entity::find().all(db).await.map_err(|e| e.to_string())?;
+    let leads = legacy_lead::Entity::find()
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
     for l in leads {
         if let Some(tid) = l.tenant_id {
             if !results.contains_key(&tid) {
@@ -240,7 +261,10 @@ pub async fn find_tenants_with_legacy_data(db: &DatabaseConnection) -> Result<Ve
     }
 
     // Contacts
-    let contacts = legacy_contact::Entity::find().all(db).await.map_err(|e| e.to_string())?;
+    let contacts = legacy_contact::Entity::find()
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
     for c in contacts {
         if let Some(tid) = c.tenant_id {
             if !results.contains_key(&tid) {
@@ -260,7 +284,6 @@ pub async fn find_tenants_with_legacy_data(db: &DatabaseConnection) -> Result<Ve
 // The core migration (using services) is fully functional.
 // We will re-enable a clean version before the final cutover.
 
-
 #[derive(Default, Debug)]
 pub struct VerificationReport {
     pub all_clean: bool,
@@ -271,9 +294,15 @@ pub struct VerificationReport {
 impl std::fmt::Display for VerificationReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.all_clean {
-            writeln!(f, "✅ VERIFICATION PASSED — No tenants have remaining legacy CRM data.")?;
+            writeln!(
+                f,
+                "✅ VERIFICATION PASSED — No tenants have remaining legacy CRM data."
+            )?;
         } else {
-            writeln!(f, "❌ VERIFICATION FAILED — Some tenants still have data in legacy tables:")?;
+            writeln!(
+                f,
+                "❌ VERIFICATION FAILED — Some tenants still have data in legacy tables:"
+            )?;
             for (tid, details) in &self.tenants_with_remaining_legacy_data {
                 writeln!(f, "  - {} : {}", tid, details)?;
             }

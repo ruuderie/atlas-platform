@@ -26,7 +26,7 @@ pub enum AccountType {
 impl fmt::Display for AccountType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Individual   => "individual",
+            Self::Individual => "individual",
             Self::Organization => "organization",
         })
     }
@@ -36,9 +36,9 @@ impl TryFrom<String> for AccountType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "individual"   => Ok(Self::Individual),
+            "individual" => Ok(Self::Individual),
             "organization" => Ok(Self::Organization),
-            other          => Err(format!("unknown AccountType: '{other}'")),
+            other => Err(format!("unknown AccountType: '{other}'")),
         }
     }
 }
@@ -78,7 +78,7 @@ impl fmt::Display for AccountStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Prospect => "prospect",
-            Self::Active   => "active",
+            Self::Active => "active",
             Self::Suspended => "suspended",
             Self::Archived => "archived",
         })
@@ -89,11 +89,11 @@ impl TryFrom<String> for AccountStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "prospect"  => Ok(Self::Prospect),
-            "active"    => Ok(Self::Active),
+            "prospect" => Ok(Self::Prospect),
+            "active" => Ok(Self::Active),
             "suspended" => Ok(Self::Suspended),
-            "archived"  => Ok(Self::Archived),
-            other       => Err(format!("unknown AccountStatus: '{other}'")),
+            "archived" => Ok(Self::Archived),
+            other => Err(format!("unknown AccountStatus: '{other}'")),
         }
     }
 }
@@ -132,12 +132,12 @@ pub enum TaxIdType {
 impl fmt::Display for TaxIdType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Ein   => "ein",
-            Self::Cnpj  => "cnpj",
-            Self::Cpf   => "cpf",
-            Self::Ssn   => "ssn",
-            Self::Tin   => "tin",
-            Self::Vat   => "vat",
+            Self::Ein => "ein",
+            Self::Cnpj => "cnpj",
+            Self::Cpf => "cpf",
+            Self::Ssn => "ssn",
+            Self::Tin => "tin",
+            Self::Vat => "vat",
             Self::Usdot => "usdot",
         })
     }
@@ -147,14 +147,14 @@ impl TryFrom<String> for TaxIdType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "ein"   => Ok(Self::Ein),
-            "cnpj"  => Ok(Self::Cnpj),
-            "cpf"   => Ok(Self::Cpf),
-            "ssn"   => Ok(Self::Ssn),
-            "tin"   => Ok(Self::Tin),
-            "vat"   => Ok(Self::Vat),
+            "ein" => Ok(Self::Ein),
+            "cnpj" => Ok(Self::Cnpj),
+            "cpf" => Ok(Self::Cpf),
+            "ssn" => Ok(Self::Ssn),
+            "tin" => Ok(Self::Tin),
+            "vat" => Ok(Self::Vat),
             "usdot" => Ok(Self::Usdot),
-            other   => Err(format!("unknown TaxIdType: '{other}'")),
+            other => Err(format!("unknown TaxIdType: '{other}'")),
         }
     }
 }

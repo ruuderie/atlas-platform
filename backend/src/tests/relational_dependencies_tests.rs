@@ -4,10 +4,10 @@ use axum::{
 };
 use sea_orm::EntityTrait;
 // use sea_orm_migration::MigratorTrait; // unused - removed
-use tower::ServiceExt;
-use serde_json::json;
-use crate::entities::tenant;
 use super::test_utils;
+use crate::entities::tenant;
+use serde_json::json;
+use tower::ServiceExt;
 
 use crate::tests::api_tests::setup_test_app;
 #[tokio::test]
@@ -17,7 +17,7 @@ async fn test_cannot_delete_tenant_in_use() {
 
     // 1. Create a Tenant Type
     let tenant = test_utils::create_test_tenant(&db).await;
-    
+
     // 2. Create a Tenant that depends on it
     let _tenant = test_utils::create_test_tenant(&db).await;
 
@@ -34,11 +34,20 @@ async fn test_cannot_delete_tenant_in_use() {
     let status = del_res.status();
 
     // The API should NOT allow deletion (typically returns 400 Bad Request or 500 Server Error due to constraint)
-    assert!(status != StatusCode::OK && status != StatusCode::NO_CONTENT, "Should not delete tenant type if in use");
+    assert!(
+        status != StatusCode::OK && status != StatusCode::NO_CONTENT,
+        "Should not delete tenant type if in use"
+    );
 
     // Double check DB
-    let check_db = tenant::Entity::find_by_id(tenant.id).one(&db).await.unwrap();
-    assert!(check_db.is_some(), "Tenant Type must still exist in the database");
+    let check_db = tenant::Entity::find_by_id(tenant.id)
+        .one(&db)
+        .await
+        .unwrap();
+    assert!(
+        check_db.is_some(),
+        "Tenant Type must still exist in the database"
+    );
 }
 
 #[tokio::test]
@@ -71,11 +80,13 @@ async fn test_creating_template_retains_attributes() {
 
     let create_res = app.clone().oneshot(create_req).await.unwrap();
     let status = create_res.status();
-    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
     assert!(status == StatusCode::OK || status == StatusCode::CREATED);
-    
-    let _template: crate::models::template::TemplateModel = serde_json::from_slice(&body_bytes).unwrap();
 
+    let _template: crate::models::template::TemplateModel =
+        serde_json::from_slice(&body_bytes).unwrap();
 }
 
 #[tokio::test]
@@ -87,7 +98,11 @@ async fn test_listing_relational_hierarchy() {
     let mut dummy_user = "listcreator".to_string();
     test_utils::register_test_user(&app, tenant.id, &mut dummy_user).await;
     let category = test_utils::create_default_category(&db, tenant.id).await;
-    let profile = crate::entities::profile::Entity::find().one(&db).await.unwrap().unwrap();
+    let profile = crate::entities::profile::Entity::find()
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
 
     // 1. Create Listing
     let payload = json!({
@@ -115,12 +130,20 @@ async fn test_listing_relational_hierarchy() {
 
     let create_res = app.clone().oneshot(create_req).await.unwrap();
     let status = create_res.status();
-    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX).await.unwrap();
-    assert!(status == StatusCode::OK || status == StatusCode::CREATED, "Failed to create: {}", String::from_utf8_lossy(&body_bytes));
-    
-    // Parse it to verify tenant mapping
-    let listing: crate::models::listing::ListingModel = serde_json::from_slice(&body_bytes).unwrap();
-    assert_eq!(listing.tenant_id, tenant.id, "Listing must correctly associate with the explicit Parent Tenant");
-    
+    let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert!(
+        status == StatusCode::OK || status == StatusCode::CREATED,
+        "Failed to create: {}",
+        String::from_utf8_lossy(&body_bytes)
+    );
 
+    // Parse it to verify tenant mapping
+    let listing: crate::models::listing::ListingModel =
+        serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(
+        listing.tenant_id, tenant.id,
+        "Listing must correctly associate with the explicit Parent Tenant"
+    );
 }

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use crate::entities::feed;
 use crate::models::feed_item::FeedItemModel;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FeedModel {
@@ -74,4 +74,4 @@ impl From<feed::Model> for FeedModel {
             updated_at: feed.updated_at,
         }
     }
-} 
+}

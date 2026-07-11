@@ -87,11 +87,7 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(
-                        ColumnDef::new(AtlasReservation::TenantId)
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AtlasReservation::TenantId).uuid().not_null())
                     // Discriminator: 'str_unit', 'hotel_room', 'equipment_rental', etc.
                     .col(
                         ColumnDef::new(AtlasReservation::ReservationType)
@@ -169,11 +165,7 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("'{}'")),
                     )
                     // FK to atlas_quotes (G24) — the quote that became this booking. Nullable.
-                    .col(
-                        ColumnDef::new(AtlasReservation::QuoteId)
-                            .uuid()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(AtlasReservation::QuoteId).uuid().null())
                     // FK to atlas_ledger_entries (G03) — set after payment is collected.
                     .col(
                         ColumnDef::new(AtlasReservation::LedgerEntryId)

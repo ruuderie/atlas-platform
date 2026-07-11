@@ -36,34 +36,28 @@
 
 use anyhow::{Context, Result};
 use chrono::Utc;
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::entities::{
-    atlas_notification,
-    atlas_user_notification_pref,
-    outbox_job,
-};
+use crate::entities::{atlas_notification, atlas_user_notification_pref, outbox_job};
 
 // ── Public input type ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct DispatchInput {
-    pub tenant_id:         Uuid,
-    pub user_id:           Uuid,
+    pub tenant_id: Uuid,
+    pub user_id: Uuid,
     pub notification_type: String,
-    pub title:             String,
-    pub body:              String,
-    pub priority:          NotificationPriority,
+    pub title: String,
+    pub body: String,
+    pub priority: NotificationPriority,
     /// Optional linked entity for deep-link in the frontend
-    pub entity_type:       Option<String>,
-    pub entity_id:         Option<Uuid>,
+    pub entity_type: Option<String>,
+    pub entity_id: Option<Uuid>,
     /// Extra metadata: action_url, image_url, cta_label, etc.
-    pub metadata:          Option<serde_json::Value>,
+    pub metadata: Option<serde_json::Value>,
     /// If true, also dispatch to broadcast channels (tenant-level groups)
     pub include_broadcast: bool,
 }
@@ -80,9 +74,9 @@ pub enum NotificationPriority {
 impl NotificationPriority {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Low    => "low",
+            Self::Low => "low",
             Self::Normal => "normal",
-            Self::High   => "high",
+            Self::High => "high",
             Self::Urgent => "urgent",
         }
     }
@@ -93,17 +87,17 @@ impl NotificationPriority {
 /// Serialised into outbox_job.payload for notify_channel jobs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotifyChannelPayload {
-    pub notification_id:   Uuid,
-    pub tenant_id:         Uuid,
-    pub user_id:           Uuid,
-    pub channel:           String,
+    pub notification_id: Uuid,
+    pub tenant_id: Uuid,
+    pub user_id: Uuid,
+    pub channel: String,
     /// Channel-specific routing config (from atlas_user_notification_pref.config)
-    pub channel_config:    serde_json::Value,
-    pub title:             String,
-    pub body:              String,
-    pub priority:          String,
+    pub channel_config: serde_json::Value,
+    pub title: String,
+    pub body: String,
+    pub priority: String,
     /// Deep-link for supported channels
-    pub action_url:        Option<String>,
+    pub action_url: Option<String>,
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -113,31 +107,30 @@ pub struct NotificationService;
 impl NotificationService {
     /// Primary entry point. Writes the in-app notification and schedules
     /// outbox jobs for all configured external channels.
-    pub async fn dispatch(
-        db: &DatabaseConnection,
-        input: DispatchInput,
-    ) -> Result<Uuid> {
+    pub async fn dispatch(db: &DatabaseConnection, input: DispatchInput) -> Result<Uuid> {
         let notification_id = Uuid::new_v4();
         let now = Utc::now();
 
         // 1. Write atlas_notification (in-app inbox)
         let record = atlas_notification::ActiveModel {
-            id:                 Set(notification_id),
-            tenant_id:          Set(input.tenant_id),
-            user_id:            Set(input.user_id),
-            notification_type:  Set(input.notification_type.clone()),
-            title:              Set(input.title.clone()),
-            body:               Set(input.body.clone()),
-            priority:           Set(input.priority.as_str().to_string()),
-            entity_type:        Set(input.entity_type.clone()),
-            entity_id:          Set(input.entity_id),
-            metadata:           Set(input.metadata.clone()),
+            id: Set(notification_id),
+            tenant_id: Set(input.tenant_id),
+            user_id: Set(input.user_id),
+            notification_type: Set(input.notification_type.clone()),
+            title: Set(input.title.clone()),
+            body: Set(input.body.clone()),
+            priority: Set(input.priority.as_str().to_string()),
+            entity_type: Set(input.entity_type.clone()),
+            entity_id: Set(input.entity_id),
+            metadata: Set(input.metadata.clone()),
             channels_attempted: Set(json!([])),
-            read_at:            Set(None),
-            dismissed_at:       Set(None),
-            created_at:         Set(now),
+            read_at: Set(None),
+            dismissed_at: Set(None),
+            created_at: Set(now),
         };
-        record.insert(db).await
+        record
+            .insert(db)
+            .await
             .context("NotificationService: failed to write atlas_notification")?;
 
         // 2. Fetch user's channel prefs
@@ -154,8 +147,7 @@ impl NotificationService {
         if input.include_broadcast {
             let broadcast = atlas_user_notification_pref::Entity::find()
                 .filter(
-                    atlas_user_notification_pref::Column::UserId
-                        .eq(input.tenant_id), // sentinel: user_id = tenant_id
+                    atlas_user_notification_pref::Column::UserId.eq(input.tenant_id), // sentinel: user_id = tenant_id
                 )
                 .filter(atlas_user_notification_pref::Column::TenantId.eq(input.tenant_id))
                 .filter(atlas_user_notification_pref::Column::Enabled.eq(true))
@@ -169,14 +161,13 @@ impl NotificationService {
         // 4. Filter prefs by notification_type if applies_to is set
         let applicable: Vec<_> = prefs
             .into_iter()
-            .filter(|p| {
-                p.applies_to.is_empty()
-                    || p.applies_to.contains(&input.notification_type)
-            })
+            .filter(|p| p.applies_to.is_empty() || p.applies_to.contains(&input.notification_type))
             .collect();
 
         // 5. Enqueue one outbox_job per channel
-        let action_url = input.metadata.as_ref()
+        let action_url = input
+            .metadata
+            .as_ref()
             .and_then(|m| m.get("action_url"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
@@ -184,32 +175,33 @@ impl NotificationService {
         for pref in applicable {
             let payload = NotifyChannelPayload {
                 notification_id,
-                tenant_id:      input.tenant_id,
-                user_id:        input.user_id,
-                channel:        pref.channel.clone(),
+                tenant_id: input.tenant_id,
+                user_id: input.user_id,
+                channel: pref.channel.clone(),
                 channel_config: pref.config.clone(),
-                title:          input.title.clone(),
-                body:           input.body.clone(),
-                priority:       input.priority.as_str().to_string(),
-                action_url:     action_url.clone(),
+                title: input.title.clone(),
+                body: input.body.clone(),
+                priority: input.priority.as_str().to_string(),
+                action_url: action_url.clone(),
             };
 
             let job = outbox_job::ActiveModel {
-                id:            Set(Uuid::new_v4()),
-                tenant_id:     Set(input.tenant_id),
-                job_type:      Set("notify_channel".to_string()),
-                payload:       Set(serde_json::to_value(&payload)
-                    .unwrap_or_else(|_| json!({}))),
-                status:        Set("pending".to_string()),
-                attempts:      Set(0),
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(input.tenant_id),
+                job_type: Set("notify_channel".to_string()),
+                payload: Set(serde_json::to_value(&payload).unwrap_or_else(|_| json!({}))),
+                status: Set("pending".to_string()),
+                attempts: Set(0),
                 error_message: Set(None),
-                locked_by:     Set(None),
-                locked_at:     Set(None),
-                created_at:    Set(now),
-                run_at:        Set(now),
+                locked_by: Set(None),
+                locked_at: Set(None),
+                created_at: Set(now),
+                run_at: Set(now),
             };
-            job.insert(db).await
-                .context(format!("NotificationService: failed to enqueue job for channel {}", pref.channel))?;
+            job.insert(db).await.context(format!(
+                "NotificationService: failed to enqueue job for channel {}",
+                pref.channel
+            ))?;
         }
 
         tracing::info!(
@@ -225,9 +217,9 @@ impl NotificationService {
 
     /// Mark a notification as read.
     pub async fn mark_read(
-        db:              &DatabaseConnection,
+        db: &DatabaseConnection,
         notification_id: Uuid,
-        user_id:         Uuid,
+        user_id: Uuid,
     ) -> Result<()> {
         use sea_orm::ActiveModelTrait;
         let notif = atlas_notification::Entity::find_by_id(notification_id)
@@ -239,15 +231,18 @@ impl NotificationService {
 
         let mut active: atlas_notification::ActiveModel = notif.into();
         active.read_at = Set(Some(Utc::now()));
-        active.update(db).await.context("mark_read: update failed")?;
+        active
+            .update(db)
+            .await
+            .context("mark_read: update failed")?;
         Ok(())
     }
 
     /// Dismiss (soft-delete) a notification.
     pub async fn dismiss(
-        db:              &DatabaseConnection,
+        db: &DatabaseConnection,
         notification_id: Uuid,
-        user_id:         Uuid,
+        user_id: Uuid,
     ) -> Result<()> {
         let notif = atlas_notification::Entity::find_by_id(notification_id)
             .filter(atlas_notification::Column::UserId.eq(user_id))
@@ -264,8 +259,8 @@ impl NotificationService {
 
     /// Mark all unread notifications as read for a user/tenant.
     pub async fn mark_all_read(
-        db:        &DatabaseConnection,
-        user_id:   Uuid,
+        db: &DatabaseConnection,
+        user_id: Uuid,
         tenant_id: Uuid,
     ) -> Result<u64> {
         let unread = atlas_notification::Entity::find()
@@ -283,7 +278,10 @@ impl NotificationService {
         for notif in unread {
             let mut active: atlas_notification::ActiveModel = notif.into();
             active.read_at = Set(Some(now));
-            active.update(db).await.context("mark_all_read: update failed")?;
+            active
+                .update(db)
+                .await
+                .context("mark_all_read: update failed")?;
         }
 
         Ok(count)
@@ -291,8 +289,8 @@ impl NotificationService {
 
     /// Unread count for a user/tenant (for nav badge).
     pub async fn unread_count(
-        db:        &DatabaseConnection,
-        user_id:   Uuid,
+        db: &DatabaseConnection,
+        user_id: Uuid,
         tenant_id: Uuid,
     ) -> Result<u64> {
         use sea_orm::PaginatorTrait;
@@ -315,7 +313,7 @@ impl NotificationService {
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub mod channels {
-    use anyhow::{anyhow, Result};
+    use anyhow::{Result, anyhow};
     use serde_json::Value;
 
     /// Delivery result from a channel adapter.
@@ -347,11 +345,17 @@ pub mod channels {
         ) -> ChannelResult {
             let chat_id = match channel_config.get("chat_id").and_then(|v| v.as_str()) {
                 Some(id) => id.to_string(),
-                None     => return ChannelResult::Skipped { reason: "no chat_id in channel_config".into() },
+                None => {
+                    return ChannelResult::Skipped {
+                        reason: "no chat_id in channel_config".into(),
+                    };
+                }
             };
 
             if bot_token.is_empty() {
-                return ChannelResult::Skipped { reason: "TELEGRAM_BOT_TOKEN not configured".into() };
+                return ChannelResult::Skipped {
+                    reason: "TELEGRAM_BOT_TOKEN not configured".into(),
+                };
             }
 
             let text = if let Some(url) = action_url {
@@ -378,9 +382,13 @@ pub mod channels {
                 Ok(resp) => {
                     let status = resp.status();
                     let body = resp.text().await.unwrap_or_default();
-                    ChannelResult::Failed { error: format!("HTTP {status}: {body}") }
+                    ChannelResult::Failed {
+                        error: format!("HTTP {status}: {body}"),
+                    }
                 }
-                Err(e) => ChannelResult::Failed { error: e.to_string() },
+                Err(e) => ChannelResult::Failed {
+                    error: e.to_string(),
+                },
             }
         }
     }
@@ -399,14 +407,14 @@ pub mod channels {
         ///
         /// Required in channel_config:
         ///   { "phone": "+15551234567", "provider": "twilio" | "meta" }
-        pub async fn send(
-            channel_config: &Value,
-            title: &str,
-            body: &str,
-        ) -> ChannelResult {
+        pub async fn send(channel_config: &Value, title: &str, body: &str) -> ChannelResult {
             let phone = match channel_config.get("phone").and_then(|v| v.as_str()) {
                 Some(p) => p.to_string(),
-                None    => return ChannelResult::Skipped { reason: "no phone in channel_config".into() },
+                None => {
+                    return ChannelResult::Skipped {
+                        reason: "no phone in channel_config".into(),
+                    };
+                }
             };
 
             let provider = channel_config
@@ -418,23 +426,26 @@ pub mod channels {
 
             match provider {
                 "twilio" => Self::send_via_twilio(&phone, &text).await,
-                "meta"   => Self::send_via_meta(&phone, title, body).await,
-                _        => ChannelResult::Skipped { reason: format!("unknown provider: {provider}") },
+                "meta" => Self::send_via_meta(&phone, title, body).await,
+                _ => ChannelResult::Skipped {
+                    reason: format!("unknown provider: {provider}"),
+                },
             }
         }
 
         async fn send_via_twilio(to: &str, text: &str) -> ChannelResult {
             let account_sid = std::env::var("TWILIO_ACCOUNT_SID").unwrap_or_default();
-            let auth_token  = std::env::var("TWILIO_AUTH_TOKEN").unwrap_or_default();
-            let from_wa     = std::env::var("TWILIO_WHATSAPP_FROM").unwrap_or_default();
+            let auth_token = std::env::var("TWILIO_AUTH_TOKEN").unwrap_or_default();
+            let from_wa = std::env::var("TWILIO_WHATSAPP_FROM").unwrap_or_default();
 
             if account_sid.is_empty() || auth_token.is_empty() || from_wa.is_empty() {
-                return ChannelResult::Skipped { reason: "Twilio WhatsApp credentials not configured".into() };
+                return ChannelResult::Skipped {
+                    reason: "Twilio WhatsApp credentials not configured".into(),
+                };
             }
 
-            let url = format!(
-                "https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
-            );
+            let url =
+                format!("https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json");
 
             // Twilio uses application/x-www-form-urlencoded. Since reqwest is built
             // without the "form" feature, we encode manually.
@@ -458,23 +469,27 @@ pub mod channels {
                 Ok(resp) => {
                     let status = resp.status();
                     let b = resp.text().await.unwrap_or_default();
-                    ChannelResult::Failed { error: format!("Twilio HTTP {status}: {b}") }
+                    ChannelResult::Failed {
+                        error: format!("Twilio HTTP {status}: {b}"),
+                    }
                 }
-                Err(e) => ChannelResult::Failed { error: e.to_string() },
+                Err(e) => ChannelResult::Failed {
+                    error: e.to_string(),
+                },
             }
         }
 
         async fn send_via_meta(to: &str, title: &str, body: &str) -> ChannelResult {
-            let token    = std::env::var("META_WHATSAPP_TOKEN").unwrap_or_default();
+            let token = std::env::var("META_WHATSAPP_TOKEN").unwrap_or_default();
             let phone_id = std::env::var("META_WHATSAPP_PHONE_ID").unwrap_or_default();
 
             if token.is_empty() || phone_id.is_empty() {
-                return ChannelResult::Skipped { reason: "Meta WhatsApp credentials not configured".into() };
+                return ChannelResult::Skipped {
+                    reason: "Meta WhatsApp credentials not configured".into(),
+                };
             }
 
-            let url = format!(
-                "https://graph.facebook.com/v19.0/{phone_id}/messages"
-            );
+            let url = format!("https://graph.facebook.com/v19.0/{phone_id}/messages");
 
             // Use a basic text template message
             let payload = serde_json::json!({
@@ -496,9 +511,13 @@ pub mod channels {
                 Ok(resp) => {
                     let status = resp.status();
                     let b = resp.text().await.unwrap_or_default();
-                    ChannelResult::Failed { error: format!("Meta HTTP {status}: {b}") }
+                    ChannelResult::Failed {
+                        error: format!("Meta HTTP {status}: {b}"),
+                    }
                 }
-                Err(e) => ChannelResult::Failed { error: e.to_string() },
+                Err(e) => ChannelResult::Failed {
+                    error: e.to_string(),
+                },
             }
         }
     }
@@ -511,13 +530,14 @@ pub mod channels {
         /// Send SMS via the existing TelephonyProvider (Twilio or Telnyx).
         ///
         /// Required channel_config: { "phone": "+15551234567" }
-        pub async fn send(
-            channel_config: &Value,
-            body: &str,
-        ) -> ChannelResult {
+        pub async fn send(channel_config: &Value, body: &str) -> ChannelResult {
             let phone = match channel_config.get("phone").and_then(|v| v.as_str()) {
                 Some(p) => p.to_string(),
-                None    => return ChannelResult::Skipped { reason: "no phone in channel_config".into() },
+                None => {
+                    return ChannelResult::Skipped {
+                        reason: "no phone in channel_config".into(),
+                    };
+                }
             };
 
             match crate::services::telephony::factory::get_telephony_provider() {
@@ -525,8 +545,10 @@ pub mod channels {
                     reason: format!("telephony provider not configured: {e}"),
                 },
                 Ok(provider) => match provider.send_sms(&phone, body).await {
-                    Ok(())  => ChannelResult::Delivered,
-                    Err(e)  => ChannelResult::Failed { error: e.to_string() },
+                    Ok(()) => ChannelResult::Delivered,
+                    Err(e) => ChannelResult::Failed {
+                        error: e.to_string(),
+                    },
                 },
             }
         }
@@ -549,7 +571,11 @@ pub mod channels {
         ) -> ChannelResult {
             let email = match channel_config.get("email").and_then(|v| v.as_str()) {
                 Some(e) => e.to_string(),
-                None    => return ChannelResult::Skipped { reason: "no email in channel_config".into() },
+                None => {
+                    return ChannelResult::Skipped {
+                        reason: "no email in channel_config".into(),
+                    };
+                }
             };
 
             let tenant_id_str = channel_config
@@ -559,27 +585,27 @@ pub mod channels {
                 .unwrap_or_else(uuid::Uuid::nil);
 
             let html = if let Some(url) = action_url {
-                format!(
-                    "<h2>{title}</h2><p>{body}</p><p><a href=\"{url}\">Open in Atlas →</a></p>"
-                )
+                format!("<h2>{title}</h2><p>{body}</p><p><a href=\"{url}\">Open in Atlas →</a></p>")
             } else {
                 format!("<h2>{title}</h2><p>{body}</p>")
             };
 
             // Reuse the existing send_email_handler logic via payload struct
             let payload = crate::handlers::communications::SendEmailPayload {
-                tenant_id:   tenant_id_str,
-                to_email:    email,
-                subject:     title.to_string(),
-                body_html:   html,
+                tenant_id: tenant_id_str,
+                to_email: email,
+                subject: title.to_string(),
+                body_html: html,
                 attachments: vec![],
             };
 
             // We call the internal send logic. In a real dispatch we'd use an
             // internal fn; here we construct the SMTP client directly.
             match Self::send_smtp(payload).await {
-                Ok(())  => ChannelResult::Delivered,
-                Err(e)  => ChannelResult::Failed { error: e.to_string() },
+                Ok(()) => ChannelResult::Delivered,
+                Err(e) => ChannelResult::Failed {
+                    error: e.to_string(),
+                },
             }
         }
 
@@ -588,20 +614,25 @@ pub mod channels {
         ) -> anyhow::Result<()> {
             use lettre::{
                 AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
-                message::{header, MultiPart, SinglePart},
+                message::{MultiPart, SinglePart, header},
                 transport::smtp::authentication::Credentials,
             };
 
-            let host     = std::env::var("SMTP_SERVER").unwrap_or_else(|_| "localhost".to_string());
-            let port: u16= std::env::var("SMTP_PORT").unwrap_or_else(|_| "587".to_string())
-                .parse().unwrap_or(587);
+            let host = std::env::var("SMTP_SERVER").unwrap_or_else(|_| "localhost".to_string());
+            let port: u16 = std::env::var("SMTP_PORT")
+                .unwrap_or_else(|_| "587".to_string())
+                .parse()
+                .unwrap_or(587);
             let username = std::env::var("SMTP_USERNAME").unwrap_or_default();
-            let token    = std::env::var("SMTP_TOKEN").unwrap_or_default();
-            let from     = std::env::var("SMTP_FROM")
+            let token = std::env::var("SMTP_TOKEN").unwrap_or_default();
+            let from = std::env::var("SMTP_FROM")
                 .unwrap_or_else(|_| "noreply@atlas-platform.local".to_string());
 
             if host == "localhost" || host.is_empty() {
-                tracing::warn!("EmailAdapter: SMTP not configured, mocking send to {}", payload.to_email);
+                tracing::warn!(
+                    "EmailAdapter: SMTP not configured, mocking send to {}",
+                    payload.to_email
+                );
                 return Ok(());
             }
 
@@ -619,12 +650,21 @@ pub mod channels {
 
             let creds = Credentials::new(username, token);
             let mailer: AsyncSmtpTransport<Tokio1Executor> = if port == 465 {
-                AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?.port(port).credentials(creds).build()
+                AsyncSmtpTransport::<Tokio1Executor>::relay(&host)?
+                    .port(port)
+                    .credentials(creds)
+                    .build()
             } else {
-                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&host)?.port(port).credentials(creds).build()
+                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&host)?
+                    .port(port)
+                    .credentials(creds)
+                    .build()
             };
 
-            mailer.send(email).await.map_err(|e| anyhow::anyhow!("SMTP error: {e}"))?;
+            mailer
+                .send(email)
+                .await
+                .map_err(|e| anyhow::anyhow!("SMTP error: {e}"))?;
             Ok(())
         }
     }
@@ -649,14 +689,11 @@ pub mod channels {
                     &payload.title,
                     &payload.body,
                     payload.action_url.as_deref(),
-                ).await
+                )
+                .await
             }
             "whatsapp" => {
-                WhatsAppAdapter::send(
-                    &payload.channel_config,
-                    &payload.title,
-                    &payload.body,
-                ).await
+                WhatsAppAdapter::send(&payload.channel_config, &payload.title, &payload.body).await
             }
             "sms" => {
                 let text = format!("{}: {}", payload.title, payload.body);
@@ -668,7 +705,8 @@ pub mod channels {
                     &payload.title,
                     &payload.body,
                     payload.action_url.as_deref(),
-                ).await
+                )
+                .await
             }
             other => ChannelResult::Skipped {
                 reason: format!("unknown channel: {other}"),

@@ -11,7 +11,8 @@ impl MigrationTrait for Migration {
         // Ensure the CRM modules are seeded and enabled for all existing app_instances.
         // This guarantees that even if m20260518_000001 was already applied,
         // any app_instance (on dev, UAT, or prod) has these modules active.
-        db.execute_unprepared(r#"
+        db.execute_unprepared(
+            r#"
             INSERT INTO app_instance_module
                 (app_instance_id, module_type, display_name, sort_order, is_fixed, is_enabled)
             SELECT
@@ -29,7 +30,9 @@ impl MigrationTrait for Migration {
             ) AS m(module_type, display_name, sort_order, is_fixed)
             ON CONFLICT (app_instance_id, module_type) DO UPDATE
             SET is_enabled = true;
-        "#).await?;
+        "#,
+        )
+        .await?;
 
         Ok(())
     }

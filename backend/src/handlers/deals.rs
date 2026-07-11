@@ -1,30 +1,27 @@
 use axum::{
-    extract::{Extension, Path, Json, State},
+    Router,
+    extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, Set,
-    ActiveModelTrait, ModelTrait,
-};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, ModelTrait, Set};
+use uuid::Uuid;
 
 // ============================================================
 // LEGACY CRM HANDLER - CUTOVER IN PROGRESS
 // Legacy deals are being replaced by Opportunity + Contract services.
 // ============================================================
 
-use crate::entities::{deal, customer, contact, user, note, activity};
+use crate::entities::{activity, contact, customer, deal, note, user};
 
 // Handler cutover: legacy deal → Opportunity + Contract
-use crate::models::deal::{DealModel, CreateDealInput, UpdateDealInput};
-use crate::models::file::FileAssociation;
-use crate::models::note::{NoteModel, CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
-use crate::models::contact::{Contact as ContactModel};
+use crate::models::contact::Contact as ContactModel;
+use crate::models::deal::{CreateDealInput, DealModel, UpdateDealInput};
+use crate::models::file::FileAssociation;
+use crate::models::note::{CreateNoteInput, NoteModel};
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
@@ -33,11 +30,20 @@ pub fn routes() -> Router<DatabaseConnection> {
         .route("/api/deals/{id}", get(get_deal))
         .route("/api/deals/{id}", put(update_deal))
         .route("/api/deals/{id}", delete(delete_deal))
-        .route("/api/deals/{deal_id}/files/{file_id}", post(add_file_to_deal))
+        .route(
+            "/api/deals/{deal_id}/files/{file_id}",
+            post(add_file_to_deal),
+        )
         .route("/api/deals/{id}/files", get(get_deal_files))
         .route("/api/deals/{id}/contacts", get(get_deal_contacts))
-        .route("/api/deals/{id}/contacts/{contact_id}", post(add_contact_to_deal))
-        .route("/api/deals/{id}/contacts/{contact_id}", delete(remove_contact_from_deal))
+        .route(
+            "/api/deals/{id}/contacts/{contact_id}",
+            post(add_contact_to_deal),
+        )
+        .route(
+            "/api/deals/{id}/contacts/{contact_id}",
+            delete(remove_contact_from_deal),
+        )
         .route("/api/deals/{id}/notes", post(create_deal_note))
         .route("/api/deals/{id}/notes", get(get_deal_notes))
         .route("/api/deals/{id}/activities", post(create_deal_activity))
@@ -74,7 +80,7 @@ pub async fn create_deal(
         eprintln!("Failed to insert deal DB ERROR: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
+
     Ok((StatusCode::CREATED, JsonResponse(DealModel::from(deal))))
 }
 
@@ -135,7 +141,10 @@ pub async fn update_deal(
     }
     deal.updated_at = Set(Utc::now());
 
-    let updated_deal = deal.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_deal = deal
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(JsonResponse(DealModel::from(updated_deal)))
 }
@@ -183,7 +192,8 @@ pub async fn get_deal_files(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let file_ids = deal.get_associated_files(&db)
+    let file_ids = deal
+        .get_associated_files(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -200,11 +210,17 @@ pub async fn get_deal_contacts(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let contacts = deal.get_contacts(&db)
+    let contacts = deal
+        .get_contacts(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(JsonResponse(contacts.into_iter().map(ContactModel::from).collect::<Vec<_>>()))
+    Ok(JsonResponse(
+        contacts
+            .into_iter()
+            .map(ContactModel::from)
+            .collect::<Vec<_>>(),
+    ))
 }
 
 pub async fn add_contact_to_deal(
@@ -281,7 +297,8 @@ pub async fn create_deal_note(
         updated_at: Set(Utc::now()),
     };
 
-    let note = new_note.insert(&db)
+    let note = new_note
+        .insert(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -336,11 +353,15 @@ pub async fn create_deal_activity(
         ..Default::default()
     };
 
-    let activity = new_activity.insert(&db)
+    let activity = new_activity
+        .insert(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(activity))))
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(ActivityModel::from(activity)),
+    ))
 }
 
 pub async fn get_deal_activities(
@@ -359,6 +380,7 @@ pub async fn get_deal_activities(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let activity_models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
+    let activity_models: Vec<ActivityModel> =
+        activities.into_iter().map(ActivityModel::from).collect();
     Ok(JsonResponse(activity_models))
 }

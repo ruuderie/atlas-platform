@@ -33,8 +33,16 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Customer::IsActive).boolean().not_null())
                     .col(ColumnDef::new(Customer::BillingAddress).json().null())
                     .col(ColumnDef::new(Customer::ShippingAddress).json().null())
-                    .col(ColumnDef::new(Customer::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Customer::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Customer::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Customer::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -51,16 +59,28 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Deal::Amount).double().not_null())
                     .col(ColumnDef::new(Deal::Status).string().not_null())
                     .col(ColumnDef::new(Deal::Stage).string().not_null())
-                    .col(ColumnDef::new(Deal::CloseDate).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(Deal::CloseDate)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(ColumnDef::new(Deal::IsActive).boolean().not_null())
-                    .col(ColumnDef::new(Deal::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Deal::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Deal::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Deal::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-deal-customer_id")
                             .from(Deal::Table, Deal::CustomerId)
                             .to(Customer::Table, Customer::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -91,17 +111,30 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Lead::Message).string().null())
                     .col(ColumnDef::new(Lead::Source).string().null())
                     .col(ColumnDef::new(Lead::IsConverted).boolean().not_null())
-                    .col(ColumnDef::new(Lead::ConvertedToContact).boolean().not_null().default(false))
+                    .col(
+                        ColumnDef::new(Lead::ConvertedToContact)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .col(ColumnDef::new(Lead::ConvertedCustomerId).uuid().null())
                     .col(ColumnDef::new(Lead::ConvertedContactId).uuid().null())
-                    .col(ColumnDef::new(Lead::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Lead::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Lead::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Lead::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-lead-deal_id")
                             .from(Lead::Table, Lead::AssociatedDealId)
                             .to(Deal::Table, Deal::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )
@@ -127,14 +160,22 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Contact::Facebook).string().null())
                     .col(ColumnDef::new(Contact::BillingAddress).json().null())
                     .col(ColumnDef::new(Contact::ShippingAddress).json().null())
-                    .col(ColumnDef::new(Contact::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Contact::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Contact::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Contact::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-contact-customer_id")
                             .from(Contact::Table, Contact::CustomerId)
                             .to(Customer::Table, Customer::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )
@@ -148,20 +189,24 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(DealContact::DealId).uuid().not_null())
                     .col(ColumnDef::new(DealContact::ContactId).uuid().not_null())
-                    .primary_key(Index::create().col(DealContact::DealId).col(DealContact::ContactId))
+                    .primary_key(
+                        Index::create()
+                            .col(DealContact::DealId)
+                            .col(DealContact::ContactId),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-deal_contact-deal_id")
                             .from(DealContact::Table, DealContact::DealId)
                             .to(Deal::Table, Deal::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-deal_contact-contact_id")
                             .from(DealContact::Table, DealContact::ContactId)
                             .to(Contact::Table, Contact::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -180,22 +225,34 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Case::Status).string().not_null())
                     .col(ColumnDef::new(Case::Priority).string().not_null())
                     .col(ColumnDef::new(Case::AssignedTo).uuid().null())
-                    .col(ColumnDef::new(Case::ClosedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(Case::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Case::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Case::ClosedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Case::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Case::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-case-customer_id")
                             .from(Case::Table, Case::CustomerId)
                             .to(Customer::Table, Customer::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-case-assigned_to")
                             .from(Case::Table, Case::AssignedTo)
                             .to(User::Table, User::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )
@@ -217,60 +274,76 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Activity::Title).string().not_null())
                     .col(ColumnDef::new(Activity::Description).string().not_null())
                     .col(ColumnDef::new(Activity::Status).string().not_null())
-                    .col(ColumnDef::new(Activity::DueDate).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(Activity::CompletedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(Activity::DueDate)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Activity::CompletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(ColumnDef::new(Activity::CreatedBy).uuid().not_null())
                     .col(ColumnDef::new(Activity::AssignedTo).uuid().null())
-                    .col(ColumnDef::new(Activity::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Activity::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Activity::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Activity::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-deal_id")
                             .from(Activity::Table, Activity::DealId)
                             .to(Deal::Table, Deal::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-customer_id")
                             .from(Activity::Table, Activity::CustomerId)
                             .to(Customer::Table, Customer::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-lead_id")
                             .from(Activity::Table, Activity::LeadId)
                             .to(Lead::Table, Lead::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-contact_id")
                             .from(Activity::Table, Activity::ContactId)
                             .to(Contact::Table, Contact::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-case_id")
                             .from(Activity::Table, Activity::CaseId)
                             .to(Case::Table, Case::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-created_by")
                             .from(Activity::Table, Activity::CreatedBy)
                             .to(User::Table, User::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-activity-assigned_to")
                             .from(Activity::Table, Activity::AssignedTo)
                             .to(User::Table, User::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )
@@ -287,14 +360,22 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Note::CreatedBy).uuid().not_null())
                     .col(ColumnDef::new(Note::EntityType).string().not_null())
                     .col(ColumnDef::new(Note::EntityId).uuid().not_null())
-                    .col(ColumnDef::new(Note::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Note::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Note::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Note::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-note-created_by")
                             .from(Note::Table, Note::CreatedBy)
                             .to(User::Table, User::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -311,8 +392,16 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(File::FileType).string().not_null())
                     .col(ColumnDef::new(File::StoragePath).string().not_null())
                     .col(ColumnDef::new(File::Size).big_integer().not_null())
-                    .col(ColumnDef::new(File::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(File::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(File::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(File::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -323,16 +412,29 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(FileAssociation::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(FileAssociation::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(FileAssociation::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(FileAssociation::FileId).uuid().not_null())
-                    .col(ColumnDef::new(FileAssociation::AssociatedEntityType).string().not_null())
-                    .col(ColumnDef::new(FileAssociation::AssociatedEntityId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(FileAssociation::AssociatedEntityType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(FileAssociation::AssociatedEntityId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-file_association-file_id")
                             .from(FileAssociation::Table, FileAssociation::FileId)
                             .to(File::Table, File::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )

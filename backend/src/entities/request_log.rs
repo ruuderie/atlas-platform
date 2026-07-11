@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use crate::models::request_log::{RequestStatus, RequestType};
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use crate::models::request_log::{RequestType, RequestStatus};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "request_log")]
@@ -25,7 +25,7 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    User, 
+    User,
 }
 
 impl RelationTrait for Relation {

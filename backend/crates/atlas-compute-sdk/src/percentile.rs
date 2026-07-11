@@ -55,18 +55,18 @@ mod tests {
     #[test]
     fn band_bottom_quartile_below_50() {
         assert_eq!(band_from_rank(49.99), Some("bottom_quartile"));
-        assert_eq!(band_from_rank(0.0),   Some("bottom_quartile"));
+        assert_eq!(band_from_rank(0.0), Some("bottom_quartile"));
     }
 
     #[test]
     fn band_boundaries_all_correct() {
         let cases = [
             (49.99, "bottom_quartile"),
-            (50.0,  "median"),
+            (50.0, "median"),
             (74.99, "median"),
-            (75.0,  "top_quartile"),
+            (75.0, "top_quartile"),
             (89.99, "top_quartile"),
-            (90.0,  "top_10"),
+            (90.0, "top_10"),
         ];
         for (rank, expected) in cases {
             assert_eq!(

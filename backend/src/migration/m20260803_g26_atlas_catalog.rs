@@ -31,13 +31,13 @@ impl MigrationTrait for Migration {
                 Type::create()
                     .as_enum(Alias::new("atlas_catalog_entry_type"))
                     .values([
-                        Alias::new("room_type"),        // hotel/STR room category
-                        Alias::new("service_slot"),     // timed service (cleaning, HVAC visit)
-                        Alias::new("package_tier"),     // travel bundle tier (Eco/Standard/Premium)
-                        Alias::new("subscription_tier"),// SaaS / creator plan (Free/Pro/Enterprise)
-                        Alias::new("coverage_option"),  // insurance coverage product
-                        Alias::new("add_on"),           // ancillary upsell (parking, breakfast, etc.)
-                        Alias::new("equipment_unit"),   // rentable equipment or vehicle
+                        Alias::new("room_type"),         // hotel/STR room category
+                        Alias::new("service_slot"),      // timed service (cleaning, HVAC visit)
+                        Alias::new("package_tier"), // travel bundle tier (Eco/Standard/Premium)
+                        Alias::new("subscription_tier"), // SaaS / creator plan (Free/Pro/Enterprise)
+                        Alias::new("coverage_option"),   // insurance coverage product
+                        Alias::new("add_on"), // ancillary upsell (parking, breakfast, etc.)
+                        Alias::new("equipment_unit"), // rentable equipment or vehicle
                     ])
                     .to_owned(),
             )
@@ -64,7 +64,11 @@ impl MigrationTrait for Migration {
                             .custom(Alias::new("atlas_catalog_entry_type"))
                             .not_null(),
                     )
-                    .col(ColumnDef::new(Alias::new("name")).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("name"))
+                            .string_len(255)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("description")).text().null())
                     // ── Asset linkage (optional — room type → STR unit) ───────
                     .col(ColumnDef::new(Alias::new("asset_id")).uuid().null())
@@ -81,7 +85,11 @@ impl MigrationTrait for Migration {
                             .default("USD"),
                     )
                     // NULL = one-time; 'nightly', 'monthly', 'annually'
-                    .col(ColumnDef::new(Alias::new("billing_interval")).string_len(20).null())
+                    .col(
+                        ColumnDef::new(Alias::new("billing_interval"))
+                            .string_len(20)
+                            .null(),
+                    )
                     // ── Availability ──────────────────────────────────────────
                     .col(
                         ColumnDef::new(Alias::new("is_available"))
@@ -110,7 +118,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(0),
                     )
-                    .col(ColumnDef::new(Alias::new("cover_image_attachment_id")).uuid().null())
+                    .col(
+                        ColumnDef::new(Alias::new("cover_image_attachment_id"))
+                            .uuid()
+                            .null(),
+                    )
                     // ── Timestamps ────────────────────────────────────────────
                     .col(
                         ColumnDef::new(Alias::new("created_at"))
@@ -208,19 +220,35 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(Alias::new("catalog_entry_id")).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("catalog_entry_id"))
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
-                    .col(ColumnDef::new(Alias::new("rule_name")).string_len(100).null())
+                    .col(
+                        ColumnDef::new(Alias::new("rule_name"))
+                            .string_len(100)
+                            .null(),
+                    )
                     // ── Applicability window ──────────────────────────────────
                     .col(ColumnDef::new(Alias::new("applies_from")).date().null())
                     .col(ColumnDef::new(Alias::new("applies_to")).date().null())
                     // bitmask: 1=Mon 2=Tue 4=Wed 8=Thu 16=Fri 32=Sat 64=Sun
-                    .col(ColumnDef::new(Alias::new("day_of_week_mask")).integer().null())
+                    .col(
+                        ColumnDef::new(Alias::new("day_of_week_mask"))
+                            .integer()
+                            .null(),
+                    )
                     .col(ColumnDef::new(Alias::new("min_duration")).integer().null())
                     // 'direct', 'ota', 'gds', 'corporate' — NULL = all channels
                     .col(ColumnDef::new(Alias::new("channel")).string_len(50).null())
                     // ── Pricing strategy (one or the other, not both) ─────────
-                    .col(ColumnDef::new(Alias::new("price_override_cents")).big_integer().null())
+                    .col(
+                        ColumnDef::new(Alias::new("price_override_cents"))
+                            .big_integer()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(Alias::new("price_modifier_pct"))
                             .decimal_len(6, 2)
@@ -292,7 +320,11 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(Alias::new("catalog_entry_id")).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("catalog_entry_id"))
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     .col(ColumnDef::new(Alias::new("slot_date")).date().not_null())
                     .col(
@@ -315,8 +347,16 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(false),
                     )
-                    .col(ColumnDef::new(Alias::new("block_reason")).string_len(255).null())
-                    .col(ColumnDef::new(Alias::new("override_price_cents")).big_integer().null())
+                    .col(
+                        ColumnDef::new(Alias::new("block_reason"))
+                            .string_len(255)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("override_price_cents"))
+                            .big_integer()
+                            .null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .from(

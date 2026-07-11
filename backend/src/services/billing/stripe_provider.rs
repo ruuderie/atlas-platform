@@ -1,9 +1,9 @@
 #![allow(dead_code, unused)]
 
-use anyhow::{Result, Context, anyhow};
+use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData, WebhookPayload};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use uuid::Uuid;
-use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData, WebhookPayload};
 
 pub struct StripeProvider {
     client: stripe::Client,
@@ -19,13 +19,23 @@ impl StripeProvider {
 
 #[async_trait]
 impl PaymentProvider for StripeProvider {
-    async fn create_subscription(&self, tenant_id: Uuid, plan_name: &str, _price_cents: i64, _currency: &str) -> Result<SubscriptionData> {
-        tracing::info!("Creating Stripe Subscription for tenant {} (Plan: {})", tenant_id, plan_name);
-        
+    async fn create_subscription(
+        &self,
+        tenant_id: Uuid,
+        plan_name: &str,
+        _price_cents: i64,
+        _currency: &str,
+    ) -> Result<SubscriptionData> {
+        tracing::info!(
+            "Creating Stripe Subscription for tenant {} (Plan: {})",
+            tenant_id,
+            plan_name
+        );
+
         // In a fully integrated flow, we would map the local plan_id to a Stripe Price ID
         // and create the Customer then Subscription via self.client.
         // let mut create_sub = stripe::CreateSubscription::new(customer.id); ...
-        
+
         Ok(SubscriptionData {
             subscription_id: format!("sub_{}", Uuid::new_v4()),
             status: "active".to_string(),
@@ -33,9 +43,19 @@ impl PaymentProvider for StripeProvider {
         })
     }
 
-    async fn capture_payment(&self, tenant_id: Uuid, amount_cents: i64, currency: &str) -> Result<TransactionData> {
-        tracing::info!("Capturing Stripe Payment for tenant {} (Amount: {} {})", tenant_id, amount_cents, currency);
-        
+    async fn capture_payment(
+        &self,
+        tenant_id: Uuid,
+        amount_cents: i64,
+        currency: &str,
+    ) -> Result<TransactionData> {
+        tracing::info!(
+            "Capturing Stripe Payment for tenant {} (Amount: {} {})",
+            tenant_id,
+            amount_cents,
+            currency
+        );
+
         // let mut pi = stripe::CreatePaymentIntent::new(amount_cents, stripe::Currency::from_str(currency)?);
         // let payment_intent = stripe::PaymentIntent::create(&self.client, pi).await?;
 
@@ -55,14 +75,13 @@ impl PaymentProvider for StripeProvider {
 
     async fn process_webhook(&self, payload: &WebhookPayload) -> Result<()> {
         let stripe_secret = std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default();
-        let payload_str = String::from_utf8(payload.raw_body.clone()).context("Invalid payload bytes")?;
-        
+        let payload_str =
+            String::from_utf8(payload.raw_body.clone()).context("Invalid payload bytes")?;
+
         // Check if the webhook signature passes Stripe's strict verification
-        let event = stripe::Webhook::construct_event(
-            &payload_str,
-            &payload.signature,
-            &stripe_secret,
-        ).map_err(|e| anyhow!("Webhook signature verification failed: {:?}", e))?;
+        let event =
+            stripe::Webhook::construct_event(&payload_str, &payload.signature, &stripe_secret)
+                .map_err(|e| anyhow!("Webhook signature verification failed: {:?}", e))?;
 
         // match event.type_ {
         //     stripe::EventType::InvoicePaymentSucceeded => { ... }

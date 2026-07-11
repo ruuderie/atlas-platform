@@ -18,25 +18,22 @@
 //!          Scans all instances on mandatory tiers and creates missing links.
 
 use axum::{
-    extract::{Extension, Path, Json, State},
+    Router,
+    extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post, put},
-    Router,
 };
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::entities::atlas_syndication_offer::{
-    self, ActiveModel as OfferActiveModel, SyndicationLinkType, SyndicationOfferStatus,
-};
 use crate::entities::atlas_app_instance_syndication::{
     self, ActiveModel as LinkActiveModel, SyndicationStatus,
+};
+use crate::entities::atlas_syndication_offer::{
+    self, ActiveModel as OfferActiveModel, SyndicationLinkType, SyndicationOfferStatus,
 };
 
 // ── Router ──────────────────────────────────────────────────────────────────
@@ -44,12 +41,27 @@ use crate::entities::atlas_app_instance_syndication::{
 pub fn syndication_admin_routes() -> Router<DatabaseConnection> {
     Router::new()
         // Offer catalog
-        .route("/api/admin/syndication/offers", get(list_offers).post(create_offer))
-        .route("/api/admin/syndication/offers/{id}", get(get_offer).put(update_offer))
-        .route("/api/admin/syndication/offers/{id}/retire", post(retire_offer))
-        .route("/api/admin/syndication/offers/{id}/auto-provision", post(auto_provision_mandatory_links))
+        .route(
+            "/api/admin/syndication/offers",
+            get(list_offers).post(create_offer),
+        )
+        .route(
+            "/api/admin/syndication/offers/{id}",
+            get(get_offer).put(update_offer),
+        )
+        .route(
+            "/api/admin/syndication/offers/{id}/retire",
+            post(retire_offer),
+        )
+        .route(
+            "/api/admin/syndication/offers/{id}/auto-provision",
+            post(auto_provision_mandatory_links),
+        )
         // Active links
-        .route("/api/admin/syndication/links", get(list_links).post(create_link))
+        .route(
+            "/api/admin/syndication/links",
+            get(list_links).post(create_link),
+        )
         .route("/api/admin/syndication/links/{id}", delete(revoke_link))
 }
 
@@ -218,13 +230,15 @@ pub async fn create_offer(
         ..Default::default()
     };
 
-    let inserted = model.insert(&db).await
-        .map_err(|e| {
-            tracing::error!("Failed to create syndication offer: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let inserted = model.insert(&db).await.map_err(|e| {
+        tracing::error!("Failed to create syndication offer: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    Ok((StatusCode::CREATED, Json(SyndicationOfferResponse::from(inserted))))
+    Ok((
+        StatusCode::CREATED,
+        Json(SyndicationOfferResponse::from(inserted)),
+    ))
 }
 
 pub async fn update_offer(
@@ -240,13 +254,27 @@ pub async fn update_offer(
 
     let mut model: OfferActiveModel = existing.into();
 
-    if let Some(name) = input.display_name { model.display_name = Set(name); }
-    if let Some(desc) = input.description { model.description = Set(Some(desc)); }
-    if let Some(types) = input.syndication_types { model.syndication_types = Set(types); }
-    if let Some(tiers) = input.is_mandatory_for_tiers { model.is_mandatory_for_tiers = Set(tiers); }
-    if let Some(ss) = input.self_service_allowed { model.self_service_allowed = Set(ss); }
-    if let Some(mode) = input.applies_to_folio_mode { model.applies_to_folio_mode = Set(Some(mode)); }
-    if let Some(slug) = input.applies_to_app_slug { model.applies_to_app_slug = Set(Some(slug)); }
+    if let Some(name) = input.display_name {
+        model.display_name = Set(name);
+    }
+    if let Some(desc) = input.description {
+        model.description = Set(Some(desc));
+    }
+    if let Some(types) = input.syndication_types {
+        model.syndication_types = Set(types);
+    }
+    if let Some(tiers) = input.is_mandatory_for_tiers {
+        model.is_mandatory_for_tiers = Set(tiers);
+    }
+    if let Some(ss) = input.self_service_allowed {
+        model.self_service_allowed = Set(ss);
+    }
+    if let Some(mode) = input.applies_to_folio_mode {
+        model.applies_to_folio_mode = Set(Some(mode));
+    }
+    if let Some(slug) = input.applies_to_app_slug {
+        model.applies_to_app_slug = Set(Some(slug));
+    }
     if let Some(lt) = input.link_type {
         model.link_type = Set(match lt.as_str() {
             "branded_portal" => SyndicationLinkType::BrandedPortal,
@@ -254,7 +282,9 @@ pub async fn update_offer(
         });
     }
 
-    let updated = model.update(&db).await
+    let updated = model
+        .update(&db)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(SyndicationOfferResponse::from(updated)))
@@ -272,7 +302,10 @@ pub async fn retire_offer(
 
     let mut model: OfferActiveModel = existing.into();
     model.status = Set(SyndicationOfferStatus::Retired);
-    model.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    model
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -331,13 +364,15 @@ pub async fn create_link(
         ..Default::default()
     };
 
-    let inserted = model.insert(&db).await
-        .map_err(|e| {
-            tracing::error!("Failed to create syndication link: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let inserted = model.insert(&db).await.map_err(|e| {
+        tracing::error!("Failed to create syndication link: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    Ok((StatusCode::CREATED, Json(SyndicationLinkResponse::from(inserted))))
+    Ok((
+        StatusCode::CREATED,
+        Json(SyndicationLinkResponse::from(inserted)),
+    ))
 }
 
 pub async fn revoke_link(
@@ -360,7 +395,10 @@ pub async fn revoke_link(
 
     let mut model: LinkActiveModel = existing.into();
     model.status = Set(SyndicationStatus::Revoked);
-    model.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    model
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok((StatusCode::NO_CONTENT, Json(json!({}))).into_response())
 }
@@ -395,7 +433,9 @@ pub async fn auto_provision_mandatory_links(
     if let Some(ref app_slug) = offer.applies_to_app_slug {
         query = query.filter(atlas_app_deployment_config::Column::AppSlug.eq(app_slug));
     }
-    let configs = query.all(&db).await
+    let configs = query
+        .all(&db)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut provisioned = 0u32;
@@ -403,7 +443,9 @@ pub async fn auto_provision_mandatory_links(
 
     for config in configs {
         // Check if billing tier is in mandatory list
-        let tier = config.config.get("billing_tier")
+        let tier = config
+            .config
+            .get("billing_tier")
             .and_then(|v| v.as_str())
             .unwrap_or("free")
             .to_string();

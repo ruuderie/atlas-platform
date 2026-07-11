@@ -6,9 +6,9 @@
 //! Called from `AtlasApp::provision()` implementations. Safe to call multiple
 //! times on the same `app_instance_id` (uses `ON CONFLICT DO NOTHING`).
 
+use crate::models::admin_module::AdminModuleType;
 use sea_orm::Statement;
 use uuid::Uuid;
-use crate::models::admin_module::AdminModuleType;
 
 /// Seeds the default module set for a given app instance.
 ///
@@ -45,7 +45,11 @@ where
         let type_str = module_type.to_string(); // SCREAMING_SNAKE_CASE via strum
         rows.push(format!(
             "(${}, ${}, ${}, ${}, ${})",
-            param_idx, param_idx + 1, param_idx + 2, param_idx + 3, param_idx + 4
+            param_idx,
+            param_idx + 1,
+            param_idx + 2,
+            param_idx + 3,
+            param_idx + 4
         ));
         values.push(app_instance_id.into());
         values.push(type_str.into());
@@ -86,7 +90,7 @@ pub async fn resolve_app_instance_id<C>(
 where
     C: sea_orm::ConnectionTrait,
 {
-    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let instance = crate::entities::app_instance::Entity::find()
         .filter(crate::entities::app_instance::Column::TenantId.eq(tenant_id))
@@ -94,9 +98,7 @@ where
         .one(db)
         .await
         .map_err(|e| format!("resolve_app_instance_id DB error: {e}"))?
-        .ok_or_else(|| {
-            format!("No app_instance found for tenant {tenant_id} / app '{app_id}'")
-        })?;
+        .ok_or_else(|| format!("No app_instance found for tenant {tenant_id} / app '{app_id}'"))?;
 
     Ok(instance.id)
 }

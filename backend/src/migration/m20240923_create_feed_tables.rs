@@ -21,14 +21,22 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Feed::Icon).string().null())
                     .col(ColumnDef::new(Feed::Favicon).string().null())
                     .col(ColumnDef::new(Feed::Author).string().null())
-                    .col(ColumnDef::new(Feed::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Feed::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Feed::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Feed::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-feed-directory_id")
                             .from(Feed::Table, Feed::DirectoryId)
                             .to(Directory::Table, Directory::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -49,15 +57,27 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(FeedItem::ContentText).string().not_null())
                     .col(ColumnDef::new(FeedItem::Summary).string().null())
                     .col(ColumnDef::new(FeedItem::Image).string().null())
-                    .col(ColumnDef::new(FeedItem::PublishedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(FeedItem::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(FeedItem::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(FeedItem::PublishedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(FeedItem::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(FeedItem::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-feed_item-feed_id")
                             .from(FeedItem::Table, FeedItem::FeedId)
                             .to(Feed::Table, Feed::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )
@@ -69,21 +89,38 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Attachment::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(Attachment::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(Attachment::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(Attachment::FeedItemId).uuid().null())
                     .col(ColumnDef::new(Attachment::Url).string().not_null())
                     .col(ColumnDef::new(Attachment::MimeType).string().not_null())
                     .col(ColumnDef::new(Attachment::Title).string().null())
                     .col(ColumnDef::new(Attachment::SizeInBytes).big_integer().null())
-                    .col(ColumnDef::new(Attachment::DurationInSeconds).integer().null())
-                    .col(ColumnDef::new(Attachment::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Attachment::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Attachment::DurationInSeconds)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Attachment::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Attachment::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-attachment-feed_item_id")
                             .from(Attachment::Table, Attachment::FeedItemId)
                             .to(FeedItem::Table, FeedItem::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )
@@ -102,8 +139,16 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(File::HashSha256).string().not_null())
                     .col(ColumnDef::new(File::StorageType).string().not_null())
                     .col(ColumnDef::new(File::StoragePath).string().not_null())
-                    .col(ColumnDef::new(File::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(File::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(File::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(File::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -114,16 +159,29 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(FileAssociation::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(FileAssociation::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(FileAssociation::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(FileAssociation::FileId).string().not_null())
-                    .col(ColumnDef::new(FileAssociation::AssociatedEntityType).string().not_null())
-                    .col(ColumnDef::new(FileAssociation::AssociatedEntityId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(FileAssociation::AssociatedEntityType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(FileAssociation::AssociatedEntityId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-file_association-file_id")
                             .from(FileAssociation::Table, FileAssociation::FileId)
                             .to(File::Table, File::Id)
-                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
             )

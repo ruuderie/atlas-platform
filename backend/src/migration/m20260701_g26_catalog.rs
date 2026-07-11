@@ -45,7 +45,11 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCatalogEntries::TenantId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // entry_type discriminator examples:
                     //   'room_type'         — hotel room category (standard, deluxe, suite)
                     //   'str_unit_type'     — STR property variant
@@ -55,15 +59,35 @@ impl MigrationTrait for Migration {
                     //   'subscription_tier' — creator or SaaS subscription (Free, Pro, Elite)
                     //   'add_on'            — optional extra (breakfast, transfer, travel insurance)
                     //   'event_ticket'      — event ticket type (see also G-21)
-                    .col(ColumnDef::new(AtlasCatalogEntries::EntryType).string_len(50).not_null())
-                    .col(ColumnDef::new(AtlasCatalogEntries::Name).string_len(255).not_null())
-                    .col(ColumnDef::new(AtlasCatalogEntries::Slug).string_len(255).null())
-                    .col(ColumnDef::new(AtlasCatalogEntries::Description).text().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::EntryType)
+                            .string_len(50)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::Name)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::Slug)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::Description)
+                            .text()
+                            .null(),
+                    )
                     // Optional link to underlying physical asset (G-10)
                     // e.g. a 'room_type' catalog entry → atlas_assets row for the physical room
                     .col(ColumnDef::new(AtlasCatalogEntries::AssetId).uuid().null()) // FK atlas_assets
                     // Base pricing (can be overridden per-date by rate rules or availability grid)
-                    .col(ColumnDef::new(AtlasCatalogEntries::BasePriceCents).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::BasePriceCents)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCatalogEntries::Currency)
                             .char_len(3)
@@ -71,7 +95,11 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("USD")),
                     )
                     // NULL = one-time; 'nightly', 'hourly', 'monthly', 'annually'
-                    .col(ColumnDef::new(AtlasCatalogEntries::BillingInterval).string_len(20).null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::BillingInterval)
+                            .string_len(20)
+                            .null(),
+                    )
                     // Availability
                     .col(
                         ColumnDef::new(AtlasCatalogEntries::IsAvailable)
@@ -79,10 +107,23 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(true),
                     )
-                    .col(ColumnDef::new(AtlasCatalogEntries::MinQuantity).integer().not_null().default(1))
-                    .col(ColumnDef::new(AtlasCatalogEntries::MaxQuantity).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::MinQuantity)
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::MaxQuantity)
+                            .integer()
+                            .null(),
+                    )
                     // Total inventory count (NULL = unlimited / not capacity-tracked)
-                    .col(ColumnDef::new(AtlasCatalogEntries::TotalInventory).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::TotalInventory)
+                            .integer()
+                            .null(),
+                    )
                     // App-specific attributes stored as JSONB
                     // room_type: {bed_type, max_occupancy, view_type, amenities[]}
                     // subscription_tier: {feature_flags[], max_uploads, ai_credits}
@@ -94,8 +135,17 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("'{}'")),
                     )
                     // Display order within entry_type group
-                    .col(ColumnDef::new(AtlasCatalogEntries::SortOrder).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasCatalogEntries::CoverImageAttachmentId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::SortOrder)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogEntries::CoverImageAttachmentId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCatalogEntries::CreatedAt)
                             .timestamp_with_time_zone()
@@ -151,36 +201,89 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCatalogRateRules::CatalogEntryId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCatalogRateRules::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCatalogRateRules::RuleName).string_len(100).null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::CatalogEntryId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::RuleName)
+                            .string_len(100)
+                            .null(),
+                    )
                     // When this rule applies (date range)
-                    .col(ColumnDef::new(AtlasCatalogRateRules::AppliesFrom).date().null())
-                    .col(ColumnDef::new(AtlasCatalogRateRules::AppliesTo).date().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::AppliesFrom)
+                            .date()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::AppliesTo)
+                            .date()
+                            .null(),
+                    )
                     // Day of week bitmask: 1=Mon 2=Tue 4=Wed 8=Thu 16=Fri 32=Sat 64=Sun
                     // e.g. 96 = Sat+Sun (weekend premium rule)
-                    .col(ColumnDef::new(AtlasCatalogRateRules::DayOfWeekMask).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::DayOfWeekMask)
+                            .integer()
+                            .null(),
+                    )
                     // Booking constraints
-                    .col(ColumnDef::new(AtlasCatalogRateRules::MinStayNights).integer().null())
-                    .col(ColumnDef::new(AtlasCatalogRateRules::MinAdvanceDays).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::MinStayNights)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::MinAdvanceDays)
+                            .integer()
+                            .null(),
+                    )
                     // Channel scope (NULL = applies to all channels)
                     // 'direct', 'ota', 'gds', 'corporate', 'member'
-                    .col(ColumnDef::new(AtlasCatalogRateRules::Channel).string_len(50).null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::Channel)
+                            .string_len(50)
+                            .null(),
+                    )
                     // Pricing — exactly one of these should be set
                     // absolute override: this IS the price for matching slots
-                    .col(ColumnDef::new(AtlasCatalogRateRules::PriceOverrideCents).big_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::PriceOverrideCents)
+                            .big_integer()
+                            .null(),
+                    )
                     // percentage modifier: positive = premium, negative = discount
                     // e.g. 20.00 = +20% weekend premium; -10.00 = -10% early bird
-                    .col(ColumnDef::new(AtlasCatalogRateRules::PriceModifierPct).decimal_len(6, 2).null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::PriceModifierPct)
+                            .decimal_len(6, 2)
+                            .null(),
+                    )
                     // Priority (higher = evaluated first; first matching rule wins)
-                    .col(ColumnDef::new(AtlasCatalogRateRules::Priority).integer().not_null().default(0))
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::Priority)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
                     .col(
                         ColumnDef::new(AtlasCatalogRateRules::IsActive)
                             .boolean()
                             .not_null()
                             .default(true),
                     )
-                    .col(ColumnDef::new(AtlasCatalogRateRules::CreatedByUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogRateRules::CreatedByUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCatalogRateRules::CreatedAt)
                             .timestamp_with_time_zone()
@@ -221,10 +324,26 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCatalogAvailability::CatalogEntryId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCatalogAvailability::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCatalogAvailability::SlotDate).date().not_null())
-                    .col(ColumnDef::new(AtlasCatalogAvailability::TotalInventory).integer().not_null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::CatalogEntryId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::SlotDate)
+                            .date()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::TotalInventory)
+                            .integer()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCatalogAvailability::ReservedCount)
                             .integer()
@@ -238,11 +357,23 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(false),
                     )
-                    .col(ColumnDef::new(AtlasCatalogAvailability::BlockReason).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::BlockReason)
+                            .string_len(255)
+                            .null(),
+                    )
                     // Day-specific price override (takes precedence over base_price_cents and rate rules)
-                    .col(ColumnDef::new(AtlasCatalogAvailability::OverridePriceCents).big_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::OverridePriceCents)
+                            .big_integer()
+                            .null(),
+                    )
                     // Synced from PMS or Revenue Manager push
-                    .col(ColumnDef::new(AtlasCatalogAvailability::LastSyncedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasCatalogAvailability::LastSyncedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .to_owned(),
             )
             .await?;

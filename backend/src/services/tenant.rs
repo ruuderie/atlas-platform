@@ -1,8 +1,8 @@
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set};
-use uuid::Uuid;
-use anyhow::Result;
 use crate::entities::tenant;
 use crate::models::tenant::{CreateTenant, UpdateTenant};
+use anyhow::Result;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
+use uuid::Uuid;
 
 pub struct TenantService;
 
@@ -12,18 +12,28 @@ impl TenantService {
         Ok(tenants)
     }
 
-    pub async fn get_tenant_by_id(db: &DatabaseConnection, id: Uuid) -> Result<Option<tenant::Model>> {
+    pub async fn get_tenant_by_id(
+        db: &DatabaseConnection,
+        id: Uuid,
+    ) -> Result<Option<tenant::Model>> {
         let tenant = tenant::Entity::find_by_id(id).one(db).await?;
         Ok(tenant)
     }
 
-    pub async fn create_tenant(db: &DatabaseConnection, input: CreateTenant) -> Result<tenant::Model> {
+    pub async fn create_tenant(
+        db: &DatabaseConnection,
+        input: CreateTenant,
+    ) -> Result<tenant::Model> {
         let new_tenant = tenant::ActiveModel::from(input);
         let tenant = new_tenant.insert(db).await?;
         Ok(tenant)
     }
 
-    pub async fn update_tenant(db: &DatabaseConnection, tenant_id: Uuid, input: UpdateTenant) -> Result<tenant::Model> {
+    pub async fn update_tenant(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        input: UpdateTenant,
+    ) -> Result<tenant::Model> {
         let existing = tenant::Entity::find_by_id(tenant_id)
             .one(db)
             .await?
@@ -43,7 +53,7 @@ impl TenantService {
         if let Some(favicon) = input.favicon {
             active_model.favicon = Set(Some(favicon));
         }
-        
+
         let updated = active_model.update(db).await?;
         Ok(updated)
     }

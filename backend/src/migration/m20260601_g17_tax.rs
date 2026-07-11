@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -24,17 +24,55 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AtlasTaxEvents::TenantId).uuid().not_null())
                     .col(ColumnDef::new(AtlasTaxEvents::TaxType).string().not_null())
-                    .col(ColumnDef::new(AtlasTaxEvents::JurisdictionCode).string().not_null())
-                    .col(ColumnDef::new(AtlasTaxEvents::SourceIntegrationId).uuid().null())
-                    .col(ColumnDef::new(AtlasTaxEvents::SourceLedgerEntryId).uuid().null())
-                    .col(ColumnDef::new(AtlasTaxEvents::SourceEntityType).string().null())
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::JurisdictionCode)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::SourceIntegrationId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::SourceLedgerEntryId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::SourceEntityType)
+                            .string()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasTaxEvents::SourceEntityId).uuid().null())
-                    .col(ColumnDef::new(AtlasTaxEvents::GrossRevenueCents).big_integer().not_null())
-                    .col(ColumnDef::new(AtlasTaxEvents::ExcludedFeesCents).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasTaxEvents::TaxableRevenueCents).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::GrossRevenueCents)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::ExcludedFeesCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::TaxableRevenueCents)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(AtlasTaxEvents::TaxRate).double().not_null())
-                    .col(ColumnDef::new(AtlasTaxEvents::TaxAmountCents).big_integer().not_null())
-                    .col(ColumnDef::new(AtlasTaxEvents::RemittedBy).string().not_null().default(Expr::val("host")))
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::TaxAmountCents)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxEvents::RemittedBy)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("host")),
+                    )
                     .col(ColumnDef::new(AtlasTaxEvents::TaxFilingId).uuid().null())
                     .col(ColumnDef::new(AtlasTaxEvents::EventDate).date().not_null())
                     .col(
@@ -101,14 +139,50 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AtlasTaxFilings::TenantId).uuid().not_null())
                     .col(ColumnDef::new(AtlasTaxFilings::TaxType).string().not_null())
-                    .col(ColumnDef::new(AtlasTaxFilings::JurisdictionCode).string().not_null())
-                    .col(ColumnDef::new(AtlasTaxFilings::PeriodYear).small_integer().not_null())
-                    .col(ColumnDef::new(AtlasTaxFilings::PeriodMonth).small_integer().null())
-                    .col(ColumnDef::new(AtlasTaxFilings::PeriodQuarter).small_integer().null())
-                    .col(ColumnDef::new(AtlasTaxFilings::TotalTaxableRevenueCents).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasTaxFilings::TotalTaxOwedCents).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasTaxFilings::PlatformRemittedCents).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasTaxFilings::HostOwedCents).big_integer().not_null().default(0))
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::JurisdictionCode)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::PeriodYear)
+                            .small_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::PeriodMonth)
+                            .small_integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::PeriodQuarter)
+                            .small_integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::TotalTaxableRevenueCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::TotalTaxOwedCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::PlatformRemittedCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::HostOwedCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
                     .col(
                         ColumnDef::new(AtlasTaxFilings::Status)
                             .string_len(30)
@@ -116,9 +190,21 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("draft")),
                     )
                     .col(ColumnDef::new(AtlasTaxFilings::DueDate).date().null())
-                    .col(ColumnDef::new(AtlasTaxFilings::FiledAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasTaxFilings::ConfirmationNumber).string().null())
-                    .col(ColumnDef::new(AtlasTaxFilings::FilingDocumentId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::FiledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::ConfirmationNumber)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasTaxFilings::FilingDocumentId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasTaxFilings::CreatedAt)
                             .timestamp_with_time_zone()

@@ -7,8 +7,8 @@
 
 #[cfg(test)]
 mod waitlist_body_tests {
-    use serde_json::json;
     use crate::handlers::pub_products::WaitlistBody;
+    use serde_json::json;
 
     // ── Minimal payload (email only) ─────────────────────────────────────────
 
@@ -46,7 +46,8 @@ mod waitlist_body_tests {
             "referrer":             "https://instagram.com",
             "landing_url":          "https://folio.app/",
             "variant_slug":         "folio-home-us-en",
-        })).expect("full payload must deserialize");
+        }))
+        .expect("full payload must deserialize");
 
         assert_eq!(v.email, "landlord@example.com");
         assert_eq!(v.name.as_deref(), Some("Marcus Davis"));
@@ -56,7 +57,10 @@ mod waitlist_body_tests {
         assert_eq!(v.utm_campaign.as_deref(), Some("launch-q3-2026"));
         assert_eq!(v.gclid.as_deref(), Some("Cj0test"));
         assert_eq!(v.fbclid.as_deref(), Some("IwAR0test"));
-        assert!(v.msclkid.is_none(), "explicit null must deserialize to None");
+        assert!(
+            v.msclkid.is_none(),
+            "explicit null must deserialize to None"
+        );
         assert_eq!(v.referrer.as_deref(), Some("https://instagram.com"));
     }
 
@@ -66,14 +70,19 @@ mod waitlist_body_tests {
     fn all_role_labels_deserialize_as_strings() {
         // These are the labels sent by the marketing page pill buttons
         let roles = [
-            "Landlord", "Property Manager", "STR Host",
-            "Tenant", "Vendor", "Investor",
+            "Landlord",
+            "Property Manager",
+            "STR Host",
+            "Tenant",
+            "Vendor",
+            "Investor",
         ];
         for role in &roles {
             let v: WaitlistBody = serde_json::from_value(json!({
                 "email": "x@example.com",
                 "role":  role,
-            })).unwrap_or_else(|e| panic!("role={role:?} failed: {e}"));
+            }))
+            .unwrap_or_else(|e| panic!("role={role:?} failed: {e}"));
             assert_eq!(v.role.as_deref(), Some(*role));
         }
     }
@@ -82,12 +91,19 @@ mod waitlist_body_tests {
 
     #[test]
     fn all_portfolio_size_labels_deserialize() {
-        let sizes = ["1–5 units", "6–20 units", "21–100 units", "100+ units", "Not applicable"];
+        let sizes = [
+            "1–5 units",
+            "6–20 units",
+            "21–100 units",
+            "100+ units",
+            "Not applicable",
+        ];
         for size in &sizes {
             let v: WaitlistBody = serde_json::from_value(json!({
                 "email":                "x@example.com",
                 "portfolio_size_label": size,
-            })).unwrap_or_else(|e| panic!("size={size:?} failed: {e}"));
+            }))
+            .unwrap_or_else(|e| panic!("size={size:?} failed: {e}"));
             assert_eq!(v.portfolio_size_label.as_deref(), Some(*size));
         }
     }
@@ -99,7 +115,8 @@ mod waitlist_body_tests {
         // Omit every optional field — only email provided
         let v: WaitlistBody = serde_json::from_value(json!({
             "email": "min@example.com"
-        })).expect("minimal payload must not fail");
+        }))
+        .expect("minimal payload must not fail");
 
         // All optional fields must be None
         assert!(v.role.is_none());
@@ -125,6 +142,9 @@ mod waitlist_body_tests {
         let result = serde_json::from_value::<WaitlistBody>(json!({
             "role": "Landlord"
         }));
-        assert!(result.is_err(), "email is required; missing it must fail deserialization");
+        assert!(
+            result.is_err(),
+            "email is required; missing it must fail deserialization"
+        );
     }
 }

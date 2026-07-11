@@ -1,8 +1,8 @@
 use crate::entities::note;
+use crate::models::file::FileModel;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::models::file::FileModel;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoteModel {
@@ -50,4 +50,3 @@ impl From<note::Model> for NoteModel {
         }
     }
 }
-

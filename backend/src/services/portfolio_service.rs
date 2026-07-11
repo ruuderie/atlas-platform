@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_portfolio::{self, Entity as PortfolioEntity, ActiveModel as PortfolioActiveModel};
+use crate::entities::atlas_portfolio::{
+    self, ActiveModel as PortfolioActiveModel, Entity as PortfolioEntity,
+};
 
 /// Service layer for GENERIC-09: AtlasPortfolio
 /// Groups assets for reporting, billing, access control, etc.
@@ -55,17 +59,13 @@ impl PortfolioService {
         portfolio_type: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_portfolio::Model>, String> {
-        let mut q = PortfolioEntity::find()
-            .filter(atlas_portfolio::Column::TenantId.eq(tenant_id));
+        let mut q = PortfolioEntity::find().filter(atlas_portfolio::Column::TenantId.eq(tenant_id));
 
         if let Some(pt) = portfolio_type {
             q = q.filter(atlas_portfolio::Column::PortfolioType.eq(pt.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn update_metadata(

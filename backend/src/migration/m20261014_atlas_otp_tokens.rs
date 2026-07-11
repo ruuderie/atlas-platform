@@ -19,12 +19,30 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AtlasOtpTokens::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(AtlasOtpTokens::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(AtlasOtpTokens::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(AtlasOtpTokens::UserId).uuid().not_null())
                     .col(ColumnDef::new(AtlasOtpTokens::CodeHash).string().not_null())
-                    .col(ColumnDef::new(AtlasOtpTokens::ExpiresAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(AtlasOtpTokens::IsUsed).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasOtpTokens::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(AtlasOtpTokens::ExpiresAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasOtpTokens::IsUsed)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasOtpTokens::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_otp_tokens_user_id")

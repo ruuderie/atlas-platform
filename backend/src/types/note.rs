@@ -41,9 +41,9 @@ impl NoteVisibility {
 impl fmt::Display for NoteVisibility {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Public   => "public",
+            Self::Public => "public",
             Self::Internal => "internal",
-            Self::Private  => "private",
+            Self::Private => "private",
         })
     }
 }
@@ -52,10 +52,10 @@ impl TryFrom<String> for NoteVisibility {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "public"   => Ok(Self::Public),
+            "public" => Ok(Self::Public),
             "internal" => Ok(Self::Internal),
-            "private"  => Ok(Self::Private),
-            other      => Err(format!("unknown NoteVisibility: '{other}'")),
+            "private" => Ok(Self::Private),
+            other => Err(format!("unknown NoteVisibility: '{other}'")),
         }
     }
 }
@@ -100,15 +100,15 @@ pub enum NoteType {
 impl fmt::Display for NoteType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::General              => f.write_str("general"),
-            Self::CallLog              => f.write_str("call_log"),
-            Self::SiteVisit            => f.write_str("site_visit"),
-            Self::Inspection           => f.write_str("inspection"),
-            Self::UnderwritingComment  => f.write_str("underwriting_comment"),
-            Self::LegalMemo            => f.write_str("legal_memo"),
-            Self::ComplianceNote       => f.write_str("compliance_note"),
-            Self::CoachFeedback        => f.write_str("coach_feedback"),
-            Self::Other(s)             => f.write_str(s),
+            Self::General => f.write_str("general"),
+            Self::CallLog => f.write_str("call_log"),
+            Self::SiteVisit => f.write_str("site_visit"),
+            Self::Inspection => f.write_str("inspection"),
+            Self::UnderwritingComment => f.write_str("underwriting_comment"),
+            Self::LegalMemo => f.write_str("legal_memo"),
+            Self::ComplianceNote => f.write_str("compliance_note"),
+            Self::CoachFeedback => f.write_str("coach_feedback"),
+            Self::Other(s) => f.write_str(s),
         }
     }
 }
@@ -116,15 +116,15 @@ impl fmt::Display for NoteType {
 impl From<String> for NoteType {
     fn from(s: String) -> Self {
         match s.as_str() {
-            "general"               => Self::General,
-            "call_log"              => Self::CallLog,
-            "site_visit"            => Self::SiteVisit,
-            "inspection"            => Self::Inspection,
-            "underwriting_comment"  => Self::UnderwritingComment,
-            "legal_memo"            => Self::LegalMemo,
-            "compliance_note"       => Self::ComplianceNote,
-            "coach_feedback"        => Self::CoachFeedback,
-            other                   => Self::Other(other.to_string()),
+            "general" => Self::General,
+            "call_log" => Self::CallLog,
+            "site_visit" => Self::SiteVisit,
+            "inspection" => Self::Inspection,
+            "underwriting_comment" => Self::UnderwritingComment,
+            "legal_memo" => Self::LegalMemo,
+            "compliance_note" => Self::ComplianceNote,
+            "coach_feedback" => Self::CoachFeedback,
+            other => Self::Other(other.to_string()),
         }
     }
 }

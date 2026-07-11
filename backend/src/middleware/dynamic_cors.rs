@@ -1,11 +1,11 @@
 #![allow(dead_code, unused)]
-use std::sync::Arc;
+use crate::entities::app_domain;
+use axum::http::{HeaderValue, Method, header};
 use dashmap::DashMap;
 use sea_orm::{DatabaseConnection, EntityTrait};
-use url::Url;
-use axum::http::{HeaderValue, Method, header};
+use std::sync::Arc;
 use tower_http::cors::CorsLayer;
-use crate::entities::app_domain;
+use url::Url;
 
 #[derive(Clone)]
 pub struct DynamicCorsRegistry {
@@ -84,13 +84,19 @@ impl DynamicCorsRegistry {
         if let Some(ref db) = self.db {
             match app_domain::Entity::find().all(db).await {
                 Ok(domains) => {
-                    tracing::info!("Dynamic CORS: Hydrating with {} domains from DB", domains.len());
+                    tracing::info!(
+                        "Dynamic CORS: Hydrating with {} domains from DB",
+                        domains.len()
+                    );
                     for domain in domains {
                         self.add_host(&domain.domain_name);
                     }
                 }
                 Err(e) => {
-                    tracing::error!("Dynamic CORS: Failed to query app_domains for hydration: {}", e);
+                    tracing::error!(
+                        "Dynamic CORS: Failed to query app_domains for hydration: {}",
+                        e
+                    );
                 }
             }
         }
@@ -128,7 +134,9 @@ impl DynamicCorsRegistry {
         let is_allowed = self.allowed_hosts.contains_key(&host);
         tracing::debug!(
             "Dynamic CORS: origin '{}' (parsed host '{}') allowed = {}",
-            origin_str, host, is_allowed
+            origin_str,
+            host,
+            is_allowed
         );
         is_allowed
     }
@@ -139,10 +147,16 @@ pub fn dynamic_cors_layer(registry: Arc<DynamicCorsRegistry>) -> CorsLayer {
     let registry_clone = registry.clone();
 
     CorsLayer::new()
-        .allow_origin(tower_http::cors::AllowOrigin::predicate(move |origin, _parts| {
-            registry_clone.is_origin_allowed(origin)
-        }))
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_origin(tower_http::cors::AllowOrigin::predicate(
+            move |origin, _parts| registry_clone.is_origin_allowed(origin),
+        ))
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([
             header::AUTHORIZATION,
             header::ACCEPT,
@@ -159,9 +173,7 @@ pub fn dynamic_cors_layer(registry: Arc<DynamicCorsRegistry>) -> CorsLayer {
             axum::http::HeaderName::from_static("x-passkey-session"),
         ])
         .allow_credentials(true)
-        .expose_headers([
-            axum::http::HeaderName::from_static("x-passkey-session"),
-        ])
+        .expose_headers([axum::http::HeaderName::from_static("x-passkey-session")])
 }
 
 #[cfg(test)]
@@ -171,7 +183,7 @@ mod tests {
     #[test]
     fn test_in_memory_registry() {
         let registry = DynamicCorsRegistry::new_in_memory();
-        
+
         // Initial state is empty
         assert!(!registry.contains_host("acme.com"));
         assert!(!registry.is_origin_allowed(&HeaderValue::from_static("https://acme.com")));
@@ -181,7 +193,7 @@ mod tests {
         assert!(registry.contains_host("acme.com"));
         assert!(registry.is_origin_allowed(&HeaderValue::from_static("https://acme.com")));
         assert!(registry.is_origin_allowed(&HeaderValue::from_static("http://acme.com:8080")));
-        
+
         // Case insensitivity
         assert!(registry.contains_host("ACME.COM"));
         assert!(registry.is_origin_allowed(&HeaderValue::from_static("https://ACME.com")));

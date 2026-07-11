@@ -7,30 +7,60 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        
+
         // 1. Rename directory to tenant if "directory" exists
-        let row = db.query_one(sea_orm::Statement::from_string(manager.get_database_backend(), "SELECT table_name FROM information_schema.tables WHERE table_name='directory'".to_owned())).await?;
+        let row = db
+            .query_one(sea_orm::Statement::from_string(
+                manager.get_database_backend(),
+                "SELECT table_name FROM information_schema.tables WHERE table_name='directory'"
+                    .to_owned(),
+            ))
+            .await?;
         if row.is_some() {
-            db.execute_unprepared("ALTER TABLE directory RENAME TO tenant;").await?;
+            db.execute_unprepared("ALTER TABLE directory RENAME TO tenant;")
+                .await?;
         }
-        
-        let tables_to_rename = vec!["template", "lead", "account", "deal", "contact", "customer", "category", "feed", "profile", "listing"];
+
+        let tables_to_rename = vec![
+            "template", "lead", "account", "deal", "contact", "customer", "category", "feed",
+            "profile", "listing",
+        ];
         for table in tables_to_rename {
-            let q = format!("SELECT column_name FROM information_schema.columns WHERE table_name='{}' AND column_name='directory_id'", table);
-            let has_col = db.query_one(sea_orm::Statement::from_string(manager.get_database_backend(), q)).await?;
+            let q = format!(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='{}' AND column_name='directory_id'",
+                table
+            );
+            let has_col = db
+                .query_one(sea_orm::Statement::from_string(
+                    manager.get_database_backend(),
+                    q,
+                ))
+                .await?;
             if has_col.is_some() {
-                let alter = format!("ALTER TABLE {} RENAME COLUMN directory_id TO tenant_id;", table);
+                let alter = format!(
+                    "ALTER TABLE {} RENAME COLUMN directory_id TO tenant_id;",
+                    table
+                );
                 db.execute_unprepared(&alter).await?;
             }
         }
-        
+
         let q = "SELECT column_name FROM information_schema.columns WHERE table_name='category' AND column_name='directory_type_id'";
-        if db.query_one(sea_orm::Statement::from_string(manager.get_database_backend(), q.to_owned())).await?.is_some() {
-            db.execute_unprepared("ALTER TABLE category DROP COLUMN directory_type_id;").await?;
+        if db
+            .query_one(sea_orm::Statement::from_string(
+                manager.get_database_backend(),
+                q.to_owned(),
+            ))
+            .await?
+            .is_some()
+        {
+            db.execute_unprepared("ALTER TABLE category DROP COLUMN directory_type_id;")
+                .await?;
         }
-        
-        db.execute_unprepared("DROP TABLE IF EXISTS directory_type CASCADE;").await?;
-        
+
+        db.execute_unprepared("DROP TABLE IF EXISTS directory_type CASCADE;")
+            .await?;
+
         let sql = r#"
             CREATE TABLE IF NOT EXISTS app_instances (
                 id UUID PRIMARY KEY,
@@ -72,13 +102,31 @@ impl MigrationTrait for Migration {
             JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Directory'
             WHERE t.custom_domain IS NOT NULL AND t.custom_domain != '' ON CONFLICT DO NOTHING;
         "#;
-        
+
         let _ = db.execute_unprepared(sql).await;
-        
-        let cols_to_drop = vec!["custom_settings", "domain", "subdomain", "custom_domain", "enabled_modules", "theme", "directory_type_id"];
+
+        let cols_to_drop = vec![
+            "custom_settings",
+            "domain",
+            "subdomain",
+            "custom_domain",
+            "enabled_modules",
+            "theme",
+            "directory_type_id",
+        ];
         for col in cols_to_drop {
-            let q = format!("SELECT column_name FROM information_schema.columns WHERE table_name='tenant' AND column_name='{}'", col);
-            if db.query_one(sea_orm::Statement::from_string(manager.get_database_backend(), q)).await?.is_some() {
+            let q = format!(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='tenant' AND column_name='{}'",
+                col
+            );
+            if db
+                .query_one(sea_orm::Statement::from_string(
+                    manager.get_database_backend(),
+                    q,
+                ))
+                .await?
+                .is_some()
+            {
                 let alter = format!("ALTER TABLE tenant DROP COLUMN {};", col);
                 db.execute_unprepared(&alter).await?;
             }
@@ -88,23 +136,46 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        let row = db.query_one(sea_orm::Statement::from_string(manager.get_database_backend(), "SELECT table_name FROM information_schema.tables WHERE table_name='tenant'".to_owned())).await?;
+        let row = db
+            .query_one(sea_orm::Statement::from_string(
+                manager.get_database_backend(),
+                "SELECT table_name FROM information_schema.tables WHERE table_name='tenant'"
+                    .to_owned(),
+            ))
+            .await?;
         if row.is_some() {
-            db.execute_unprepared("ALTER TABLE tenant RENAME TO directory;").await?;
+            db.execute_unprepared("ALTER TABLE tenant RENAME TO directory;")
+                .await?;
         }
-        
-        let tables_to_rename = vec!["template", "lead", "account", "deal", "contact", "customer", "category", "feed", "profile", "listing"];
+
+        let tables_to_rename = vec![
+            "template", "lead", "account", "deal", "contact", "customer", "category", "feed",
+            "profile", "listing",
+        ];
         for table in tables_to_rename {
-            let q = format!("SELECT column_name FROM information_schema.columns WHERE table_name='{}' AND column_name='tenant_id'", table);
-            let has_col = db.query_one(sea_orm::Statement::from_string(manager.get_database_backend(), q)).await?;
+            let q = format!(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='{}' AND column_name='tenant_id'",
+                table
+            );
+            let has_col = db
+                .query_one(sea_orm::Statement::from_string(
+                    manager.get_database_backend(),
+                    q,
+                ))
+                .await?;
             if has_col.is_some() {
-                let alter = format!("ALTER TABLE {} RENAME COLUMN tenant_id TO directory_id;", table);
+                let alter = format!(
+                    "ALTER TABLE {} RENAME COLUMN tenant_id TO directory_id;",
+                    table
+                );
                 db.execute_unprepared(&alter).await?;
             }
         }
-        
-        db.execute_unprepared("DROP TABLE IF EXISTS app_domains CASCADE;").await?;
-        db.execute_unprepared("DROP TABLE IF EXISTS app_instances CASCADE;").await?;
+
+        db.execute_unprepared("DROP TABLE IF EXISTS app_domains CASCADE;")
+            .await?;
+        db.execute_unprepared("DROP TABLE IF EXISTS app_instances CASCADE;")
+            .await?;
         Ok(())
     }
 }

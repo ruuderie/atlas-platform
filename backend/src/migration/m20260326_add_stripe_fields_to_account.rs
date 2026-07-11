@@ -10,11 +10,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Account::Table)
-                    .add_column(
-                        ColumnDef::new(Account::StripeCustomerId)
-                            .string()
-                            .null(),
-                    )
+                    .add_column(ColumnDef::new(Account::StripeCustomerId).string().null())
                     .add_column(
                         ColumnDef::new(Account::StripePaymentMethodId)
                             .string()

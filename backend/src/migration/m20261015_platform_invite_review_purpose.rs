@@ -54,9 +54,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(
-                "DROP INDEX IF EXISTS idx_platform_invite_review_purpose;",
-            )
+            .execute_unprepared("DROP INDEX IF EXISTS idx_platform_invite_review_purpose;")
             .await?;
 
         manager

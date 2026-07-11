@@ -1,11 +1,11 @@
 #![allow(dead_code, unused)]
-use crate::services::audit::AuditService;
 use crate::entities::tenant_subscription;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set};
-use serde_json::json;
-use uuid::Uuid;
+use crate::services::audit::AuditService;
 use chrono::Utc;
 use reqwest::StatusCode;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde_json::json;
+use uuid::Uuid;
 
 pub struct BillingService;
 
@@ -16,20 +16,25 @@ impl BillingService {
         tenant_id: Uuid,
         new_status: &str,
     ) -> Result<tenant_subscription::Model, (StatusCode, String)> {
-        
         let subscription = tenant_subscription::Entity::find()
             .filter(tenant_subscription::Column::TenantId.eq(tenant_id))
             .one(db)
             .await
             .map_err(|e| {
                 tracing::error!("Database query error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                )
             })?;
 
         let subscription = match subscription {
             Some(s) => s,
             None => {
-                return Err((StatusCode::NOT_FOUND, "Subscription not found for tenant".to_string()));
+                return Err((
+                    StatusCode::NOT_FOUND,
+                    "Subscription not found for tenant".to_string(),
+                ));
             }
         };
 
@@ -48,7 +53,10 @@ impl BillingService {
 
         let updated_sub = active_sub.update(db).await.map_err(|e| {
             tracing::error!("Database update error: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update subscription".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to update subscription".to_string(),
+            )
         })?;
 
         let new_state = json!({

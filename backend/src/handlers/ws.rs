@@ -49,12 +49,12 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, Query},
+    Extension, Json, Router,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use chrono::Utc;
 use dashmap::DashMap;
@@ -66,7 +66,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
-use crate::entities::{atlas_ws_room, atlas_ws_message, user};
+use crate::entities::{atlas_ws_message, atlas_ws_room, user};
 
 // ── In-process room registry ──────────────────────────────────────────────────
 

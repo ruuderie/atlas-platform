@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
-    use serde_json::json;
     use crate::entities::atlas_activity::Model;
+    use serde_json::json;
+    use uuid::Uuid;
 
     // ── Helper: construct a minimal activity ──────────────────────────────────
 
@@ -54,17 +54,29 @@ mod tests {
     #[test]
     fn primary_subject_returns_polymorphic_columns_first() {
         let id = Uuid::new_v4();
-        let activity = make_activity(Some("atlas_lead"), Some(id), Some(Uuid::new_v4()), None, None, None);
+        let activity = make_activity(
+            Some("atlas_lead"),
+            Some(id),
+            Some(Uuid::new_v4()),
+            None,
+            None,
+            None,
+        );
         let (t, resolved_id) = activity.primary_subject().expect("should have subject");
         assert_eq!(t, "atlas_lead");
-        assert_eq!(resolved_id, id, "polymorphic columns should win over legacy FKs");
+        assert_eq!(
+            resolved_id, id,
+            "polymorphic columns should win over legacy FKs"
+        );
     }
 
     #[test]
     fn primary_subject_falls_back_to_lead_id() {
         let lead = Uuid::new_v4();
         let activity = make_activity(None, None, Some(lead), None, None, None);
-        let (t, id) = activity.primary_subject().expect("should have subject via lead_id");
+        let (t, id) = activity
+            .primary_subject()
+            .expect("should have subject via lead_id");
         assert_eq!(t, "lead");
         assert_eq!(id, lead);
     }
@@ -159,7 +171,10 @@ mod tests {
     #[test]
     fn outcome_typed_returns_ok_for_known_outcome() {
         let a = make_activity(None, None, None, None, None, Some("connected"));
-        let outcome = a.outcome_typed().expect("should be Some").expect("should be Ok");
+        let outcome = a
+            .outcome_typed()
+            .expect("should be Some")
+            .expect("should be Ok");
         assert_eq!(outcome, crate::types::activity::ActivityOutcome::Connected);
     }
 

@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 use crate::entities::crm_status_option;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CrmStatusOptionModel {

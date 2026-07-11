@@ -48,9 +48,7 @@ impl MigrationTrait for Migration {
         // Remove all folio role assignments (re-running up() will re-create them)
         manager
             .get_connection()
-            .execute_unprepared(
-                "DELETE FROM atlas_user_app_roles WHERE app_slug = 'folio';",
-            )
+            .execute_unprepared("DELETE FROM atlas_user_app_roles WHERE app_slug = 'folio';")
             .await?;
         Ok(())
     }

@@ -35,9 +35,10 @@ impl MigrationTrait for Migration {
                     END IF;
                 END IF;
             END $$;
-            "#, oplyst_slug
+            "#,
+            oplyst_slug
         );
-        
+
         db.execute_unprepared(&insert_domains).await?;
 
         Ok(())
@@ -46,7 +47,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
         let oplyst_slug = "oplystusa";
-        
+
         let remove_domains = format!(
             r#"
             DO $$
@@ -62,7 +63,8 @@ impl MigrationTrait for Migration {
                     END IF;
                 END IF;
             END $$;
-            "#, oplyst_slug
+            "#,
+            oplyst_slug
         );
 
         db.execute_unprepared(&remove_domains).await?;

@@ -119,10 +119,8 @@ service business — all on one platform.',
         )
         .await?;
 
-        db.execute_unprepared(
-            "DELETE FROM platform_products WHERE slug = 'folio-vendor';",
-        )
-        .await?;
+        db.execute_unprepared("DELETE FROM platform_products WHERE slug = 'folio-vendor';")
+            .await?;
 
         Ok(())
     }

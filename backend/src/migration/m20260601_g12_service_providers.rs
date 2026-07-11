@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -49,30 +49,82 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasServiceProviders::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasServiceProviders::UserId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::UserId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasServiceProviders::Scope)
                             .string_len(30)
                             .not_null()
                             .default(Expr::val("tenant")),
                     )
-                    .col(ColumnDef::new(AtlasServiceProviders::BusinessName).string().null())
-                    .col(ColumnDef::new(AtlasServiceProviders::ServiceCategories).json_binary().not_null().default(Expr::val("[]")))
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::BusinessName)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::ServiceCategories)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::val("[]")),
+                    )
                     .col(
                         ColumnDef::new(AtlasServiceProviders::Status)
                             .string_len(30)
                             .not_null()
                             .default(Expr::val("active")),
                     )
-                    .col(ColumnDef::new(AtlasServiceProviders::RatingAvg).double().null())
-                    .col(ColumnDef::new(AtlasServiceProviders::RatingCount).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasServiceProviders::PreferredPaymentRail).string().null())
-                    .col(ColumnDef::new(AtlasServiceProviders::BtcWalletAddress).string().null())
-                    .col(ColumnDef::new(AtlasServiceProviders::StripeConnectId).string().null())
-                    .col(ColumnDef::new(AtlasServiceProviders::IsInsured).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasServiceProviders::IsBonded).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasServiceProviders::ProfileMetadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::RatingAvg)
+                            .double()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::RatingCount)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::PreferredPaymentRail)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::BtcWalletAddress)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::StripeConnectId)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::IsInsured)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::IsBonded)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasServiceProviders::ProfileMetadata)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasServiceProviders::Notes).text().null())
                     .col(
                         ColumnDef::new(AtlasServiceProviders::CreatedAt)

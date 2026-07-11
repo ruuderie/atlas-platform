@@ -127,7 +127,7 @@ impl MigrationTrait for Migration {
                 END IF;
             END $$;
         "##;
-        
+
         db.execute_unprepared(sql).await?;
         Ok(())
     }

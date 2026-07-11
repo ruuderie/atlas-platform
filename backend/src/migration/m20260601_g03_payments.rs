@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -20,9 +20,11 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Payment rails (idempotent enum creation)
-        manager.get_connection().execute(sea_orm::Statement::from_string(
-            manager.get_connection().get_database_backend(),
-            r#"
+        manager
+            .get_connection()
+            .execute(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                r#"
             DO $$ BEGIN
                 CREATE TYPE atlas_payment_rail AS ENUM (
                     'stripe', 'stripe_connect', 'btc_onchain', 'btc_lightning',
@@ -30,21 +32,27 @@ impl MigrationTrait for Migration {
                     'wire', 'ach', 'western_union', 'moneygram', 'cash'
                 );
             EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-            "#.to_owned()
-        )).await?;
+            "#
+                .to_owned(),
+            ))
+            .await?;
 
         // Ledger entry status (idempotent enum creation)
-        manager.get_connection().execute(sea_orm::Statement::from_string(
-            manager.get_connection().get_database_backend(),
-            r#"
+        manager
+            .get_connection()
+            .execute(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                r#"
             DO $$ BEGIN
                 CREATE TYPE atlas_ledger_status AS ENUM (
                     'pending', 'processing', 'paid', 'partially_paid',
                     'late', 'failed', 'refunded', 'waived', 'reconciled'
                 );
             EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-            "#.to_owned()
-        )).await?;
+            "#
+                .to_owned(),
+            ))
+            .await?;
 
         // Main ledger table
         manager
@@ -59,18 +67,68 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasLedgerEntries::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::BillableEntityType).string().not_null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::BillableEntityId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::PayerUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::PayerEmail).string().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::GrossAmountCents).big_integer().not_null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::FeeAmountCents).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasLedgerEntries::NetAmountCents).big_integer().not_null()) // computed in service or trigger
-                    .col(ColumnDef::new(AtlasLedgerEntries::Currency).char_len(3).not_null().default(Expr::val("USD")))
-                    .col(ColumnDef::new(AtlasLedgerEntries::PaymentRail).string_len(30).null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::ExternalTxId).string().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::ReceiptAttachmentId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::BillableEntityType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::BillableEntityId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::PayerUserId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::PayerEmail)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::GrossAmountCents)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::FeeAmountCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::NetAmountCents)
+                            .big_integer()
+                            .not_null(),
+                    ) // computed in service or trigger
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::Currency)
+                            .char_len(3)
+                            .not_null()
+                            .default(Expr::val("USD")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::PaymentRail)
+                            .string_len(30)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::ExternalTxId)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::ReceiptAttachmentId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasLedgerEntries::Status)
                             .string_len(30)
@@ -78,11 +136,31 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("pending")),
                     )
                     .col(ColumnDef::new(AtlasLedgerEntries::DueDate).date().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::PaidAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::VerifiedByUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::VerifiedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::ReconciledAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasLedgerEntries::ReconciliationNote).text().null())
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::PaidAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::VerifiedByUserId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::VerifiedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::ReconciledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerEntries::ReconciliationNote)
+                            .text()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasLedgerEntries::CreatedAt)
                             .timestamp_with_time_zone()
@@ -130,15 +208,52 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasLedgerSplits::LedgerEntryId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::RecipientType).string().not_null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::RecipientUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::RecipientLabel).string().null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::AmountCents).big_integer().not_null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::PayoutRail).string_len(30).null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::PayoutStatus).string().not_null().default(Expr::val("pending")))
-                    .col(ColumnDef::new(AtlasLedgerSplits::PayoutTxId).string().null())
-                    .col(ColumnDef::new(AtlasLedgerSplits::SettledAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::LedgerEntryId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::RecipientType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::RecipientUserId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::RecipientLabel)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::AmountCents)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::PayoutRail)
+                            .string_len(30)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::PayoutStatus)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("pending")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::PayoutTxId)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLedgerSplits::SettledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -156,9 +271,11 @@ impl MigrationTrait for Migration {
         // === Payment Credentials (extensible, provider-agnostic) ===
 
         // Payment credential types (idempotent enum creation)
-        manager.get_connection().execute(sea_orm::Statement::from_string(
-            manager.get_connection().get_database_backend(),
-            r#"
+        manager
+            .get_connection()
+            .execute(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                r#"
             DO $$ BEGIN
                 CREATE TYPE atlas_payment_credential_type AS ENUM (
                     'stripe_connect_express', 'stripe_connect_standard',
@@ -166,20 +283,26 @@ impl MigrationTrait for Migration {
                     'zelle_account', 'pix_key'
                 );
             EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-            "#.to_owned()
-        )).await?;
+            "#
+                .to_owned(),
+            ))
+            .await?;
 
         // Merchant of Record types (idempotent enum creation)
-        manager.get_connection().execute(sea_orm::Statement::from_string(
-            manager.get_connection().get_database_backend(),
-            r#"
+        manager
+            .get_connection()
+            .execute(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                r#"
             DO $$ BEGIN
                 CREATE TYPE atlas_mor_type AS ENUM (
                     'platform', 'client', 'hybrid'
                 );
             EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-            "#.to_owned()
-        )).await?;
+            "#
+                .to_owned(),
+            ))
+            .await?;
 
         manager
             .create_table(
@@ -193,21 +316,86 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasPaymentCredentials::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::CredentialType).string_len(50).not_null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::MorType).string_len(30).not_null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::Label).string().null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::CredentialsEncrypted).json_binary().not_null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::DisplayIdentifier).string().null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::DisplayName).string().null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(AtlasPaymentCredentials::IsDefaultForType).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasPaymentCredentials::IsVerified).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasPaymentCredentials::VerifiedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::PayoutCurrency).char_len(3).not_null().default(Expr::val("USD")))
-                    .col(ColumnDef::new(AtlasPaymentCredentials::PayoutMinimumCents).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasPaymentCredentials::WebhookSecretEnc).string().null())
-                    .col(ColumnDef::new(AtlasPaymentCredentials::CreatedByUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::CredentialType)
+                            .string_len(50)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::MorType)
+                            .string_len(30)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::Label)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::CredentialsEncrypted)
+                            .json_binary()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::DisplayIdentifier)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::DisplayName)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::IsDefaultForType)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::IsVerified)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::VerifiedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::PayoutCurrency)
+                            .char_len(3)
+                            .not_null()
+                            .default(Expr::val("USD")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::PayoutMinimumCents)
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::WebhookSecretEnc)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPaymentCredentials::CreatedByUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasPaymentCredentials::CreatedAt)
                             .timestamp_with_time_zone()
@@ -235,7 +423,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasPaymentCredentials::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AtlasPaymentCredentials::Table)
+                    .to_owned(),
+            )
             .await?;
         manager
             .drop_table(Table::drop().table(AtlasLedgerSplits::Table).to_owned())
@@ -248,7 +440,11 @@ impl MigrationTrait for Migration {
             .drop_type(Type::drop().name(AtlasMorType::Table).to_owned())
             .await?;
         manager
-            .drop_type(Type::drop().name(AtlasPaymentCredentialType::Table).to_owned())
+            .drop_type(
+                Type::drop()
+                    .name(AtlasPaymentCredentialType::Table)
+                    .to_owned(),
+            )
             .await?;
         manager
             .drop_type(Type::drop().name(AtlasLedgerStatus::Table).to_owned())

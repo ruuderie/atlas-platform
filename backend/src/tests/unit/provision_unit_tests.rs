@@ -16,8 +16,8 @@
 
 #[cfg(test)]
 mod provision_validation_tests {
-    use uuid::Uuid;
     use crate::types::pm::FolioRole;
+    use uuid::Uuid;
 
     // ── Mirror of provision::validate_invite for unit testing ─────────────────
     //
@@ -26,19 +26,33 @@ mod provision_validation_tests {
     // Integration tests in provision_integration_tests.rs cover the full stack.
 
     struct MockInvite {
-        app_role:   &'static str,
-        asset_ids:  Option<Vec<Uuid>>,
-        lease_id:   Option<Uuid>,
+        app_role: &'static str,
+        asset_ids: Option<Vec<Uuid>>,
+        lease_id: Option<Uuid>,
         account_id: Option<Uuid>,
     }
 
     impl MockInvite {
         fn new(role: &'static str) -> Self {
-            Self { app_role: role, asset_ids: None, lease_id: None, account_id: None }
+            Self {
+                app_role: role,
+                asset_ids: None,
+                lease_id: None,
+                account_id: None,
+            }
         }
-        fn with_assets(mut self, ids: Vec<Uuid>) -> Self { self.asset_ids = Some(ids); self }
-        fn with_lease(mut self, id: Uuid)        -> Self { self.lease_id   = Some(id); self }
-        fn with_account(mut self, id: Uuid)      -> Self { self.account_id = Some(id); self }
+        fn with_assets(mut self, ids: Vec<Uuid>) -> Self {
+            self.asset_ids = Some(ids);
+            self
+        }
+        fn with_lease(mut self, id: Uuid) -> Self {
+            self.lease_id = Some(id);
+            self
+        }
+        fn with_account(mut self, id: Uuid) -> Self {
+            self.account_id = Some(id);
+            self
+        }
     }
 
     fn validate(inv: &MockInvite) -> Result<FolioRole, String> {
@@ -46,7 +60,8 @@ mod provision_validation_tests {
             return Err(
                 "\"str_host\" is not a valid role. STR capability is a property trait, \
                  not a persona. Invite this user as \"landlord\" and enable STR on \
-                 specific assets via atlas_assets.str_eligible = true.".into()
+                 specific assets via atlas_assets.str_eligible = true."
+                    .into(),
             );
         }
         let role = FolioRole::try_from(inv.app_role).map_err(|e| e.to_string())?;
@@ -54,19 +69,22 @@ mod provision_validation_tests {
             FolioRole::Cohost => {
                 if inv.asset_ids.as_ref().map_or(true, |v| v.is_empty()) {
                     return Err("Cohost invites require at least one asset_id. \
-                                The cohost must be delegated to specific STR-eligible properties.".into());
+                                The cohost must be delegated to specific STR-eligible properties."
+                        .into());
                 }
             }
             FolioRole::Tenant => {
                 if inv.lease_id.is_none() {
                     return Err("Tenant invites require a lease_id. \
-                                Create the lease first, then invite the tenant.".into());
+                                Create the lease first, then invite the tenant."
+                        .into());
                 }
             }
             FolioRole::Owner => {
                 if inv.account_id.is_none() {
                     return Err("Owner invites require an account_id. \
-                                The beneficial owner must be linked to their client account.".into());
+                                The beneficial owner must be linked to their client account."
+                        .into());
                 }
             }
             _ => {}
@@ -96,8 +114,10 @@ mod provision_validation_tests {
     #[test]
     fn unknown_role_slugs_are_rejected() {
         for slug in &["admin", "superuser", "", "LANDLORD", "str-host", "strhost"] {
-            assert!(validate(&MockInvite::new(slug)).is_err(),
-                "Expected '{slug}' to be rejected");
+            assert!(
+                validate(&MockInvite::new(slug)).is_err(),
+                "Expected '{slug}' to be rejected"
+            );
         }
     }
 
@@ -105,11 +125,23 @@ mod provision_validation_tests {
 
     #[test]
     fn all_nine_valid_roles_parse() {
-        let valid = ["landlord", "tenant", "str_guest", "vendor", "cohost",
-                     "owner", "property_manager", "agent", "broker"];
+        let valid = [
+            "landlord",
+            "tenant",
+            "str_guest",
+            "vendor",
+            "cohost",
+            "owner",
+            "property_manager",
+            "agent",
+            "broker",
+        ];
         assert_eq!(valid.len(), 9, "Exactly 9 valid FolioRoles expected");
         for slug in &valid {
-            assert!(FolioRole::try_from(*slug).is_ok(), "'{slug}' should be valid");
+            assert!(
+                FolioRole::try_from(*slug).is_ok(),
+                "'{slug}' should be valid"
+            );
         }
     }
 
@@ -117,7 +149,10 @@ mod provision_validation_tests {
 
     #[test]
     fn landlord_no_deps_succeeds() {
-        assert_eq!(validate(&MockInvite::new("landlord")).unwrap(), FolioRole::Landlord);
+        assert_eq!(
+            validate(&MockInvite::new("landlord")).unwrap(),
+            FolioRole::Landlord
+        );
     }
 
     #[test]
@@ -129,8 +164,9 @@ mod provision_validation_tests {
     #[test]
     fn landlord_with_multiple_asset_ids_gets_delegated_access() {
         // A landlord delegate (restricted to a subset of the portfolio)
-        let result = validate(&MockInvite::new("landlord")
-            .with_assets(vec![Uuid::new_v4(), Uuid::new_v4()]));
+        let result = validate(
+            &MockInvite::new("landlord").with_assets(vec![Uuid::new_v4(), Uuid::new_v4()]),
+        );
         assert_eq!(result.unwrap(), FolioRole::Landlord);
     }
 
@@ -140,8 +176,10 @@ mod provision_validation_tests {
     fn tenant_without_lease_id_is_rejected() {
         let result = validate(&MockInvite::new("tenant"));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_lowercase().contains("lease"),
-            "Error should mention 'lease'");
+        assert!(
+            result.unwrap_err().to_lowercase().contains("lease"),
+            "Error should mention 'lease'"
+        );
     }
 
     #[test]
@@ -176,7 +214,10 @@ mod provision_validation_tests {
         // This test documents the architectural contract.
         let lease_id = Uuid::new_v4(); // belongs to a landlord's asset in production
         let result = validate(&MockInvite::new("tenant").with_lease(lease_id));
-        assert!(result.is_ok(), "Tenant with valid lease should pass validation");
+        assert!(
+            result.is_ok(),
+            "Tenant with valid lease should pass validation"
+        );
     }
 
     // ── Vendor ───────────────────────────────────────────────────────────────
@@ -184,7 +225,10 @@ mod provision_validation_tests {
     #[test]
     fn vendor_no_deps_succeeds() {
         // Vendors operate independently — no mandatory linkage to a landlord
-        assert_eq!(validate(&MockInvite::new("vendor")).unwrap(), FolioRole::Vendor);
+        assert_eq!(
+            validate(&MockInvite::new("vendor")).unwrap(),
+            FolioRole::Vendor
+        );
     }
 
     #[test]
@@ -219,7 +263,10 @@ mod provision_validation_tests {
     #[test]
     fn cohost_with_empty_asset_ids_is_rejected() {
         let result = validate(&MockInvite::new("cohost").with_assets(vec![]));
-        assert!(result.is_err(), "Empty asset list should be rejected for cohost");
+        assert!(
+            result.is_err(),
+            "Empty asset list should be rejected for cohost"
+        );
     }
 
     #[test]
@@ -320,24 +367,44 @@ mod provision_validation_tests {
     #[test]
     fn pmc_owner_brokerage_predicates_are_mutually_exclusive() {
         let all_roles = [
-            FolioRole::Landlord, FolioRole::Tenant, FolioRole::Vendor,
-            FolioRole::PropertyManager, FolioRole::Owner,
-            FolioRole::Cohost, FolioRole::Agent, FolioRole::Broker,
+            FolioRole::Landlord,
+            FolioRole::Tenant,
+            FolioRole::Vendor,
+            FolioRole::PropertyManager,
+            FolioRole::Owner,
+            FolioRole::Cohost,
+            FolioRole::Agent,
+            FolioRole::Broker,
         ];
         for role in &all_roles {
             let count = [role.is_pmc(), role.is_owner(), role.is_brokerage()]
-                .into_iter().filter(|b| *b).count();
-            assert!(count <= 1,
+                .into_iter()
+                .filter(|b| *b)
+                .count();
+            assert!(
+                count <= 1,
                 "{role} is in multiple exclusive groups (pmc={}, owner={}, brokerage={})",
-                role.is_pmc(), role.is_owner(), role.is_brokerage());
+                role.is_pmc(),
+                role.is_owner(),
+                role.is_brokerage()
+            );
         }
     }
 
     #[test]
     fn only_agent_and_broker_are_brokerage_roles() {
-        for role in &[FolioRole::Landlord, FolioRole::Tenant, FolioRole::Vendor,
-                      FolioRole::PropertyManager, FolioRole::Owner, FolioRole::Cohost] {
-            assert!(!role.is_brokerage(), "{role} should not be a brokerage role");
+        for role in &[
+            FolioRole::Landlord,
+            FolioRole::Tenant,
+            FolioRole::Vendor,
+            FolioRole::PropertyManager,
+            FolioRole::Owner,
+            FolioRole::Cohost,
+        ] {
+            assert!(
+                !role.is_brokerage(),
+                "{role} should not be a brokerage role"
+            );
         }
     }
 
@@ -359,35 +426,62 @@ mod provision_validation_tests {
 
 #[cfg(test)]
 mod str_guest_and_applicant_tests {
-    use uuid::Uuid;
     use crate::types::pm::FolioRole;
+    use uuid::Uuid;
 
     struct MockInvite {
-        app_role:       &'static str,
-        asset_id:       Option<Uuid>,
-        asset_ids:      Option<Vec<Uuid>>,
-        booking_id:     Option<Uuid>,
-        lease_id:       Option<Uuid>,
+        app_role: &'static str,
+        asset_id: Option<Uuid>,
+        asset_ids: Option<Vec<Uuid>>,
+        booking_id: Option<Uuid>,
+        lease_id: Option<Uuid>,
         tenancy_status: Option<&'static str>,
-        account_id:     Option<Uuid>,
+        account_id: Option<Uuid>,
     }
 
     impl MockInvite {
         fn new(role: &'static str) -> Self {
-            Self { app_role: role, asset_id: None, asset_ids: None,
-                   booking_id: None, lease_id: None, tenancy_status: None, account_id: None }
+            Self {
+                app_role: role,
+                asset_id: None,
+                asset_ids: None,
+                booking_id: None,
+                lease_id: None,
+                tenancy_status: None,
+                account_id: None,
+            }
         }
-        fn with_asset(mut self, id: Uuid)            -> Self { self.asset_id   = Some(id); self }
-        fn with_booking(mut self, id: Uuid)          -> Self { self.booking_id = Some(id); self }
-        fn with_lease(mut self, id: Uuid)            -> Self { self.lease_id   = Some(id); self }
-        fn with_status(mut self, s: &'static str)    -> Self { self.tenancy_status = Some(s); self }
-        fn with_assets(mut self, v: Vec<Uuid>)       -> Self { self.asset_ids  = Some(v); self }
-        fn with_account(mut self, id: Uuid)          -> Self { self.account_id = Some(id); self }
+        fn with_asset(mut self, id: Uuid) -> Self {
+            self.asset_id = Some(id);
+            self
+        }
+        fn with_booking(mut self, id: Uuid) -> Self {
+            self.booking_id = Some(id);
+            self
+        }
+        fn with_lease(mut self, id: Uuid) -> Self {
+            self.lease_id = Some(id);
+            self
+        }
+        fn with_status(mut self, s: &'static str) -> Self {
+            self.tenancy_status = Some(s);
+            self
+        }
+        fn with_assets(mut self, v: Vec<Uuid>) -> Self {
+            self.asset_ids = Some(v);
+            self
+        }
+        fn with_account(mut self, id: Uuid) -> Self {
+            self.account_id = Some(id);
+            self
+        }
     }
 
     fn validate(inv: &MockInvite) -> Result<FolioRole, String> {
         if inv.app_role == "str_host" {
-            return Err("str_host is not a valid role. Use landlord + asset str_eligible=true".into());
+            return Err(
+                "str_host is not a valid role. Use landlord + asset str_eligible=true".into(),
+            );
         }
         let role = FolioRole::try_from(inv.app_role).map_err(|e| e.to_string())?;
         match role {
@@ -414,7 +508,9 @@ mod str_guest_and_applicant_tests {
                 }
             }
             FolioRole::Owner => {
-                if inv.account_id.is_none() { return Err("Owner requires account_id".into()); }
+                if inv.account_id.is_none() {
+                    return Err("Owner requires account_id".into());
+                }
             }
             _ => {}
         }
@@ -439,9 +535,11 @@ mod str_guest_and_applicant_tests {
     #[test]
     fn str_guest_with_booking_id_succeeds() {
         // Pre-existing reservation — guest is confirming an already-created booking
-        let result = validate(&MockInvite::new("str_guest")
-            .with_asset(Uuid::new_v4())
-            .with_booking(Uuid::new_v4()));
+        let result = validate(
+            &MockInvite::new("str_guest")
+                .with_asset(Uuid::new_v4())
+                .with_booking(Uuid::new_v4()),
+        );
         assert_eq!(result.unwrap(), FolioRole::StrGuest);
     }
 
@@ -498,9 +596,11 @@ mod str_guest_and_applicant_tests {
     #[test]
     fn tenant_applicant_with_asset_id_applies_to_specific_unit() {
         // Optional: applicant can be tied to a specific unit they want
-        let result = validate(&MockInvite::new("tenant")
-            .with_status("applicant")
-            .with_asset(Uuid::new_v4()));
+        let result = validate(
+            &MockInvite::new("tenant")
+                .with_status("applicant")
+                .with_asset(Uuid::new_v4()),
+        );
         assert_eq!(result.unwrap(), FolioRole::Tenant);
     }
 
@@ -509,15 +609,19 @@ mod str_guest_and_applicant_tests {
         let result = validate(&MockInvite::new("tenant").with_status("pending"));
         assert!(result.is_err());
         let msg = result.unwrap_err();
-        assert!(msg.contains("pending") && msg.contains("lease_id"),
-            "Error should mention 'pending' and 'lease_id'. Got: {msg}");
+        assert!(
+            msg.contains("pending") && msg.contains("lease_id"),
+            "Error should mention 'pending' and 'lease_id'. Got: {msg}"
+        );
     }
 
     #[test]
     fn tenant_pending_with_lease_id_succeeds() {
-        let result = validate(&MockInvite::new("tenant")
-            .with_status("pending")
-            .with_lease(Uuid::new_v4()));
+        let result = validate(
+            &MockInvite::new("tenant")
+                .with_status("pending")
+                .with_lease(Uuid::new_v4()),
+        );
         assert_eq!(result.unwrap(), FolioRole::Tenant);
     }
 
@@ -529,9 +633,11 @@ mod str_guest_and_applicant_tests {
 
     #[test]
     fn tenant_active_with_lease_id_succeeds() {
-        let result = validate(&MockInvite::new("tenant")
-            .with_status("active")
-            .with_lease(Uuid::new_v4()));
+        let result = validate(
+            &MockInvite::new("tenant")
+                .with_status("active")
+                .with_lease(Uuid::new_v4()),
+        );
         assert_eq!(result.unwrap(), FolioRole::Tenant);
     }
 
@@ -539,7 +645,11 @@ mod str_guest_and_applicant_tests {
     fn tenant_invalid_status_is_rejected() {
         let result = validate(&MockInvite::new("tenant").with_status("guest"));
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("invalid tenancy_status 'guest'"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("invalid tenancy_status 'guest'")
+        );
     }
 
     // ── str_guest vs tenant are distinct identities ───────────────────────────
@@ -547,8 +657,14 @@ mod str_guest_and_applicant_tests {
     #[test]
     fn str_guest_and_tenant_are_different_roles() {
         assert_ne!(FolioRole::StrGuest, FolioRole::Tenant);
-        assert_ne!(FolioRole::StrGuest.home_path(), FolioRole::Tenant.home_path());
-        assert_ne!(FolioRole::StrGuest.to_string(), FolioRole::Tenant.to_string());
+        assert_ne!(
+            FolioRole::StrGuest.home_path(),
+            FolioRole::Tenant.home_path()
+        );
+        assert_ne!(
+            FolioRole::StrGuest.to_string(),
+            FolioRole::Tenant.to_string()
+        );
     }
 
     #[test]
@@ -556,10 +672,16 @@ mod str_guest_and_applicant_tests {
         // Key distinction: str_guest links to a booking/asset, not a lease.
         // This test documents the architectural invariant.
         let guest = validate(&MockInvite::new("str_guest").with_asset(Uuid::new_v4()));
-        assert!(guest.is_ok(), "str_guest with asset should succeed (no lease needed)");
+        assert!(
+            guest.is_ok(),
+            "str_guest with asset should succeed (no lease needed)"
+        );
 
         let guest_no_asset = validate(&MockInvite::new("str_guest").with_lease(Uuid::new_v4()));
-        assert!(guest_no_asset.is_err(), "str_guest with only a lease_id (no asset_id) should fail");
+        assert!(
+            guest_no_asset.is_err(),
+            "str_guest with only a lease_id (no asset_id) should fail"
+        );
     }
 
     // ── Role count regression (now 9) ─────────────────────────────────────────
@@ -568,11 +690,23 @@ mod str_guest_and_applicant_tests {
     fn folio_role_count_is_nine() {
         // Regression: adding a new role requires updating this test
         // AND the provisioning validation logic AND nav configs.
-        let valid_roles = ["landlord", "tenant", "str_guest", "vendor", "cohost",
-                           "owner", "property_manager", "agent", "broker"];
+        let valid_roles = [
+            "landlord",
+            "tenant",
+            "str_guest",
+            "vendor",
+            "cohost",
+            "owner",
+            "property_manager",
+            "agent",
+            "broker",
+        ];
         assert_eq!(valid_roles.len(), 9, "Expected 9 valid FolioRoles");
         for slug in &valid_roles {
-            assert!(FolioRole::try_from(*slug).is_ok(), "'{slug}' should be valid");
+            assert!(
+                FolioRole::try_from(*slug).is_ok(),
+                "'{slug}' should be valid"
+            );
         }
     }
 }

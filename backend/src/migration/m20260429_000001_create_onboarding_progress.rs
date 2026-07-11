@@ -22,9 +22,21 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(OnboardingProgress::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(OnboardingProgress::AppInstanceId).uuid().not_null())
-                    .col(ColumnDef::new(OnboardingProgress::StepId).string().not_null())
+                    .col(
+                        ColumnDef::new(OnboardingProgress::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(OnboardingProgress::AppInstanceId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(OnboardingProgress::StepId)
+                            .string()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(OnboardingProgress::CompletedAt)
                             .timestamp_with_time_zone()

@@ -1,12 +1,12 @@
 #![allow(dead_code, unused_imports)]
+use crate::entities::{file, file_association};
+use crate::models::file::{FileAssociation, FileModel};
+use crate::traits::file::FileAssociable;
+use chrono::{DateTime, Utc};
+use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::traits::file::FileAssociable;
-use crate::models::file::{FileAssociation, FileModel};
-use crate::entities::{file_association,file}; 
-use sea_orm::Set;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "activity")]
@@ -182,12 +182,18 @@ impl Model {
         serde_json::from_value(self.associated_entities.clone())
     }
 
-    pub fn set_associated_entities(&mut self, entities: Vec<AssociatedEntity>) -> Result<(), serde_json::Error> {
+    pub fn set_associated_entities(
+        &mut self,
+        entities: Vec<AssociatedEntity>,
+    ) -> Result<(), serde_json::Error> {
         self.associated_entities = serde_json::to_value(entities)?;
         Ok(())
     }
 
-    pub fn add_associated_entity(&mut self, entity: AssociatedEntity) -> Result<(), serde_json::Error> {
+    pub fn add_associated_entity(
+        &mut self,
+        entity: AssociatedEntity,
+    ) -> Result<(), serde_json::Error> {
         let mut entities = self.get_associated_entities()?;
         entities.push(entity);
         self.set_associated_entities(entities)
@@ -212,7 +218,9 @@ impl FileAssociation for Model {
             file_id: Set(file.id),
             associated_entity_type: Set(Entity::entity_type().to_string()),
             associated_entity_id: Set(self.id),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }

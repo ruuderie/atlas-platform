@@ -1,23 +1,23 @@
 #![allow(dead_code, unused)]
 
 // backend/src/middleware/site_context.rs
+use crate::config::{ModuleFlags, SiteConfig};
+use crate::entities::{app_domain, app_instance, tenant};
 use axum::{
-    extract::{Extension},
+    extract::Extension,
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
 };
-use axum_extra::extract::{Host};
-use sea_orm::{DatabaseConnection, EntityTrait, ColumnTrait, QueryFilter};
-use std::sync::Arc;
+use axum_extra::extract::Host;
 use once_cell::sync::Lazy;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::entities::{tenant, app_domain, app_instance};
-use crate::config::{SiteConfig, ModuleFlags};
 
 // Cache for site configurations to avoid frequent DB lookups
-static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> = 
+static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> =
     Lazy::new(|| Arc::new(RwLock::new(HashMap::new())));
 
 // We'll hardcode the admin routing check as well
@@ -36,10 +36,17 @@ fn is_admin_route(path: &str) -> bool {
 }
 
 fn is_auth_route(path: &str) -> bool {
-    path.starts_with("/login") || path.starts_with("/register") || path.starts_with("/auth") ||
-    path.starts_with("/api/login") || path.starts_with("/api/register") || path.starts_with("/api/auth") || path.starts_with("/api/passkeys") ||
-    path.starts_with("/validate-session") || path.starts_with("/refresh-token") ||
-    path.starts_with("/api/validate-session") || path.starts_with("/api/refresh-token")
+    path.starts_with("/login")
+        || path.starts_with("/register")
+        || path.starts_with("/auth")
+        || path.starts_with("/api/login")
+        || path.starts_with("/api/register")
+        || path.starts_with("/api/auth")
+        || path.starts_with("/api/passkeys")
+        || path.starts_with("/validate-session")
+        || path.starts_with("/refresh-token")
+        || path.starts_with("/api/validate-session")
+        || path.starts_with("/api/refresh-token")
 }
 
 fn is_setup_route(path: &str) -> bool {
@@ -53,18 +60,22 @@ pub async fn site_context_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let domain = hostname.split(':').next().unwrap_or(&hostname).to_string();
-    
+
     // Skip site context for admin routes, authentication routes, setup routes, and system endpoints
-    if is_admin_route(req.uri().path()) || is_auth_route(req.uri().path()) || is_setup_route(req.uri().path()) || req.uri().path().starts_with("/api/app-instances") {
+    if is_admin_route(req.uri().path())
+        || is_auth_route(req.uri().path())
+        || is_setup_route(req.uri().path())
+        || req.uri().path().starts_with("/api/app-instances")
+    {
         return Ok(next.run(req).await);
     }
-    
+
     // Try to get from cache first
     let site_config = {
         let cache = SITE_CACHE.read().await;
         cache.get(&domain).cloned()
     };
-    
+
     let site_config = match site_config {
         Some(config) => config,
         None => {
@@ -74,7 +85,7 @@ pub async fn site_context_middleware(
                 .one(&db)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            
+
             let app_domain = match app_domain {
                 Some(d) => d,
                 None => {
@@ -99,7 +110,7 @@ pub async fn site_context_middleware(
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
                 .ok_or(StatusCode::NOT_FOUND)?;
-            
+
             let config = SiteConfig {
                 tenant_id: tenant.id,
                 name: tenant.name.clone(),
@@ -111,25 +122,25 @@ pub async fn site_context_middleware(
                 site_status: Some(tenant.site_status),
                 custom_settings: HashMap::new(),
             };
-            
+
             // Update cache
             {
                 let mut cache = SITE_CACHE.write().await;
                 cache.insert(domain.clone(), config.clone());
             }
-            
+
             config
         }
     };
-    
+
     // Add site config to request extensions
     req.extensions_mut().insert(site_config.clone());
-    
+
     // Inject X-Tenant-Id header for downstream apps like Anchor
     if let Ok(header_val) = axum::http::HeaderValue::from_str(&site_config.tenant_id.to_string()) {
         req.headers_mut().insert("X-Tenant-Id", header_val);
     }
-    
+
     Ok(next.run(req).await)
 }
 

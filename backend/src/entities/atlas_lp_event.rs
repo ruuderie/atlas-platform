@@ -9,7 +9,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub app_page_id: Uuid,
-    pub event_type: String,     // "view" | "lead_submitted" | "cta_click"
+    pub event_type: String, // "view" | "lead_submitted" | "cta_click"
     pub session_id: String,
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,

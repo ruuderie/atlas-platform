@@ -94,9 +94,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(
-                "DROP TABLE IF EXISTS atlas_service_requests CASCADE;",
-            )
+            .execute_unprepared("DROP TABLE IF EXISTS atlas_service_requests CASCADE;")
             .await?;
 
         Ok(())

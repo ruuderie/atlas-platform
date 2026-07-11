@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// GENERIC-04: AtlasSubscription
 ///
@@ -34,7 +34,17 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(50))")]
 pub enum SubscriptionStatus {
     #[sea_orm(string_value = "active")]

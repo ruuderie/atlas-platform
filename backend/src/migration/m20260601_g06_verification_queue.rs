@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -44,24 +44,72 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasVerificationRequests::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::SubjectType).string().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::SubjectId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::RequestedByUserId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::AttachmentId).uuid().null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::AutoCheckResult).json_binary().null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::AutoCheckPassed).boolean().null())
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::SubjectType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::SubjectId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::RequestedByUserId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::AttachmentId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::AutoCheckResult)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::AutoCheckPassed)
+                            .boolean()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasVerificationRequests::Status)
                             .string_len(30)
                             .not_null()
                             .default(Expr::val("pending_upload")),
                     )
-                    .col(ColumnDef::new(AtlasVerificationRequests::ReviewedByUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::ReviewedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::RejectionReason).text().null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::VerifiedValue).string().null())
-                    .col(ColumnDef::new(AtlasVerificationRequests::ExpiresAt).date().null())
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::ReviewedByUserId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::ReviewedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::RejectionReason)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::VerifiedValue)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasVerificationRequests::ExpiresAt)
+                            .date()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasVerificationRequests::CreatedAt)
                             .timestamp_with_time_zone()
@@ -89,7 +137,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasVerificationRequests::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AtlasVerificationRequests::Table)
+                    .to_owned(),
+            )
             .await?;
 
         manager

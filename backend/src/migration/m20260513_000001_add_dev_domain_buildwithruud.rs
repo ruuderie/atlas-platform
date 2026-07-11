@@ -35,8 +35,9 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
         db.execute_unprepared(
-            "DELETE FROM app_domains WHERE domain_name = 'dev.buildwithruud.com';"
-        ).await?;
+            "DELETE FROM app_domains WHERE domain_name = 'dev.buildwithruud.com';",
+        )
+        .await?;
         Ok(())
     }
 }

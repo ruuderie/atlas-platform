@@ -217,7 +217,6 @@ impl MigrationTrait for Migration {
         ))
         .await?;
 
-
         db.execute(sea_orm::Statement::from_string(
             backend,
             "CREATE INDEX IF NOT EXISTS idx_contributor_calibration_template \
@@ -248,9 +247,18 @@ impl MigrationTrait for Migration {
 
         // Drop constraints
         for (table, constraint) in [
-            ("atlas_scorecard_dimension_aggregates", "chk_percentile_rank_range"),
-            ("atlas_scorecard_dimension_aggregates", "chk_percentile_band_values"),
-            ("atlas_scorecard_time_series", "chk_anomaly_direction_values"),
+            (
+                "atlas_scorecard_dimension_aggregates",
+                "chk_percentile_rank_range",
+            ),
+            (
+                "atlas_scorecard_dimension_aggregates",
+                "chk_percentile_band_values",
+            ),
+            (
+                "atlas_scorecard_time_series",
+                "chk_anomaly_direction_values",
+            ),
         ] {
             db.execute(sea_orm::Statement::from_string(
                 backend,

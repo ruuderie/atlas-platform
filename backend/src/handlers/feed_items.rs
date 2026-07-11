@@ -1,35 +1,31 @@
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    Json,
-    response::IntoResponse,
-};
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, QueryOrder, Order, TransactionTrait, PaginatorTrait
-};
+use crate::entities::attachment::{self, Entity as Attachment};
 use crate::entities::feed::Entity as Feed;
 use crate::entities::feed_item::{self, Entity as FeedItem};
-use crate::entities::attachment::{self, Entity as Attachment};
-use crate::models::feed_item::{FeedItemModel, CreateFeedItem, UpdateFeedItem};
 use crate::models::attachment::AttachmentModel;
+use crate::models::feed_item::{CreateFeedItem, FeedItemModel, UpdateFeedItem};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Order, PaginatorTrait,
+    QueryFilter, QueryOrder, Set, TransactionTrait,
+};
 use uuid::Uuid;
 
 pub async fn get_feed_items(
     State(db): State<DatabaseConnection>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let feed_items = FeedItem::find()
-        .all(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let feed_items = FeedItem::find().all(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let mut feed_item_models: Vec<FeedItemModel> = feed_items
-        .into_iter()
-        .map(FeedItemModel::from)
-        .collect();
+    let mut feed_item_models: Vec<FeedItemModel> =
+        feed_items.into_iter().map(FeedItemModel::from).collect();
 
     // Fetch attachments for each feed item
     for feed_item in &mut feed_item_models {
@@ -43,9 +39,8 @@ pub async fn get_feed_items(
             })?;
 
         if !attachments.is_empty() {
-            feed_item.attachments = Some(
-                attachments.into_iter().map(AttachmentModel::from).collect()
-            );
+            feed_item.attachments =
+                Some(attachments.into_iter().map(AttachmentModel::from).collect());
         }
     }
 
@@ -78,9 +73,8 @@ pub async fn get_feed_item_by_id(
         })?;
 
     if !attachments.is_empty() {
-        feed_item_model.attachments = Some(
-            attachments.into_iter().map(AttachmentModel::from).collect()
-        );
+        feed_item_model.attachments =
+            Some(attachments.into_iter().map(AttachmentModel::from).collect());
     }
 
     Ok((StatusCode::OK, Json(feed_item_model)))
@@ -91,13 +85,10 @@ pub async fn get_feed_items_by_feed(
     State(db): State<DatabaseConnection>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // Check if feed exists
-    let feed_exists = Feed::find_by_id(feed_id)
-        .count(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })? > 0;
+    let feed_exists = Feed::find_by_id(feed_id).count(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })? > 0;
 
     if !feed_exists {
         return Err(StatusCode::NOT_FOUND);
@@ -113,10 +104,8 @@ pub async fn get_feed_items_by_feed(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let mut feed_item_models: Vec<FeedItemModel> = feed_items
-        .into_iter()
-        .map(FeedItemModel::from)
-        .collect();
+    let mut feed_item_models: Vec<FeedItemModel> =
+        feed_items.into_iter().map(FeedItemModel::from).collect();
 
     // Fetch attachments for each feed item
     for feed_item in &mut feed_item_models {
@@ -130,9 +119,8 @@ pub async fn get_feed_items_by_feed(
             })?;
 
         if !attachments.is_empty() {
-            feed_item.attachments = Some(
-                attachments.into_iter().map(AttachmentModel::from).collect()
-            );
+            feed_item.attachments =
+                Some(attachments.into_iter().map(AttachmentModel::from).collect());
         }
     }
 
@@ -150,7 +138,8 @@ pub async fn create_feed_item(
         .map_err(|err| {
             tracing::error!("Database error: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
-        })? > 0;
+        })?
+        > 0;
 
     if !feed_exists {
         return Err(StatusCode::BAD_REQUEST);
@@ -164,11 +153,11 @@ pub async fn create_feed_item(
 
     // Generate a unique ID for the feed item
     let feed_item_id = Uuid::new_v4();
-    
+
     // Create the URL if not provided
-    let url = payload.url.unwrap_or_else(|| {
-        format!("/blog/{}", feed_item_id)
-    });
+    let url = payload
+        .url
+        .unwrap_or_else(|| format!("/blog/{}", feed_item_id));
 
     let now = Utc::now();
 
@@ -195,12 +184,10 @@ pub async fn create_feed_item(
         updated_at: Set(now),
     };
 
-    let feed_item = new_feed_item.insert(&txn)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let feed_item = new_feed_item.insert(&txn).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let mut feed_item_model = FeedItemModel::from(feed_item);
 
@@ -227,12 +214,10 @@ pub async fn create_feed_item(
                 updated_at: Set(now),
             };
 
-            let attachment = new_attachment.insert(&txn)
-                .await
-                .map_err(|err| {
-                    tracing::error!("Database error: {:?}", err);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
+            let attachment = new_attachment.insert(&txn).await.map_err(|err| {
+                tracing::error!("Database error: {:?}", err);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
 
             attachment_models.push(AttachmentModel::from(attachment));
         }
@@ -320,12 +305,10 @@ pub async fn update_feed_item(
     feed_item_model.date_modified = Set(Utc::now());
     feed_item_model.updated_at = Set(Utc::now());
 
-    let updated_feed_item = feed_item_model.update(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Database error: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let updated_feed_item = feed_item_model.update(&db).await.map_err(|err| {
+        tracing::error!("Database error: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let mut feed_item_model = FeedItemModel::from(updated_feed_item);
 
@@ -340,9 +323,8 @@ pub async fn update_feed_item(
         })?;
 
     if !attachments.is_empty() {
-        feed_item_model.attachments = Some(
-            attachments.into_iter().map(AttachmentModel::from).collect()
-        );
+        feed_item_model.attachments =
+            Some(attachments.into_iter().map(AttachmentModel::from).collect());
     }
 
     Ok((StatusCode::OK, Json(feed_item_model)))
@@ -388,4 +370,4 @@ pub async fn delete_feed_item(
     }
 
     Ok(StatusCode::NO_CONTENT)
-} 
+}

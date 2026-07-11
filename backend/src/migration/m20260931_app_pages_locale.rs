@@ -61,15 +61,11 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
-        db.execute_unprepared(
-            "DROP INDEX IF EXISTS idx_app_pages_app_locale_published;",
-        )
-        .await?;
+        db.execute_unprepared("DROP INDEX IF EXISTS idx_app_pages_app_locale_published;")
+            .await?;
 
-        db.execute_unprepared(
-            "ALTER TABLE app_pages DROP COLUMN IF EXISTS locale;",
-        )
-        .await?;
+        db.execute_unprepared("ALTER TABLE app_pages DROP COLUMN IF EXISTS locale;")
+            .await?;
 
         Ok(())
     }

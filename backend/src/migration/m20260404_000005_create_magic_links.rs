@@ -19,9 +19,22 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(MagicLinkToken::UserId).uuid().not_null())
                     .col(ColumnDef::new(MagicLinkToken::Token).string().not_null())
-                    .col(ColumnDef::new(MagicLinkToken::ExpiresAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(MagicLinkToken::IsUsed).boolean().not_null().default(false))
-                    .col(ColumnDef::new(MagicLinkToken::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(MagicLinkToken::ExpiresAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(MagicLinkToken::IsUsed)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(MagicLinkToken::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_magic_link_user_id")

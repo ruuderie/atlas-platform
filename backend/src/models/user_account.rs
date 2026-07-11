@@ -1,7 +1,7 @@
-use chrono::{Utc, DateTime};
-use uuid::Uuid;
 use crate::entities::user_account::UserRole;
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct UserAccountCreate {

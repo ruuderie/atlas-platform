@@ -22,17 +22,34 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Profile::BusinessPhone).string())
                     .col(ColumnDef::new(Profile::BusinessWebsite).string())
                     .col(ColumnDef::new(Profile::AdditionalInfo).json())
-                    .col(ColumnDef::new(Profile::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(Profile::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Profile::UpdatedAt).timestamp_with_time_zone().not_null())
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-profile-account_id")
-                        .from(Profile::Table, Profile::AccountId)
-                        .to(Account::Table, Account::Id))
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-profile-directory_id")
-                        .from(Profile::Table, Profile::DirectoryId)
-                        .to(Directory::Table, Directory::Id))
+                    .col(
+                        ColumnDef::new(Profile::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Profile::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Profile::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-profile-account_id")
+                            .from(Profile::Table, Profile::AccountId)
+                            .to(Account::Table, Account::Id),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-profile-directory_id")
+                            .from(Profile::Table, Profile::DirectoryId)
+                            .to(Directory::Table, Directory::Id),
+                    )
                     .to_owned(),
             )
             .await

@@ -10,11 +10,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Listing::Table)
-                    .add_column(
-                        ColumnDef::new(Listing::Slug)
-                            .text()
-                            .null(),
-                    )
+                    .add_column(ColumnDef::new(Listing::Slug).text().null())
                     .to_owned(),
             )
             .await

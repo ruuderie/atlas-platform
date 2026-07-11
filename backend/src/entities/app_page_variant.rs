@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// A/B test variant for a platform-admin landing page.
 ///

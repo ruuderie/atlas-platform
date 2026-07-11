@@ -30,16 +30,57 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasExternalIntegrations::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::IntegrationType).string().not_null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::Label).string().null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::CredentialsEncrypted).json_binary().not_null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::WebhookSecret).string().null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::WebhookUrl).string().null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(AtlasExternalIntegrations::LastSyncedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::LastError).text().null())
-                    .col(ColumnDef::new(AtlasExternalIntegrations::Config).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::IntegrationType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::Label)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::CredentialsEncrypted)
+                            .json_binary()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::WebhookSecret)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::WebhookUrl)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::LastSyncedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::LastError)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasExternalIntegrations::Config)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasExternalIntegrations::CreatedAt)
                             .timestamp_with_time_zone()
@@ -87,14 +128,47 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasIntegrationEvents::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasIntegrationEvents::IntegrationId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasIntegrationEvents::EventType).string().not_null())
-                    .col(ColumnDef::new(AtlasIntegrationEvents::Direction).string().not_null())
-                    .col(ColumnDef::new(AtlasIntegrationEvents::Payload).json_binary().null())
-                    .col(ColumnDef::new(AtlasIntegrationEvents::Status).string().not_null().default(Expr::val("pending")))
-                    .col(ColumnDef::new(AtlasIntegrationEvents::ErrorMessage).text().null())
-                    .col(ColumnDef::new(AtlasIntegrationEvents::ProcessedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::IntegrationId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::EventType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::Direction)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::Payload)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::Status)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("pending")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::ErrorMessage)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasIntegrationEvents::ProcessedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasIntegrationEvents::CreatedAt)
                             .timestamp_with_time_zone()
@@ -134,7 +208,11 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_table(Table::drop().table(AtlasExternalIntegrations::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AtlasExternalIntegrations::Table)
+                    .to_owned(),
+            )
             .await?;
 
         Ok(())

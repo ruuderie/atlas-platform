@@ -1,10 +1,16 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
+use uuid::Uuid;
 
-use crate::entities::atlas_tax_event::{self, Entity as TaxEventEntity, ActiveModel as TaxEventActiveModel};
-use crate::entities::atlas_tax_filing::{self, Entity as TaxFilingEntity, ActiveModel as TaxFilingActiveModel};
+use crate::entities::atlas_tax_event::{
+    self, ActiveModel as TaxEventActiveModel, Entity as TaxEventEntity,
+};
+use crate::entities::atlas_tax_filing::{
+    self, ActiveModel as TaxFilingActiveModel, Entity as TaxFilingEntity,
+};
 
 /// Service layer for GENERIC-17: Tax events and filings.
 /// Handles both atlas_tax_event and atlas_tax_filing.
@@ -88,8 +94,8 @@ impl TaxService {
         status: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_tax_filing::Model>, String> {
-        let mut q = TaxFilingEntity::find()
-            .filter(atlas_tax_filing::Column::TenantId.eq(tenant_id));
+        let mut q =
+            TaxFilingEntity::find().filter(atlas_tax_filing::Column::TenantId.eq(tenant_id));
 
         if let Some(y) = period_year {
             q = q.filter(atlas_tax_filing::Column::PeriodYear.eq(y));
@@ -98,10 +104,7 @@ impl TaxService {
             q = q.filter(atlas_tax_filing::Column::Status.eq(s.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn mark_filing_submitted(
@@ -110,7 +113,11 @@ impl TaxService {
         filing_id: Uuid,
         confirmation_number: &str,
     ) -> Result<(), String> {
-        tracing::info!("Tax filing {} submitted with confirmation {}", filing_id, confirmation_number);
+        tracing::info!(
+            "Tax filing {} submitted with confirmation {}",
+            filing_id,
+            confirmation_number
+        );
         Ok(())
     }
 }

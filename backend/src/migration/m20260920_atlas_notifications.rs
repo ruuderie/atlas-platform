@@ -23,7 +23,6 @@
 ///     in_app    → {}  (always enabled, config unused)
 /// - Tenant-level broadcast channels (e.g. a landlord group chat) are stored with
 ///   user_id = tenant_id (sentinel value) and scope = "broadcast".
-
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -34,7 +33,8 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(r#"
+            .execute_unprepared(
+                r#"
 -- ─────────────────────────────────────────────────────────────────────────────
 -- atlas_notification: persistent in-app notification inbox
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -128,7 +128,8 @@ DROP TRIGGER IF EXISTS trg_atlas_user_notif_pref_updated_at
 CREATE TRIGGER trg_atlas_user_notif_pref_updated_at
     BEFORE UPDATE ON atlas_user_notification_pref
     FOR EACH ROW EXECUTE FUNCTION atlas_user_notif_pref_set_updated_at();
-"#)
+"#,
+            )
             .await?;
         Ok(())
     }
@@ -136,12 +137,14 @@ CREATE TRIGGER trg_atlas_user_notif_pref_updated_at
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(r#"
+            .execute_unprepared(
+                r#"
 DROP TRIGGER IF EXISTS trg_atlas_user_notif_pref_updated_at ON atlas_user_notification_pref;
 DROP FUNCTION IF EXISTS atlas_user_notif_pref_set_updated_at();
 DROP TABLE IF EXISTS atlas_user_notification_pref;
 DROP TABLE IF EXISTS atlas_notification;
-"#)
+"#,
+            )
             .await?;
         Ok(())
     }

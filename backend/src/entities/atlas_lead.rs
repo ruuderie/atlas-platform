@@ -1,10 +1,10 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
-use rust_decimal::Decimal;
+use uuid::Uuid;
 
 /// G-31: atlas_lead — Canonical lead / prospect entity.
 ///
@@ -199,9 +199,7 @@ impl Model {
     ///
     /// Returns `Err` if the stored value is not a known variant — this should
     /// never happen in production but is caught defensively at the read boundary.
-    pub fn lead_status_typed(
-        &self,
-    ) -> Result<crate::types::lead::LeadStatus, String> {
+    pub fn lead_status_typed(&self) -> Result<crate::types::lead::LeadStatus, String> {
         crate::types::lead::LeadStatus::try_from(self.lead_status.as_str())
     }
 
@@ -214,7 +212,7 @@ impl Model {
     ) -> Result<Option<crate::types::shared::MailingAddress>, serde_json::Error> {
         match &self.mailing_address {
             Some(v) => serde_json::from_value(v.clone()).map(Some),
-            None    => Ok(None),
+            None => Ok(None),
         }
     }
 
@@ -223,8 +221,8 @@ impl Model {
     /// Uses `From<String>` (not `TryFrom`) because `DataSource` has an `Other(String)` catch-all
     /// variant that ensures this never fails for unknown import sources.
     pub fn data_source_typed(&self) -> Option<crate::types::lead::DataSource> {
-        self.data_source.as_ref().map(|s| crate::types::lead::DataSource::from(s.as_str()))
+        self.data_source
+            .as_ref()
+            .map(|s| crate::types::lead::DataSource::from(s.as_str()))
     }
 }
-
-

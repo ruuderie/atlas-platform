@@ -28,29 +28,65 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Listing::Longitude).double())
                     .col(ColumnDef::new(Listing::AdditionalInfo).json())
                     .col(ColumnDef::new(Listing::Status).string().not_null())
-                    .col(ColumnDef::new(Listing::IsFeatured).boolean().not_null().default(false))
-                    .col(ColumnDef::new(Listing::IsBasedOnTemplate).boolean().not_null().default(false))
+                    .col(
+                        ColumnDef::new(Listing::IsFeatured)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(Listing::IsBasedOnTemplate)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
                     .col(ColumnDef::new(Listing::BasedOnTemplateId).uuid())
-                    .col(ColumnDef::new(Listing::IsAdPlacement).boolean().not_null().default(false))
-                    .col(ColumnDef::new(Listing::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(Listing::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Listing::UpdatedAt).timestamp_with_time_zone().not_null())
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-listing-profile_id")
-                        .from(Listing::Table, Listing::ProfileId)
-                        .to(Profile::Table, Profile::Id))
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-listing-directory_id")
-                        .from(Listing::Table, Listing::DirectoryId)
-                        .to(Directory::Table, Directory::Id))
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-listing-category_id")
-                        .from(Listing::Table, Listing::CategoryId)
-                        .to(Category::Table, Category::Id))
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-listing-based_on_template_id")
-                        .from(Listing::Table, Listing::BasedOnTemplateId)
-                        .to(Template::Table, Template::Id))
+                    .col(
+                        ColumnDef::new(Listing::IsAdPlacement)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(Listing::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Listing::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Listing::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-listing-profile_id")
+                            .from(Listing::Table, Listing::ProfileId)
+                            .to(Profile::Table, Profile::Id),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-listing-directory_id")
+                            .from(Listing::Table, Listing::DirectoryId)
+                            .to(Directory::Table, Directory::Id),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-listing-category_id")
+                            .from(Listing::Table, Listing::CategoryId)
+                            .to(Category::Table, Category::Id),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-listing-based_on_template_id")
+                            .from(Listing::Table, Listing::BasedOnTemplateId)
+                            .to(Template::Table, Template::Id),
+                    )
                     .to_owned(),
             )
             .await

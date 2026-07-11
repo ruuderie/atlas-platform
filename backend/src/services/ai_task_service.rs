@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_ai_task::{self, Entity as AiTaskEntity, ActiveModel as AiTaskActiveModel};
+use crate::entities::atlas_ai_task::{
+    self, ActiveModel as AiTaskActiveModel, Entity as AiTaskEntity,
+};
 
 /// Service layer for GENERIC-08: AtlasAiTask
 /// Async LLM / AI job queue with priority, retries, and result storage.
@@ -56,8 +60,7 @@ impl AiTaskService {
         task_type: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_ai_task::Model>, String> {
-        let mut q = AiTaskEntity::find()
-            .filter(atlas_ai_task::Column::TenantId.eq(tenant_id));
+        let mut q = AiTaskEntity::find().filter(atlas_ai_task::Column::TenantId.eq(tenant_id));
 
         if let Some(s) = status {
             q = q.filter(atlas_ai_task::Column::Status.eq(s.to_string()));
@@ -66,10 +69,7 @@ impl AiTaskService {
             q = q.filter(atlas_ai_task::Column::TaskType.eq(tt.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn mark_in_progress(

@@ -1,8 +1,7 @@
 use crate::entities::category;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CategoryModel {
@@ -30,7 +29,6 @@ pub struct CreateCategory {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateCategory {
-
     pub tenant_id: Option<Uuid>,
     pub parent_category_id: Option<Uuid>,
     pub name: Option<String>,
@@ -55,4 +53,3 @@ impl From<category::Model> for CategoryModel {
         }
     }
 }
-

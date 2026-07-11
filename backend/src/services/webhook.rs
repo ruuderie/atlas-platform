@@ -1,15 +1,15 @@
 use crate::entities::{webhook_delivery, webhook_endpoint};
-use uuid::Uuid;
-use sea_orm::prelude::DateTimeWithTimeZone;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
 use reqwest::Client;
-use sea_orm::*;
 use sea_orm::ActiveValue::Set;
+use sea_orm::prelude::DateTimeWithTimeZone;
+use sea_orm::*;
 use serde_json::Value;
 use sha2::Sha256;
 use std::time::Duration;
 use tracing::{error, info, warn};
+use uuid::Uuid;
 
 pub async fn dispatch_event(
     db: &DatabaseConnection,
@@ -59,7 +59,10 @@ pub async fn dispatch_event(
 
         tokio::spawn(async move {
             if let Err(e) = process_delivery(&db_clone, delivery_id).await {
-                error!("Failed to process webhook delivery {}: {:?}", delivery_id, e);
+                error!(
+                    "Failed to process webhook delivery {}: {:?}",
+                    delivery_id, e
+                );
             }
         });
     }
@@ -80,7 +83,7 @@ async fn process_delivery(db: &DatabaseConnection, delivery_id: Uuid) -> Result<
         .ok_or_else(|| anyhow::anyhow!("Endpoint not found"))?;
 
     let payload_str = serde_json::to_string(&delivery.payload)?;
-    
+
     // Create HMAC signature
     let mut mac = Hmac::<Sha256>::new_from_slice(endpoint.secret_key.as_bytes())?;
     mac.update(payload_str.as_bytes());
@@ -140,7 +143,7 @@ fn handle_failure(delivery: &mut webhook_delivery::ActiveModel) {
         delivery.next_retry_at = Set(None); // no more retries
     } else {
         delivery.status = Set("failed".to_string());
-        // Exponential backoff: e.g. 5m, 25m, 125m, etc. 
+        // Exponential backoff: e.g. 5m, 25m, 125m, etc.
         // 5 minutes * 5 ^ (attempt - 1)
         let delay_mins = 5_i64.pow(attempts as u32 - 1);
         let next_retry = Utc::now() + chrono::Duration::minutes(delay_mins);
@@ -156,9 +159,10 @@ pub async fn start_webhook_sweeper(db: DatabaseConnection) {
             interval.tick().await;
 
             let now: DateTimeWithTimeZone = Utc::now().into();
-            
+
             // Find pendings older than 2 mins
-            let two_mins_ago: DateTimeWithTimeZone = (Utc::now() - chrono::Duration::minutes(2)).into();
+            let two_mins_ago: DateTimeWithTimeZone =
+                (Utc::now() - chrono::Duration::minutes(2)).into();
             let pendings = webhook_delivery::Entity::find()
                 .filter(webhook_delivery::Column::Status.eq("pending"))
                 .filter(webhook_delivery::Column::UpdatedAt.lt(two_mins_ago))

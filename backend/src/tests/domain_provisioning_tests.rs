@@ -15,7 +15,10 @@
 //! | `ATLAS_CNAME_TARGET`      | env-driven CNAME target; no stale atlas-platform.com             |
 //! | Duplicate domain          | 409 CONFLICT when two tenants claim same custom_domain           |
 
-use axum::{body::Body, http::{Request, StatusCode}};
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
 use http_body_util::BodyExt;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use serde_json::json;
@@ -35,13 +38,14 @@ async fn response_json(resp: axum::response::Response) -> serde_json::Value {
 /// Provision a tenant and return the primary Folio/Anchor instance_id for use
 /// in subsequent /public-config calls.
 async fn provision_and_get_instance_id(
-    app:   &axum::Router,
-    db:    &sea_orm::DatabaseConnection,
+    app: &axum::Router,
+    db: &sea_orm::DatabaseConnection,
     token: &str,
-    slug:  &str,
-    dom:   &str,
+    slug: &str,
+    dom: &str,
 ) -> (StatusCode, uuid::Uuid) {
-    let resp = app.clone()
+    let resp = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -49,21 +53,25 @@ async fn provision_and_get_instance_id(
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {token}"))
                 .header("Host", "localhost")
-                .body(Body::from(json!({
-                    "tenant_name":             slug,
-                    "display_name":            format!("Test {slug}"),
-                    "domain":                  dom,
-                    "admin_email":             format!("admin@{dom}"),
-                    "admin_first_name":        "Test",
-                    "admin_last_name":         "Admin",
-                    "bypass_dns_verification": true,
-                }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "tenant_name":             slug,
+                        "display_name":            format!("Test {slug}"),
+                        "domain":                  dom,
+                        "admin_email":             format!("admin@{dom}"),
+                        "admin_first_name":        "Test",
+                        "admin_last_name":         "Admin",
+                        "bypass_dns_verification": true,
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
 
     let status = resp.status();
-    let body   = response_json(resp).await;
+    let body = response_json(resp).await;
 
     // Resolve the instance ID via DB (provision response returns tenant_id, not instance_id)
     let tenant_id: uuid::Uuid = body["tenant_id"]
@@ -73,10 +81,13 @@ async fn provision_and_get_instance_id(
 
     let instances = app_instance::Entity::find()
         .filter(app_instance::Column::TenantId.eq(tenant_id))
-        .all(db).await.unwrap();
+        .all(db)
+        .await
+        .unwrap();
 
     // Prefer the first non-anchor instance (e.g. property_management), or anchor, or any
-    let inst = instances.iter()
+    let inst = instances
+        .iter()
         .find(|i| i.app_type != "anchor")
         .or_else(|| instances.first())
         .expect("at least one app_instance must exist after provision");
@@ -85,55 +96,74 @@ async fn provision_and_get_instance_id(
 }
 
 async fn put_public_config(
-    app: &axum::Router, token: &str, instance_id: &uuid::Uuid, custom_domain: &str,
+    app: &axum::Router,
+    token: &str,
+    instance_id: &uuid::Uuid,
+    custom_domain: &str,
 ) -> (StatusCode, serde_json::Value) {
     // GET first — seeds atlas_app_deployment_config if absent (lazy-create on first GET).
     // The real UI always loads the Config tab before saving; this matches that flow.
-    let _ = app.clone()
+    let _ = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/admin/app-instances/{instance_id}/public-config"))
+                .uri(format!(
+                    "/api/admin/app-instances/{instance_id}/public-config"
+                ))
                 .header("Authorization", format!("Bearer {token}"))
                 .header("Host", "localhost")
                 .body(Body::empty())
                 .unwrap(),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
 
-    let resp = app.clone()
+    let resp = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("PUT")
-                .uri(format!("/api/admin/app-instances/{instance_id}/public-config"))
+                .uri(format!(
+                    "/api/admin/app-instances/{instance_id}/public-config"
+                ))
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {token}"))
                 .header("Host", "localhost")
-                .body(Body::from(json!({ "custom_domain": custom_domain }).to_string()))
+                .body(Body::from(
+                    json!({ "custom_domain": custom_domain }).to_string(),
+                ))
                 .unwrap(),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
     let status = resp.status();
-    let body   = response_json(resp).await;
+    let body = response_json(resp).await;
     (status, body)
 }
 
 async fn get_public_config(
-    app: &axum::Router, token: &str, instance_id: &uuid::Uuid,
+    app: &axum::Router,
+    token: &str,
+    instance_id: &uuid::Uuid,
 ) -> (StatusCode, serde_json::Value) {
-    let resp = app.clone()
+    let resp = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/admin/app-instances/{instance_id}/public-config"))
+                .uri(format!(
+                    "/api/admin/app-instances/{instance_id}/public-config"
+                ))
                 .header("Authorization", format!("Bearer {token}"))
                 .header("Host", "localhost")
                 .body(Body::empty())
                 .unwrap(),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
     let status = resp.status();
-    let body   = response_json(resp).await;
+    let body = response_json(resp).await;
     (status, body)
 }
 
@@ -147,17 +177,17 @@ mod sidecar_pure_logic {
     fn service_for_app(app_slug: &str) -> &'static str {
         match app_slug {
             "property_management" | "folio" => "folio",
-            "anchor"                         => "anchor-app",
-            "network_instance"               => "network-instance",
-            _                                => "folio",
+            "anchor" => "anchor-app",
+            "network_instance" => "network-instance",
+            _ => "folio",
         }
     }
 
     fn tls_config(domain: &str, tenant_slug: &str) -> (String, bool) {
         if domain.ends_with(".dev.atlas.oply.co") {
-            ("wildcard-tls-dev".to_string(),  false)
+            ("wildcard-tls-dev".to_string(), false)
         } else if domain.ends_with(".uat.atlas.oply.co") {
-            ("wildcard-tls-uat".to_string(),  false)
+            ("wildcard-tls-uat".to_string(), false)
         } else if domain.ends_with(".atlas.oply.co") {
             ("wildcard-tls-prod".to_string(), false)
         } else {
@@ -165,76 +195,107 @@ mod sidecar_pure_logic {
         }
     }
 
-    #[test] fn property_management_routes_to_folio_service() {
+    #[test]
+    fn property_management_routes_to_folio_service() {
         assert_eq!(service_for_app("property_management"), "folio");
     }
-    #[test] fn folio_alias_routes_to_folio_service() {
+    #[test]
+    fn folio_alias_routes_to_folio_service() {
         assert_eq!(service_for_app("folio"), "folio");
     }
-    #[test] fn anchor_routes_to_anchor_app_service() {
+    #[test]
+    fn anchor_routes_to_anchor_app_service() {
         assert_eq!(service_for_app("anchor"), "anchor-app");
     }
-    #[test] fn network_instance_routes_to_network_instance_service() {
+    #[test]
+    fn network_instance_routes_to_network_instance_service() {
         assert_eq!(service_for_app("network_instance"), "network-instance");
     }
-    #[test] fn unknown_slug_falls_back_to_folio_not_crash() {
+    #[test]
+    fn unknown_slug_falls_back_to_folio_not_crash() {
         assert_eq!(service_for_app("meridian"), "folio");
         assert_eq!(service_for_app(""), "folio");
     }
-    #[test] fn service_names_use_hyphens_not_underscores() {
+    #[test]
+    fn service_names_use_hyphens_not_underscores() {
         for slug in ["property_management", "folio", "anchor", "network_instance"] {
             let svc = service_for_app(slug);
-            assert!(!svc.contains('_'),
-                "k8s Service name '{svc}' for slug '{slug}' must use hyphens, not underscores");
+            assert!(
+                !svc.contains('_'),
+                "k8s Service name '{svc}' for slug '{slug}' must use hyphens, not underscores"
+            );
         }
     }
 
-    #[test] fn dev_subdomain_uses_wildcard_no_cert_manager() {
+    #[test]
+    fn dev_subdomain_uses_wildcard_no_cert_manager() {
         let (secret, needs_cert) = tls_config("demo.dev.atlas.oply.co", "acme");
         assert_eq!(secret, "wildcard-tls-dev");
-        assert!(!needs_cert, "dev subdomain must NOT trigger HTTP-01 (cert already exists)");
+        assert!(
+            !needs_cert,
+            "dev subdomain must NOT trigger HTTP-01 (cert already exists)"
+        );
     }
-    #[test] fn uat_subdomain_uses_wildcard_no_cert_manager() {
+    #[test]
+    fn uat_subdomain_uses_wildcard_no_cert_manager() {
         let (secret, needs_cert) = tls_config("demo.uat.atlas.oply.co", "acme");
         assert_eq!(secret, "wildcard-tls-uat");
         assert!(!needs_cert);
     }
-    #[test] fn prod_subdomain_uses_wildcard_no_cert_manager() {
+    #[test]
+    fn prod_subdomain_uses_wildcard_no_cert_manager() {
         let (secret, needs_cert) = tls_config("folio.atlas.oply.co", "acme");
         assert_eq!(secret, "wildcard-tls-prod");
         assert!(!needs_cert, "*.atlas.oply.co must use wildcard-tls-prod");
     }
-    #[test] fn custom_domain_triggers_http01_with_slug_tls_secret() {
+    #[test]
+    fn custom_domain_triggers_http01_with_slug_tls_secret() {
         let (secret, needs_cert) = tls_config("app.clientco.com", "clientco");
         assert_eq!(secret, "clientco-tls");
         assert!(needs_cert, "custom domain MUST trigger HTTP-01");
     }
-    #[test] fn dots_in_tenant_slug_become_dashes_in_k8s_secret_name() {
+    #[test]
+    fn dots_in_tenant_slug_become_dashes_in_k8s_secret_name() {
         let (secret, _) = tls_config("app.example.com", "some.tenant.slug");
         assert_eq!(secret, "some-tenant-slug-tls");
-        assert!(!secret.contains('.'), "k8s Secret name must not contain dots");
+        assert!(
+            !secret.contains('.'),
+            "k8s Secret name must not contain dots"
+        );
     }
-    #[test] fn arbitrary_external_domains_trigger_http01() {
-        for domain in ["app.buildwithruud.com", "folio.property.io", "tenant.example.co.uk"] {
+    #[test]
+    fn arbitrary_external_domains_trigger_http01() {
+        for domain in [
+            "app.buildwithruud.com",
+            "folio.property.io",
+            "tenant.example.co.uk",
+        ] {
             let (_, needs_cert) = tls_config(domain, "tenant");
-            assert!(needs_cert, "External domain '{domain}' must trigger HTTP-01");
+            assert!(
+                needs_cert,
+                "External domain '{domain}' must trigger HTTP-01"
+            );
         }
     }
-    #[test] fn suffixes_are_case_sensitive_no_mixed_case_bypass() {
+    #[test]
+    fn suffixes_are_case_sensitive_no_mixed_case_bypass() {
         // Mixed case should NOT match the wildcard patterns
         let (_, needs_cert) = tls_config("DEMO.DEV.ATLAS.OPLY.CO", "acme");
         // ends_with is case-sensitive, so this should trigger HTTP-01
-        assert!(needs_cert, "Uppercase domain must not bypass wildcard detection");
+        assert!(
+            needs_cert,
+            "Uppercase domain must not bypass wildcard detection"
+        );
     }
 }
 
 // ── IngressProvisioner wiremock tests ─────────────────────────────────────────
 
 mod ingress_provisioner_behaviour {
-    use wiremock::matchers::{method, path, body_json};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-    use serde_json::json;
     use crate::services::ingress_provisioner::IngressProvisioner;
+    use serde_json::json;
+    use wiremock::matchers::{body_json, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn provisioner(url: &str) -> IngressProvisioner {
         IngressProvisioner::with_sidecar_url(url)
@@ -252,10 +313,15 @@ mod ingress_provisioner_behaviour {
             })))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({"status":"success"})))
             .expect(1)
-            .mount(&server).await;
+            .mount(&server)
+            .await;
 
         provisioner(&server.uri())
-            .provision_domain("buildwithruud", "folio.atlas.oply.co", "property_management")
+            .provision_domain(
+                "buildwithruud",
+                "folio.atlas.oply.co",
+                "property_management",
+            )
             .await
             .expect("provision should succeed");
 
@@ -274,7 +340,8 @@ mod ingress_provisioner_behaviour {
             })))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({"status":"success"})))
             .expect(1)
-            .mount(&server).await;
+            .mount(&server)
+            .await;
 
         provisioner(&server.uri())
             .provision_domain("ctbuildpros", "directory.ctbuildpros.com", "anchor")
@@ -289,14 +356,18 @@ mod ingress_provisioner_behaviour {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .respond_with(ResponseTemplate::new(500).set_body_string("k8s unreachable"))
-            .mount(&server).await;
+            .mount(&server)
+            .await;
 
         let err = provisioner(&server.uri())
             .provision_domain("tenant", "app.example.com", "folio")
-            .await.unwrap_err();
+            .await
+            .unwrap_err();
 
-        assert!(err.contains("500") || err.contains("k8s unreachable"),
-            "Error must surface sidecar status/body. Got: {err}");
+        assert!(
+            err.contains("500") || err.contains("k8s unreachable"),
+            "Error must surface sidecar status/body. Got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -305,7 +376,10 @@ mod ingress_provisioner_behaviour {
         let result = provisioner("http://127.0.0.1:19999")
             .provision_domain("tenant", "app.example.com", "folio")
             .await;
-        assert!(result.is_err(), "Unreachable sidecar must return Err, not panic");
+        assert!(
+            result.is_err(),
+            "Unreachable sidecar must return Err, not panic"
+        );
         assert!(!result.is_ok());
     }
 
@@ -320,7 +394,8 @@ mod ingress_provisioner_behaviour {
             })))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({"status":"success"})))
             .expect(1)
-            .mount(&server).await;
+            .mount(&server)
+            .await;
 
         provisioner(&server.uri())
             .deprovision_domain("buildwithruud", "folio.atlas.oply.co")
@@ -338,7 +413,7 @@ async fn update_public_config_returns_dns_instructions_for_custom_domain() {
     let (app, db) = setup_test_app().await;
     let (_, token) = test_utils::create_and_login_admin_user(&app, &db).await;
     let slug = format!("dp-cfg-{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let dom  = format!("{slug}.dev.atlas.oply.co");
+    let dom = format!("{slug}.dev.atlas.oply.co");
 
     let (s, iid) = provision_and_get_instance_id(&app, &db, &token, &slug, &dom).await;
     assert_eq!(s, StatusCode::CREATED, "provision must return 201");
@@ -349,20 +424,29 @@ async fn update_public_config_returns_dns_instructions_for_custom_domain() {
     assert_eq!(s, StatusCode::OK, "update_public_config returned: {j}");
 
     // dns_instructions must be present
-    let dns = j.get("dns_instructions").expect("dns_instructions must be in response");
+    let dns = j
+        .get("dns_instructions")
+        .expect("dns_instructions must be in response");
     assert!(dns.is_object(), "dns_instructions must be a JSON object");
-    assert_eq!(dns["record_type"], "CNAME",
-        "record_type must be CNAME, got: {}", dns["record_type"]);
-    assert_eq!(dns["name"], custom,
-        "dns_instructions.name must equal the custom_domain that was set");
+    assert_eq!(
+        dns["record_type"], "CNAME",
+        "record_type must be CNAME, got: {}",
+        dns["record_type"]
+    );
+    assert_eq!(
+        dns["name"], custom,
+        "dns_instructions.name must equal the custom_domain that was set"
+    );
 
     // custom_domain saved correctly
     assert_eq!(j["custom_domain"], custom);
 
     // CNAME value must not be the old stale value
     let cname_val = dns["value"].as_str().unwrap_or("");
-    assert!(!cname_val.contains("atlas-platform.com"),
-        "Stale 'atlas-platform.com' hardcoded value must not appear. Got: {cname_val}");
+    assert!(
+        !cname_val.contains("atlas-platform.com"),
+        "Stale 'atlas-platform.com' hardcoded value must not appear. Got: {cname_val}"
+    );
     assert!(!cname_val.is_empty(), "CNAME value must not be empty");
 }
 
@@ -371,7 +455,7 @@ async fn get_public_config_returns_dns_instructions_when_custom_domain_is_saved(
     let (app, db) = setup_test_app().await;
     let (_, token) = test_utils::create_and_login_admin_user(&app, &db).await;
     let slug = format!("dp-get-{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let dom  = format!("{slug}.dev.atlas.oply.co");
+    let dom = format!("{slug}.dev.atlas.oply.co");
 
     let (s, iid) = provision_and_get_instance_id(&app, &db, &token, &slug, &dom).await;
     assert_eq!(s, StatusCode::CREATED, "provision must return 201");
@@ -384,10 +468,13 @@ async fn get_public_config_returns_dns_instructions_when_custom_domain_is_saved(
     let (s, j) = get_public_config(&app, &token, &iid).await;
     assert_eq!(s, StatusCode::OK);
 
-    let dns = j.get("dns_instructions")
+    let dns = j
+        .get("dns_instructions")
         .expect("GET /public-config must return dns_instructions when custom_domain is persisted");
-    assert!(dns.is_object() && !dns.is_null(),
-        "dns_instructions must be a non-null object. Got: {j}");
+    assert!(
+        dns.is_object() && !dns.is_null(),
+        "dns_instructions must be a non-null object. Got: {j}"
+    );
     assert_eq!(dns["name"], custom);
 }
 
@@ -396,7 +483,7 @@ async fn get_public_config_omits_dns_instructions_without_custom_domain() {
     let (app, db) = setup_test_app().await;
     let (_, token) = test_utils::create_and_login_admin_user(&app, &db).await;
     let slug = format!("dp-nodns-{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let dom  = format!("{slug}.dev.atlas.oply.co");
+    let dom = format!("{slug}.dev.atlas.oply.co");
 
     let (s, iid) = provision_and_get_instance_id(&app, &db, &token, &slug, &dom).await;
     assert_eq!(s, StatusCode::CREATED);
@@ -408,8 +495,10 @@ async fn get_public_config_omits_dns_instructions_without_custom_domain() {
     // dns_instructions should be absent or null
     let dns = j.get("dns_instructions");
     let absent_or_null = dns.is_none() || dns.map(|v| v.is_null()).unwrap_or(false);
-    assert!(absent_or_null,
-        "GET must NOT return non-null dns_instructions when no custom_domain is set. Got: {j}");
+    assert!(
+        absent_or_null,
+        "GET must NOT return non-null dns_instructions when no custom_domain is set. Got: {j}"
+    );
 }
 
 #[tokio::test]
@@ -421,9 +510,21 @@ async fn update_public_config_rejects_duplicate_custom_domain_with_409() {
     let slug2 = format!("dpdup2-{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
     let (s1, iid1) = provision_and_get_instance_id(
-        &app, &db, &token, &slug1, &format!("{slug1}.dev.atlas.oply.co")).await;
+        &app,
+        &db,
+        &token,
+        &slug1,
+        &format!("{slug1}.dev.atlas.oply.co"),
+    )
+    .await;
     let (s2, iid2) = provision_and_get_instance_id(
-        &app, &db, &token, &slug2, &format!("{slug2}.dev.atlas.oply.co")).await;
+        &app,
+        &db,
+        &token,
+        &slug2,
+        &format!("{slug2}.dev.atlas.oply.co"),
+    )
+    .await;
     assert_eq!(s1, StatusCode::CREATED);
     assert_eq!(s2, StatusCode::CREATED);
 
@@ -435,8 +536,11 @@ async fn update_public_config_rejects_duplicate_custom_domain_with_409() {
 
     // Second tenant claims the same domain — must be rejected
     let (r2, _) = put_public_config(&app, &token, &iid2, &shared_domain).await;
-    assert_eq!(r2, StatusCode::CONFLICT,
-        "duplicate custom_domain must return 409 CONFLICT");
+    assert_eq!(
+        r2,
+        StatusCode::CONFLICT,
+        "duplicate custom_domain must return 409 CONFLICT"
+    );
 }
 
 // ── Regression: update_public_config must register custom domain in app_domains ──
@@ -502,7 +606,8 @@ async fn provisioned_folio_subdomain_is_accepted_by_magic_link_endpoint() {
     let base_domain = format!("{slug}.dev.atlas.oply.co");
 
     // Provision with anchor + property_management — the handler should register folio.{base} in app_domains.
-    let resp = app.clone()
+    let resp = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -510,21 +615,29 @@ async fn provisioned_folio_subdomain_is_accepted_by_magic_link_endpoint() {
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {token}"))
                 .header("Host", "localhost")
-                .body(Body::from(serde_json::json!({
-                    "tenant_name":             slug,
-                    "display_name":            format!("ML Folio Test {slug}"),
-                    "domain":                  base_domain,
-                    "admin_email":             format!("admin@{base_domain}"),
-                    "admin_first_name":        "Test",
-                    "admin_last_name":         "Admin",
-                    "bypass_dns_verification": true,
-                    "apps":                    ["anchor", "property_management"],
-                }).to_string()))
+                .body(Body::from(
+                    serde_json::json!({
+                        "tenant_name":             slug,
+                        "display_name":            format!("ML Folio Test {slug}"),
+                        "domain":                  base_domain,
+                        "admin_email":             format!("admin@{base_domain}"),
+                        "admin_first_name":        "Test",
+                        "admin_last_name":         "Admin",
+                        "bypass_dns_verification": true,
+                        "apps":                    ["anchor", "property_management"],
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
 
-    assert_eq!(resp.status(), StatusCode::CREATED, "provision must return 201");
+    assert_eq!(
+        resp.status(),
+        StatusCode::CREATED,
+        "provision must return 201"
+    );
 
     // The folio subdomain follows the pattern folio.{base_domain}
     let folio_domain = format!("folio.{base_domain}");
@@ -533,20 +646,25 @@ async fn provisioned_folio_subdomain_is_accepted_by_magic_link_endpoint() {
     // POST to magic-link endpoint with folio domain as redirect_url.
     // The email doesn't need to exist — the endpoint always returns 200 for valid domains
     // (security: doesn't reveal whether email exists).
-    let ml_resp = app.clone()
+    let ml_resp = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/api/auth/magic-link/request")
                 .header("Content-Type", "application/json")
                 .header("Host", folio_domain.as_str())
-                .body(Body::from(serde_json::json!({
-                    "email":        "test-user@example.com",
-                    "redirect_url": redirect_url,
-                }).to_string()))
+                .body(Body::from(
+                    serde_json::json!({
+                        "email":        "test-user@example.com",
+                        "redirect_url": redirect_url,
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
 
     // Must be 200 — NOT 400 (unrecognized domain) which would surface as 500 in Folio.
     let ml_status = ml_resp.status();
@@ -564,20 +682,20 @@ async fn provisioned_folio_subdomain_is_accepted_by_magic_link_endpoint() {
     );
 }
 
-
-
 mod cname_target_contract {
     use crate::admin::app_instance::DnsInstructions;
 
     /// Mirrors what the backend handler does when building DnsInstructions.
     fn build_dns(domain: &str) -> DnsInstructions {
-        let target = std::env::var("ATLAS_CNAME_TARGET")
-            .unwrap_or_else(|_| "api.atlas.oply.co".to_string());
+        let target =
+            std::env::var("ATLAS_CNAME_TARGET").unwrap_or_else(|_| "api.atlas.oply.co".to_string());
         DnsInstructions {
             record_type: "CNAME".to_string(),
-            name:        domain.to_string(),
-            value:       target.clone(),
-            note:        format!("Point {domain} as a CNAME to {target}. SSL is provisioned automatically."),
+            name: domain.to_string(),
+            value: target.clone(),
+            note: format!(
+                "Point {domain} as a CNAME to {target}. SSL is provisioned automatically."
+            ),
         }
     }
 
@@ -585,10 +703,14 @@ mod cname_target_contract {
     fn falls_back_to_prod_when_env_unset() {
         temp_env::with_var_unset("ATLAS_CNAME_TARGET", || {
             let dns = build_dns("app.example.com");
-            assert_eq!(dns.value, "api.atlas.oply.co",
-                "Default CNAME must point to prod, not stale atlas-platform.com");
-            assert!(!dns.value.contains("atlas-platform.com"),
-                "Stale hardcoded value must not appear in default");
+            assert_eq!(
+                dns.value, "api.atlas.oply.co",
+                "Default CNAME must point to prod, not stale atlas-platform.com"
+            );
+            assert!(
+                !dns.value.contains("atlas-platform.com"),
+                "Stale hardcoded value must not appear in default"
+            );
         });
     }
 
@@ -624,8 +746,14 @@ mod cname_target_contract {
     fn note_contains_both_domain_and_cname_target() {
         temp_env::with_var("ATLAS_CNAME_TARGET", Some("api.uat.atlas.oply.co"), || {
             let dns = build_dns("staging.example.com");
-            assert!(dns.note.contains("staging.example.com"), "note must mention the custom domain");
-            assert!(dns.note.contains("api.uat.atlas.oply.co"), "note must mention the CNAME target");
+            assert!(
+                dns.note.contains("staging.example.com"),
+                "note must mention the custom domain"
+            );
+            assert!(
+                dns.note.contains("api.uat.atlas.oply.co"),
+                "note must mention the CNAME target"
+            );
         });
     }
 
@@ -633,10 +761,16 @@ mod cname_target_contract {
     fn dns_json_serializes_to_snake_case_field_names() {
         let dns = build_dns("example.com");
         let j = serde_json::to_value(&dns).unwrap();
-        assert!(j.get("record_type").is_some(), "must be snake_case 'record_type'");
+        assert!(
+            j.get("record_type").is_some(),
+            "must be snake_case 'record_type'"
+        );
         assert!(j.get("name").is_some());
         assert!(j.get("value").is_some());
         assert!(j.get("note").is_some());
-        assert!(j.get("recordType").is_none(), "camelCase 'recordType' must NOT appear");
+        assert!(
+            j.get("recordType").is_none(),
+            "camelCase 'recordType' must NOT appear"
+        );
     }
 }

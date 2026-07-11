@@ -17,17 +17,34 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Template::Name).string().not_null())
                     .col(ColumnDef::new(Template::Description).string().not_null())
                     .col(ColumnDef::new(Template::TemplateType).string().not_null())
-                    .col(ColumnDef::new(Template::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(Template::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Template::UpdatedAt).timestamp_with_time_zone().not_null())
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-template-directory_id")
-                        .from(Template::Table, Template::DirectoryId)
-                        .to(Directory::Table, Directory::Id))
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-template-category_id")
-                        .from(Template::Table, Template::CategoryId)
-                        .to(Category::Table, Category::Id))
+                    .col(
+                        ColumnDef::new(Template::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Template::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Template::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-template-directory_id")
+                            .from(Template::Table, Template::DirectoryId)
+                            .to(Directory::Table, Directory::Id),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-template-category_id")
+                            .from(Template::Table, Template::CategoryId)
+                            .to(Category::Table, Category::Id),
+                    )
                     .to_owned(),
             )
             .await

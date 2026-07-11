@@ -56,25 +56,62 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_record_relationships"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .uuid()
+                            .primary_key()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // ── Source entity ─────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("source_entity_type")).string_len(100).not_null())
-                    .col(ColumnDef::new(Alias::new("source_entity_id")).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("source_entity_type"))
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("source_entity_id"))
+                            .uuid()
+                            .not_null(),
+                    )
                     // ── Target entity ─────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("target_entity_type")).string_len(100).not_null())
-                    .col(ColumnDef::new(Alias::new("target_entity_id")).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("target_entity_type"))
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("target_entity_id"))
+                            .uuid()
+                            .not_null(),
+                    )
                     // ── Relationship label ────────────────────────────────────
                     // e.g. 'promotes', 'attended_by', 'generated_from', 'referenced_in'
-                    .col(ColumnDef::new(Alias::new("relationship_type")).string_len(100).not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("relationship_type"))
+                            .string_len(100)
+                            .not_null(),
+                    )
                     // Human-readable label for the inverse direction.
                     // e.g. if forward is 'promotes', inverse might be 'promoted_by'
-                    .col(ColumnDef::new(Alias::new("inverse_label")).string_len(100).null())
+                    .col(
+                        ColumnDef::new(Alias::new("inverse_label"))
+                            .string_len(100)
+                            .null(),
+                    )
                     // ── Metadata ──────────────────────────────────────────────
                     // Free-form context: sort_order, weight, notes, etc.
-                    .col(ColumnDef::new(Alias::new("relationship_metadata")).json_binary().null())
+                    .col(
+                        ColumnDef::new(Alias::new("relationship_metadata"))
+                            .json_binary()
+                            .null(),
+                    )
                     // ── Audit ─────────────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("created_by_user_id")).uuid().null())
+                    .col(
+                        ColumnDef::new(Alias::new("created_by_user_id"))
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(Alias::new("created_at"))
                             .timestamp_with_time_zone()
@@ -123,9 +160,7 @@ impl MigrationTrait for Migration {
         use sea_orm::ConnectionTrait;
         manager
             .get_connection()
-            .execute_unprepared(
-                "DROP TABLE IF EXISTS atlas_record_relationships CASCADE;",
-            )
+            .execute_unprepared("DROP TABLE IF EXISTS atlas_record_relationships CASCADE;")
             .await?;
         Ok(())
     }

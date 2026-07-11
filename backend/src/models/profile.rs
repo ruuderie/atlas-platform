@@ -1,8 +1,8 @@
 #![allow(dead_code, unused)]
 
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 use crate::entities::profile;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct ProfileSearch {

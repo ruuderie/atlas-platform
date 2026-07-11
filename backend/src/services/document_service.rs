@@ -1,10 +1,14 @@
 #![allow(dead_code, unused)]
 
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
+use uuid::Uuid;
 
-use crate::entities::atlas_document::{self, Entity as DocumentEntity, ActiveModel as DocumentActiveModel};
+use crate::entities::atlas_document::{
+    self, ActiveModel as DocumentActiveModel, Entity as DocumentEntity,
+};
 
 /// Service layer for GENERIC-14: AtlasDocument
 /// Generic document registry with e-signature, versioning, and app_namespace scoping.
@@ -78,7 +82,8 @@ impl DocumentService {
     ) -> Result<(), String> {
         tracing::info!(
             "e-signature requested for document {} by contact {}",
-            document_id, signer_contact_id
+            document_id,
+            signer_contact_id
         );
         Ok(())
     }

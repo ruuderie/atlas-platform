@@ -1,18 +1,21 @@
 #![allow(dead_code)]
-use chrono::Utc;
-use sea_orm::{Database, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
-use uuid::Uuid;
+use crate::entities::{platform_metrics_daily, telemetry_events};
 use crate::services::telemetry::TelemetryService;
-use crate::entities::{telemetry_events, platform_metrics_daily};
+use chrono::Utc;
+use sea_orm::{ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter};
 use serde_json::json;
+use uuid::Uuid;
 
 async fn setup_db() -> DatabaseConnection {
-    let opt_local_machine = sea_orm::ConnectOptions::new("postgres://postgres:postgres@localhost:5432/oplydbtest")
-        .connect_timeout(std::time::Duration::from_secs(2))
-        .to_owned();
+    let opt_local_machine =
+        sea_orm::ConnectOptions::new("postgres://postgres:postgres@localhost:5432/oplydbtest")
+            .connect_timeout(std::time::Duration::from_secs(2))
+            .to_owned();
 
-    let db = Database::connect(opt_local_machine).await.expect("Failed to connect to local DB");
-    
+    let db = Database::connect(opt_local_machine)
+        .await
+        .expect("Failed to connect to local DB");
+
     // Make sure we have the tables
     crate::tests::test_utils::initialize_database(&db).await;
 
@@ -23,17 +26,20 @@ async fn setup_db() -> DatabaseConnection {
 async fn test_telemetry_kpi_engine_aggregates_correctly() {
     // Attempt DB connection. In some environments (like pure CI without DB), this might fail.
     // If it fails, ignore the test or panic cleanly since it's an integration test.
-    let db_result = sea_orm::ConnectOptions::new("postgres://postgres:postgres@localhost:5432/oplydbtest")
-        .connect_timeout(std::time::Duration::from_secs(1))
-        .to_owned();
-    
+    let db_result =
+        sea_orm::ConnectOptions::new("postgres://postgres:postgres@localhost:5432/oplydbtest")
+            .connect_timeout(std::time::Duration::from_secs(1))
+            .to_owned();
+
     let db = match Database::connect(db_result).await {
         Ok(db) => {
             crate::tests::test_utils::initialize_database(&db).await;
             db
-        },
+        }
         Err(_) => {
-            println!("Skipping telemetry aggregation test because Postgres is not available on localhost");
+            println!(
+                "Skipping telemetry aggregation test because Postgres is not available on localhost"
+            );
             return;
         }
     };
@@ -56,7 +62,7 @@ async fn test_telemetry_kpi_engine_aggregates_correctly() {
         "user_signed_up".to_string(),
         None,
     );
-    
+
     TelemetryService::log_event(
         db.clone(),
         tenant_id,
@@ -73,7 +79,11 @@ async fn test_telemetry_kpi_engine_aggregates_correctly() {
 
     // Run processor
     let process_res = TelemetryService::process_daily_metrics(&db).await;
-    assert!(process_res.is_ok(), "Processor failed: {:?}", process_res.unwrap_err());
+    assert!(
+        process_res.is_ok(),
+        "Processor failed: {:?}",
+        process_res.unwrap_err()
+    );
 
     // Check output
     let today = Utc::now().date_naive();
@@ -106,6 +116,6 @@ async fn test_telemetry_kpi_engine_aggregates_correctly() {
         .all(&db)
         .await
         .unwrap();
-    
+
     assert!(unprocessed.is_empty(), "Raw events not marked as processed");
 }

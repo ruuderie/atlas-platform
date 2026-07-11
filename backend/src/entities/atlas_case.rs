@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 /// GENERIC-13: AtlasCase
 /// The universal work item / case / ticket object.
@@ -18,8 +18,8 @@ pub struct Model {
     pub tenant_id: Uuid,
     pub case_type: String,
     pub reported_by_user_id: Option<Uuid>,
-    pub asset_id: Option<Uuid>,                    // FK to atlas_assets
-    pub contract_id: Option<Uuid>,                 // FK to atlas_contracts
+    pub asset_id: Option<Uuid>,    // FK to atlas_assets
+    pub contract_id: Option<Uuid>, // FK to atlas_contracts
     pub assigned_service_provider_id: Option<Uuid>,
     pub assigned_user_id: Option<Uuid>,
     pub priority: String,

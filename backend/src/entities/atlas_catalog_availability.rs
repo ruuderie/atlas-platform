@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, NaiveDate, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, NaiveDate, Utc};
 
 /// GENERIC-26 (table 3 of 3): AtlasCatalogAvailability
 ///

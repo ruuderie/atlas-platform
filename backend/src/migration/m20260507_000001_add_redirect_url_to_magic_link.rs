@@ -20,9 +20,7 @@ impl MigrationTrait for Migration {
                 Table::alter()
                     .table(MagicLinkToken::Table)
                     .add_column_if_not_exists(
-                        ColumnDef::new(MagicLinkToken::RedirectUrl)
-                            .text()
-                            .null(),
+                        ColumnDef::new(MagicLinkToken::RedirectUrl).text().null(),
                     )
                     .to_owned(),
             )

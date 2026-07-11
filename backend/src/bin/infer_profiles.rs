@@ -1,9 +1,9 @@
 #![allow(dead_code, unused)]
 
+use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde_json::json;
 
 // Struct to store parsed/inferred profile data
 #[derive(Debug, Clone)]
@@ -29,25 +29,37 @@ fn clean_niche_key(filename: &str) -> String {
         .replace("-analysis", "")
         .replace(".md", "")
         .replace("-", "_");
-    
+
     // Explicit deduplication/mapping mappings:
     if cleaned == "beauty_industry_market" || cleaned == "beauty_industry" {
         "beauty_industry".to_owned()
-    } else if cleaned == "freight_logistics" || cleaned == "us_freight_dispatch_owner_operator" || cleaned == "freight_logistics_market" {
+    } else if cleaned == "freight_logistics"
+        || cleaned == "us_freight_dispatch_owner_operator"
+        || cleaned == "freight_logistics_market"
+    {
         "us_freight_dispatch_owner_operator".to_owned()
-    } else if cleaned.starts_with("nyc_real_estate") || cleaned.starts_with("ny_real_estate") || cleaned.starts_with("nyc_realestate") || cleaned == "nyc_real_estate_market" {
+    } else if cleaned.starts_with("nyc_real_estate")
+        || cleaned.starts_with("ny_real_estate")
+        || cleaned.starts_with("nyc_realestate")
+        || cleaned == "nyc_real_estate_market"
+    {
         "nyc_real_estate_tech_recruiting".to_owned()
     } else if cleaned == "private_lending_us" || cleaned == "us_alternative_lender_fintech" {
         "us_alternative_lender_fintech".to_owned()
-    } else if cleaned == "brazil_experiential_tourism" || cleaned == "brazil_experiential_tourism_analysis" {
+    } else if cleaned == "brazil_experiential_tourism"
+        || cleaned == "brazil_experiential_tourism_analysis"
+    {
         "brazil_experiential_tourism".to_owned()
     } else if cleaned == "brazil_multi_portfolio_founder" {
         "brazil_multi_portfolio_founder".to_owned()
     } else if cleaned == "brazil_sp_realestate_creative_finance" {
         "brazil_sp_realestate_creative_finance".to_owned()
-    } else if cleaned == "hybrid_media_creator_agency" || cleaned == "content_creators_music_studios" {
+    } else if cleaned == "hybrid_media_creator_agency"
+        || cleaned == "content_creators_music_studios"
+    {
         "hybrid_media_creator_agency".to_owned()
-    } else if cleaned == "pe_rollup_holding_company" || cleaned == "mergers_acquisitions_us_global" {
+    } else if cleaned == "pe_rollup_holding_company" || cleaned == "mergers_acquisitions_us_global"
+    {
         "pe_rollup_holding_company".to_owned()
     } else if cleaned == "us_commercial_hvac" {
         "us_commercial_hvac".to_owned()
@@ -71,16 +83,89 @@ fn clean_niche_key(filename: &str) -> String {
 fn get_sector(filename: &str) -> &'static str {
     let lower = filename.to_lowercase();
     let sectors = [
-        ("Real Estate & Construction", vec!["real_estate", "property", "brokerage", "construction", "ny_real", "nyc_real", "sao_paulo", "sao_bernardo"]),
-        ("Financial Services & Fintech", vec!["lending", "finance", "factoring", "fintech", "stablecoins", "traders", "rollup", "holding", "mergers"]),
-        ("Logistics & Infrastructure", vec!["freight", "logistics", "trucking", "equipment_rental", "parking", "energy"]),
-        ("Creative, Media & Festivals", vec!["creator", "music", "studio", "festivals", "media", "entertainment"]),
-        ("Healthcare & MedTech", vec!["health", "dental", "odontologia", "medical", "beauty"]),
-        ("Retail & Consumer Commerce", vec!["grocers", "supermercados", "retail", "reseller", "luxury"]),
-        ("Services & Local Governance", vec!["agency", "churches", "legal", "recruiting", "education", "vocational", "haiti", "dominican", "military"]),
-        ("Hospitality & Experiential", vec!["tourism", "passport_bros", "usvi", "restaurants", "catering"])
+        (
+            "Real Estate & Construction",
+            vec![
+                "real_estate",
+                "property",
+                "brokerage",
+                "construction",
+                "ny_real",
+                "nyc_real",
+                "sao_paulo",
+                "sao_bernardo",
+            ],
+        ),
+        (
+            "Financial Services & Fintech",
+            vec![
+                "lending",
+                "finance",
+                "factoring",
+                "fintech",
+                "stablecoins",
+                "traders",
+                "rollup",
+                "holding",
+                "mergers",
+            ],
+        ),
+        (
+            "Logistics & Infrastructure",
+            vec![
+                "freight",
+                "logistics",
+                "trucking",
+                "equipment_rental",
+                "parking",
+                "energy",
+            ],
+        ),
+        (
+            "Creative, Media & Festivals",
+            vec![
+                "creator",
+                "music",
+                "studio",
+                "festivals",
+                "media",
+                "entertainment",
+            ],
+        ),
+        (
+            "Healthcare & MedTech",
+            vec!["health", "dental", "odontologia", "medical", "beauty"],
+        ),
+        (
+            "Retail & Consumer Commerce",
+            vec!["grocers", "supermercados", "retail", "reseller", "luxury"],
+        ),
+        (
+            "Services & Local Governance",
+            vec![
+                "agency",
+                "churches",
+                "legal",
+                "recruiting",
+                "education",
+                "vocational",
+                "haiti",
+                "dominican",
+                "military",
+            ],
+        ),
+        (
+            "Hospitality & Experiential",
+            vec![
+                "tourism",
+                "passport_bros",
+                "usvi",
+                "restaurants",
+                "catering",
+            ],
+        ),
     ];
-    
+
     for (sector, keywords) in &sectors {
         for kw in keywords {
             if lower.contains(kw) {
@@ -88,7 +173,7 @@ fn get_sector(filename: &str) -> &'static str {
             }
         }
     }
-    
+
     "Specialized & Emerging Niches"
 }
 
@@ -97,13 +182,16 @@ fn get_section_text(content: &str, keywords: &[&str], stop_keywords: &[&str]) ->
     let lines: Vec<&str> = content.lines().collect();
     let mut recording = false;
     let mut recorded_lines = Vec::new();
-    
+
     for line in lines {
         let trimmed = line.trim();
         if recording {
             if trimmed.starts_with("#") {
                 let header_title = trimmed.trim_start_matches('#').trim().to_lowercase();
-                if stop_keywords.iter().any(|k| header_title.contains(k)) || trimmed.starts_with("## ") || trimmed.starts_with("# ") {
+                if stop_keywords.iter().any(|k| header_title.contains(k))
+                    || trimmed.starts_with("## ")
+                    || trimmed.starts_with("# ")
+                {
                     break;
                 }
             }
@@ -117,7 +205,7 @@ fn get_section_text(content: &str, keywords: &[&str], stop_keywords: &[&str]) ->
             }
         }
     }
-    
+
     if recorded_lines.is_empty() {
         None
     } else {
@@ -154,10 +242,10 @@ fn parse_markdown_to_clean_string(section_text: &str) -> String {
                 .map(|c| c.trim())
                 .filter(|c| !c.is_empty())
                 .collect();
-            if cells.len() >= 2 
-                && !cells[0].contains("---") 
-                && !cells[0].to_lowercase().contains("metric") 
-                && !cells[0].to_lowercase().contains("player") 
+            if cells.len() >= 2
+                && !cells[0].contains("---")
+                && !cells[0].to_lowercase().contains("metric")
+                && !cells[0].to_lowercase().contains("player")
                 && !cells[0].to_lowercase().contains("problem")
                 && !cells[0].to_lowercase().contains("capability")
             {
@@ -168,13 +256,15 @@ fn parse_markdown_to_clean_string(section_text: &str) -> String {
                 }
             }
         } else if trimmed.starts_with('-') || trimmed.starts_with('*') {
-            let bullet = trimmed.trim_start_matches(|c| c == '-' || c == '*' || c == ' ').trim();
+            let bullet = trimmed
+                .trim_start_matches(|c| c == '-' || c == '*' || c == ' ')
+                .trim();
             if !bullet.is_empty() {
                 points.push(bullet.to_owned());
             }
         }
     }
-    
+
     if points.is_empty() {
         let cleaned = section_text.replace("\n", " ").trim().to_owned();
         safe_truncate(&cleaned, 147)
@@ -209,14 +299,18 @@ fn parse_geography_from_text(content: &str, filename: &str) -> String {
             break;
         }
     }
-    
+
     if geos.is_empty() {
         // Fallback to parsing countries from filename
         let lower_fn = filename.to_lowercase();
         if lower_fn.contains("brazil") || lower_fn.contains("_br") || lower_fn.contains("-br-") {
             geos.push("Brazil".to_owned());
         }
-        if lower_fn.contains("us") || lower_fn.contains("nyc") || lower_fn.contains("miami") || lower_fn.contains("charlotte") {
+        if lower_fn.contains("us")
+            || lower_fn.contains("nyc")
+            || lower_fn.contains("miami")
+            || lower_fn.contains("charlotte")
+        {
             geos.push("United States".to_owned());
         }
         if lower_fn.contains("uae") {
@@ -229,7 +323,7 @@ fn parse_geography_from_text(content: &str, filename: &str) -> String {
             geos.push("Europe".to_owned());
         }
     }
-    
+
     if geos.is_empty() {
         "United States".to_owned()
     } else {
@@ -337,7 +431,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         current_dir.join("docs")
     };
-    
+
     let market_analysis_dir = docs_root.join("reports").join("market-analysis");
     let sales_dir = docs_root.join("reports").join("sales");
     let profiles_dir = docs_root.join("reports").join("profiles");
@@ -381,7 +475,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("Found {} unique strategic niches across the reports.", niche_files.len());
+    println!(
+        "Found {} unique strategic niches across the reports.",
+        niche_files.len()
+    );
 
     let mut generated_count = 0;
     let mut skipped_count = 0;
@@ -397,12 +494,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        println!("  [INFERRING] Generating profile for key '{}' from {:?}...", niche_key, paths);
+        println!(
+            "  [INFERRING] Generating profile for key '{}' from {:?}...",
+            niche_key, paths
+        );
 
         // Read and merge contents of all reports matching this niche key
         let mut combined_content = String::new();
         let mut main_file_name = String::new();
-        
+
         for path in &paths {
             let content = fs::read_to_string(path)?;
             combined_content.push_str(&content);
@@ -435,13 +535,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         if target_market.is_empty() {
-            target_market = niche_key.replace("_", " ").split_whitespace().map(|w| {
-                let mut chars = w.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                }
-            }).collect::<Vec<String>>().join(" ");
+            target_market = niche_key
+                .replace("_", " ")
+                .split_whitespace()
+                .map(|w| {
+                    let mut chars = w.chars();
+                    match chars.next() {
+                        None => String::new(),
+                        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join(" ");
         }
 
         // 2. Geography
@@ -472,24 +577,114 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let sector = get_sector(&main_file_name);
 
         // Smart Section Parsers
-        let incumbents_raw = get_section_text(&combined_content, &["incumbent", "key players", "existing solutions", "current tool"], &["market maturity", "target customer", "icp", "edge", "passkey"]);
-        let pain_points_raw = get_section_text(&combined_content, &["pain point", "challenges", "problems"], &["willingness to pay", "compet", "edge", "infrastructure"]);
-        let revenue_model_raw = get_section_text(&combined_content, &["revenue model", "pricing", "fees", "splits", "monetization"], &["workflow", "generics", "competitive", "low-hanging"]);
-        let core_workflows_raw = get_section_text(&combined_content, &["workflow", "generics", "platform generics", "low-hanging", "applied generics"], &["sales cycle", "infrastructure", "gap", "recommendation"]);
-        let budget_spend_raw = get_section_text(&combined_content, &["budget", "willingness to pay", "spend", "cost"], &["competitive", "edge", "infrastructure", "workflows"]);
-        let staff_headcount_raw = get_section_text(&combined_content, &["primary buyer", "icp", "staff", "headcount", "customer profile"], &["pain points", "willingness", "spend"]);
-        let volume_scale_raw = get_section_text(&combined_content, &["volume", "scale", "market sizing", "market size", "icp", "primary buyer"], &["pain points", "key players", "incumbents"]);
-        let key_relationships_raw = get_section_text(&combined_content, &["relationship", "partners", "clients", "primary buyer", "icp"], &["pain points", "incumbents", "willingness"]);
+        let incumbents_raw = get_section_text(
+            &combined_content,
+            &[
+                "incumbent",
+                "key players",
+                "existing solutions",
+                "current tool",
+            ],
+            &[
+                "market maturity",
+                "target customer",
+                "icp",
+                "edge",
+                "passkey",
+            ],
+        );
+        let pain_points_raw = get_section_text(
+            &combined_content,
+            &["pain point", "challenges", "problems"],
+            &["willingness to pay", "compet", "edge", "infrastructure"],
+        );
+        let revenue_model_raw = get_section_text(
+            &combined_content,
+            &["revenue model", "pricing", "fees", "splits", "monetization"],
+            &["workflow", "generics", "competitive", "low-hanging"],
+        );
+        let core_workflows_raw = get_section_text(
+            &combined_content,
+            &[
+                "workflow",
+                "generics",
+                "platform generics",
+                "low-hanging",
+                "applied generics",
+            ],
+            &["sales cycle", "infrastructure", "gap", "recommendation"],
+        );
+        let budget_spend_raw = get_section_text(
+            &combined_content,
+            &["budget", "willingness to pay", "spend", "cost"],
+            &["competitive", "edge", "infrastructure", "workflows"],
+        );
+        let staff_headcount_raw = get_section_text(
+            &combined_content,
+            &[
+                "primary buyer",
+                "icp",
+                "staff",
+                "headcount",
+                "customer profile",
+            ],
+            &["pain points", "willingness", "spend"],
+        );
+        let volume_scale_raw = get_section_text(
+            &combined_content,
+            &[
+                "volume",
+                "scale",
+                "market sizing",
+                "market size",
+                "icp",
+                "primary buyer",
+            ],
+            &["pain points", "key players", "incumbents"],
+        );
+        let key_relationships_raw = get_section_text(
+            &combined_content,
+            &[
+                "relationship",
+                "partners",
+                "clients",
+                "primary buyer",
+                "icp",
+            ],
+            &["pain points", "incumbents", "willingness"],
+        );
 
         // Clean & Format extracted values, falling back to High-Fidelity Domain templates if empty
-        let incumbents = incumbents_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "incumbents"));
-        let pain_points = pain_points_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "pain_points"));
-        let revenue_model = revenue_model_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "revenue_model"));
-        let core_workflows = core_workflows_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "core_workflows"));
-        let budget_spend = budget_spend_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "budget_spend"));
-        let staff_headcount = staff_headcount_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "staff_headcount"));
-        let volume_scale = volume_scale_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "volume_scale"));
-        let key_relationships = key_relationships_raw.map(|t| parse_markdown_to_clean_string(&t)).unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "key_relationships"));
+        let incumbents = incumbents_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "incumbents"));
+        let pain_points = pain_points_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "pain_points"));
+        let revenue_model = revenue_model_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "revenue_model"));
+        let core_workflows = core_workflows_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| {
+                generate_high_fidelity_fallback(&vertical, sector, "core_workflows")
+            });
+        let budget_spend = budget_spend_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "budget_spend"));
+        let staff_headcount = staff_headcount_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| {
+                generate_high_fidelity_fallback(&vertical, sector, "staff_headcount")
+            });
+        let volume_scale = volume_scale_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| generate_high_fidelity_fallback(&vertical, sector, "volume_scale"));
+        let key_relationships = key_relationships_raw
+            .map(|t| parse_markdown_to_clean_string(&t))
+            .unwrap_or_else(|| {
+                generate_high_fidelity_fallback(&vertical, sector, "key_relationships")
+            });
 
         let json_payload = json!({
             "target_market": target_market,
@@ -513,8 +708,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\nExecution completed successfully:");
-    println!("  Total profiles generated dynamically: {}", generated_count);
-    println!("  Total existing hand-crafted profiles preserved: {}", skipped_count);
+    println!(
+        "  Total profiles generated dynamically: {}",
+        generated_count
+    );
+    println!(
+        "  Total existing hand-crafted profiles preserved: {}",
+        skipped_count
+    );
     println!("  Profiles output directory is clean and fully populated!");
 
     Ok(())

@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// GENERIC-14: AtlasDocument
 /// Generic, polymorphic document registry with versioning and e-signature support.

@@ -1,11 +1,9 @@
 use crate::entities::{bitcoin_block, tenant_background_job};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set
-};
-use sea_orm::sea_query::OnConflict;
 use chrono::Utc;
+use sea_orm::sea_query::OnConflict;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::time::Duration;
-use tracing::{info, error, debug};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 pub struct DataSyncService;
@@ -15,7 +13,7 @@ impl DataSyncService {
         tokio::spawn(async move {
             info!("Starting DataSyncService background worker.");
             let mut interval = tokio::time::interval(Duration::from_secs(60)); // Check every minute
-            
+
             loop {
                 interval.tick().await;
                 if let Err(e) = Self::process_due_jobs(&db).await {
@@ -27,7 +25,7 @@ impl DataSyncService {
 
     async fn process_due_jobs(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
         let now = Utc::now();
-        
+
         // Find all active jobs that are due for execution
         // Since SeaORM doesn't natively map complicated Postgres interval math seamlessly across all adapters efficiently,
         // we fetch active jobs and filter internally unless we write raw SQL. For 100s of configs, mem filtering is perfectly fine.
@@ -54,31 +52,48 @@ impl DataSyncService {
             // If another pod checked it out first, our update will affect 0 rows, and we skip execution.
             let now_run = Utc::now();
             let mut update_query = tenant_background_job::Entity::update_many()
-                .col_expr(tenant_background_job::Column::LastRun, sea_orm::sea_query::Expr::val(now_run).into())
+                .col_expr(
+                    tenant_background_job::Column::LastRun,
+                    sea_orm::sea_query::Expr::val(now_run).into(),
+                )
                 .filter(tenant_background_job::Column::Id.eq(job.id));
-            
+
             if let Some(last) = job.last_run {
                 update_query = update_query.filter(tenant_background_job::Column::LastRun.eq(last));
             } else {
-                update_query = update_query.filter(tenant_background_job::Column::LastRun.is_null());
+                update_query =
+                    update_query.filter(tenant_background_job::Column::LastRun.is_null());
             }
 
             let rows_affected = update_query.exec(db).await?.rows_affected;
             if rows_affected == 0 {
                 // Another pod checked out and ran/is running this job concurrently. Skip!
-                debug!("Skipping concurrent execution of job {} (type: {}) for tenant {}", job.id, job.job_type, job.tenant_id);
+                debug!(
+                    "Skipping concurrent execution of job {} (type: {}) for tenant {}",
+                    job.id, job.job_type, job.tenant_id
+                );
                 continue;
             }
 
-            debug!("Executing job {} / {} for tenant {}", job.id, job.job_type, job.tenant_id);
+            debug!(
+                "Executing job {} / {} for tenant {}",
+                job.id, job.job_type, job.tenant_id
+            );
 
             // Dispatch based on dynamic AtlasApp definitions
             let mut executed = false;
             for app in crate::atlas_apps::get_active_apps() {
-                if let Some(app_job) = app.background_jobs().into_iter().find(|j| j.job_type == job.job_type) {
+                if let Some(app_job) = app
+                    .background_jobs()
+                    .into_iter()
+                    .find(|j| j.job_type == job.job_type)
+                {
                     // For now we pass None for the config payload since the legacy schema doesn't fully serialize it yet
                     if let Err(e) = (app_job.executor)(db.clone(), job.tenant_id, None).await {
-                        error!("Failed to execute {} for tenant {}: {}", job.job_type, job.tenant_id, e);
+                        error!(
+                            "Failed to execute {} for tenant {}: {}",
+                            job.job_type, job.tenant_id, e
+                        );
                     }
                     executed = true;
                     break;
@@ -93,8 +108,14 @@ impl DataSyncService {
         Ok(())
     }
 
-    pub async fn sync_bitcoin_blocks(db: &DatabaseConnection, tenant_id: Uuid, api_url: &str) -> Result<(), anyhow::Error> {
-        let client = reqwest::Client::builder().user_agent("AtlasPlatform/1.0").build()?;
+    pub async fn sync_bitcoin_blocks(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        api_url: &str,
+    ) -> Result<(), anyhow::Error> {
+        let client = reqwest::Client::builder()
+            .user_agent("AtlasPlatform/1.0")
+            .build()?;
         let res = client.get(api_url).send().await?;
         if !res.status().is_success() {
             anyhow::bail!("mempool.space returned error status: {}", res.status());
@@ -129,9 +150,12 @@ impl DataSyncService {
             // ON CONFLICT (tenant_id, height) DO NOTHING
             bitcoin_block::Entity::insert_many(inserts)
                 .on_conflict(
-                    OnConflict::columns(vec![bitcoin_block::Column::TenantId, bitcoin_block::Column::Height])
-                        .do_nothing()
-                        .to_owned()
+                    OnConflict::columns(vec![
+                        bitcoin_block::Column::TenantId,
+                        bitcoin_block::Column::Height,
+                    ])
+                    .do_nothing()
+                    .to_owned(),
                 )
                 .exec(db)
                 .await?;

@@ -1,12 +1,12 @@
 #![allow(dead_code, non_snake_case)]
-use http_body_util::BodyExt; // Brings collect() into scope
 use axum::{
+    Router,
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
 use chrono::Utc;
 use fake::{
+    Fake,
     faker::{
         address::en::StreetName,
         company::en::CompanyName,
@@ -15,15 +15,15 @@ use fake::{
         name::en::{FirstName, LastName},
         phone_number::en::PhoneNumber,
     },
-    Fake,
 };
+use http_body_util::BodyExt; // Brings collect() into scope
 use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseConnection, Set};
 use serde_json::json;
 use tower::ServiceExt;
 use uuid::Uuid;
 
+use crate::entities::{category, profile, tenant, user, user_account};
 use dotenv::dotenv;
-use crate::entities::{category, tenant, profile, user, user_account};
 use std::sync::{Mutex, OnceLock};
 
 /// Global mutex: serializes DROP SCHEMA + Migrator::up() across all test threads.
@@ -69,9 +69,7 @@ pub async fn initialize_database(db: &DatabaseConnection) {
     tokio::task::spawn_blocking(move || {
         // Acquire OS-level mutex — blocking call, safe on a blocking thread.
         // unwrap_or_else recovers a poisoned lock so retries work after a panic.
-        let _guard = DB_INIT_LOCK
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let _guard = DB_INIT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
         // Re-check after acquiring lock — another thread may have just finished.
         if DB_INIT.get().is_some() {
@@ -80,21 +78,25 @@ pub async fn initialize_database(db: &DatabaseConnection) {
 
         // Drive the migration future to completion using the test's runtime.
         handle.block_on(async move {
-            use sea_orm_migration::MigratorTrait;
             use sea_orm::{ConnectionTrait, Statement};
+            use sea_orm_migration::MigratorTrait;
 
             let backend = db.get_database_backend();
 
             // ── Step 1: attempt a clean schema wipe ────────────────────────────
-            let drop_res = db.execute(Statement::from_string(
-                backend,
-                "DROP SCHEMA IF EXISTS public CASCADE;".to_owned(),
-            )).await;
+            let drop_res = db
+                .execute(Statement::from_string(
+                    backend,
+                    "DROP SCHEMA IF EXISTS public CASCADE;".to_owned(),
+                ))
+                .await;
 
-            let create_res = db.execute(Statement::from_string(
-                backend,
-                "CREATE SCHEMA public;".to_owned(),
-            )).await;
+            let create_res = db
+                .execute(Statement::from_string(
+                    backend,
+                    "CREATE SCHEMA public;".to_owned(),
+                ))
+                .await;
 
             println!(
                 "TEST LOG: schema reset — drop: {:?}, create: {:?}",
@@ -109,7 +111,9 @@ pub async fn initialize_database(db: &DatabaseConnection) {
                     "GRANT ALL ON SCHEMA public TO postgres;",
                     "GRANT ALL ON SCHEMA public TO PUBLIC;",
                 ] {
-                    let _ = db.execute(Statement::from_string(backend, sql.to_owned())).await;
+                    let _ = db
+                        .execute(Statement::from_string(backend, sql.to_owned()))
+                        .await;
                 }
 
                 // Fresh schema — run all migrations from scratch.
@@ -143,13 +147,14 @@ pub async fn initialize_database(db: &DatabaseConnection) {
     .expect("initialize_database: spawn_blocking panicked");
 }
 
-
-
 pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
     let tenant_id = Uuid::new_v4();
 
     let company_domain = format!("{:?}.com", CompanyName().fake::<String>());
-    let _company_domain = company_domain.replace(" ", "").replace("\"", "").to_lowercase();
+    let _company_domain = company_domain
+        .replace(" ", "")
+        .replace("\"", "")
+        .to_lowercase();
     let new_tenant = tenant::ActiveModel {
         id: Set(tenant_id),
         name: Set(CompanyName().fake()),
@@ -172,7 +177,9 @@ pub async fn register_test_user(
 ) -> (StatusCode, serde_json::Value) {
     dotenv().ok();
     if username.is_empty() {
-        *username = format!("user_{}", uuid::Uuid::new_v4()).replace("-", "").to_lowercase();
+        *username = format!("user_{}", uuid::Uuid::new_v4())
+            .replace("-", "")
+            .to_lowercase();
     } else {
         *username = username.replace(" ", "_").to_lowercase();
     }
@@ -183,13 +190,19 @@ pub async fn register_test_user(
     let password: String = std::env::var("TEST_PASSWORD").unwrap_or_default();
     let phone: String = PhoneNumber().fake();
     let company_name = CompanyName().fake::<String>();
-    let company_domain = format!("{:?}.{:?}", company_name, domain_suffix).replace(" ", "").replace("\"", "").to_lowercase();
-    let email = format!("{:?}@{:?}", username, company_domain).replace("\"", "").to_lowercase();
+    let company_domain = format!("{:?}.{:?}", company_name, domain_suffix)
+        .replace(" ", "")
+        .replace("\"", "")
+        .to_lowercase();
+    let email = format!("{:?}@{:?}", username, company_domain)
+        .replace("\"", "")
+        .to_lowercase();
 
     let response: axum::http::Response<axum::body::Body> = app
         .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("POST")
                 .uri("/register")
                 .header("Content-Type", "application/json")
@@ -212,16 +225,32 @@ pub async fn register_test_user(
 
     let status = response.status();
     let mut token_from_cookie = None;
-    for cookie in response.headers().get_all(axum::http::header::SET_COOKIE).iter() {
+    for cookie in response
+        .headers()
+        .get_all(axum::http::header::SET_COOKIE)
+        .iter()
+    {
         if let Ok(c) = cookie.to_str() {
             if c.starts_with("session=") {
-                token_from_cookie = Some(c.split(';').next().unwrap().strip_prefix("session=").unwrap().to_string());
+                token_from_cookie = Some(
+                    c.split(';')
+                        .next()
+                        .unwrap()
+                        .strip_prefix("session=")
+                        .unwrap()
+                        .to_string(),
+                );
             }
         }
     }
-    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
-    println!("TEST LOG: Register response status: {}, body: {}", status, body);
+    println!(
+        "TEST LOG: Register response status: {}, body: {}",
+        status, body
+    );
     let mut json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
     if let Some(token) = token_from_cookie {
         json_body["token"] = serde_json::json!(token);
@@ -237,7 +266,8 @@ pub async fn register_test_user(
         let profiles_response: axum::http::Response<axum::body::Body> = app
             .clone()
             .oneshot(
-                Request::builder().header("Host", "localhost")
+                Request::builder()
+                    .header("Host", "localhost")
                     .method("GET")
                     .uri("/api/profiles")
                     .header("Authorization", format!("Bearer {}", token))
@@ -248,9 +278,18 @@ pub async fn register_test_user(
             .unwrap();
 
         let status = profiles_response.status();
-        let body_bytes = profiles_response.into_body().collect().await.unwrap().to_bytes();
+        let body_bytes = profiles_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
         if !status.is_success() {
-            panic!("GET /api/profiles failed with status: {}, body: {:?}", status, String::from_utf8_lossy(&body_bytes));
+            panic!(
+                "GET /api/profiles failed with status: {}, body: {:?}",
+                status,
+                String::from_utf8_lossy(&body_bytes)
+            );
         }
 
         let profiles: Vec<serde_json::Value> = serde_json::from_slice(&body_bytes).unwrap();
@@ -262,7 +301,8 @@ pub async fn register_test_user(
         let update_response: axum::http::Response<axum::body::Body> = app
             .clone()
             .oneshot(
-                Request::builder().header("Host", "localhost")
+                Request::builder()
+                    .header("Host", "localhost")
                     .method("PUT")
                     .uri(format!("/api/profiles/{}", profile_id))
                     .header("Content-Type", "application/json")
@@ -300,7 +340,8 @@ pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde
     let response: axum::http::Response<axum::body::Body> = app
         .clone()
         .oneshot(
-            Request::builder().header("Host", "localhost")
+            Request::builder()
+                .header("Host", "localhost")
                 .method("POST")
                 .uri("/login")
                 .header("Content-Type", "application/json")
@@ -322,14 +363,27 @@ pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde
         response
     );
     let mut token_from_cookie = None;
-    for cookie in response.headers().get_all(axum::http::header::SET_COOKIE).iter() {
+    for cookie in response
+        .headers()
+        .get_all(axum::http::header::SET_COOKIE)
+        .iter()
+    {
         if let Ok(c) = cookie.to_str() {
             if c.starts_with("session=") {
-                token_from_cookie = Some(c.split(';').next().unwrap().strip_prefix("session=").unwrap().to_string());
+                token_from_cookie = Some(
+                    c.split(';')
+                        .next()
+                        .unwrap()
+                        .strip_prefix("session=")
+                        .unwrap()
+                        .to_string(),
+                );
             }
         }
     }
-    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     println!(
         "TEST LOG: from login_test_user and status: {:?} , body: {:?}",
@@ -384,7 +438,10 @@ pub async fn create_and_login_admin_user(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()
-    }.insert(db).await.expect("Failed to create admin account");
+    }
+    .insert(db)
+    .await
+    .expect("Failed to create admin account");
 
     user_account::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -394,10 +451,14 @@ pub async fn create_and_login_admin_user(
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-    }.insert(db).await.expect("Failed to create admin user account");
+    }
+    .insert(db)
+    .await
+    .expect("Failed to create admin user account");
 
     // Login the admin user
-    let login_response: serde_json::Value = login_test_user(app, &admin_user.email, &password).await;
+    let login_response: serde_json::Value =
+        login_test_user(app, &admin_user.email, &password).await;
 
     let token = login_response["token"].as_str().unwrap().to_string();
 
@@ -452,10 +513,7 @@ pub async fn create_staff_user_account(
     .expect("Failed to create staff user account")
 }
 
-pub async fn create_default_category(
-    db: &DatabaseConnection,
-    tenant_id: Uuid,
-) -> category::Model {
+pub async fn create_default_category(db: &DatabaseConnection, tenant_id: Uuid) -> category::Model {
     category::ActiveModel {
         id: Set(Uuid::new_v4()),
         name: Set("Default Category".to_string()),

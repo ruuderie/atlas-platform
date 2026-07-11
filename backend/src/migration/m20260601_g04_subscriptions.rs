@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -39,26 +39,84 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasSubscriptions::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSubscriptions::SubscriberUserId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSubscriptions::SubscribedToType).string().not_null())
-                    .col(ColumnDef::new(AtlasSubscriptions::SubscribedToId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSubscriptions::BillingPlanId).uuid().null())
-                    .col(ColumnDef::new(AtlasSubscriptions::PriceCents).big_integer().not_null())
-                    .col(ColumnDef::new(AtlasSubscriptions::Currency).char_len(3).not_null().default(Expr::val("USD")))
-                    .col(ColumnDef::new(AtlasSubscriptions::BillingInterval).string().not_null().default(Expr::val("monthly")))
-                    .col(ColumnDef::new(AtlasSubscriptions::StripeSubscriptionId).string().null())
-                    .col(ColumnDef::new(AtlasSubscriptions::StripeCustomerId).string().null())
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::SubscriberUserId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::SubscribedToType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::SubscribedToId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::BillingPlanId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::PriceCents)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::Currency)
+                            .char_len(3)
+                            .not_null()
+                            .default(Expr::val("USD")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::BillingInterval)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("monthly")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::StripeSubscriptionId)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::StripeCustomerId)
+                            .string()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasSubscriptions::Status)
                             .string_len(30)
                             .not_null()
                             .default(Expr::val("active")),
                     )
-                    .col(ColumnDef::new(AtlasSubscriptions::TrialEndsAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasSubscriptions::CurrentPeriodStart).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasSubscriptions::CurrentPeriodEnd).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasSubscriptions::CanceledAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::TrialEndsAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::CurrentPeriodStart)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::CurrentPeriodEnd)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasSubscriptions::CanceledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasSubscriptions::CreatedAt)
                             .timestamp_with_time_zone()

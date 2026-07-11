@@ -1,14 +1,17 @@
-use sea_orm::{Database, ConnectionTrait, Statement, DatabaseBackend, EntityTrait, ActiveModelTrait, Set, ColumnTrait, QueryFilter};
-use uuid::Uuid;
-use chrono::Utc;
-use std::env;
-use atlas_backend::entities::{user, user_account, profile, account, passkey};
 use atlas_backend::auth::hash_password;
+use atlas_backend::entities::{account, passkey, profile, user, user_account};
+use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, Database, DatabaseBackend, EntityTrait,
+    QueryFilter, Set, Statement,
+};
+use std::env;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
-    
+
     // Connect to the generic DB which contains both Anchor schema (users) and Platform schema right now for UAT
     // Note: Assuming they share the standard database pool or we use the platform db url
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -25,7 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for row in query_res {
         let username: String = row.try_get("", "username").unwrap_or_default();
         let passkey_json: serde_json::Value = row.try_get("", "passkey").unwrap_or_default();
-        let created_at: chrono::DateTime<chrono::Utc> = row.try_get("", "created_at").unwrap_or_else(|_| Utc::now());
+        let created_at: chrono::DateTime<chrono::Utc> =
+            row.try_get("", "created_at").unwrap_or_else(|_| Utc::now());
         let tenant_id_opt: Option<Uuid> = row.try_get("", "tenant_id").unwrap_or(None);
 
         if tenant_id_opt.is_none() {
@@ -68,9 +72,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // 2. Create Passkey record
-        let cred_id: Vec<u8> = passkey_json.get("cred_id").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
-        let pub_key: Vec<u8> = passkey_json.get("cred").and_then(|v| serde_json::to_vec(v).ok()).unwrap_or_default();
-        let sign_count: i32 = passkey_json.get("counter").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let cred_id: Vec<u8> = passkey_json
+            .get("cred_id")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default();
+        let pub_key: Vec<u8> = passkey_json
+            .get("cred")
+            .and_then(|v| serde_json::to_vec(v).ok())
+            .unwrap_or_default();
+        let sign_count: i32 = passkey_json
+            .get("counter")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
 
         let new_passkey = passkey::ActiveModel {
             id: Set(Uuid::new_v4()),
@@ -91,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .filter(account::Column::TenantId.eq(tenant_id))
             .one(&db)
             .await?;
-        
+
         let account_id = if let Some(a) = existing_account {
             a.id
         } else {
@@ -143,13 +156,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // 5. Ensure UserAccount Association
-         // Step 6: Create the UserAccount to link user and account
+        // Step 6: Create the UserAccount to link user and account
         let existing_assoc: Option<user_account::Model> = user_account::Entity::find()
             .filter(user_account::Column::UserId.eq(user_id))
             .filter(user_account::Column::AccountId.eq(account_id))
             .one(&db)
             .await?;
-        
+
         if existing_assoc.is_none() {
             let new_user_account = user_account::ActiveModel {
                 id: Set(Uuid::new_v4()),

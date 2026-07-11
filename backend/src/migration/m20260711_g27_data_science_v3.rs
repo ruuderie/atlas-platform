@@ -147,8 +147,7 @@ impl MigrationTrait for Migration {
         // Subsequent refreshes are handled by the background worker.
         db.execute(sea_orm::Statement::from_string(
             backend,
-            "REFRESH MATERIALIZED VIEW mv_scorecard_portfolio_analytics;"
-                .to_owned(),
+            "REFRESH MATERIALIZED VIEW mv_scorecard_portfolio_analytics;".to_owned(),
         ))
         .await?;
 

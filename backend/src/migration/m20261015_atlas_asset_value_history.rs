@@ -92,9 +92,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(
-                "DROP TABLE IF EXISTS atlas_asset_value_history;",
-            )
+            .execute_unprepared("DROP TABLE IF EXISTS atlas_asset_value_history;")
             .await?;
 
         Ok(())

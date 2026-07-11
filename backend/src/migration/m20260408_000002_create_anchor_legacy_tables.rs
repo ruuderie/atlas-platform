@@ -12,7 +12,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(PageViews::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(PageViews::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(PageViews::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(PageViews::TenantId).uuid().not_null())
                     .col(ColumnDef::new(PageViews::Path).string().not_null())
                     .col(ColumnDef::new(PageViews::UserAgent).string().null())
@@ -32,14 +37,31 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(BitcoinBlocks::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(BitcoinBlocks::Id).string().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(BitcoinBlocks::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(BitcoinBlocks::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(BitcoinBlocks::Height).big_integer().not_null())
-                    .col(ColumnDef::new(BitcoinBlocks::Timestamp).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(BitcoinBlocks::Height)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(BitcoinBlocks::Timestamp)
+                            .big_integer()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(BitcoinBlocks::TxCount).integer().not_null())
                     .col(ColumnDef::new(BitcoinBlocks::Size).integer().not_null())
                     .col(ColumnDef::new(BitcoinBlocks::Weight).integer().not_null())
-                    .col(ColumnDef::new(BitcoinBlocks::Difficulty).double().not_null())
+                    .col(
+                        ColumnDef::new(BitcoinBlocks::Difficulty)
+                            .double()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(BitcoinBlocks::FetchedAt)
                             .timestamp_with_time_zone()
@@ -69,10 +91,27 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(TenantBackgroundJobs::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(TenantBackgroundJobs::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(TenantBackgroundJobs::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(TenantBackgroundJobs::JobType).string().not_null())
-                    .col(ColumnDef::new(TenantBackgroundJobs::Config).json_binary().null())
+                    .col(
+                        ColumnDef::new(TenantBackgroundJobs::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(TenantBackgroundJobs::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TenantBackgroundJobs::JobType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TenantBackgroundJobs::Config)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(TenantBackgroundJobs::IntervalSeconds)
                             .integer()

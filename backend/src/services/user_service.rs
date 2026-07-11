@@ -1,9 +1,9 @@
+use crate::auth::hash_password;
 use crate::entities::user;
 use crate::services::audit::AuditService;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, ColumnTrait, QueryFilter, Set};
-use serde_json::json;
-use crate::auth::hash_password;
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde_json::json;
 
 pub struct UserService;
 
@@ -31,9 +31,10 @@ impl UserService {
         user_active.email = Set(new_email.clone());
         user_active.updated_at = Set(Utc::now());
 
-        let updated_user = user_active.update(db).await.map_err(|_| {
-            "Failed to update email".to_string()
-        })?;
+        let updated_user = user_active
+            .update(db)
+            .await
+            .map_err(|_| "Failed to update email".to_string())?;
 
         // Dispatch background audit logging
         AuditService::log_action(
@@ -56,8 +57,8 @@ impl UserService {
         current_user: user::Model,
         new_password: String,
     ) -> Result<user::Model, String> {
-        let hashed_password = hash_password(&new_password)
-            .map_err(|_| "Error hashing new password".to_string())?;
+        let hashed_password =
+            hash_password(&new_password).map_err(|_| "Error hashing new password".to_string())?;
 
         let old_state = json!({"password_hash_updated": false});
         let new_state = json!({"password_hash_updated": true});
@@ -66,9 +67,10 @@ impl UserService {
         user_active.password_hash = Set(hashed_password);
         user_active.updated_at = Set(Utc::now());
 
-        let updated_user = user_active.update(db).await.map_err(|_| {
-            "Failed to update password".to_string()
-        })?;
+        let updated_user = user_active
+            .update(db)
+            .await
+            .map_err(|_| "Failed to update password".to_string())?;
 
         // Dispatch background audit logging
         AuditService::log_action(

@@ -12,20 +12,25 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AppPages::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(AppPages::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(AppPages::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(AppPages::TenantId).uuid().not_null())
                     .col(ColumnDef::new(AppPages::Slug).string().not_null())
                     .col(ColumnDef::new(AppPages::Title).string().not_null())
                     .col(ColumnDef::new(AppPages::Description).text().not_null())
-                    .col(ColumnDef::new(AppPages::PageType).string().not_null().default("standard".to_string()))
+                    .col(
+                        ColumnDef::new(AppPages::PageType)
+                            .string()
+                            .not_null()
+                            .default("standard".to_string()),
+                    )
                     .col(ColumnDef::new(AppPages::HeroPayload).json_binary())
                     .col(ColumnDef::new(AppPages::BlocksPayload).json_binary())
-                    .col(ColumnDef::new(AppPages::IsPublished).boolean().not_null().default(true))
+                    .col(
+                        ColumnDef::new(AppPages::IsPublished)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
                     .col(
                         ColumnDef::new(AppPages::CreatedAt)
                             .timestamp_with_time_zone()
@@ -59,19 +64,29 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AppMenus::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(AppMenus::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(AppMenus::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(AppMenus::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AppMenus::MenuType).string().not_null().default("header".to_string()))
+                    .col(
+                        ColumnDef::new(AppMenus::MenuType)
+                            .string()
+                            .not_null()
+                            .default("header".to_string()),
+                    )
                     .col(ColumnDef::new(AppMenus::Label).string().not_null())
                     .col(ColumnDef::new(AppMenus::Href).string())
                     .col(ColumnDef::new(AppMenus::ParentId).uuid())
-                    .col(ColumnDef::new(AppMenus::DisplayOrder).integer().not_null().default(0))
-                    .col(ColumnDef::new(AppMenus::IsVisible).boolean().not_null().default(true))
+                    .col(
+                        ColumnDef::new(AppMenus::DisplayOrder)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AppMenus::IsVisible)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
                     .col(
                         ColumnDef::new(AppMenus::CreatedAt)
                             .timestamp_with_time_zone()
@@ -123,7 +138,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(Table::drop().table(AppPages::Table).to_owned())
             .await?;
-            
+
         Ok(())
     }
 }

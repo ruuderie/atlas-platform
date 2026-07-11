@@ -7,8 +7,10 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Execute raw SQL for better performance
-        manager.get_connection().execute_unprepared(
-            r#"
+        manager
+            .get_connection()
+            .execute_unprepared(
+                r#"
             ALTER TABLE "directory" 
             ALTER COLUMN "created_at" TYPE TIMESTAMP WITH TIME ZONE,
             ALTER COLUMN "updated_at" TYPE TIMESTAMP WITH TIME ZONE;
@@ -54,16 +56,19 @@ impl MigrationTrait for Migration {
             ALTER COLUMN "last_accessed_at" TYPE TIMESTAMP WITH TIME ZONE,
             ALTER COLUMN "token_expiration" TYPE TIMESTAMP WITH TIME ZONE,
             ALTER COLUMN "refresh_token_expiration" TYPE TIMESTAMP WITH TIME ZONE;
-            "#
-        ).await?;
+            "#,
+            )
+            .await?;
 
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Execute raw SQL for better performance
-        manager.get_connection().execute_unprepared(
-            r#"
+        manager
+            .get_connection()
+            .execute_unprepared(
+                r#"
             ALTER TABLE "directory" 
             ALTER COLUMN "created_at" TYPE TIMESTAMP,
             ALTER COLUMN "updated_at" TYPE TIMESTAMP;
@@ -110,10 +115,10 @@ impl MigrationTrait for Migration {
             ALTER COLUMN "token_expiration" TYPE TIMESTAMP,
             ALTER COLUMN "refresh_token_expiration" TYPE TIMESTAMP;
             
-            "#
-        ).await?;
+            "#,
+            )
+            .await?;
 
         Ok(())
     }
 }
-

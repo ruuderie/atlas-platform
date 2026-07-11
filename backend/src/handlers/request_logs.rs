@@ -1,9 +1,9 @@
-use axum::http::{Method, Uri, StatusCode};
-use sea_orm::{DatabaseConnection, Set, ActiveModelTrait};
-use uuid::Uuid;
-use chrono::Utc;
 use crate::entities::request_log;
 use crate::models::request_log::{RequestStatus, RequestType};
+use axum::http::{Method, StatusCode, Uri};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
+use uuid::Uuid;
 
 pub async fn log_request(
     method: Method,

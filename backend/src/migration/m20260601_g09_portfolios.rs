@@ -24,8 +24,16 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()")),
                     )
                     .col(ColumnDef::new(AtlasPortfolios::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasPortfolios::OwnerUserId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasPortfolios::PortfolioType).string().not_null())
+                    .col(
+                        ColumnDef::new(AtlasPortfolios::OwnerUserId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasPortfolios::PortfolioType)
+                            .string()
+                            .not_null(),
+                    )
                     // Examples: 'real_estate', 'vehicle_fleet', 'equipment', 'insurance_book', 'adjuster_pool'
                     .col(ColumnDef::new(AtlasPortfolios::Name).string().not_null())
                     .col(ColumnDef::new(AtlasPortfolios::Description).text())

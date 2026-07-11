@@ -63,7 +63,7 @@ impl MigrationTrait for Migration {
             .execute_unprepared(
                 "DROP TABLE IF EXISTS flag_audit_log;
                  DROP TABLE IF EXISTS flag_overrides;
-                 DROP TABLE IF EXISTS feature_flags;"
+                 DROP TABLE IF EXISTS feature_flags;",
             )
             .await?;
         Ok(())

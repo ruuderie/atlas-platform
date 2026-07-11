@@ -54,36 +54,122 @@ impl MigrationTrait for Migration {
                 Table::alter()
                     .table(AtlasAccounts::Table)
                     // Organization Identity
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::DbaName).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::Website).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::Domain).string_len(100).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::DunsNumber).string_len(15).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::TaxIdPrimary).string_len(30).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::TaxIdSecondary).string_len(30).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::DbaName)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::Website)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::Domain).string_len(100).null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::DunsNumber)
+                            .string_len(15)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::TaxIdPrimary)
+                            .string_len(30)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::TaxIdSecondary)
+                            .string_len(30)
+                            .null(),
+                    )
                     // 'ein' | 'cnpj' | 'cpf' | 'ssn' | 'tin' | 'vat' | 'usdot'
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::TaxIdType).string_len(20).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::TaxIdType)
+                            .string_len(20)
+                            .null(),
+                    )
                     // Company-level contact channels (distinct from a specific person's channels)
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::CompanyPhone).string_len(30).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::CompanyEmail).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::CompanyFax).string_len(30).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::CompanyPhone)
+                            .string_len(30)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::CompanyEmail)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::CompanyFax)
+                            .string_len(30)
+                            .null(),
+                    )
                     // Firmographic data — first-class for segmentation queries
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::Industry).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::SubIndustry).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::SicCode).string_len(10).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::NaicsCode).string_len(10).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::NumEmployees).integer().null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::AnnualRevenue).decimal_len(18, 2).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::Industry)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::SubIndustry)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::SicCode).string_len(10).null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::NaicsCode)
+                            .string_len(10)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::NumEmployees).integer().null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::AnnualRevenue)
+                            .decimal_len(18, 2)
+                            .null(),
+                    )
                     // 'public' | 'private' | 'government' | 'nonprofit' | 'individual'
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::CompanyType).string_len(30).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::CompanyType)
+                            .string_len(30)
+                            .null(),
+                    )
                     // 'headquarters' | 'branch' | 'single' | 'franchise'
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::LocationType).string_len(30).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::YearEstablished).small_integer().null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::CreditScoreCode).string_len(10).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::LocationType)
+                            .string_len(30)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::YearEstablished)
+                            .small_integer()
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::CreditScoreCode)
+                            .string_len(10)
+                            .null(),
+                    )
                     // Address — completely absent from prior schema
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::StreetAddress).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::City).string_len(100).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::State).string_len(50).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::PostalCode).string_len(20).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::StreetAddress)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::City).string_len(100).null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::State).string_len(50).null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::PostalCode)
+                            .string_len(20)
+                            .null(),
+                    )
                     .add_column_if_not_exists(
                         ColumnDef::new(AtlasAccounts::Country)
                             .string_len(50)
@@ -91,18 +177,34 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("US")),
                     )
                     // Separate mailing address — JSONB (rarely queried, spec section 3.4)
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::MailingAddress).json_binary().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::MailingAddress)
+                            .json_binary()
+                            .null(),
+                    )
                     // Import attribution
                     // 'manual' | 'zoominfo' | 'business_leads_usa' | 'fmcsa' | 'mwbe' | 'linkedin'
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::DataSource).string_len(50).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::DataSourceId).string_len(100).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::DataSource)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::DataSourceId)
+                            .string_len(100)
+                            .null(),
+                    )
                     .add_column_if_not_exists(
                         ColumnDef::new(AtlasAccounts::IsDuplicate)
                             .boolean()
                             .null()
                             .default(false),
                     )
-                    .add_column_if_not_exists(ColumnDef::new(AtlasAccounts::DuplicateOfAccountId).uuid().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasAccounts::DuplicateOfAccountId)
+                            .uuid()
+                            .null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -228,18 +330,56 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at_column();
                 Table::alter()
                     .table(AtlasContacts::Table)
                     // Name enrichment
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::MiddleName).string_len(50).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::PreferredName).string_len(100).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::MiddleName)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::PreferredName)
+                            .string_len(100)
+                            .null(),
+                    )
                     // department was in the proposal DDL but missing from entity impl
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::Department).string_len(100).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::Department)
+                            .string_len(100)
+                            .null(),
+                    )
                     // Additional contact channels
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::Fax).string_len(30).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::Whatsapp).string_len(50).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::Telegram).string_len(50).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::LinkedinUrl).string_len(255).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::Twitter).string_len(100).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::Instagram).string_len(100).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::AvatarUrl).string_len(500).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::Fax).string_len(30).null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::Whatsapp)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::Telegram)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::LinkedinUrl)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::Twitter)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::Instagram)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::AvatarUrl)
+                            .string_len(500)
+                            .null(),
+                    )
                     // Verification flags (from MillionVerifier-processed files)
                     .add_column_if_not_exists(
                         ColumnDef::new(AtlasContacts::EmailVerified)
@@ -255,19 +395,37 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at_column();
                     )
                     // Tax identity — for individual contacts used as B2C customers
                     // CPF (Brazil), SSN (US), NIF (Portugal), TIN (generic)
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::TaxId).string_len(30).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::TaxId).string_len(30).null(),
+                    )
                     // 'cpf' | 'ssn' | 'tin' | 'nif'
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::TaxIdType).string_len(20).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::TaxIdType)
+                            .string_len(20)
+                            .null(),
+                    )
                     // Import attribution
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::DataSource).string_len(50).null())
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::DataSourceId).string_len(100).null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::DataSource)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::DataSourceId)
+                            .string_len(100)
+                            .null(),
+                    )
                     .add_column_if_not_exists(
                         ColumnDef::new(AtlasContacts::IsDuplicate)
                             .boolean()
                             .null()
                             .default(false),
                     )
-                    .add_column_if_not_exists(ColumnDef::new(AtlasContacts::DuplicateOfContactId).uuid().null())
+                    .add_column_if_not_exists(
+                        ColumnDef::new(AtlasContacts::DuplicateOfContactId)
+                            .uuid()
+                            .null(),
+                    )
                     .to_owned(),
             )
             .await?;

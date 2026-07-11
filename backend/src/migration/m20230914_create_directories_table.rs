@@ -11,17 +11,32 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Directory::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(Directory::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(Directory::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(Directory::DirectoryTypeId).uuid().not_null())
                     .col(ColumnDef::new(Directory::Name).string().not_null())
                     .col(ColumnDef::new(Directory::Domain).string().not_null())
                     .col(ColumnDef::new(Directory::Description).string().not_null())
-                    .col(ColumnDef::new(Directory::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Directory::UpdatedAt).timestamp_with_time_zone().not_null())
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-directory-directory_type_id")
-                        .from(Directory::Table, Directory::DirectoryTypeId)
-                        .to(DirectoryType::Table, DirectoryType::Id))
+                    .col(
+                        ColumnDef::new(Directory::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Directory::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-directory-directory_type_id")
+                            .from(Directory::Table, Directory::DirectoryTypeId)
+                            .to(DirectoryType::Table, DirectoryType::Id),
+                    )
                     .to_owned(),
             )
             .await

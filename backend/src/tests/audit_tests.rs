@@ -1,14 +1,13 @@
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
-use uuid::Uuid;
-use crate::services::audit::AuditService;
 use crate::entities::audit_log;
-use serde_json::json;
+use crate::services::audit::AuditService;
 use crate::tests::api_tests::setup_test_app;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use serde_json::json;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_audit_ledger_immutable_logging() {
     let (_, db) = setup_test_app().await;
-
 
     let tenant_id = Uuid::new_v4();
     let actor_id = Uuid::new_v4();
@@ -87,7 +86,7 @@ async fn test_audit_logs_tenant_isolation() {
         .all(&db)
         .await
         .unwrap();
-    
+
     assert_eq!(alpha_logs.len(), 1);
     assert_eq!(alpha_logs[0].action_type, "alpha.action");
 

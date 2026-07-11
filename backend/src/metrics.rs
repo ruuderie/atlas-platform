@@ -64,17 +64,35 @@ lazy_static! {
 }
 
 pub fn register_metrics() {
-    REGISTRY.register(Box::new(MAGIC_LINK_REQUESTS.clone())).unwrap();
-    REGISTRY.register(Box::new(MAGIC_LINK_DUPLICATES_PREVENTED.clone())).unwrap();
+    REGISTRY
+        .register(Box::new(MAGIC_LINK_REQUESTS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(MAGIC_LINK_DUPLICATES_PREVENTED.clone()))
+        .unwrap();
     REGISTRY.register(Box::new(AUTH_REQUESTS.clone())).unwrap();
     REGISTRY.register(Box::new(AUTH_LATENCY.clone())).unwrap();
-    REGISTRY.register(Box::new(PASSKEY_REGISTRATION_STARTED.clone())).unwrap();
-    REGISTRY.register(Box::new(PASSKEY_REGISTRATION_SUCCESS.clone())).unwrap();
-    REGISTRY.register(Box::new(PASSKEY_AUTH_SUCCESS.clone())).unwrap();
-    REGISTRY.register(Box::new(FRONTEND_HYDRATION_PANICS.clone())).unwrap();
-    REGISTRY.register(Box::new(OUTBOX_JOBS_PROCESSED.clone())).unwrap();
-    REGISTRY.register(Box::new(OUTBOX_JOB_FAILURES.clone())).unwrap();
-    REGISTRY.register(Box::new(OUTBOX_JOB_LATENCY.clone())).unwrap();
+    REGISTRY
+        .register(Box::new(PASSKEY_REGISTRATION_STARTED.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(PASSKEY_REGISTRATION_SUCCESS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(PASSKEY_AUTH_SUCCESS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(FRONTEND_HYDRATION_PANICS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(OUTBOX_JOBS_PROCESSED.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(OUTBOX_JOB_FAILURES.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(OUTBOX_JOB_LATENCY.clone()))
+        .unwrap();
 }
 
 pub fn metrics_handler() -> String {

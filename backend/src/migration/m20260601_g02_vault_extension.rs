@@ -27,7 +27,8 @@ impl MigrationTrait for Migration {
                     ADD COLUMN IF NOT EXISTS r2_key VARCHAR(512),
                     ADD COLUMN IF NOT EXISTS checksum_sha256 VARCHAR(64),
                     ADD COLUMN IF NOT EXISTS upload_status VARCHAR(20) DEFAULT 'complete';
-                "#.to_owned(),
+                "#
+                .to_owned(),
             ))
             .await?;
 
@@ -108,12 +109,38 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AttachmentMultipartUploads::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AttachmentMultipartUploads::AttachmentId).uuid().not_null())
-                    .col(ColumnDef::new(AttachmentMultipartUploads::R2UploadId).string().not_null())
-                    .col(ColumnDef::new(AttachmentMultipartUploads::TotalParts).integer().null())
-                    .col(ColumnDef::new(AttachmentMultipartUploads::CompletedParts).integer().not_null().default(0))
-                    .col(ColumnDef::new(AttachmentMultipartUploads::Status).string().not_null().default(Expr::val("in_progress")))
+                    .col(
+                        ColumnDef::new(AttachmentMultipartUploads::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AttachmentMultipartUploads::AttachmentId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AttachmentMultipartUploads::R2UploadId)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AttachmentMultipartUploads::TotalParts)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AttachmentMultipartUploads::CompletedParts)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(AttachmentMultipartUploads::Status)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("in_progress")),
+                    )
                     .col(
                         ColumnDef::new(AttachmentMultipartUploads::CreatedAt)
                             .timestamp_with_time_zone()
@@ -129,7 +156,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AttachmentMultipartUploads::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AttachmentMultipartUploads::Table)
+                    .to_owned(),
+            )
             .await?;
 
         manager

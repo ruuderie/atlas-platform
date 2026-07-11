@@ -30,7 +30,12 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AtlasWsRooms::RoomType).string().not_null())
                     .col(ColumnDef::new(AtlasWsRooms::EntityType).string().not_null())
                     .col(ColumnDef::new(AtlasWsRooms::EntityId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasWsRooms::IsActive).boolean().not_null().default(true))
+                    .col(
+                        ColumnDef::new(AtlasWsRooms::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
                     .col(
                         ColumnDef::new(AtlasWsRooms::CreatedAt)
                             .timestamp_with_time_zone()
@@ -70,9 +75,18 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AtlasWsMessages::RoomId).uuid().not_null())
                     .col(ColumnDef::new(AtlasWsMessages::SenderUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasWsMessages::MessageType).string().not_null().default(Expr::val("text")))
+                    .col(
+                        ColumnDef::new(AtlasWsMessages::MessageType)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("text")),
+                    )
                     .col(ColumnDef::new(AtlasWsMessages::Content).text().not_null())
-                    .col(ColumnDef::new(AtlasWsMessages::TranslatedContent).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasWsMessages::TranslatedContent)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasWsMessages::AttachmentId).uuid().null())
                     .col(
                         ColumnDef::new(AtlasWsMessages::CreatedAt)

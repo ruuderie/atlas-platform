@@ -62,11 +62,11 @@ pub const MAX_RETRY_COUNT: i32 = 5;
 
 /// Known event types — enforced at enqueue time.
 pub mod event_type {
-    pub const LISTING_PUBLISHED:    &str = "listing.published";
-    pub const LISTING_UPDATED:      &str = "listing.updated";
-    pub const LISTING_UNPUBLISHED:  &str = "listing.unpublished";
-    pub const ASSET_CREATED:        &str = "asset.created";
-    pub const ASSET_UPDATED:        &str = "asset.updated";
-    pub const INQUIRY_RECEIVED:     &str = "inquiry.received";
+    pub const LISTING_PUBLISHED: &str = "listing.published";
+    pub const LISTING_UPDATED: &str = "listing.updated";
+    pub const LISTING_UNPUBLISHED: &str = "listing.unpublished";
+    pub const ASSET_CREATED: &str = "asset.created";
+    pub const ASSET_UPDATED: &str = "asset.updated";
+    pub const INQUIRY_RECEIVED: &str = "inquiry.received";
     pub const APPLICATION_RECEIVED: &str = "application.received";
 }

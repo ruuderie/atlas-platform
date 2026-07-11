@@ -25,8 +25,10 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        db.execute_unprepared("ALTER TABLE contact DROP COLUMN IF EXISTS avatar_url;").await?;
-        db.execute_unprepared("ALTER TABLE lead DROP COLUMN IF EXISTS avatar_url;").await?;
+        db.execute_unprepared("ALTER TABLE contact DROP COLUMN IF EXISTS avatar_url;")
+            .await?;
+        db.execute_unprepared("ALTER TABLE lead DROP COLUMN IF EXISTS avatar_url;")
+            .await?;
         Ok(())
     }
 }

@@ -1,39 +1,36 @@
 #![allow(dead_code)]
+use crate::entities::{
+    listing,
+    listing::Entity as Listing,
+    template, // Add this line
+    user,
+};
+use crate::models::{
+    listing::ListingModel,
+    template::{CreateTemplate, TemplateModel, UpdateTemplate},
+};
 use axum::{
     extract::{Json, Path, State},
     http::StatusCode,
 };
+use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, 
-    QueryFilter, Set,IntoActiveModel
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel,
+    QueryFilter, Set,
 };
 use serde_json::json;
-use uuid::Uuid;
-use chrono::Utc;
 use std::result::Result;
-use crate::entities::{
-    listing,
-    template, // Add this line
-    user,
-    listing::Entity as Listing,
-};
-use crate::models::{
-    template::{TemplateModel, CreateTemplate, UpdateTemplate},
-    listing::ListingModel, 
-};
+use uuid::Uuid;
 
 pub async fn get_templates(
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<Vec<TemplateModel>>, (StatusCode, Json<serde_json::Value>)> {
-    let templates = template::Entity::find()
-        .all(&db)
-        .await
-        .map_err(|err| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "Failed to fetch templates", "details": err.to_string()})),
-            )
-        })?;
+    let templates = template::Entity::find().all(&db).await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "Failed to fetch templates", "details": err.to_string()})),
+        )
+    })?;
 
     let template_models: Vec<TemplateModel> = templates
         .into_iter()
@@ -61,7 +58,10 @@ pub async fn get_template_by_id(
     if let Some(template) = template {
         Ok(Json(TemplateModel::from(template)))
     } else {
-        Err((StatusCode::NOT_FOUND, Json(json!({"error": "Template not found"}))))
+        Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Template not found"})),
+        ))
     }
 }
 
@@ -82,17 +82,23 @@ pub async fn create_template(
         attributes_schema: Set(None),
     };
 
-    let template = new_template
-        .insert(&db)
-        .await
-        .map_err(|err| {
-            let (status, error_message) = match err {
-                DbErr::Query(..) => (StatusCode::BAD_REQUEST, "Invalid data provided for template creation"),
-                DbErr::Exec(..) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create template in the database"),
-                _ => (StatusCode::INTERNAL_SERVER_ERROR, "An unexpected error occurred"),
-            };
-            (status, Json(json!({"error": error_message})))
-        })?;
+    let template = new_template.insert(&db).await.map_err(|err| {
+        let (status, error_message) = match err {
+            DbErr::Query(..) => (
+                StatusCode::BAD_REQUEST,
+                "Invalid data provided for template creation",
+            ),
+            DbErr::Exec(..) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to create template in the database",
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred",
+            ),
+        };
+        (status, Json(json!({"error": error_message})))
+    })?;
 
     Ok(Json(TemplateModel::from(template)))
 }
@@ -123,7 +129,6 @@ pub async fn update_template(
     template.template_type = Set(template_type);
     let is_active = payload.is_active;
     template.is_active = Set(is_active);
-
 
     template.updated_at = Set(Utc::now());
 
@@ -157,30 +162,42 @@ pub async fn delete_template(
         })?;
 
     if result.rows_affected == 0 {
-        Err((StatusCode::NOT_FOUND, Json(json!({"error": "Template not found"}))))
+        Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Template not found"})),
+        ))
     } else {
         Ok(StatusCode::NO_CONTENT)
     }
 }
 
-
 pub async fn get_user_tenant_id(
     txn: &sea_orm::DatabaseTransaction,
-    current_user: &user::Model
+    current_user: &user::Model,
 ) -> Result<Uuid, (StatusCode, Json<serde_json::Value>)> {
     let user_account = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(current_user.id))
         .one(txn)
         .await
         .map_err(internal_error)?
-        .ok_or_else(|| (StatusCode::NOT_FOUND, Json(json!({"error": "User account not found"}))))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "User account not found"})),
+            )
+        })?;
 
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.eq(user_account.account_id))
         .one(txn)
         .await
         .map_err(internal_error)?
-        .ok_or_else(|| (StatusCode::NOT_FOUND, Json(json!({"error": "Profile not found"}))))?;
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "Profile not found"})),
+            )
+        })?;
 
     Ok(profile.tenant_id)
 }
@@ -239,7 +256,9 @@ impl ListingModel {
             neighborhood: model.neighborhood,
             latitude: model.latitude,
             longitude: model.longitude,
-            additional_info: model.additional_info.unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
+            additional_info: model
+                .additional_info
+                .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
             properties: model.properties,
             status: model.status,
             is_featured: model.is_featured,

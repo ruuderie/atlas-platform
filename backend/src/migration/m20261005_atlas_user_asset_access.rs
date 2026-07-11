@@ -56,9 +56,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
             .get_connection()
-            .execute_unprepared(
-                "DROP TABLE IF EXISTS atlas_user_asset_access CASCADE;",
-            )
+            .execute_unprepared("DROP TABLE IF EXISTS atlas_user_asset_access CASCADE;")
             .await?;
         Ok(())
     }

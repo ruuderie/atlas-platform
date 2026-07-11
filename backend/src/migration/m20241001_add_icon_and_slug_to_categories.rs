@@ -10,17 +10,8 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Category::Table)
-                    .add_column(
-                        ColumnDef::new(Category::Icon)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Category::Slug)
-                            .string()
-                            .null()
-                            .unique_key()
-                    )
+                    .add_column(ColumnDef::new(Category::Icon).string().null())
+                    .add_column(ColumnDef::new(Category::Slug).string().null().unique_key())
                     .to_owned(),
             )
             .await

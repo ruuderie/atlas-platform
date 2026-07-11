@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -39,25 +39,68 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()")),
                     )
                     .col(ColumnDef::new(AtlasContracts::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasContracts::ContractType).string().not_null())
-                    .col(ColumnDef::new(AtlasContracts::CounterpartyUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasContracts::ContractType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::CounterpartyUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasContracts::AssetId).uuid().null()) // FK to atlas_assets
                     .col(ColumnDef::new(AtlasContracts::StartDate).date().not_null())
                     .col(ColumnDef::new(AtlasContracts::EndDate).date().null())
-                    .col(ColumnDef::new(AtlasContracts::AutoRenew).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasContracts::RecurringAmountCents).big_integer().null())
-                    .col(ColumnDef::new(AtlasContracts::Currency).char_len(3).not_null().default(Expr::val("USD")))
-                    .col(ColumnDef::new(AtlasContracts::BillingInterval).string().not_null().default(Expr::val("monthly")))
+                    .col(
+                        ColumnDef::new(AtlasContracts::AutoRenew)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::RecurringAmountCents)
+                            .big_integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::Currency)
+                            .char_len(3)
+                            .not_null()
+                            .default(Expr::val("USD")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::BillingInterval)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("monthly")),
+                    )
                     .col(
                         ColumnDef::new(AtlasContracts::Status)
                             .string_len(30)
                             .not_null()
                             .default(Expr::val("draft")),
                     )
-                    .col(ColumnDef::new(AtlasContracts::SignedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasContracts::TerminatedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasContracts::TerminationReason).text().null())
-                    .col(ColumnDef::new(AtlasContracts::TermsMetadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasContracts::SignedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::TerminatedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::TerminationReason)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContracts::TermsMetadata)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasContracts::CreatedAt)
                             .timestamp_with_time_zone()

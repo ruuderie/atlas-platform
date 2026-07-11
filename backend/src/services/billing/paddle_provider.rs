@@ -1,9 +1,9 @@
 #![allow(dead_code, unused)]
 
+use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData, WebhookPayload};
 use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
-use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData, WebhookPayload};
 
 pub struct PaddleProvider {
     client: reqwest::Client,
@@ -31,16 +31,25 @@ impl PaddleProvider {
 
 #[async_trait]
 impl PaymentProvider for PaddleProvider {
-    async fn create_subscription(&self, tenant_id: Uuid, plan_name: &str, _price_cents: i64, _currency: &str) -> Result<SubscriptionData> {
+    async fn create_subscription(
+        &self,
+        tenant_id: Uuid,
+        plan_name: &str,
+        _price_cents: i64,
+        _currency: &str,
+    ) -> Result<SubscriptionData> {
         tracing::info!("Creating Paddle Subscription for tenant {}", tenant_id);
-        
+
         // Paddle uses proper API requests over reqwest because there's no official rust SDK
-        let _res = self.client.post(&format!("{}/subscriptions", self.base_url))
+        let _res = self
+            .client
+            .post(&format!("{}/subscriptions", self.base_url))
             .bearer_auth(&self.api_key)
             .json(&serde_json::json!({
                 "items": [{ "price_id": plan_name, "quantity": 1 }]
             }))
-            .send().await?;
+            .send()
+            .await?;
 
         Ok(SubscriptionData {
             subscription_id: format!("sub_paddle_{}", Uuid::new_v4()),
@@ -49,7 +58,12 @@ impl PaymentProvider for PaddleProvider {
         })
     }
 
-    async fn capture_payment(&self, _tenant_id: Uuid, amount_cents: i64, currency: &str) -> Result<TransactionData> {
+    async fn capture_payment(
+        &self,
+        _tenant_id: Uuid,
+        amount_cents: i64,
+        currency: &str,
+    ) -> Result<TransactionData> {
         tracing::info!("Capturing Paddle Payment (MOR routing)");
         Ok(TransactionData {
             transaction_id: format!("txn_paddle_{}", Uuid::new_v4()),

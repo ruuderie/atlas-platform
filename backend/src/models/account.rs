@@ -1,10 +1,8 @@
 #![allow(dead_code, unused)]
 
-
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountModel {

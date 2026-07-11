@@ -22,7 +22,7 @@
 //! All functions take `(lng, lat)` — matching GeoJSON / ST_Point argument order.
 //! Distances are in **metres** (SRID 4326 geography type).
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use sea_orm::{ConnectionTrait, DatabaseConnection, FromQueryResult, Statement};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -125,7 +125,9 @@ impl GeoService {
         radius_m: f64,
     ) -> Result<Vec<GeoLead>> {
         if !Self::check_postgis(db).await {
-            tracing::warn!("GeoService::leads_within_radius: PostGIS not available, returning empty");
+            tracing::warn!(
+                "GeoService::leads_within_radius: PostGIS not available, returning empty"
+            );
             return Ok(vec![]);
         }
 
@@ -342,19 +344,21 @@ impl GeoService {
         owner_entity_type: Option<String>,
         owner_entity_id: Option<Uuid>,
     ) -> Result<Vec<crate::entities::geo_service_area::Model>> {
-        use sea_orm::QueryFilter;
         use sea_orm::ColumnTrait;
         use sea_orm::EntityTrait;
+        use sea_orm::QueryFilter;
 
         let mut query = crate::entities::geo_service_area::Entity::find()
             .filter(crate::entities::geo_service_area::Column::TenantId.eq(tenant_id));
 
         if let Some(entity_type) = owner_entity_type {
-            query = query.filter(crate::entities::geo_service_area::Column::OwnerEntityType.eq(entity_type));
+            query = query
+                .filter(crate::entities::geo_service_area::Column::OwnerEntityType.eq(entity_type));
         }
 
         if let Some(entity_id) = owner_entity_id {
-            query = query.filter(crate::entities::geo_service_area::Column::OwnerEntityId.eq(entity_id));
+            query = query
+                .filter(crate::entities::geo_service_area::Column::OwnerEntityId.eq(entity_id));
         }
 
         let results = query
@@ -404,7 +408,10 @@ impl GeoService {
             .context("GeoService::service_areas_containing_point query failed")?;
 
         rows.iter()
-            .map(|r| crate::entities::geo_service_area::Model::from_query_result(r, "").map_err(|e| anyhow!(e)))
+            .map(|r| {
+                crate::entities::geo_service_area::Model::from_query_result(r, "")
+                    .map_err(|e| anyhow!(e))
+            })
             .collect()
     }
 
@@ -446,7 +453,10 @@ impl GeoService {
             .context("GeoService::service_areas_within_radius query failed")?;
 
         rows.iter()
-            .map(|r| crate::entities::geo_service_area::Model::from_query_result(r, "").map_err(|e| anyhow!(e)))
+            .map(|r| {
+                crate::entities::geo_service_area::Model::from_query_result(r, "")
+                    .map_err(|e| anyhow!(e))
+            })
             .collect()
     }
 
@@ -464,7 +474,9 @@ impl GeoService {
             return Ok(0);
         }
         if !Self::check_postgis(db).await {
-            return Err(anyhow!("PostGIS not available — cannot batch geocode leads"));
+            return Err(anyhow!(
+                "PostGIS not available — cannot batch geocode leads"
+            ));
         }
 
         // Build: UPDATE atlas_lead SET geo_point = v.pt
@@ -506,7 +518,10 @@ impl GeoService {
             .context("GeoService::batch_set_lead_geo_points failed")?;
 
         let rows_affected = result.rows_affected();
-        tracing::info!(rows_affected, "GeoService::batch_set_lead_geo_points complete");
+        tracing::info!(
+            rows_affected,
+            "GeoService::batch_set_lead_geo_points complete"
+        );
         Ok(rows_affected)
     }
 }

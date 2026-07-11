@@ -53,13 +53,29 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ScorecardTemplates::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardTemplates::Name).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(ScorecardTemplates::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTemplates::Name)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     // Discriminator: 'city' | 'person' | 'restaurant' | 'product' |
                     // 'contractor' | 'airline' | 'property' | 'hotel' | 'agent' |
                     // 'carrier' | 'event' | 'atlas_lead' | 'atlas_opportunity'
-                    .col(ColumnDef::new(ScorecardTemplates::EntityType).string_len(50).not_null())
-                    .col(ColumnDef::new(ScorecardTemplates::Description).text().null())
+                    .col(
+                        ColumnDef::new(ScorecardTemplates::EntityType)
+                            .string_len(50)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTemplates::Description)
+                            .text()
+                            .null(),
+                    )
                     // 'weighted_mean' | 'simple_mean' | 'percentile_rank'
                     .col(
                         ColumnDef::new(ScorecardTemplates::ScoringMethod)
@@ -91,7 +107,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(false),
                     )
-                    .col(ColumnDef::new(ScorecardTemplates::CreatedByUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(ScorecardTemplates::CreatedByUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardTemplates::CreatedAt)
                             .timestamp_with_time_zone()
@@ -123,12 +143,36 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ScorecardDimensions::TemplateId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardDimensions::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardDimensions::Slug).string_len(100).not_null())
-                    .col(ColumnDef::new(ScorecardDimensions::Name).string_len(255).not_null())
-                    .col(ColumnDef::new(ScorecardDimensions::Description).text().null())
-                    .col(ColumnDef::new(ScorecardDimensions::Category).string_len(50).null())
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::TemplateId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::Slug)
+                            .string_len(100)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::Name)
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::Description)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::Category)
+                            .string_len(50)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardDimensions::Weight)
                             .decimal_len(5, 4)
@@ -155,7 +199,11 @@ impl MigrationTrait for Migration {
                             .default(Expr::val(10.0)),
                     )
                     // Unit label: 'Mbps', 'USD/mo', '°C', 'hrs', '%'
-                    .col(ColumnDef::new(ScorecardDimensions::UnitLabel).string_len(30).null())
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::UnitLabel)
+                            .string_len(30)
+                            .null(),
+                    )
                     // JSONB array of tier objects — see spec section 2.3
                     .col(
                         ColumnDef::new(ScorecardDimensions::BenchmarkTiers)
@@ -163,8 +211,16 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::val("[]")),
                     )
-                    .col(ColumnDef::new(ScorecardDimensions::GlobalReferenceValue).decimal_len(10, 2).null())
-                    .col(ColumnDef::new(ScorecardDimensions::GlobalReferenceLabel).string_len(100).null())
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::GlobalReferenceValue)
+                            .decimal_len(10, 2)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensions::GlobalReferenceLabel)
+                            .string_len(100)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardDimensions::MinEntriesToShow)
                             .integer()
@@ -225,14 +281,38 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ScorecardDimensionOptions::DimensionId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardDimensionOptions::TenantId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(ScorecardDimensionOptions::DimensionId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensionOptions::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // Display label: "Telkomsel", "BIMC Kuta Hospital"
-                    .col(ColumnDef::new(ScorecardDimensionOptions::Label).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(ScorecardDimensionOptions::Label)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     // Stable slug: 'telkomsel' — for API consumers
-                    .col(ColumnDef::new(ScorecardDimensionOptions::ValueKey).string_len(100).null())
-                    .col(ColumnDef::new(ScorecardDimensionOptions::Description).text().null())
-                    .col(ColumnDef::new(ScorecardDimensionOptions::ImageUrl).text().null())
+                    .col(
+                        ColumnDef::new(ScorecardDimensionOptions::ValueKey)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensionOptions::Description)
+                            .text()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardDimensionOptions::ImageUrl)
+                            .text()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardDimensionOptions::SortOrder)
                             .integer()
@@ -278,10 +358,22 @@ impl MigrationTrait for Migration {
                     // Supported values: 'atlas_asset' | 'listing' | 'atlas_catalog_entry' |
                     // 'atlas_account' | 'atlas_service_provider' | 'profile' | 'customer' |
                     // 'atlas_opportunity' | 'atlas_portfolio' | 'atlas_lead' | 'atlas_contact'
-                    .col(ColumnDef::new(Scorecards::SubjectEntityType).string_len(50).not_null())
-                    .col(ColumnDef::new(Scorecards::SubjectEntityId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Scorecards::SubjectEntityType)
+                            .string_len(50)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Scorecards::SubjectEntityId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // Computed composite score — recomputed by background job
-                    .col(ColumnDef::new(Scorecards::CompositeScore).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(Scorecards::CompositeScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     // 'insufficient'(<5) | 'low'(<10) | 'medium'(<50) | 'high'(<200) | 'very_high'
                     .col(
                         ColumnDef::new(Scorecards::ConfidenceLevel)
@@ -310,8 +402,16 @@ impl MigrationTrait for Migration {
                     // dimension_vector DECIMAL(5,2)[] — stored as JSONB for SeaORM compat.
                     // Ordered array of weighted normalized scores (one per dimension, sort_order).
                     // Used by The Combinator for similarity search.
-                    .col(ColumnDef::new(Scorecards::DimensionVector).json_binary().null())
-                    .col(ColumnDef::new(Scorecards::LastComputedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(Scorecards::DimensionVector)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Scorecards::LastComputedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(Scorecards::CreatedAt)
                             .timestamp_with_time_zone()
@@ -366,9 +466,17 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(RatingSessions::ScorecardId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(RatingSessions::ScorecardId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(RatingSessions::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(RatingSessions::RaterUserId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(RatingSessions::RaterUserId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(RatingSessions::OccurredAt)
                             .timestamp_with_time_zone()
@@ -377,11 +485,23 @@ impl MigrationTrait for Migration {
                     // 'job' | 'stay' | 'visit' | 'event_shift' | 'purchase' | 'flight' |
                     // 'meeting' | 'pipeline_review' | 'call' | 'email_thread' | 'demo' |
                     // 'monthly_review' | 'quarterly_review'
-                    .col(ColumnDef::new(RatingSessions::SessionType).string_len(30).not_null())
+                    .col(
+                        ColumnDef::new(RatingSessions::SessionType)
+                            .string_len(30)
+                            .not_null(),
+                    )
                     // Links to existing platform records without data duplication
                     // e.g. 'atlas_case', 'atlas_reservation', 'atlas_activity'
-                    .col(ColumnDef::new(RatingSessions::ContextEntityType).string_len(50).null())
-                    .col(ColumnDef::new(RatingSessions::ContextEntityId).uuid().null())
+                    .col(
+                        ColumnDef::new(RatingSessions::ContextEntityType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(RatingSessions::ContextEntityId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(ColumnDef::new(RatingSessions::SessionLabel).text().null())
                     // 'draft' | 'submitted' | 'verified' | 'disputed'
                     .col(
@@ -391,7 +511,11 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("submitted")),
                     )
                     // G-06 verification gate when required by template config
-                    .col(ColumnDef::new(RatingSessions::VerificationRequestId).uuid().null())
+                    .col(
+                        ColumnDef::new(RatingSessions::VerificationRequestId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(RatingSessions::CreatedAt)
                             .timestamp_with_time_zone()
@@ -445,13 +569,33 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ScorecardEntries::SessionId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardEntries::ScorecardId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardEntries::DimensionId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(ScorecardEntries::SessionId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardEntries::ScorecardId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardEntries::DimensionId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(ScorecardEntries::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardEntries::ContributorUserId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(ScorecardEntries::ContributorUserId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // For rating / absolute / boolean: the numeric value
-                    .col(ColumnDef::new(ScorecardEntries::Score).decimal_len(8, 2).null())
+                    .col(
+                        ColumnDef::new(ScorecardEntries::Score)
+                            .decimal_len(8, 2)
+                            .null(),
+                    )
                     // For poll_single / poll_multi: the selected option
                     // Exactly one of score or option_id must be non-null (service enforced)
                     .col(ColumnDef::new(ScorecardEntries::OptionId).uuid().null())
@@ -468,7 +612,11 @@ impl MigrationTrait for Migration {
                     // Community: {"visit_start":"2024-03","duration_days":90,"purpose":"work"}
                     // Peer review: {"relationship":"peer","worked_together_months":18}
                     // Test result: {"test_name":"CRT","date":"2024-01","administered_by":"HR"}
-                    .col(ColumnDef::new(ScorecardEntries::Context).json_binary().null())
+                    .col(
+                        ColumnDef::new(ScorecardEntries::Context)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(ColumnDef::new(ScorecardEntries::Note).text().null())
                     // G-06 verification gate
                     .col(
@@ -477,7 +625,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(false),
                     )
-                    .col(ColumnDef::new(ScorecardEntries::VerificationRequestId).uuid().null())
+                    .col(
+                        ColumnDef::new(ScorecardEntries::VerificationRequestId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardEntries::CreatedAt)
                             .timestamp_with_time_zone()
@@ -524,22 +676,70 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(DimensionAggregates::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(DimensionAggregates::ScorecardId).uuid().not_null())
-                    .col(ColumnDef::new(DimensionAggregates::DimensionId).uuid().not_null())
-                    .col(ColumnDef::new(DimensionAggregates::MeanScore).decimal_len(5, 2).null())
-                    .col(ColumnDef::new(DimensionAggregates::WeightedMeanScore).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::ScorecardId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::DimensionId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::MeanScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::WeightedMeanScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     // For boolean dimensions: percentage of true responses
-                    .col(ColumnDef::new(DimensionAggregates::PercentTrue).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::PercentTrue)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     // Resolved benchmark tier for this aggregate
-                    .col(ColumnDef::new(DimensionAggregates::BenchmarkLabel).string_len(100).null())
-                    .col(ColumnDef::new(DimensionAggregates::BenchmarkColor).string_len(7).null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::BenchmarkLabel)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::BenchmarkColor)
+                            .string_len(7)
+                            .null(),
+                    )
                     // Human-readable: "Fast: 16 Mbps", "$1,183/mo", "83% say clean"
-                    .col(ColumnDef::new(DimensionAggregates::DisplayValue).string_len(150).null())
-                    .col(ColumnDef::new(DimensionAggregates::StdDeviation).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::DisplayValue)
+                            .string_len(150)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::StdDeviation)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     // 'strong_consensus' | 'consensus' | 'mixed' | 'disputed'
-                    .col(ColumnDef::new(DimensionAggregates::ConsensusLevel).string_len(20).null())
-                    .col(ColumnDef::new(DimensionAggregates::MinScore).decimal_len(5, 2).null())
-                    .col(ColumnDef::new(DimensionAggregates::MaxScore).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::ConsensusLevel)
+                            .string_len(20)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::MinScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::MaxScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(DimensionAggregates::ContributorCount)
                             .integer()
@@ -553,10 +753,22 @@ impl MigrationTrait for Migration {
                             .default(Expr::val(0)),
                     )
                     // Delta from global_reference_value
-                    .col(ColumnDef::new(DimensionAggregates::VsGlobalDelta).decimal_len(8, 2).null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::VsGlobalDelta)
+                            .decimal_len(8, 2)
+                            .null(),
+                    )
                     // 'above' | 'at' | 'below'
-                    .col(ColumnDef::new(DimensionAggregates::VsGlobalLabel).string_len(10).null())
-                    .col(ColumnDef::new(DimensionAggregates::LastComputedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(DimensionAggregates::VsGlobalLabel)
+                            .string_len(10)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(DimensionAggregates::LastComputedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .primary_key(
                         Index::create()
                             .col(DimensionAggregates::ScorecardId)
@@ -574,8 +786,16 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(PollAggregates::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(PollAggregates::ScorecardId).uuid().not_null())
-                    .col(ColumnDef::new(PollAggregates::DimensionId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(PollAggregates::ScorecardId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PollAggregates::DimensionId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(PollAggregates::OptionId).uuid().not_null())
                     .col(
                         ColumnDef::new(PollAggregates::VoteCount)
@@ -583,7 +803,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::val(0)),
                     )
-                    .col(ColumnDef::new(PollAggregates::VotePct).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(PollAggregates::VotePct)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(PollAggregates::Rank)
                             .integer()
@@ -596,7 +820,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::val(0)),
                     )
-                    .col(ColumnDef::new(PollAggregates::LastComputedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(PollAggregates::LastComputedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .primary_key(
                         Index::create()
                             .col(PollAggregates::ScorecardId)
@@ -624,7 +852,11 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::val("monthly")),
                     )
-                    .col(ColumnDef::new(TimeSeries::MeanScore).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(TimeSeries::MeanScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(TimeSeries::SessionCount)
                             .integer()
@@ -637,9 +869,17 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::val(0)),
                     )
-                    .col(ColumnDef::new(TimeSeries::DeltaFromPrior).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(TimeSeries::DeltaFromPrior)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     // 'improving' | 'stable' | 'declining' | 'insufficient_data'
-                    .col(ColumnDef::new(TimeSeries::TrendDirection).string_len(20).null())
+                    .col(
+                        ColumnDef::new(TimeSeries::TrendDirection)
+                            .string_len(20)
+                            .null(),
+                    )
                     .primary_key(
                         Index::create()
                             .col(TimeSeries::ScorecardId)
@@ -674,17 +914,41 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ScorecardTargets::TemplateId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(ScorecardTargets::TemplateId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(ScorecardTargets::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardTargets::Name).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(ScorecardTargets::Name)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     // 'search_filter' | 'job_specification' | 'ideal_profile'
-                    .col(ColumnDef::new(ScorecardTargets::TargetType).string_len(30).not_null())
+                    .col(
+                        ColumnDef::new(ScorecardTargets::TargetType)
+                            .string_len(30)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(ScorecardTargets::Description).text().null())
                     // Source entities used to derive ideal_profile vector
-                    .col(ColumnDef::new(ScorecardTargets::SeedEntityIds).json_binary().null())
+                    .col(
+                        ColumnDef::new(ScorecardTargets::SeedEntityIds)
+                            .json_binary()
+                            .null(),
+                    )
                     // Precomputed target vector (JSONB array of f64)
-                    .col(ColumnDef::new(ScorecardTargets::TargetVector).json_binary().null())
-                    .col(ColumnDef::new(ScorecardTargets::CreatedByUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(ScorecardTargets::TargetVector)
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTargets::CreatedByUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardTargets::CreatedAt)
                             .timestamp_with_time_zone()
@@ -709,18 +973,42 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(ScorecardTargetCriteria::TargetId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardTargetCriteria::DimensionId).uuid().not_null())
-                    .col(ColumnDef::new(ScorecardTargetCriteria::MinScore).decimal_len(5, 2).null())
-                    .col(ColumnDef::new(ScorecardTargetCriteria::MaxScore).decimal_len(5, 2).null())
-                    .col(ColumnDef::new(ScorecardTargetCriteria::IdealScore).decimal_len(5, 2).null())
+                    .col(
+                        ColumnDef::new(ScorecardTargetCriteria::TargetId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTargetCriteria::DimensionId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTargetCriteria::MinScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTargetCriteria::MaxScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(ScorecardTargetCriteria::IdealScore)
+                            .decimal_len(5, 2)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(ScorecardTargetCriteria::IsDealbreaker)
                             .boolean()
                             .not_null()
                             .default(false),
                     )
-                    .col(ColumnDef::new(ScorecardTargetCriteria::SearchWeight).decimal_len(5, 4).null())
+                    .col(
+                        ColumnDef::new(ScorecardTargetCriteria::SearchWeight)
+                            .decimal_len(5, 4)
+                            .null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -787,23 +1075,56 @@ impl MigrationTrait for Migration {
         for table in &["atlas_scorecard_templates", "atlas_scorecards"] {
             db.execute(sea_orm::Statement::from_string(
                 backend,
-                format!("DROP TRIGGER IF EXISTS trg_{t}_updated_at ON {t};", t = table),
+                format!(
+                    "DROP TRIGGER IF EXISTS trg_{t}_updated_at ON {t};",
+                    t = table
+                ),
             ))
             .await?;
         }
 
         // Drop in reverse FK dependency order
-        manager.drop_table(Table::drop().table(ScorecardTargetCriteria::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ScorecardTargets::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(TimeSeries::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(PollAggregates::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(DimensionAggregates::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ScorecardEntries::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(RatingSessions::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(Scorecards::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ScorecardDimensionOptions::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ScorecardDimensions::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ScorecardTemplates::Table).to_owned()).await?;
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(ScorecardTargetCriteria::Table)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ScorecardTargets::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(TimeSeries::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(PollAggregates::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(DimensionAggregates::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ScorecardEntries::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(RatingSessions::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Scorecards::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(
+                Table::drop()
+                    .table(ScorecardDimensionOptions::Table)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ScorecardDimensions::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ScorecardTemplates::Table).to_owned())
+            .await?;
 
         Ok(())
     }
@@ -815,94 +1136,195 @@ impl MigrationTrait for Migration {
 enum ScorecardTemplates {
     #[sea_orm(iden = "atlas_scorecard_templates")]
     Table,
-    Id, TenantId, Name, EntityType, Description, ScoringMethod,
-    DefaultScaleMin, DefaultScaleMax, MinEntriesToPublish, IsPublished,
-    CreatedByUserId, CreatedAt,
+    Id,
+    TenantId,
+    Name,
+    EntityType,
+    Description,
+    ScoringMethod,
+    DefaultScaleMin,
+    DefaultScaleMax,
+    MinEntriesToPublish,
+    IsPublished,
+    CreatedByUserId,
+    CreatedAt,
 }
 
 #[derive(DeriveIden)]
 enum ScorecardDimensions {
     #[sea_orm(iden = "atlas_scorecard_dimensions")]
     Table,
-    Id, TemplateId, TenantId, Slug, Name, Description, Category, Weight,
-    ScaleType, ScaleMin, ScaleMax, UnitLabel, BenchmarkTiers,
-    GlobalReferenceValue, GlobalReferenceLabel, MinEntriesToShow,
-    IsCommunityRatable, IsActive, SortOrder,
+    Id,
+    TemplateId,
+    TenantId,
+    Slug,
+    Name,
+    Description,
+    Category,
+    Weight,
+    ScaleType,
+    ScaleMin,
+    ScaleMax,
+    UnitLabel,
+    BenchmarkTiers,
+    GlobalReferenceValue,
+    GlobalReferenceLabel,
+    MinEntriesToShow,
+    IsCommunityRatable,
+    IsActive,
+    SortOrder,
 }
 
 #[derive(DeriveIden)]
 enum ScorecardDimensionOptions {
     #[sea_orm(iden = "atlas_scorecard_dimension_options")]
     Table,
-    Id, DimensionId, TenantId, Label, ValueKey, Description, ImageUrl,
-    SortOrder, IsWriteIn,
+    Id,
+    DimensionId,
+    TenantId,
+    Label,
+    ValueKey,
+    Description,
+    ImageUrl,
+    SortOrder,
+    IsWriteIn,
 }
 
 #[derive(DeriveIden)]
 enum Scorecards {
     #[sea_orm(iden = "atlas_scorecards")]
     Table,
-    Id, TenantId, TemplateId, SubjectEntityType, SubjectEntityId,
-    CompositeScore, ConfidenceLevel, TotalContributors, TotalSessions,
-    TotalEntries, DimensionVector, LastComputedAt, CreatedAt,
+    Id,
+    TenantId,
+    TemplateId,
+    SubjectEntityType,
+    SubjectEntityId,
+    CompositeScore,
+    ConfidenceLevel,
+    TotalContributors,
+    TotalSessions,
+    TotalEntries,
+    DimensionVector,
+    LastComputedAt,
+    CreatedAt,
 }
 
 #[derive(DeriveIden)]
 enum RatingSessions {
     #[sea_orm(iden = "atlas_rating_sessions")]
     Table,
-    Id, ScorecardId, TenantId, RaterUserId, OccurredAt, SessionType,
-    ContextEntityType, ContextEntityId, SessionLabel, Status,
-    VerificationRequestId, CreatedAt,
+    Id,
+    ScorecardId,
+    TenantId,
+    RaterUserId,
+    OccurredAt,
+    SessionType,
+    ContextEntityType,
+    ContextEntityId,
+    SessionLabel,
+    Status,
+    VerificationRequestId,
+    CreatedAt,
 }
 
 #[derive(DeriveIden)]
 enum ScorecardEntries {
     #[sea_orm(iden = "atlas_scorecard_entries")]
     Table,
-    Id, SessionId, ScorecardId, DimensionId, TenantId, ContributorUserId,
-    Score, OptionId, SourceType, Context, Note, IsVerified,
-    VerificationRequestId, CreatedAt,
+    Id,
+    SessionId,
+    ScorecardId,
+    DimensionId,
+    TenantId,
+    ContributorUserId,
+    Score,
+    OptionId,
+    SourceType,
+    Context,
+    Note,
+    IsVerified,
+    VerificationRequestId,
+    CreatedAt,
 }
 
 #[derive(DeriveIden)]
 enum DimensionAggregates {
     #[sea_orm(iden = "atlas_scorecard_dimension_aggregates")]
     Table,
-    ScorecardId, DimensionId, MeanScore, WeightedMeanScore, PercentTrue,
-    BenchmarkLabel, BenchmarkColor, DisplayValue, StdDeviation, ConsensusLevel,
-    MinScore, MaxScore, ContributorCount, SessionCount,
-    VsGlobalDelta, VsGlobalLabel, LastComputedAt,
+    ScorecardId,
+    DimensionId,
+    MeanScore,
+    WeightedMeanScore,
+    PercentTrue,
+    BenchmarkLabel,
+    BenchmarkColor,
+    DisplayValue,
+    StdDeviation,
+    ConsensusLevel,
+    MinScore,
+    MaxScore,
+    ContributorCount,
+    SessionCount,
+    VsGlobalDelta,
+    VsGlobalLabel,
+    LastComputedAt,
 }
 
 #[derive(DeriveIden)]
 enum PollAggregates {
     #[sea_orm(iden = "atlas_scorecard_poll_aggregates")]
     Table,
-    ScorecardId, DimensionId, OptionId, VoteCount, VotePct, Rank,
-    TotalVoters, LastComputedAt,
+    ScorecardId,
+    DimensionId,
+    OptionId,
+    VoteCount,
+    VotePct,
+    Rank,
+    TotalVoters,
+    LastComputedAt,
 }
 
 #[derive(DeriveIden)]
 enum TimeSeries {
     #[sea_orm(iden = "atlas_scorecard_time_series")]
     Table,
-    ScorecardId, DimensionId, PeriodStart, PeriodType, MeanScore,
-    SessionCount, ContributorCount, DeltaFromPrior, TrendDirection,
+    ScorecardId,
+    DimensionId,
+    PeriodStart,
+    PeriodType,
+    MeanScore,
+    SessionCount,
+    ContributorCount,
+    DeltaFromPrior,
+    TrendDirection,
 }
 
 #[derive(DeriveIden)]
 enum ScorecardTargets {
     #[sea_orm(iden = "atlas_scorecard_targets")]
     Table,
-    Id, TemplateId, TenantId, Name, TargetType, Description,
-    SeedEntityIds, TargetVector, CreatedByUserId, CreatedAt,
+    Id,
+    TemplateId,
+    TenantId,
+    Name,
+    TargetType,
+    Description,
+    SeedEntityIds,
+    TargetVector,
+    CreatedByUserId,
+    CreatedAt,
 }
 
 #[derive(DeriveIden)]
 enum ScorecardTargetCriteria {
     #[sea_orm(iden = "atlas_scorecard_target_criteria")]
     Table,
-    Id, TargetId, DimensionId, MinScore, MaxScore, IdealScore,
-    IsDealbreaker, SearchWeight,
+    Id,
+    TargetId,
+    DimensionId,
+    MinScore,
+    MaxScore,
+    IdealScore,
+    IsDealbreaker,
+    SearchWeight,
 }

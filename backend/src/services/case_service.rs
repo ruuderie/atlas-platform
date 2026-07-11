@@ -1,10 +1,12 @@
 #![allow(dead_code, unused)]
 
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
+use uuid::Uuid;
 
-use crate::entities::atlas_case::{self, Entity as CaseEntity, ActiveModel as CaseActiveModel};
+use crate::entities::atlas_case::{self, ActiveModel as CaseActiveModel, Entity as CaseEntity};
 
 /// Service layer for GENERIC-13: AtlasCase
 /// The universal work item / ticket / case object used across maintenance,
@@ -78,7 +80,9 @@ impl CaseService {
     ) -> Result<(), String> {
         tracing::info!(
             "Case {} cost recorded (est={:?}, actual={:?})",
-            case_id, estimated_cents, actual_cents
+            case_id,
+            estimated_cents,
+            actual_cents
         );
         Ok(())
     }

@@ -2,10 +2,10 @@
 // Records tenant-scoped financial events (lead acquisition charges, rent, payouts, etc.)
 // using atlas_ledger_entries + atlas_ledger_splits. Pluggable rails via payment_credentials.
 
-use sea_orm::{DatabaseConnection, ActiveModelTrait, Set};
-use uuid::Uuid;
-use chrono::Utc;
 use anyhow::Result;
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
+use uuid::Uuid;
 
 use crate::entities::atlas_ledger_entry;
 
@@ -17,7 +17,7 @@ use crate::entities::atlas_ledger_entry;
 pub async fn record_lead_purchase(
     db: &DatabaseConnection,
     tenant_id: Uuid,
-    account_id: Uuid,           // atlas_accounts.id (payer / billable party)
+    account_id: Uuid, // atlas_accounts.id (payer / billable party)
     lead_id: Uuid,
     amount_cents: i64,
     payment_rail: Option<&str>,
@@ -28,7 +28,7 @@ pub async fn record_lead_purchase(
     let ledger_entry = atlas_ledger_entry::ActiveModel {
         id: Set(Uuid::new_v4()),
         tenant_id: Set(tenant_id),
-        billable_entity_type: Set("lead".to_string()),   // or "opportunity" / "acquisition" post-cutover
+        billable_entity_type: Set("lead".to_string()), // or "opportunity" / "acquisition" post-cutover
         billable_entity_id: Set(lead_id),
         payer_user_id: Set(None),
         payer_email: Set(None),
@@ -54,7 +54,12 @@ pub async fn record_lead_purchase(
 
     tracing::info!(
         "Recorded lead purchase via unified ledger: entry_id={}, tenant={}, account={}, lead={}, amount_cents={}, rail={}",
-        entry_id, tenant_id, account_id, lead_id, amount_cents, payment_rail.unwrap_or("stripe")
+        entry_id,
+        tenant_id,
+        account_id,
+        lead_id,
+        amount_cents,
+        payment_rail.unwrap_or("stripe")
     );
 
     // Future: create atlas_ledger_split rows here for MOR / platform fee / recipient splits

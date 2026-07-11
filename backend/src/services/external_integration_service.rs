@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::{Value, json};
+use uuid::Uuid;
 
-use crate::entities::atlas_external_integration::{self, Entity as ExternalIntegrationEntity, ActiveModel as ExternalIntegrationActiveModel};
+use crate::entities::atlas_external_integration::{
+    self, ActiveModel as ExternalIntegrationActiveModel, Entity as ExternalIntegrationEntity,
+};
 
 /// Service layer for GENERIC-05: AtlasExternalIntegration
 /// Pluggable connections to PMS, OTA, GDS, accounting, telephony, etc.
@@ -60,10 +64,7 @@ impl ExternalIntegrationService {
             q = q.filter(atlas_external_integration::Column::IntegrationType.eq(it.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn record_sync(

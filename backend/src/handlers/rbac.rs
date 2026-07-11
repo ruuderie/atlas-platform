@@ -19,18 +19,18 @@
 //! ```
 
 use axum::{
+    Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, post},
-    Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{user, user_account};
 use crate::entities::user_account::UserRole;
+use crate::entities::{user, user_account};
 use crate::services::rbac::RbacService;
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -42,23 +42,23 @@ pub struct AppSlugQuery {
 
 #[derive(Debug, Serialize)]
 pub struct RoleProfileSummary {
-    pub id:                  Uuid,
-    pub role_slug:           String,
-    pub display_name:        String,
-    pub description:         Option<String>,
+    pub id: Uuid,
+    pub role_slug: String,
+    pub display_name: String,
+    pub description: Option<String>,
     pub is_platform_default: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct UserRoleResponse {
-    pub user_id:   Uuid,
-    pub app_slug:  String,
+    pub user_id: Uuid,
+    pub app_slug: String,
     pub role_slug: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct AssignRoleInput {
-    pub app_slug:  String,
+    pub app_slug: String,
     pub role_slug: String,
 }
 
@@ -71,9 +71,15 @@ pub struct AssignRoleResponse {
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/rbac/roles",                          get(list_role_profiles))
-        .route("/api/rbac/users/{user_id}/roles",           get(get_user_role).post(assign_role))
-        .route("/api/rbac/users/{user_id}/roles/{app_slug}", delete(revoke_role))
+        .route("/api/rbac/roles", get(list_role_profiles))
+        .route(
+            "/api/rbac/users/{user_id}/roles",
+            get(get_user_role).post(assign_role),
+        )
+        .route(
+            "/api/rbac/users/{user_id}/roles/{app_slug}",
+            delete(revoke_role),
+        )
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -85,7 +91,15 @@ async fn list_role_profiles(
     Query(params): Query<AppSlugQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let (tenant_id, user_account_row) = resolve_caller(&db, current_user.id).await?;
-    require_rbac_permission(&db, &user_account_row, current_user.id, tenant_id, &params.app_slug, "rbac:read").await?;
+    require_rbac_permission(
+        &db,
+        &user_account_row,
+        current_user.id,
+        tenant_id,
+        &params.app_slug,
+        "rbac:read",
+    )
+    .await?;
 
     let profiles = RbacService::list_role_profiles(&db, tenant_id, &params.app_slug)
         .await
@@ -94,10 +108,10 @@ async fn list_role_profiles(
     let response: Vec<RoleProfileSummary> = profiles
         .into_iter()
         .map(|p| RoleProfileSummary {
-            id:                  p.id,
-            role_slug:           p.role_slug,
-            display_name:        p.display_name,
-            description:         p.description,
+            id: p.id,
+            role_slug: p.role_slug,
+            display_name: p.display_name,
+            description: p.description,
             is_platform_default: p.is_platform_default,
         })
         .collect();
@@ -113,10 +127,22 @@ async fn get_user_role(
     Query(params): Query<AppSlugQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let (tenant_id, user_account_row) = resolve_caller(&db, current_user.id).await?;
-    require_rbac_permission(&db, &user_account_row, current_user.id, tenant_id, &params.app_slug, "rbac:read").await?;
+    require_rbac_permission(
+        &db,
+        &user_account_row,
+        current_user.id,
+        tenant_id,
+        &params.app_slug,
+        "rbac:read",
+    )
+    .await?;
 
     let role_slug = RbacService::get_user_app_role(&db, user_id, tenant_id, &params.app_slug).await;
-    Ok(Json(UserRoleResponse { user_id, app_slug: params.app_slug, role_slug }))
+    Ok(Json(UserRoleResponse {
+        user_id,
+        app_slug: params.app_slug,
+        role_slug,
+    }))
 }
 
 /// POST /api/rbac/users/{user_id}/roles
@@ -128,7 +154,15 @@ async fn assign_role(
     Json(input): Json<AssignRoleInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let (tenant_id, user_account_row) = resolve_caller(&db, current_user.id).await?;
-    require_rbac_permission(&db, &user_account_row, current_user.id, tenant_id, &input.app_slug, "rbac:assign").await?;
+    require_rbac_permission(
+        &db,
+        &user_account_row,
+        current_user.id,
+        tenant_id,
+        &input.app_slug,
+        "rbac:assign",
+    )
+    .await?;
 
     let assignment_id = RbacService::assign_role(
         &db,
@@ -160,7 +194,15 @@ async fn revoke_role(
     Path((user_id, app_slug)): Path<(Uuid, String)>,
 ) -> Result<StatusCode, StatusCode> {
     let (tenant_id, user_account_row) = resolve_caller(&db, current_user.id).await?;
-    require_rbac_permission(&db, &user_account_row, current_user.id, tenant_id, &app_slug, "rbac:assign").await?;
+    require_rbac_permission(
+        &db,
+        &user_account_row,
+        current_user.id,
+        tenant_id,
+        &app_slug,
+        "rbac:assign",
+    )
+    .await?;
 
     let affected = RbacService::revoke_role(&db, user_id, tenant_id, &app_slug)
         .await
@@ -171,14 +213,18 @@ async fn revoke_role(
         %app_slug, rows_affected = affected, "rbac: role revoked"
     );
 
-    if affected == 0 { Err(StatusCode::NOT_FOUND) } else { Ok(StatusCode::NO_CONTENT) }
+    if affected == 0 {
+        Err(StatusCode::NOT_FOUND)
+    } else {
+        Ok(StatusCode::NO_CONTENT)
+    }
 }
 
 // ── Authorization helpers ─────────────────────────────────────────────────────
 
 /// Resolve the calling user's tenant_id and user_account row in one pass.
 async fn resolve_caller(
-    db:      &DatabaseConnection,
+    db: &DatabaseConnection,
     user_id: Uuid,
 ) -> Result<(Uuid, user_account::Model), StatusCode> {
     let user_accounts = user_account::Entity::find()
@@ -190,7 +236,10 @@ async fn resolve_caller(
     let account_ids: Vec<Uuid> = user_accounts.iter().map(|ua| ua.account_id).collect();
 
     // Use the first active user_account for the UserRole check (Layer 1)
-    let ua = user_accounts.into_iter().next().ok_or(StatusCode::FORBIDDEN)?;
+    let ua = user_accounts
+        .into_iter()
+        .next()
+        .ok_or(StatusCode::FORBIDDEN)?;
 
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
@@ -210,11 +259,11 @@ async fn resolve_caller(
 /// profile or Permission Set override will also pass — this enables delegated
 /// admin patterns without promoting them to Owner/Admin on the whole platform.
 async fn require_rbac_permission(
-    db:              &DatabaseConnection,
-    ua:              &user_account::Model,
-    user_id:         Uuid,
-    tenant_id:       Uuid,
-    app_slug:        &str,
+    db: &DatabaseConnection,
+    ua: &user_account::Model,
+    user_id: Uuid,
+    tenant_id: Uuid,
+    app_slug: &str,
     permission_slug: &str,
 ) -> Result<(), StatusCode> {
     // Layer 1: platform role bypass

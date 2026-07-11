@@ -1,11 +1,11 @@
 #![allow(dead_code, unused)]
-use crate::entities::{user, magic_link_token};
+use crate::entities::{magic_link_token, user};
 use crate::services::audit::AuditService;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set};
-use serde_json::json;
-use uuid::Uuid;
 use chrono::{Duration, Utc};
 use reqwest::StatusCode;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde_json::json;
+use uuid::Uuid;
 
 pub struct AuthService;
 
@@ -20,7 +20,10 @@ impl AuthService {
             .await
             .map_err(|e| {
                 tracing::error!("Database error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                )
             })?;
 
         let user = match user {
@@ -48,7 +51,10 @@ impl AuthService {
 
         let inserted_token = new_token.insert(db).await.map_err(|e| {
             tracing::error!("Failed to create token: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate magic link".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to generate magic link".to_string(),
+            )
         })?;
 
         let new_state = json!({
@@ -94,7 +100,10 @@ impl AuthService {
 
         let inserted_token = new_token.insert(db).await.map_err(|e| {
             tracing::error!("Failed to create setup token: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate setup token".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to generate setup token".to_string(),
+            )
         })?;
 
         let new_state = json!({
@@ -130,16 +139,27 @@ impl AuthService {
             .await
             .map_err(|e| {
                 tracing::error!("Database error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database query error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database query error".to_string(),
+                )
             })?;
 
         let token_record = match token_record {
             Some(t) => t,
-            None => return Err((StatusCode::BAD_REQUEST, "Invalid or expired magic link".to_string())),
+            None => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "Invalid or expired magic link".to_string(),
+                ));
+            }
         };
 
         if token_record.expires_at < Utc::now() {
-            return Err((StatusCode::BAD_REQUEST, "Magic link has expired".to_string()));
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "Magic link has expired".to_string(),
+            ));
         }
 
         let user_record = user::Entity::find_by_id(token_record.user_id)
@@ -147,7 +167,10 @@ impl AuthService {
             .await
             .map_err(|e| {
                 tracing::error!("Database error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "User query error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "User query error".to_string(),
+                )
             })?
             .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
 
@@ -156,7 +179,10 @@ impl AuthService {
         updated_token.is_used = Set(true);
         let consumed_token = updated_token.update(db).await.map_err(|e| {
             tracing::error!("Failed to update token: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to consume token".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to consume token".to_string(),
+            )
         })?;
 
         let old_state = json!({"is_used": false});

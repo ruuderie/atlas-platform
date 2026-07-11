@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_service_provider::{self, Entity as ServiceProviderEntity, ActiveModel as ServiceProviderActiveModel};
+use crate::entities::atlas_service_provider::{
+    self, ActiveModel as ServiceProviderActiveModel, Entity as ServiceProviderEntity,
+};
 
 /// Service layer for GENERIC-12: AtlasServiceProvider
 /// Vendors, contractors, agents, marketplace participants.
@@ -68,10 +72,7 @@ impl ServiceProviderService {
             q = q.filter(atlas_service_provider::Column::Status.eq(st.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn record_rating(
@@ -80,7 +81,11 @@ impl ServiceProviderService {
         service_provider_id: Uuid,
         rating: f64,
     ) -> Result<(), String> {
-        tracing::info!("Recorded rating {} for service provider {}", rating, service_provider_id);
+        tracing::info!(
+            "Recorded rating {} for service provider {}",
+            rating,
+            service_provider_id
+        );
         Ok(())
     }
 }

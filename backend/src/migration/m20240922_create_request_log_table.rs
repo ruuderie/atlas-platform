@@ -11,7 +11,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(RequestLog::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(RequestLog::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(RequestLog::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(RequestLog::UserId).uuid().null())
                     .col(ColumnDef::new(RequestLog::IpAddress).string().not_null())
                     .col(ColumnDef::new(RequestLog::UserAgent).string())
@@ -19,15 +24,23 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(RequestLog::Method).string().not_null())
                     .col(ColumnDef::new(RequestLog::StatusCode).integer().not_null())
                     .col(ColumnDef::new(RequestLog::RequestType).string().not_null())
-                    .col(ColumnDef::new(RequestLog::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(RequestLog::RequestStatus).string().not_null())
+                    .col(
+                        ColumnDef::new(RequestLog::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(RequestLog::RequestStatus)
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(RequestLog::FailureReason).string())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-request_log-user_id")
                             .from(RequestLog::Table, RequestLog::UserId)
                             .to(User::Table, User::Id)
-                            .on_delete(ForeignKeyAction::SetNull)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )

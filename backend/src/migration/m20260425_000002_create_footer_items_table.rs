@@ -20,19 +20,32 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(FooterItems::Label).string().not_null())
                     .col(ColumnDef::new(FooterItems::Href).string().null())
-                    .col(ColumnDef::new(FooterItems::DisplayOrder).integer().not_null().default(0))
-                    .col(ColumnDef::new(FooterItems::IsVisible).boolean().not_null().default(true))
+                    .col(
+                        ColumnDef::new(FooterItems::DisplayOrder)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(FooterItems::IsVisible)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
                     .to_owned(),
             )
             .await?;
 
         // Seed some default footer items for UAT
-        manager.get_connection().execute_unprepared(
-            "INSERT INTO footer_items (label, href, display_order, is_visible) VALUES 
+        manager
+            .get_connection()
+            .execute_unprepared(
+                "INSERT INTO footer_items (label, href, display_order, is_visible) VALUES 
             ('Terms', '/terms', 10, true),
             ('Privacy', '/privacy', 20, true)
-            ON CONFLICT DO NOTHING;"
-        ).await?;
+            ON CONFLICT DO NOTHING;",
+            )
+            .await?;
 
         Ok(())
     }

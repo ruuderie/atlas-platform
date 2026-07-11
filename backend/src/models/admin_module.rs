@@ -18,7 +18,6 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString};
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // MODULE CATEGORY
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,9 +67,7 @@ pub enum ModuleCategory {
 /// Serializes as `SCREAMING_SNAKE_CASE` for DB storage and JSON transport.
 /// The `strum` derives allow `from_str` parsing for route/query params.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash,
-    Serialize, Deserialize,
-    Display, EnumIter, EnumString,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumIter, EnumString,
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
@@ -136,8 +133,11 @@ impl AdminModuleType {
     pub fn category(self) -> ModuleCategory {
         match self {
             Self::Dashboard | Self::Settings | Self::Security => ModuleCategory::Platform,
-            Self::Blog | Self::ResumeProfiles | Self::ResumeEntries
-                | Self::LandingPages | Self::Webforms => ModuleCategory::Content,
+            Self::Blog
+            | Self::ResumeProfiles
+            | Self::ResumeEntries
+            | Self::LandingPages
+            | Self::Webforms => ModuleCategory::Content,
             Self::Navigation | Self::Footer | Self::PageHeaders => ModuleCategory::Appearance,
             Self::Leads | Self::Contacts | Self::LeadOptions => ModuleCategory::CrmAndComms,
             Self::Services | Self::CaseStudies | Self::Highlights => ModuleCategory::B2B,
@@ -156,26 +156,26 @@ impl AdminModuleType {
     /// Uses gaps (multiples of 10) to allow insertion without renumbering.
     pub fn default_sort_order(self) -> i32 {
         match self {
-            Self::Dashboard      => 0,
-            Self::Blog           => 10,
-            Self::Services       => 20,
-            Self::CaseStudies    => 30,
-            Self::Highlights     => 40,
-            Self::Contacts       => 50,
-            Self::Settings       => 60,
-            Self::LeadOptions    => 70,
-            Self::Navigation     => 80,
-            Self::Footer         => 90,
-            Self::PageHeaders    => 100,
-            Self::LandingPages   => 110,
+            Self::Dashboard => 0,
+            Self::Blog => 10,
+            Self::Services => 20,
+            Self::CaseStudies => 30,
+            Self::Highlights => 40,
+            Self::Contacts => 50,
+            Self::Settings => 60,
+            Self::LeadOptions => 70,
+            Self::Navigation => 80,
+            Self::Footer => 90,
+            Self::PageHeaders => 100,
+            Self::LandingPages => 110,
             Self::ResumeProfiles => 120,
-            Self::ResumeEntries  => 130,
-            Self::Webforms       => 140,
-            Self::Security       => 150,
-            Self::Leads          => 160,
-            Self::Properties     => 170,
-            Self::Listings       => 180,
-            Self::Custom         => 990,
+            Self::ResumeEntries => 130,
+            Self::Webforms => 140,
+            Self::Security => 150,
+            Self::Leads => 160,
+            Self::Properties => 170,
+            Self::Listings => 180,
+            Self::Custom => 990,
         }
     }
 
@@ -183,26 +183,26 @@ impl AdminModuleType {
     /// Tenants may override this via the `display_name` column in `app_instance_module`.
     pub fn to_display_name(self) -> &'static str {
         match self {
-            Self::Dashboard      => "Dashboard",
-            Self::Settings       => "Settings",
-            Self::Security       => "Security",
-            Self::Blog           => "Blog",
+            Self::Dashboard => "Dashboard",
+            Self::Settings => "Settings",
+            Self::Security => "Security",
+            Self::Blog => "Blog",
             Self::ResumeProfiles => "Resume Profiles",
-            Self::ResumeEntries  => "Resume Entries",
-            Self::LandingPages   => "Landing Pages",
-            Self::Webforms       => "Webforms",
-            Self::Navigation     => "Navigation",
-            Self::Footer         => "Footer",
-            Self::PageHeaders    => "Page Headers",
-            Self::Leads          => "Leads",
-            Self::Contacts       => "Contacts",
-            Self::LeadOptions    => "Lead Options",
-            Self::Services       => "Services",
-            Self::CaseStudies    => "Case Studies",
-            Self::Highlights     => "Highlights",
-            Self::Properties     => "Properties",
-            Self::Listings       => "Listings",
-            Self::Custom         => "Custom",
+            Self::ResumeEntries => "Resume Entries",
+            Self::LandingPages => "Landing Pages",
+            Self::Webforms => "Webforms",
+            Self::Navigation => "Navigation",
+            Self::Footer => "Footer",
+            Self::PageHeaders => "Page Headers",
+            Self::Leads => "Leads",
+            Self::Contacts => "Contacts",
+            Self::LeadOptions => "Lead Options",
+            Self::Services => "Services",
+            Self::CaseStudies => "Case Studies",
+            Self::Highlights => "Highlights",
+            Self::Properties => "Properties",
+            Self::Listings => "Listings",
+            Self::Custom => "Custom",
         }
     }
 }
@@ -265,8 +265,8 @@ pub struct UpsertModuleInput {
 
 #[cfg(test)]
 mod tests {
-    use strum::IntoEnumIterator;
     use super::*;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn test_all_variants_have_category() {
@@ -289,18 +289,28 @@ mod tests {
 
     #[test]
     fn test_category_assignments() {
-        assert_eq!(AdminModuleType::Leads.category(),    ModuleCategory::CrmAndComms);
-        assert_eq!(AdminModuleType::Contacts.category(), ModuleCategory::CrmAndComms);
-        assert_eq!(AdminModuleType::Blog.category(),     ModuleCategory::Content);
+        assert_eq!(
+            AdminModuleType::Leads.category(),
+            ModuleCategory::CrmAndComms
+        );
+        assert_eq!(
+            AdminModuleType::Contacts.category(),
+            ModuleCategory::CrmAndComms
+        );
+        assert_eq!(AdminModuleType::Blog.category(), ModuleCategory::Content);
         assert_eq!(AdminModuleType::Services.category(), ModuleCategory::B2B);
-        assert_eq!(AdminModuleType::Listings.category(), ModuleCategory::Advanced);
+        assert_eq!(
+            AdminModuleType::Listings.category(),
+            ModuleCategory::Advanced
+        );
     }
 
     #[test]
     fn test_serde_round_trip() {
         for variant in AdminModuleType::iter() {
-            let serialized   = serde_json::to_string(&variant).expect("serialize");
-            let deserialized: AdminModuleType = serde_json::from_str(&serialized).expect("deserialize");
+            let serialized = serde_json::to_string(&variant).expect("serialize");
+            let deserialized: AdminModuleType =
+                serde_json::from_str(&serialized).expect("deserialize");
             assert_eq!(variant, deserialized, "round-trip failed for {variant:?}");
         }
     }
@@ -310,8 +320,8 @@ mod tests {
         use std::str::FromStr;
         for variant in AdminModuleType::iter() {
             let s = variant.to_string(); // SCREAMING_SNAKE_CASE via strum Display
-            let parsed = AdminModuleType::from_str(&s)
-                .unwrap_or_else(|_| panic!("from_str failed for {s}"));
+            let parsed =
+                AdminModuleType::from_str(&s).unwrap_or_else(|_| panic!("from_str failed for {s}"));
             assert_eq!(variant, parsed);
         }
     }
@@ -319,9 +329,9 @@ mod tests {
     #[test]
     fn test_from_type_constructor() {
         let cfg = AdminModuleConfig::from_type(AdminModuleType::Blog);
-        assert_eq!(cfg.module_type,  AdminModuleType::Blog);
+        assert_eq!(cfg.module_type, AdminModuleType::Blog);
         assert_eq!(cfg.display_name, "Blog");
-        assert_eq!(cfg.category,     ModuleCategory::Content);
+        assert_eq!(cfg.category, ModuleCategory::Content);
         assert!(!cfg.is_fixed);
     }
 

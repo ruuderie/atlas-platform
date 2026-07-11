@@ -60,8 +60,7 @@ impl MigrationTrait for Migration {
 
         db.execute(sea_orm::Statement::from_string(
             backend,
-            "ALTER TABLE atlas_scorecards DROP COLUMN IF EXISTS deleted_at;"
-                .to_owned(),
+            "ALTER TABLE atlas_scorecards DROP COLUMN IF EXISTS deleted_at;".to_owned(),
         ))
         .await?;
 

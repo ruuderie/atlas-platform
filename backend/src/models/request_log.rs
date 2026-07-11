@@ -1,11 +1,11 @@
 #![allow(dead_code, unused)]
 
-use chrono::{Utc, DateTime};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
+use axum::http::request::Parts;
+use chrono::{DateTime, Utc};
 use sea_orm::prelude::*;
 use sea_orm::sea_query::StringLen;
-use axum::http::request::Parts;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(32))")]
 pub enum RequestStatus {
@@ -48,7 +48,7 @@ impl RequestInfo {
             method: parts.method.to_string(),
             uri: parts.uri.to_string(),
             status_code: 200, // Default to 200, update later if needed
-            user_id: None, // This should be set elsewhere, e.g., after user authentication
+            user_id: None,    // This should be set elsewhere, e.g., after user authentication
             ip_address,
             user_agent,
             request_type: RequestType::API, // Default to API, update if needed

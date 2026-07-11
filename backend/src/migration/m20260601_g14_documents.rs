@@ -22,20 +22,68 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()")),
                     )
                     .col(ColumnDef::new(AtlasDocuments::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasDocuments::AttachmentId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasDocuments::AttachmentId)
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(AtlasDocuments::ShareTokenId).uuid().null())
-                    .col(ColumnDef::new(AtlasDocuments::DocumentCategory).string().not_null())
-                    .col(ColumnDef::new(AtlasDocuments::AppNamespace).string_len(30).not_null())
-                    .col(ColumnDef::new(AtlasDocuments::RelatedEntityType).string().null())
-                    .col(ColumnDef::new(AtlasDocuments::RelatedEntityId).uuid().null())
-                    .col(ColumnDef::new(AtlasDocuments::IsCounterpartyVisible).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasDocuments::RequiresSignature).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasDocuments::IsSigned).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasDocuments::SignedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasDocuments::DocumentCategory)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::AppNamespace)
+                            .string_len(30)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::RelatedEntityType)
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::RelatedEntityId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::IsCounterpartyVisible)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::RequiresSignature)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::IsSigned)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::SignedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasDocuments::SignedByUserId).uuid().null())
                     .col(ColumnDef::new(AtlasDocuments::SignatureBlob).text().null())
-                    .col(ColumnDef::new(AtlasDocuments::VersionNumber).integer().not_null().default(1))
-                    .col(ColumnDef::new(AtlasDocuments::SupersedesDocumentId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasDocuments::VersionNumber)
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasDocuments::SupersedesDocumentId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasDocuments::CreatedAt)
                             .timestamp_with_time_zone()

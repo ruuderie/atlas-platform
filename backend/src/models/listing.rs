@@ -1,12 +1,12 @@
 #![allow(dead_code)]
-use chrono::{Utc, DateTime};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use sea_orm::prelude::*;
-use serde_json::Value;
-use sea_orm::{IntoActiveModel, Set};
 use crate::entities::listing;
+use chrono::{DateTime, Utc};
+use sea_orm::prelude::*;
+use sea_orm::{IntoActiveModel, Set};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct ListingSearch {
@@ -125,7 +125,10 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
             neighborhood: Set(self.neighborhood),
             latitude: Set(self.latitude),
             longitude: Set(self.longitude),
-            additional_info: Set(Some(self.additional_info.unwrap_or(Value::Object(Default::default())))),
+            additional_info: Set(Some(
+                self.additional_info
+                    .unwrap_or(Value::Object(Default::default())),
+            )),
             properties: Set(self.properties),
             status: Set(ListingStatus::Pending),
             is_featured: Set(self.is_featured.unwrap_or(false)),
@@ -182,7 +185,9 @@ where
 }
 
 // Add a deserializer for Option<ListingStatus>
-fn deserialize_listing_status_option<'de, D>(deserializer: D) -> Result<Option<ListingStatus>, D::Error>
+fn deserialize_listing_status_option<'de, D>(
+    deserializer: D,
+) -> Result<Option<ListingStatus>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -198,4 +203,3 @@ where
         None => Ok(None),
     }
 }
-

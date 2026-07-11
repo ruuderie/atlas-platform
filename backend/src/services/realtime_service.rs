@@ -1,11 +1,17 @@
 #![allow(dead_code, unused)]
 
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
+use uuid::Uuid;
 
-use crate::entities::atlas_ws_room::{self, Entity as WsRoomEntity, ActiveModel as WsRoomActiveModel};
-use crate::entities::atlas_ws_message::{self, Entity as WsMessageEntity, ActiveModel as WsMessageActiveModel};
+use crate::entities::atlas_ws_message::{
+    self, ActiveModel as WsMessageActiveModel, Entity as WsMessageEntity,
+};
+use crate::entities::atlas_ws_room::{
+    self, ActiveModel as WsRoomActiveModel, Entity as WsRoomEntity,
+};
 
 /// Service layer for GENERIC-07: Realtime WebSocket infrastructure.
 /// Manages rooms and messages for chat, live updates, collaboration, notifications.

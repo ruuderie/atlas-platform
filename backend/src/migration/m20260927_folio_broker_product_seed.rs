@@ -109,10 +109,8 @@ and agent accounts — built for property managers and licensed brokers.',
         )
         .await?;
 
-        db.execute_unprepared(
-            "DELETE FROM platform_products WHERE slug = 'folio-broker';",
-        )
-        .await?;
+        db.execute_unprepared("DELETE FROM platform_products WHERE slug = 'folio-broker';")
+            .await?;
 
         Ok(())
     }

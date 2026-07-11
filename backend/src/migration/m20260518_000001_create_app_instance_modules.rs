@@ -30,7 +30,8 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
 
         // ── Create table ────────────────────────────────────────────────────
-        db.execute_unprepared(r#"
+        db.execute_unprepared(
+            r#"
             CREATE TABLE IF NOT EXISTS app_instance_module (
                 id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
                 app_instance_id UUID        NOT NULL
@@ -46,19 +47,25 @@ impl MigrationTrait for Migration {
                 updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
                 UNIQUE (app_instance_id, module_type)
             );
-        "#).await?;
+        "#,
+        )
+        .await?;
 
         // ── Indexes ──────────────────────────────────────────────────────────
         // Hot-path: fetch enabled modules for a tenant ordered by sort_order.
-        db.execute_unprepared(r#"
+        db.execute_unprepared(
+            r#"
             CREATE INDEX IF NOT EXISTS idx_app_instance_module_tenant
                 ON app_instance_module (app_instance_id, is_enabled, sort_order);
-        "#).await?;
+        "#,
+        )
+        .await?;
 
         // ── Seed buildwithruud ───────────────────────────────────────────────
         // Locate the buildwithruud app_instance via its known domains.
         // ON CONFLICT DO NOTHING makes this idempotent.
-        db.execute_unprepared(r#"
+        db.execute_unprepared(
+            r#"
             INSERT INTO app_instance_module
                 (app_instance_id, module_type, display_name, sort_order, is_fixed, is_enabled)
             SELECT
@@ -95,7 +102,9 @@ impl MigrationTrait for Migration {
                 'dev.buildwithruud.com'
             )
             ON CONFLICT (app_instance_id, module_type) DO NOTHING;
-        "#).await?;
+        "#,
+        )
+        .await?;
 
         Ok(())
     }

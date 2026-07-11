@@ -16,7 +16,7 @@ impl MigrationTrait for Migration {
 
                  CREATE INDEX IF NOT EXISTS idx_subscriptions_grace_period
                      ON atlas_subscriptions (tenant_id, grace_period_ends_at)
-                     WHERE grace_period_ends_at IS NOT NULL;"
+                     WHERE grace_period_ends_at IS NOT NULL;",
             )
             .await?;
         Ok(())
@@ -30,7 +30,7 @@ impl MigrationTrait for Migration {
                  ALTER TABLE atlas_subscriptions
                      DROP COLUMN IF EXISTS is_billing_exempt,
                      DROP COLUMN IF EXISTS billing_exemption_reason,
-                     DROP COLUMN IF EXISTS grace_period_ends_at;"
+                     DROP COLUMN IF EXISTS grace_period_ends_at;",
             )
             .await?;
         Ok(())

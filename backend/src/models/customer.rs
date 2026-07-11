@@ -1,9 +1,9 @@
-use crate::entities::customer::{Model as CustomerEntity, CustomerAttributes};
+use crate::entities::customer::{CustomerAttributes, Model as CustomerEntity};
+use crate::models::Validate;
 use crate::models::address::AddressJson;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::models::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct Customer {
@@ -107,5 +107,3 @@ impl From<CustomerEntity> for Customer {
         }
     }
 }
-
-

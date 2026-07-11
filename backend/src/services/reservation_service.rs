@@ -1,8 +1,8 @@
 #![allow(dead_code, unused)]
 
-use sea_orm::{DatabaseConnection, ConnectionTrait, Statement};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ConnectionTrait, DatabaseConnection, Statement};
+use uuid::Uuid;
 
 /// Service layer for GENERIC-23: AtlasReservation
 ///
@@ -91,8 +91,12 @@ impl ReservationService {
 
         tracing::info!(
             "G23 reservation hold created: {} ({}) for asset {}/{} [{} → {}]",
-            id, reservation_type, reserved_asset_type, reserved_asset_id,
-            starts_at, ends_at
+            id,
+            reservation_type,
+            reserved_asset_type,
+            reserved_asset_id,
+            starts_at,
+            ends_at
         );
 
         Ok(id)
@@ -123,7 +127,11 @@ impl ReservationService {
                   AND tenant_id = $2
                   AND status IN ('hold', 'pending_payment')
                 "#,
-                [reservation_id.into(), tenant_id.into(), ledger_entry_id.into()],
+                [
+                    reservation_id.into(),
+                    tenant_id.into(),
+                    ledger_entry_id.into(),
+                ],
             ))
             .await
             .map_err(|e| format!("ReservationService::confirm failed: {e}"))?
@@ -135,7 +143,11 @@ impl ReservationService {
             ));
         }
 
-        tracing::info!("G23 reservation {} confirmed → ledger entry {}", reservation_id, ledger_entry_id);
+        tracing::info!(
+            "G23 reservation {} confirmed → ledger entry {}",
+            reservation_id,
+            ledger_entry_id
+        );
         Ok(())
     }
 
@@ -267,7 +279,10 @@ impl ReservationService {
 
         let released = result.rows_affected();
         if released > 0 {
-            tracing::info!("G23 ReservationService: released {} expired holds", released);
+            tracing::info!(
+                "G23 ReservationService: released {} expired holds",
+                released
+            );
         }
 
         Ok(released)

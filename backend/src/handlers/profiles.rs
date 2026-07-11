@@ -2,25 +2,32 @@ use crate::entities::{
     account::{self, Entity as Account},
     profile::{self, Entity as Profile},
     user::{self},
-    user_account::{self, Entity as UserAccount}
+    user_account::{self, Entity as UserAccount},
 };
-use crate::models::profile::{ProfileSearch, CreateProfileInput, UpdateProfileInput};
+use crate::models::profile::{CreateProfileInput, ProfileSearch, UpdateProfileInput};
 use axum::{
-    extract::{Extension, Json, Path, Query,State},
+    Router,
+    extract::{Extension, Json, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, Set, Condition, ColumnTrait, QueryFilter, ActiveModelTrait, IntoActiveModel};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, IntoActiveModel,
+    QueryFilter, Set,
+};
+use uuid::Uuid;
 
 pub fn routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
-    
     Router::new()
         .route("/api/profiles", post(create_profile).get(get_profiles))
-        .route("/api/profiles/{id}", get(get_profile_by_id).put(update_profile).delete(delete_profile))
+        .route(
+            "/api/profiles/{id}",
+            get(get_profile_by_id)
+                .put(update_profile)
+                .delete(delete_profile),
+        )
         .route("/api/profiles/search", get(search_profiles))
         .with_state(db_connection)
 }
@@ -41,24 +48,24 @@ pub async fn create_profile(
             tracing::error!("Error fetching account: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })? {
-            Some(account) => account,
-            None => {
-                let new_account = account::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    tenant_id: Set(input.tenant_id),
-                    name: Set(input.display_name.clone()),
-                    is_active: Set(true),
-                    stripe_customer_id: sea_orm::NotSet,
-                    stripe_payment_method_id: sea_orm::NotSet,
-                    created_at: Set(Utc::now()),
-                    updated_at: Set(Utc::now()),
-                };
-                new_account.insert(&db).await.map_err(|err| {
-                    tracing::error!("Error creating account: {:?}", err);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?
-            }
-        };
+        Some(account) => account,
+        None => {
+            let new_account = account::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(input.tenant_id),
+                name: Set(input.display_name.clone()),
+                is_active: Set(true),
+                stripe_customer_id: sea_orm::NotSet,
+                stripe_payment_method_id: sea_orm::NotSet,
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            };
+            new_account.insert(&db).await.map_err(|err| {
+                tracing::error!("Error creating account: {:?}", err);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+        }
+    };
 
     // Create the profile
     let mut new_profile = profile::ActiveModel {
@@ -259,13 +266,10 @@ pub async fn delete_profile(
     }
 
     // Delete the profile
-    Profile::delete_by_id(id)
-        .exec(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Error deleting profile: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    Profile::delete_by_id(id).exec(&db).await.map_err(|err| {
+        tracing::error!("Error deleting profile: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }

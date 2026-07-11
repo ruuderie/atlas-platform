@@ -64,24 +64,56 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasReservations::TenantId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // What is reserved (polymorphic — the asset being booked)
                     // reserved_asset_type examples:
                     //   'atlas_asset'             — hotel room, STR unit, seat
                     //   'atlas_event_ticket_type' — event ticket (G-21)
                     //   'atlas_catalog_entry'     — catalog item (G-26)
-                    .col(ColumnDef::new(AtlasReservations::ReservedAssetType).string_len(50).not_null())
-                    .col(ColumnDef::new(AtlasReservations::ReservedAssetId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::ReservedAssetType)
+                            .string_len(50)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::ReservedAssetId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // Who is reserving
-                    .col(ColumnDef::new(AtlasReservations::GuestAccountId).uuid().null())
-                    .col(ColumnDef::new(AtlasReservations::GuestEmail).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::GuestAccountId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::GuestEmail)
+                            .string_len(255)
+                            .null(),
+                    )
                     // Time bounds
-                    .col(ColumnDef::new(AtlasReservations::StartsAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(AtlasReservations::EndsAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::StartsAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::EndsAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     // Reservation type discriminator
                     // Examples: 'hotel_room', 'str_unit', 'flight_seat', 'package',
                     //           'service_appointment', 'event_slot', 'tour_booking'
-                    .col(ColumnDef::new(AtlasReservations::ReservationType).string_len(50).not_null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::ReservationType)
+                            .string_len(50)
+                            .not_null(),
+                    )
                     // App-specific metadata (night_count, room_type, pax_count, flight_segments[], etc.)
                     .col(
                         ColumnDef::new(AtlasReservations::ReservationMetadata)
@@ -90,9 +122,21 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("'{}'")),
                     )
                     // External system references (GDS hold ID, PMS folio, Duffel order ID)
-                    .col(ColumnDef::new(AtlasReservations::ExternalHoldId).string_len(255).null())
-                    .col(ColumnDef::new(AtlasReservations::ExternalConfirmationNo).string_len(255).null())
-                    .col(ColumnDef::new(AtlasReservations::PmsIntegrationId).uuid().null()) // FK atlas_external_integrations
+                    .col(
+                        ColumnDef::new(AtlasReservations::ExternalHoldId)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::ExternalConfirmationNo)
+                            .string_len(255)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::PmsIntegrationId)
+                            .uuid()
+                            .null(),
+                    ) // FK atlas_external_integrations
                     // Status lifecycle
                     .col(
                         ColumnDef::new(AtlasReservations::Status)
@@ -100,17 +144,53 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .default(Expr::val("hold")),
                     )
-                    .col(ColumnDef::new(AtlasReservations::HoldExpiresAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasReservations::ConfirmedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasReservations::CheckedInAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasReservations::CompletedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasReservations::CancelledAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasReservations::CancellationReason).text().null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::HoldExpiresAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::ConfirmedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::CheckedInAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::CompletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::CancelledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasReservations::CancellationReason)
+                            .text()
+                            .null(),
+                    )
                     // Financial link
-                    .col(ColumnDef::new(AtlasReservations::LedgerEntryId).uuid().null()) // FK atlas_ledger_entries (G-03)
+                    .col(
+                        ColumnDef::new(AtlasReservations::LedgerEntryId)
+                            .uuid()
+                            .null(),
+                    ) // FK atlas_ledger_entries (G-03)
                     .col(ColumnDef::new(AtlasReservations::QuoteId).uuid().null()) // FK atlas_quotes (G-24) — the proposal
-                    .col(ColumnDef::new(AtlasReservations::CommissionPlanId).uuid().null()) // FK atlas_commission_plans (G-25)
-                    .col(ColumnDef::new(AtlasReservations::TotalAmountCents).big_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasReservations::CommissionPlanId)
+                            .uuid()
+                            .null(),
+                    ) // FK atlas_commission_plans (G-25)
+                    .col(
+                        ColumnDef::new(AtlasReservations::TotalAmountCents)
+                            .big_integer()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasReservations::Currency)
                             .char_len(3)
@@ -118,8 +198,16 @@ impl MigrationTrait for Migration {
                             .default(Expr::val("USD")),
                     )
                     // Attribution
-                    .col(ColumnDef::new(AtlasReservations::CampaignEnrollmentId).uuid().null()) // G-19
-                    .col(ColumnDef::new(AtlasReservations::AttributionTouchpointId).uuid().null()) // G-20
+                    .col(
+                        ColumnDef::new(AtlasReservations::CampaignEnrollmentId)
+                            .uuid()
+                            .null(),
+                    ) // G-19
+                    .col(
+                        ColumnDef::new(AtlasReservations::AttributionTouchpointId)
+                            .uuid()
+                            .null(),
+                    ) // G-20
                     // Timestamps
                     .col(
                         ColumnDef::new(AtlasReservations::CreatedAt)

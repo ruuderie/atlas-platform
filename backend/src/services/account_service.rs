@@ -1,17 +1,19 @@
 #![allow(dead_code)]
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, ActiveModelTrait,
-    QueryFilter, QueryOrder, QuerySelect, Set,
-    sea_query::{Expr, Func},
+use crate::entities::atlas_account::{
+    self, ActiveModel as AccountActiveModel, Entity as AccountEntity,
 };
-use uuid::Uuid;
 use chrono::Utc;
 use rust_decimal::Decimal;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
+    QuerySelect, Set,
+    sea_query::{Expr, Func},
+};
 use serde_json::Value;
-use crate::entities::atlas_account::{self, Entity as AccountEntity, ActiveModel as AccountActiveModel};
+use uuid::Uuid;
 
 /// Service layer for the unified Account concept (replaces legacy customer).
-/// 
+///
 /// This is the foundation for B2B and B2C party management.
 pub struct AccountService;
 
@@ -78,7 +80,10 @@ impl AccountService {
     ) -> Result<Uuid, String> {
         // In a real implementation we would have a better lookup (e.g. by name + type)
         let existing = Self::list_for_tenant(db, tenant_id, 5).await?;
-        if let Some(acc) = existing.into_iter().find(|a| a.account_type == "organization") {
+        if let Some(acc) = existing
+            .into_iter()
+            .find(|a| a.account_type == "organization")
+        {
             return Ok(acc.id);
         }
 
@@ -98,7 +103,7 @@ impl AccountService {
         db: &DatabaseConnection,
         tenant_id: Uuid,
         // Identity
-        account_type: &str,           // 'organization' | 'individual'
+        account_type: &str, // 'organization' | 'individual'
         name: &str,
         first_name: Option<&str>,
         last_name: Option<&str>,
@@ -189,7 +194,8 @@ impl AccountService {
         limit: u64,
     ) -> Result<Vec<atlas_account::Model>, String> {
         // Escape LIKE metacharacters so user-supplied characters are treated as literals.
-        let escaped = query.to_lowercase()
+        let escaped = query
+            .to_lowercase()
             .replace('\\', "\\\\")
             .replace('%', "\\%")
             .replace('_', "\\_");
@@ -198,9 +204,18 @@ impl AccountService {
             .filter(atlas_account::Column::TenantId.eq(tenant_id))
             .filter(
                 sea_orm::Condition::any()
-                    .add(Expr::expr(Func::lower(Expr::col(atlas_account::Column::Name))).like(&pattern))
-                    .add(Expr::expr(Func::lower(Expr::col(atlas_account::Column::CompanyEmail))).like(&pattern))
-                    .add(Expr::expr(Func::lower(Expr::col(atlas_account::Column::Domain))).like(&pattern))
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(atlas_account::Column::Name)))
+                            .like(&pattern),
+                    )
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(atlas_account::Column::CompanyEmail)))
+                            .like(&pattern),
+                    )
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(atlas_account::Column::Domain)))
+                            .like(&pattern),
+                    ),
             )
             .filter(atlas_account::Column::Status.ne("archived"))
             .order_by_asc(atlas_account::Column::Name)

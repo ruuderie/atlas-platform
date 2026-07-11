@@ -37,11 +37,11 @@ impl MigrationTrait for Migration {
 
         // Enforce Append-Only constraints via raw Postgres statements
         let db = manager.get_connection();
-        
+
         // 1. Revoke UPDATE and DELETE permissions from standard roles
         let revoke_sql = "REVOKE UPDATE, DELETE ON audit_logs FROM public;";
         db.execute_unprepared(revoke_sql).await?;
-        
+
         // 2. Create a trigger function that explicitly aborts any UPDATE or DELETE attempt
         let trigger_func_sql = r#"
             CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
@@ -67,8 +67,9 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        
-        let drop_trigger_sql = "DROP TRIGGER IF EXISTS enforce_append_only_audit_logs ON audit_logs;";
+
+        let drop_trigger_sql =
+            "DROP TRIGGER IF EXISTS enforce_append_only_audit_logs ON audit_logs;";
         db.execute_unprepared(drop_trigger_sql).await?;
 
         let drop_function_sql = "DROP FUNCTION IF EXISTS prevent_audit_log_modification();";

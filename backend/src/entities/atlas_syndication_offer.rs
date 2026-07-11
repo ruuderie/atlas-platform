@@ -64,7 +64,11 @@ impl Model {
     pub fn types(&self) -> Vec<String> {
         self.syndication_types
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -72,7 +76,11 @@ impl Model {
     pub fn mandatory_tiers(&self) -> Vec<String> {
         self.is_mandatory_for_tiers
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -83,7 +91,17 @@ impl Model {
 }
 
 /// How a linked NI is presented / functions for the operator.
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(30))")]
 pub enum SyndicationLinkType {
     /// Operator gets their own branded website showing only their inventory (1:1 coupling).
@@ -95,7 +113,17 @@ pub enum SyndicationLinkType {
 }
 
 /// Lifecycle status of a syndication offer.
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(20))")]
 pub enum SyndicationOfferStatus {
     #[sea_orm(string_value = "active")]

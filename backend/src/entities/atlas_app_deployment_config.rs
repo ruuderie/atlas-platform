@@ -24,13 +24,13 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "atlas_app_deployment_config")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id:         Uuid,
-    pub tenant_id:  Uuid,
-    pub app_slug:   String,
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub app_slug: String,
     /// Platform-level deployment topology (standard vs internal operator).
-    pub mode:       AppDeploymentMode,
+    pub mode: AppDeploymentMode,
     /// Arbitrary JSON config for this deployment (portal toggles, etc.).
-    pub config:     Json,
+    pub config: Json,
 
     // ── Folio operational mode (m20260909) ───────────────────────────────────
     /// Mutually exclusive operational identity for Folio instances.
@@ -41,9 +41,9 @@ pub struct Model {
 
     // ── Public config (m20260902) ─────────────────────────────────────────────
     /// Short handle for shared-platform URLs, e.g. "oakwood" → oakwood.folio.app
-    pub public_slug:     Option<String>,
+    pub public_slug: Option<String>,
     /// Full FQDN for white-label deployments, e.g. "listings.oakwoodpm.com"
-    pub custom_domain:   Option<String>,
+    pub custom_domain: Option<String>,
     /// Instance operational lifecycle status
     pub instance_status: AppInstanceStatus,
 
@@ -66,14 +66,16 @@ impl Model {
 
     /// Returns the `tenant_portal_enabled` config flag (default: false).
     pub fn tenant_portal_enabled(&self) -> bool {
-        self.config.get("tenant_portal_enabled")
+        self.config
+            .get("tenant_portal_enabled")
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
     }
 
     /// Returns the `vendor_portal_enabled` config flag (default: false).
     pub fn vendor_portal_enabled(&self) -> bool {
-        self.config.get("vendor_portal_enabled")
+        self.config
+            .get("vendor_portal_enabled")
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
     }
@@ -82,7 +84,17 @@ impl Model {
 /// Platform-level deployment topology (standard vs internal operator).
 /// This is separate from `folio_mode` — it governs billing/operator topology,
 /// not the application's operational identity.
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(50))")]
 pub enum AppDeploymentMode {
     #[sea_orm(string_value = "standard")]
@@ -98,7 +110,18 @@ pub enum AppDeploymentMode {
 /// Enforces that a single instance cannot simultaneously be PMC AND brokerage.
 ///
 /// Added by migration `m20260909_folio_instance_mode`.
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display, Default)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+    Default,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(20))")]
 pub enum FolioMode {
     /// Solo landlord / portfolio operator (default). Frontend: /l/**
@@ -115,7 +138,17 @@ pub enum FolioMode {
     Brokerage,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(20))")]
 pub enum AppInstanceStatus {
     #[sea_orm(string_value = "active")]

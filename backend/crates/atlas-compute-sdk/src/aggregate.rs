@@ -42,10 +42,10 @@ pub fn weighted_mean(entries: &[(f64, f64)]) -> Option<f64> {
 /// - `prior_weight`    — shrinkage strength (e.g. 5.0 = "5 equivalent observations")
 /// - `global_ref`      — the prior mean (global reference value for the dimension)
 pub fn bayesian_shrinkage(
-    raw_mean:     Option<f64>,
+    raw_mean: Option<f64>,
     weight_total: f64,
     prior_weight: Option<f64>,
-    global_ref:   Option<f64>,
+    global_ref: Option<f64>,
 ) -> Option<f64> {
     match (raw_mean, prior_weight, global_ref) {
         (Some(m), Some(pw), Some(gr)) if pw > 0.0 => {
@@ -108,14 +108,26 @@ mod tests {
         // prior_weight=5, global_ref=5.0, raw_mean=9.0, weight_total=2.0
         // shrunk = (5×5 + 2×9) / (5+2) = (25+18)/7 = 43/7 ≈ 6.14
         let result = bayesian_shrinkage(Some(9.0), 2.0, Some(5.0), Some(5.0)).unwrap();
-        assert!(result > 5.0, "shrunk must be > prior (prior is 5.0, result={result})");
-        assert!(result < 9.0, "shrunk must be < raw mean (raw is 9.0, result={result})");
+        assert!(
+            result > 5.0,
+            "shrunk must be > prior (prior is 5.0, result={result})"
+        );
+        assert!(
+            result < 9.0,
+            "shrunk must be < raw mean (raw is 9.0, result={result})"
+        );
     }
 
     #[test]
     fn bayesian_shrinkage_identity_when_no_prior() {
-        assert_eq!(bayesian_shrinkage(Some(7.0), 3.0, None, Some(5.0)), Some(7.0));
-        assert_eq!(bayesian_shrinkage(Some(7.0), 3.0, Some(5.0), None), Some(7.0));
+        assert_eq!(
+            bayesian_shrinkage(Some(7.0), 3.0, None, Some(5.0)),
+            Some(7.0)
+        );
+        assert_eq!(
+            bayesian_shrinkage(Some(7.0), 3.0, Some(5.0), None),
+            Some(7.0)
+        );
     }
 
     #[test]

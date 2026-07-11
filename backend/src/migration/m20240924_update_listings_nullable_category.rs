@@ -11,11 +11,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Listing::Table)
-                    .modify_column(
-                        ColumnDef::new(Listing::CategoryId)
-                            .uuid()
-                            .null()
-                    )
+                    .modify_column(ColumnDef::new(Listing::CategoryId).uuid().null())
                     .to_owned(),
             )
             .await
@@ -28,11 +24,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Listing::Table)
-                    .modify_column(
-                        ColumnDef::new(Listing::CategoryId)
-                            .uuid()
-                            .not_null()
-                    )
+                    .modify_column(ColumnDef::new(Listing::CategoryId).uuid().not_null())
                     .to_owned(),
             )
             .await
@@ -43,4 +35,4 @@ impl MigrationTrait for Migration {
 enum Listing {
     Table,
     CategoryId,
-} 
+}

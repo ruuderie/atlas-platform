@@ -15,79 +15,31 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(Directory::Subdomain)
                             .string()
                             .null()
-                            .unique_key()
+                            .unique_key(),
                     )
                     .add_column(
                         ColumnDef::new(Directory::CustomDomain)
                             .string()
                             .null()
-                            .unique_key()
+                            .unique_key(),
                     )
-                    .add_column(
-                        ColumnDef::new(Directory::Logo)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::Favicon)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::HeaderScripts)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::FooterScripts)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::GoogleAnalyticsId)
-                            .string()
-                            .null()
-                    )
+                    .add_column(ColumnDef::new(Directory::Logo).string().null())
+                    .add_column(ColumnDef::new(Directory::Favicon).string().null())
+                    .add_column(ColumnDef::new(Directory::HeaderScripts).string().null())
+                    .add_column(ColumnDef::new(Directory::FooterScripts).string().null())
+                    .add_column(ColumnDef::new(Directory::GoogleAnalyticsId).string().null())
                     .add_column(
                         ColumnDef::new(Directory::GoogleSiteVerification)
                             .string()
-                            .null()
+                            .null(),
                     )
-                    .add_column(
-                        ColumnDef::new(Directory::MetaDescription)
-                            .text()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::MetaKeywords)
-                            .text()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::MetaTitle)
-                            .text()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::PageTitle)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::PageDescription)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::PageKeywords)
-                            .string()
-                            .null()
-                    )
-                    .add_column(
-                        ColumnDef::new(Directory::CanonicalUrl)
-                            .text()
-                            .null()
-                    )
+                    .add_column(ColumnDef::new(Directory::MetaDescription).text().null())
+                    .add_column(ColumnDef::new(Directory::MetaKeywords).text().null())
+                    .add_column(ColumnDef::new(Directory::MetaTitle).text().null())
+                    .add_column(ColumnDef::new(Directory::PageTitle).string().null())
+                    .add_column(ColumnDef::new(Directory::PageDescription).string().null())
+                    .add_column(ColumnDef::new(Directory::PageKeywords).string().null())
+                    .add_column(ColumnDef::new(Directory::CanonicalUrl).text().null())
                     .to_owned(),
             )
             .await
@@ -138,4 +90,4 @@ enum Directory {
     PageDescription,
     PageKeywords,
     CanonicalUrl,
-} 
+}

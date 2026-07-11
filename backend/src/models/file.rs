@@ -1,8 +1,8 @@
 use crate::entities::file;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use sea_orm::{DatabaseConnection, DbErr};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileModel {
@@ -68,7 +68,18 @@ impl From<file::Model> for FileModel {
 }
 
 pub trait FileAssociation {
-    fn add_file(&self, db: &DatabaseConnection, file_id: Uuid) -> impl std::future::Future<Output = Result<(), DbErr>> + Send;
-    fn remove_file(&self, db: &DatabaseConnection, file_id: Uuid) -> impl std::future::Future<Output = Result<(), DbErr>> + Send;
-    fn get_associated_files(&self, db: &DatabaseConnection) -> impl std::future::Future<Output = Result<Vec<FileModel>, DbErr>> + Send;
+    fn add_file(
+        &self,
+        db: &DatabaseConnection,
+        file_id: Uuid,
+    ) -> impl std::future::Future<Output = Result<(), DbErr>> + Send;
+    fn remove_file(
+        &self,
+        db: &DatabaseConnection,
+        file_id: Uuid,
+    ) -> impl std::future::Future<Output = Result<(), DbErr>> + Send;
+    fn get_associated_files(
+        &self,
+        db: &DatabaseConnection,
+    ) -> impl std::future::Future<Output = Result<Vec<FileModel>, DbErr>> + Send;
 }

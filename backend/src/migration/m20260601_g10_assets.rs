@@ -1,5 +1,5 @@
-use sea_orm_migration::prelude::*;
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -86,9 +86,17 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AtlasAssets::City).string())
                     .col(ColumnDef::new(AtlasAssets::StateProvince).string())
                     .col(ColumnDef::new(AtlasAssets::PostalCode).string())
-                    .col(ColumnDef::new(AtlasAssets::CountryCode).char_len(2).default(Expr::val("US")))
+                    .col(
+                        ColumnDef::new(AtlasAssets::CountryCode)
+                            .char_len(2)
+                            .default(Expr::val("US")),
+                    )
                     // Geography point (requires PostGIS). Using dynamic/fallback type.
-                    .col(ColumnDef::new(AtlasAssets::GeoPoint).custom(geo_point_type).null())
+                    .col(
+                        ColumnDef::new(AtlasAssets::GeoPoint)
+                            .custom(geo_point_type)
+                            .null(),
+                    )
                     // Flexible type-specific attributes (JSONB is the key to avoiding dozens of app-specific tables)
                     .col(ColumnDef::new(AtlasAssets::Attributes).json_binary().null())
                     .col(

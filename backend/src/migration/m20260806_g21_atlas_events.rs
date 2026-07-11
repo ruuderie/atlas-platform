@@ -57,14 +57,27 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_events"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .uuid()
+                            .primary_key()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // ── Identity ──────────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("name")).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("name"))
+                            .string_len(255)
+                            .not_null(),
+                    )
                     // URL-safe slug for public event pages (unique per tenant)
                     .col(ColumnDef::new(Alias::new("slug")).string_len(255).null())
                     // VARCHAR — validated as `EventType` enum at service layer
-                    .col(ColumnDef::new(Alias::new("event_type")).string_len(50).not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("event_type"))
+                            .string_len(50)
+                            .not_null(),
+                    )
                     // VARCHAR — validated as `EventStatus` enum at service layer
                     .col(
                         ColumnDef::new(Alias::new("status"))
@@ -80,8 +93,16 @@ impl MigrationTrait for Migration {
                             .default(false),
                     )
                     // URL for Zoom, Google Meet, Hopin, etc.
-                    .col(ColumnDef::new(Alias::new("virtual_url")).string_len(512).null())
-                    .col(ColumnDef::new(Alias::new("venue_name")).string_len(255).null())
+                    .col(
+                        ColumnDef::new(Alias::new("virtual_url"))
+                            .string_len(512)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("venue_name"))
+                            .string_len(255)
+                            .null(),
+                    )
                     .col(ColumnDef::new(Alias::new("venue_address")).text().null())
                     // FK to atlas_assets if event is at a managed property
                     .col(ColumnDef::new(Alias::new("venue_asset_id")).uuid().null())
@@ -117,8 +138,16 @@ impl MigrationTrait for Migration {
                     // ── Campaign linkage ──────────────────────────────────────
                     .col(ColumnDef::new(Alias::new("campaign_id")).uuid().null())
                     // ── Subject entity (polymorphic FK) ───────────────────────
-                    .col(ColumnDef::new(Alias::new("subject_entity_type")).string_len(100).null())
-                    .col(ColumnDef::new(Alias::new("subject_entity_id")).uuid().null())
+                    .col(
+                        ColumnDef::new(Alias::new("subject_entity_type"))
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("subject_entity_id"))
+                            .uuid()
+                            .null(),
+                    )
                     // ── Visibility ────────────────────────────────────────────
                     .col(
                         ColumnDef::new(Alias::new("is_public"))
@@ -191,10 +220,19 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_event_ticket_types"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .uuid()
+                            .primary_key()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("event_id")).uuid().not_null())
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
-                    .col(ColumnDef::new(Alias::new("name")).string_len(100).not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("name"))
+                            .string_len(100)
+                            .not_null(),
+                    )
                     // 0 = free ticket
                     .col(
                         ColumnDef::new(Alias::new("price_cents"))
@@ -209,7 +247,11 @@ impl MigrationTrait for Migration {
                             .default("USD"),
                     )
                     // NULL = unlimited
-                    .col(ColumnDef::new(Alias::new("quantity_available")).integer().null())
+                    .col(
+                        ColumnDef::new(Alias::new("quantity_available"))
+                            .integer()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(Alias::new("quantity_sold"))
                             .integer()
@@ -247,17 +289,39 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_event_registrations"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .uuid()
+                            .primary_key()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("event_id")).uuid().not_null())
-                    .col(ColumnDef::new(Alias::new("ticket_type_id")).uuid().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("ticket_type_id"))
+                            .uuid()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // ── Attendee identity ─────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("attendee_email")).string_len(255).not_null())
-                    .col(ColumnDef::new(Alias::new("attendee_name")).string_len(200).null())
+                    .col(
+                        ColumnDef::new(Alias::new("attendee_email"))
+                            .string_len(255)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("attendee_name"))
+                            .string_len(200)
+                            .null(),
+                    )
                     // Optional FK to platform user (if registered attendee has an account)
                     .col(ColumnDef::new(Alias::new("attendee_user_id")).uuid().null())
                     // ── Booking ───────────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("quantity")).integer().not_null().default(1))
+                    .col(
+                        ColumnDef::new(Alias::new("quantity"))
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
                     // FK to atlas_ledger_entries (G03) for paid tickets
                     .col(ColumnDef::new(Alias::new("ledger_entry_id")).uuid().null())
                     // ── Check-in ──────────────────────────────────────────────
@@ -286,7 +350,11 @@ impl MigrationTrait for Migration {
                             .null(),
                     )
                     // FK to atlas_attribution_touchpoints (G20)
-                    .col(ColumnDef::new(Alias::new("attribution_touchpoint_id")).uuid().null())
+                    .col(
+                        ColumnDef::new(Alias::new("attribution_touchpoint_id"))
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(Alias::new("created_at"))
                             .timestamp_with_time_zone()

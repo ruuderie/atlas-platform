@@ -9,7 +9,7 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
-        
+
         let oplyst_tenant_id = Uuid::new_v4();
         let oplyst_slug = "oplystusa";
         println!("Seeding OplystUSA Tenant ID: {}", oplyst_tenant_id);
@@ -19,7 +19,10 @@ impl MigrationTrait for Migration {
             "INSERT INTO tenant (id, name, description, site_status, slug, created_at, updated_at) 
              VALUES ('{}', '{}', '{}', 'ACTIVE', '{}', NOW(), NOW()) 
              ON CONFLICT (slug) DO UPDATE SET site_status = 'ACTIVE';",
-            oplyst_tenant_id, "OplystUSA Commercial Capital", "A national real estate bridge lender", oplyst_slug
+            oplyst_tenant_id,
+            "OplystUSA Commercial Capital",
+            "A national real estate bridge lender",
+            oplyst_slug
         );
         db.execute_unprepared(&raw_insert).await?;
 
@@ -27,20 +30,35 @@ impl MigrationTrait for Migration {
         let settings = vec![
             ("current_focus", "Commercial Real Estate & Bridge Loans"),
             ("status", "Funding Available"),
-            ("hero_quote", "Direct non-bank financing for real estate investors. Fast closings and flexible terms."),
-            ("hero_subtitle", "DIRECT LENDER // SPECIALIZING IN COMMERCIAL REAL ESTATE, RENTAL PORTFOLIOS, AND FIX-AND-FLIP FINANCING."),
+            (
+                "hero_quote",
+                "Direct non-bank financing for real estate investors. Fast closings and flexible terms.",
+            ),
+            (
+                "hero_subtitle",
+                "DIRECT LENDER // SPECIALIZING IN COMMERCIAL REAL ESTATE, RENTAL PORTFOLIOS, AND FIX-AND-FLIP FINANCING.",
+            ),
             ("site_title", "COMMERCIAL CAPITAL"),
             ("lc_title", "Get Funded"),
-            ("lc_desc", "Submit your basic loan scenario for a rapid term sheet."),
+            (
+                "lc_desc",
+                "Submit your basic loan scenario for a rapid term sheet.",
+            ),
             ("lc_label", "Borrower Email Address"),
             ("lc_placeholder", "investor@example.com"),
             ("lc_btn", "Request Term Sheet"),
-            ("lc_footer", "* We will review your scenario within 24 hours."),
+            (
+                "lc_footer",
+                "* We will review your scenario within 24 hours.",
+            ),
             ("lc_endpoint", "/api/contact"),
             ("status_color", "#10b981"),
             ("b2b_enabled", "true"),
             ("meta_title", "Commercial Capital - Direct Lending"),
-            ("meta_description", "Non-bank direct lender providing bridge loans, commercial real estate financing, and hard money lending packages."),
+            (
+                "meta_description",
+                "Non-bank direct lender providing bridge loans, commercial real estate financing, and hard money lending packages.",
+            ),
         ];
 
         for (key, val) in settings {
@@ -118,7 +136,7 @@ impl MigrationTrait for Migration {
              ON CONFLICT (tenant_id, slug) DO NOTHING;",
              oplyst_slug, cre_schema.to_string().replace("'", "''"), oplyst_slug, hoa_schema.to_string().replace("'", "''")
         );
-        
+
         db.execute_unprepared(&insert_forms).await?;
 
         // SEED THE DYNAMIC BLOCKS FOR THE LANDING PAGE
@@ -165,7 +183,8 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
         let oplyst_slug = "oplystusa";
-        db.execute_unprepared(&format!("DELETE FROM tenant WHERE slug='{}';", oplyst_slug)).await?;
+        db.execute_unprepared(&format!("DELETE FROM tenant WHERE slug='{}';", oplyst_slug))
+            .await?;
         Ok(())
     }
 }

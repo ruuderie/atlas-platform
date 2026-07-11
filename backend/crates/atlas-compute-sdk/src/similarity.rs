@@ -18,8 +18,8 @@
 /// # Panics
 /// Does not panic; returns `None` on all degenerate inputs.
 pub fn masked_cosine(
-    vec_a:  &[f64],
-    vec_b:  &[f64],
+    vec_a: &[f64],
+    vec_b: &[f64],
     mask_a: &[bool],
     mask_b: &[bool],
 ) -> Option<f64> {
@@ -37,7 +37,7 @@ pub fn masked_cosine(
 
     for i in 0..n {
         if mask_a[i] && mask_b[i] {
-            dot   += vec_a[i] * vec_b[i];
+            dot += vec_a[i] * vec_b[i];
             mag_a += vec_a[i] * vec_a[i];
             mag_b += vec_b[i] * vec_b[i];
             overlap += 1;
@@ -60,14 +60,19 @@ pub fn masked_cosine(
 mod tests {
     use super::*;
 
-    fn all_true(n: usize) -> Vec<bool> { vec![true; n] }
+    fn all_true(n: usize) -> Vec<bool> {
+        vec![true; n]
+    }
 
     #[test]
     fn identical_vectors_return_one() {
         let v = vec![1.0, 2.0, 3.0, 4.0];
         let m = all_true(4);
         let sim = masked_cosine(&v, &v, &m, &m).unwrap();
-        assert!((sim - 1.0).abs() < 1e-10, "identical vectors → 1.0, got {sim}");
+        assert!(
+            (sim - 1.0).abs() < 1e-10,
+            "identical vectors → 1.0, got {sim}"
+        );
     }
 
     #[test]
@@ -86,8 +91,10 @@ mod tests {
         let v = vec![1.0; n];
         let mut m_a = vec![false; n];
         let mut m_b = vec![false; n];
-        m_a[0] = true; m_b[0] = true;
-        m_a[1] = true; m_b[1] = true;
+        m_a[0] = true;
+        m_b[0] = true;
+        m_a[1] = true;
+        m_b[1] = true;
         // overlap = 2 / 10 = 20% < 30%
         assert_eq!(masked_cosine(&v, &v, &m_a, &m_b), None);
     }
@@ -99,9 +106,12 @@ mod tests {
         let v = vec![1.0; n];
         let mut m_a = vec![false; n];
         let mut m_b = vec![false; n];
-        m_a[0] = true; m_b[0] = true;
-        m_a[1] = true; m_b[1] = true;
-        m_a[2] = true; m_b[2] = true;
+        m_a[0] = true;
+        m_b[0] = true;
+        m_a[1] = true;
+        m_b[1] = true;
+        m_a[2] = true;
+        m_b[2] = true;
         assert!(masked_cosine(&v, &v, &m_a, &m_b).is_some());
     }
 
@@ -111,11 +121,14 @@ mod tests {
         // Dim 3: a=100.0 but mask_b[3]=false → should not affect result
         let a = vec![1.0, 1.0, 1.0, 100.0];
         let b = vec![1.0, 1.0, 1.0, 0.0];
-        let m_a = vec![true,  true,  true,  true ];
-        let m_b = vec![true,  true,  true,  false];
+        let m_a = vec![true, true, true, true];
+        let m_b = vec![true, true, true, false];
         let sim = masked_cosine(&a, &b, &m_a, &m_b).unwrap();
         // Only dims 0–2 contribute: all matching → should be 1.0
-        assert!((sim - 1.0).abs() < 1e-10, "unmasked dim should be ignored, got {sim}");
+        assert!(
+            (sim - 1.0).abs() < 1e-10,
+            "unmasked dim should be ignored, got {sim}"
+        );
     }
 
     #[test]

@@ -1,10 +1,10 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use serde_json::Value;
-use rust_decimal::Decimal;
+use uuid::Uuid;
 
 /// Unified Account entity (replaces legacy customer + parts of contact).
 ///

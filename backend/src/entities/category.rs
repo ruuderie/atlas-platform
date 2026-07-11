@@ -1,8 +1,8 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "category")]
@@ -26,7 +26,6 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-
     ParentCategory,
     SubCategories,
     Templates,
@@ -36,7 +35,6 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-
             Self::ParentCategory => Entity::belongs_to(super::category::Entity)
                 .from(Column::ParentCategoryId)
                 .to(super::category::Column::Id)
@@ -47,7 +45,6 @@ impl RelationTrait for Relation {
         }
     }
 }
-
 
 impl Related<super::template::Entity> for Entity {
     fn to() -> RelationDef {

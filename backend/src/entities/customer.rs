@@ -1,15 +1,15 @@
 #![allow(dead_code, unused_imports)]
-use sea_orm::entity::prelude::*;
-use sea_orm::FromJsonQueryResult;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use serde_json::Value;
+use crate::entities::{file, file_association};
 use crate::models::address::AddressJson;
-use crate::traits::file::FileAssociable;
 use crate::models::file::{FileAssociation, FileModel};
-use crate::entities::{file_association,file}; 
+use crate::traits::file::FileAssociable;
+use chrono::{DateTime, Utc};
+use sea_orm::FromJsonQueryResult;
 use sea_orm::Set;
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "customer")]
@@ -100,7 +100,6 @@ pub enum Relation {
     Contact,
 }
 
-
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
@@ -113,7 +112,6 @@ impl RelationTrait for Relation {
         }
     }
 }
-
 
 impl Related<super::deal::Entity> for Entity {
     fn to() -> RelationDef {
@@ -159,7 +157,9 @@ impl FileAssociation for Model {
             file_id: Set(file.id),
             associated_entity_type: Set(Entity::entity_type().to_string()),
             associated_entity_id: Set(self.id),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }
@@ -191,7 +191,6 @@ impl FileAssociation for Model {
     }
 }
 
-
 /*
 // Setting an address
 contact.billing_address = Some(AddressJson(new_address));
@@ -201,4 +200,3 @@ if let Some(AddressJson(address)) = &contact.billing_address {
     println!("Full address: {}", address.get_full_address().unwrap_or_default());
 }
 */
-

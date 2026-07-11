@@ -1,10 +1,14 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_contract::{self, Entity as ContractEntity, ActiveModel as ContractActiveModel};
+use crate::entities::atlas_contract::{
+    self, ActiveModel as ContractActiveModel, Entity as ContractEntity,
+};
 
 /// Service layer for GENERIC-11: AtlasContract
 /// Legal agreements, leases, policies, SLAs with rich terms_metadata.
@@ -65,8 +69,7 @@ impl ContractService {
         contract_type: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_contract::Model>, String> {
-        let mut q = ContractEntity::find()
-            .filter(atlas_contract::Column::TenantId.eq(tenant_id));
+        let mut q = ContractEntity::find().filter(atlas_contract::Column::TenantId.eq(tenant_id));
 
         if let Some(s) = status {
             q = q.filter(atlas_contract::Column::Status.eq(s.to_string()));
@@ -75,10 +78,7 @@ impl ContractService {
             q = q.filter(atlas_contract::Column::ContractType.eq(ct.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn terminate_contract(

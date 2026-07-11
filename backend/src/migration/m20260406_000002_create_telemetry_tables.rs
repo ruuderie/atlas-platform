@@ -19,9 +19,21 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(TelemetryEvents::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(TelemetryEvents::EventSource).string().not_null())
-                    .col(ColumnDef::new(TelemetryEvents::EventType).string().not_null())
-                    .col(ColumnDef::new(TelemetryEvents::EventPayload).json_binary().null())
+                    .col(
+                        ColumnDef::new(TelemetryEvents::EventSource)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TelemetryEvents::EventType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TelemetryEvents::EventPayload)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(TelemetryEvents::Timestamp)
                             .timestamp_with_time_zone()
@@ -50,10 +62,26 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(PlatformMetricsDaily::Date).date().not_null())
-                    .col(ColumnDef::new(PlatformMetricsDaily::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(PlatformMetricsDaily::MetricSource).string().not_null())
-                    .col(ColumnDef::new(PlatformMetricsDaily::MetricKey).string().not_null())
-                    .col(ColumnDef::new(PlatformMetricsDaily::MetricValue).float().not_null()) // float to allow averages or precise counts (money, index)
+                    .col(
+                        ColumnDef::new(PlatformMetricsDaily::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PlatformMetricsDaily::MetricSource)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PlatformMetricsDaily::MetricKey)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(PlatformMetricsDaily::MetricValue)
+                            .float()
+                            .not_null(),
+                    ) // float to allow averages or precise counts (money, index)
                     .to_owned(),
             )
             .await?;

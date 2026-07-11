@@ -1,7 +1,7 @@
+use async_trait::async_trait;
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
-use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
 use uuid::Uuid;
@@ -24,7 +24,11 @@ use uuid::Uuid;
 
 /// Represents a dynamic asynchronous executor closure for background jobs.
 pub type JobExecutor = Box<
-    dyn Fn(DatabaseConnection, uuid::Uuid, Option<serde_json::Value>) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
+    dyn Fn(
+            DatabaseConnection,
+            uuid::Uuid,
+            Option<serde_json::Value>,
+        ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
         + Send
         + Sync,
 >;
@@ -37,7 +41,11 @@ pub type JobExecutor = Box<
 /// Receives (db, tenant_id, app_instance_id) and inserts demo/test data
 /// scoped to that tenant. Must use ON CONFLICT DO NOTHING on global tables.
 pub type SeedApplyFn = Box<
-    dyn Fn(DatabaseConnection, Uuid, Uuid) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
+    dyn Fn(
+            DatabaseConnection,
+            Uuid,
+            Uuid,
+        ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
         + Send
         + Sync,
 >;
@@ -74,16 +82,16 @@ impl std::fmt::Debug for AppSeedPack {
 pub struct BackgroundJob {
     /// A unique identifier string for this job, e.g., "anchor_sync"
     pub job_type: String,
-    
+
     /// Default execution interval in seconds
     pub default_interval_seconds: i32,
-    
+
     /// Is the job turned on globally by default
     pub is_active_by_default: bool,
-    
+
     /// Default config payload if the tenant doesn't override it
     pub default_config_payload: Option<serde_json::Value>,
-    
+
     /// The actual execution closure providing perfect encapsulation.
     /// The Core Backend Poller will inject the database connection and the tenant's parsed config.
     pub executor: JobExecutor,
@@ -243,10 +251,16 @@ pub trait AtlasApp: Send + Sync {
     ///     ]
     /// }
     /// ```
-    fn default_modules(&self) -> Vec<(crate::models::admin_module::AdminModuleType, &'static str, i32, bool)> {
+    fn default_modules(
+        &self,
+    ) -> Vec<(
+        crate::models::admin_module::AdminModuleType,
+        &'static str,
+        i32,
+        bool,
+    )> {
         vec![]
     }
-
 
     /// Returns the ordered list of onboarding steps this app requires before it is
     /// considered "live-ready". Each step is declarative and serializable so the
@@ -271,7 +285,7 @@ pub trait AtlasApp: Send + Sync {
         tenant_id: Uuid,
         app_instance_id: Uuid,
     ) -> Result<Vec<String>, String> {
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, PaginatorTrait};
+        use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
         use std::collections::HashSet;
 
         let steps = self.onboarding_steps();
@@ -279,15 +293,16 @@ pub trait AtlasApp: Send + Sync {
 
         // ── Batch fetch: load all non-empty TenantSetting keys in a single query ──
         // This replaces the N+1 pattern (one COUNT query per TenantSettingExists step).
-        let existing_setting_keys: HashSet<String> = crate::entities::tenant_setting::Entity::find()
-            .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
-            .filter(crate::entities::tenant_setting::Column::Value.ne(""))
-            .all(db)
-            .await
-            .map_err(|e| format!("DB error fetching tenant_settings: {e}"))?
-            .into_iter()
-            .map(|r| r.key)
-            .collect();
+        let existing_setting_keys: HashSet<String> =
+            crate::entities::tenant_setting::Entity::find()
+                .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
+                .filter(crate::entities::tenant_setting::Column::Value.ne(""))
+                .all(db)
+                .await
+                .map_err(|e| format!("DB error fetching tenant_settings: {e}"))?
+                .into_iter()
+                .map(|r| r.key)
+                .collect();
 
         let mut incomplete: Vec<String> = Vec::new();
 
@@ -297,14 +312,12 @@ pub trait AtlasApp: Send + Sync {
                     // In-memory lookup — no additional DB roundtrip needed.
                     existing_setting_keys.contains(key.as_str())
                 }
-                StepCompletionCheck::AppDomainExists => {
-                    crate::entities::app_domain::Entity::find()
-                        .filter(crate::entities::app_domain::Column::AppInstanceId.eq(app_instance_id))
-                        .count(db)
-                        .await
-                        .map(|c| c > 0)
-                        .unwrap_or(false)
-                }
+                StepCompletionCheck::AppDomainExists => crate::entities::app_domain::Entity::find()
+                    .filter(crate::entities::app_domain::Column::AppInstanceId.eq(app_instance_id))
+                    .count(db)
+                    .await
+                    .map(|c| c > 0)
+                    .unwrap_or(false),
                 StepCompletionCheck::EntityCountGte { table, min } => {
                     // Use sea_query to build a safe, idiomatic COUNT query.
                     // `table` is &'static str so no injection is possible, but
@@ -315,17 +328,17 @@ pub trait AtlasApp: Send + Sync {
                     let stmt: SelectStatement = Query::select()
                         .expr(Expr::col(sea_orm::sea_query::Asterisk).count())
                         .from(Alias::new(*table))
-                        .and_where(
-                            Expr::col(Alias::new("tenant_id")).eq(tenant_id.to_string())
-                        )
+                        .and_where(Expr::col(Alias::new("tenant_id")).eq(tenant_id.to_string()))
                         .to_owned();
 
                     let (sql, values) = stmt.build(sea_orm::sea_query::PostgresQueryBuilder);
-                    let result = db.query_one(Statement::from_sql_and_values(
-                        sea_orm::DatabaseBackend::Postgres,
-                        &sql,
-                        values,
-                    )).await;
+                    let result = db
+                        .query_one(Statement::from_sql_and_values(
+                            sea_orm::DatabaseBackend::Postgres,
+                            &sql,
+                            values,
+                        ))
+                        .await;
                     match result {
                         Ok(Some(row)) => {
                             let count: i64 = row.try_get("", "count").unwrap_or(0);
@@ -420,25 +433,23 @@ mod tests {
         }
 
         fn onboarding_steps(&self) -> Vec<OnboardingStep> {
-            vec![
-                OnboardingStep {
-                    id: "identity".to_string(),
-                    title: "Brand Identity".to_string(),
-                    description: "Set your site name.".to_string(),
-                    is_required: true,
-                    position: 1,
-                    completion_check: StepCompletionCheck::TenantSettingExists {
-                        key: "site_title".to_string(),
-                    },
+            vec![OnboardingStep {
+                id: "identity".to_string(),
+                title: "Brand Identity".to_string(),
+                description: "Set your site name.".to_string(),
+                is_required: true,
+                position: 1,
+                completion_check: StepCompletionCheck::TenantSettingExists {
+                    key: "site_title".to_string(),
                 },
-            ]
+            }]
         }
     }
 
     #[tokio::test]
     async fn test_atlas_app_encapsulation_compliance() {
         let app = DummyApp;
-        
+
         // 1. Verify Application Identifier Isolation
         assert_eq!(app.app_id(), "dummy_app");
 
@@ -449,7 +460,7 @@ mod tests {
         // 3. Verify Background Jobs Encapsulation
         let jobs = app.background_jobs();
         assert_eq!(jobs.len(), 1);
-        
+
         let job = &jobs[0];
         assert_eq!(job.job_type, "dummy_sync");
         assert_eq!(job.default_interval_seconds, 60);
@@ -461,12 +472,25 @@ mod tests {
         assert!(steps[0].is_required);
 
         // 5. Verify Execution Closure executes within correct Isolated Context
-        let db = sea_orm::Database::connect("sqlite::memory:").await.expect("Failed to create in-memory test db");
+        let db = sea_orm::Database::connect("sqlite::memory:")
+            .await
+            .expect("Failed to create in-memory test db");
 
-        let result = (job.executor)(db.clone(), uuid::Uuid::nil(), job.default_config_payload.clone()).await;
-        assert!(result.is_ok(), "The job executor closure should resolve to Ok if payload exists");
+        let result = (job.executor)(
+            db.clone(),
+            uuid::Uuid::nil(),
+            job.default_config_payload.clone(),
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "The job executor closure should resolve to Ok if payload exists"
+        );
 
         let missing_payload_result = (job.executor)(db, uuid::Uuid::nil(), None).await;
-        assert!(missing_payload_result.is_err(), "The job executor closure should throw Err if payload is missing");
+        assert!(
+            missing_payload_result.is_err(),
+            "The job executor closure should throw Err if payload is missing"
+        );
     }
 }

@@ -1,9 +1,10 @@
 use crate::entities::{platform_metrics_daily, telemetry_events};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, TransactionTrait
-};
-use chrono::{Utc, NaiveDate};
+use chrono::{NaiveDate, Utc};
 use sea_orm::sea_query::OnConflict;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+    TransactionTrait,
+};
 use serde_json::Value;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -60,7 +61,7 @@ impl TelemetryService {
         for event in unprocessed {
             processed_ids.push(event.id);
             let date = event.timestamp.date_naive();
-            
+
             // Basic aggregation: count event occurrence
             // The metric key will be identical to the event_type for generic counts
             let count_key = (
@@ -74,7 +75,9 @@ impl TelemetryService {
             // Optional: business KPI specific parsing based on event_payload
             // For example, if it's "subscription_created" and has "mrr" value
             if let Some(payload) = &event.event_payload {
-                if event.event_type == "subscription_created" || event.event_type == "subscription_upgraded" {
+                if event.event_type == "subscription_created"
+                    || event.event_type == "subscription_upgraded"
+                {
                     if let Some(mrr_val) = payload.get("mrr").and_then(|v| v.as_f64()) {
                         let mrr_key = (
                             date,
@@ -113,9 +116,11 @@ impl TelemetryService {
                     ])
                     .value(
                         platform_metrics_daily::Column::MetricValue,
-                        sea_orm::sea_query::Expr::cust("platform_metrics_daily.metric_value + EXCLUDED.metric_value")
+                        sea_orm::sea_query::Expr::cust(
+                            "platform_metrics_daily.metric_value + EXCLUDED.metric_value",
+                        ),
                     )
-                    .to_owned()
+                    .to_owned(),
                 )
                 .exec(&txn)
                 .await?;
@@ -123,7 +128,10 @@ impl TelemetryService {
 
         // 4. Mark events as processed
         telemetry_events::Entity::update_many()
-            .col_expr(telemetry_events::Column::Processed, sea_orm::sea_query::Expr::value(true))
+            .col_expr(
+                telemetry_events::Column::Processed,
+                sea_orm::sea_query::Expr::value(true),
+            )
             .filter(telemetry_events::Column::Id.is_in(processed_ids))
             .exec(&txn)
             .await?;

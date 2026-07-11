@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubscriptionData {
@@ -31,19 +31,19 @@ pub struct WebhookPayload {
 pub trait PaymentProvider: Send + Sync {
     /// Create a subscription in the provider's system
     async fn create_subscription(
-        &self, 
-        tenant_id: Uuid, 
-        plan_name: &str, 
-        price_cents: i64, 
-        currency: &str
+        &self,
+        tenant_id: Uuid,
+        plan_name: &str,
+        price_cents: i64,
+        currency: &str,
     ) -> Result<SubscriptionData>;
 
     /// Capture a one-off payment
     async fn capture_payment(
-        &self, 
-        tenant_id: Uuid, 
-        amount_cents: i64, 
-        currency: &str
+        &self,
+        tenant_id: Uuid,
+        amount_cents: i64,
+        currency: &str,
     ) -> Result<TransactionData>;
 
     /// Setup the tenant to receive payouts (e.g. Stripe Connect, BTCPay store routing)

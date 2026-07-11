@@ -22,19 +22,18 @@
 //!   "network_instance"               → network-instance (port 80)
 
 use axum::{
+    Json, Router,
     extract::State,
     http::StatusCode,
     routing::{get, post},
-    Json, Router,
 };
 use k8s_openapi::api::networking::v1::{
-    HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend,
-    IngressRule, IngressServiceBackend, IngressSpec, IngressTLS,
-    ServiceBackendPort,
+    HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule,
+    IngressServiceBackend, IngressSpec, IngressTLS, ServiceBackendPort,
 };
 use kube::api::ObjectMeta;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{collections::BTreeMap, net::SocketAddr};
 
 // ── Request types ─────────────────────────────────────────────────────────────
@@ -42,18 +41,20 @@ use std::{collections::BTreeMap, net::SocketAddr};
 #[derive(Debug, Deserialize)]
 struct ProvisionPayload {
     tenant_slug: String,
-    domain:      String,
+    domain: String,
     /// Canonical app type: "property_management" | "anchor" | "network_instance"
     #[serde(default = "default_app_slug")]
-    app_slug:    String,
+    app_slug: String,
 }
 
-fn default_app_slug() -> String { "property_management".to_string() }
+fn default_app_slug() -> String {
+    "property_management".to_string()
+}
 
 #[derive(Debug, Deserialize)]
 struct DeprovisionPayload {
     tenant_slug: String,
-    domain:      String,
+    domain: String,
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -70,9 +71,9 @@ struct AppState {
 fn service_for_app(app_slug: &str) -> &'static str {
     match app_slug {
         "property_management" | "folio" => "folio",
-        "anchor"                         => "anchor-app",
-        "network_instance"               => "network-instance",
-        _                                => "folio",
+        "anchor" => "anchor-app",
+        "network_instance" => "network-instance",
+        _ => "folio",
     }
 }
 
@@ -82,9 +83,9 @@ fn service_for_app(app_slug: &str) -> &'static str {
 /// Custom domains get the cert-manager annotation so HTTP-01 auto-provisions a cert.
 fn tls_config(domain: &str, tenant_slug: &str) -> (String, bool) {
     if domain.ends_with(".dev.atlas.oply.co") {
-        ("wildcard-tls-dev".to_string(),  false)
+        ("wildcard-tls-dev".to_string(), false)
     } else if domain.ends_with(".uat.atlas.oply.co") {
-        ("wildcard-tls-uat".to_string(),  false)
+        ("wildcard-tls-uat".to_string(), false)
     } else if domain.ends_with(".atlas.oply.co") {
         ("wildcard-tls-prod".to_string(), false)
     } else {
@@ -93,13 +94,8 @@ fn tls_config(domain: &str, tenant_slug: &str) -> (String, bool) {
     }
 }
 
-fn build_ingress(
-    namespace:   &str,
-    tenant_slug: &str,
-    domain:      &str,
-    app_slug:    &str,
-) -> Ingress {
-    let service_name           = service_for_app(app_slug);
+fn build_ingress(namespace: &str, tenant_slug: &str, domain: &str, app_slug: &str) -> Ingress {
+    let service_name = service_for_app(app_slug);
     let (tls_secret, add_cert) = tls_config(domain, tenant_slug);
 
     let mut annotations: BTreeMap<String, String> = BTreeMap::new();
@@ -115,35 +111,38 @@ fn build_ingress(
     }
 
     let mut labels: BTreeMap<String, String> = BTreeMap::new();
-    labels.insert("app.atlas.io/managed-by".to_string(), "ingress-sidecar".to_string());
-    labels.insert("app.atlas.io/tenant".to_string(),     tenant_slug.to_string());
+    labels.insert(
+        "app.atlas.io/managed-by".to_string(),
+        "ingress-sidecar".to_string(),
+    );
+    labels.insert("app.atlas.io/tenant".to_string(), tenant_slug.to_string());
 
     Ingress {
         metadata: ObjectMeta {
-            name:        Some(format!("tenant-{}", tenant_slug.replace('.', "-"))),
-            namespace:   Some(namespace.to_string()),
+            name: Some(format!("tenant-{}", tenant_slug.replace('.', "-"))),
+            namespace: Some(namespace.to_string()),
             annotations: Some(annotations),
-            labels:      Some(labels),
+            labels: Some(labels),
             ..Default::default()
         },
         spec: Some(IngressSpec {
             ingress_class_name: Some("nginx".to_string()),
             tls: Some(vec![IngressTLS {
-                hosts:       Some(vec![domain.to_string()]),
+                hosts: Some(vec![domain.to_string()]),
                 secret_name: Some(tls_secret),
             }]),
             rules: Some(vec![IngressRule {
                 host: Some(domain.to_string()),
                 http: Some(HTTPIngressRuleValue {
                     paths: vec![HTTPIngressPath {
-                        path:      Some("/".to_string()),
+                        path: Some("/".to_string()),
                         path_type: "Prefix".to_string(),
                         backend: IngressBackend {
                             service: Some(IngressServiceBackend {
                                 name: service_name.to_string(),
                                 port: Some(ServiceBackendPort {
                                     number: Some(80),
-                                    name:   None,
+                                    name: None,
                                 }),
                             }),
                             resource: None,
@@ -159,7 +158,9 @@ fn build_ingress(
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-async fn health() -> &'static str { "ok" }
+async fn health() -> &'static str {
+    "ok"
+}
 
 async fn provision_ingress(
     State(state): State<AppState>,
@@ -184,15 +185,20 @@ async fn provision_ingress(
         })));
     };
 
-    let namespace = std::env::var("KUBERNETES_NAMESPACE")
-        .unwrap_or_else(|_| "atlas-dev".to_string());
+    let namespace =
+        std::env::var("KUBERNETES_NAMESPACE").unwrap_or_else(|_| "atlas-dev".to_string());
     let ingresses: kube::Api<Ingress> = kube::Api::namespaced(client.clone(), &namespace);
 
     let ingress_name = format!("tenant-{}", payload.tenant_slug.replace('.', "-"));
-    let ingress_obj  = build_ingress(&namespace, &payload.tenant_slug, &payload.domain, &payload.app_slug);
+    let ingress_obj = build_ingress(
+        &namespace,
+        &payload.tenant_slug,
+        &payload.domain,
+        &payload.app_slug,
+    );
 
     // Server-side apply — creates or updates idempotently
-    let patch        = kube::api::Patch::Apply(&ingress_obj);
+    let patch = kube::api::Patch::Apply(&ingress_obj);
     let patch_params = kube::api::PatchParams::apply("ingress-sidecar").force();
 
     match ingresses.patch(&ingress_name, &patch_params, &patch).await {
@@ -231,19 +237,26 @@ async fn deprovision_ingress(
         })));
     };
 
-    let namespace = std::env::var("KUBERNETES_NAMESPACE")
-        .unwrap_or_else(|_| "atlas-dev".to_string());
+    let namespace =
+        std::env::var("KUBERNETES_NAMESPACE").unwrap_or_else(|_| "atlas-dev".to_string());
     let ingresses: kube::Api<Ingress> = kube::Api::namespaced(client.clone(), &namespace);
     let ingress_name = format!("tenant-{}", payload.tenant_slug.replace('.', "-"));
 
-    match ingresses.delete(&ingress_name, &kube::api::DeleteParams::default()).await {
+    match ingresses
+        .delete(&ingress_name, &kube::api::DeleteParams::default())
+        .await
+    {
         Ok(_) => {
             tracing::info!(event = "deprovision.success", ingress = %ingress_name);
-            Ok(Json(json!({ "status": "success", "message": format!("Ingress {} deleted", ingress_name) })))
+            Ok(Json(
+                json!({ "status": "success", "message": format!("Ingress {} deleted", ingress_name) }),
+            ))
         }
         Err(kube::Error::Api(err)) if err.code == 404 => {
             tracing::warn!(event = "deprovision.not_found", ingress = %ingress_name);
-            Ok(Json(json!({ "status": "success", "message": "Already gone" })))
+            Ok(Json(
+                json!({ "status": "success", "message": "Already gone" }),
+            ))
         }
         Err(e) => {
             tracing::error!(event = "deprovision.error", ingress = %ingress_name, error = %e);
@@ -275,13 +288,14 @@ async fn main() {
     tracing::info!("Starting Ingress Sidecar on port 8085...");
 
     let client = match kube::Client::try_default().await {
-        Ok(c)  => {
+        Ok(c) => {
             tracing::info!("Kubernetes client initialized");
             Some(c)
         }
         Err(e) => {
             tracing::warn!(
-                "k8s client unavailable (outside cluster?): {}. Running in dry-run mode.", e
+                "k8s client unavailable (outside cluster?): {}. Running in dry-run mode.",
+                e
             );
             None
         }
@@ -290,8 +304,8 @@ async fn main() {
     let state = AppState { client };
 
     let app = Router::new()
-        .route("/health",                  get(health))
-        .route("/api/ingress/provision",   post(provision_ingress))
+        .route("/health", get(health))
+        .route("/api/ingress/provision", post(provision_ingress))
         .route("/api/ingress/deprovision", post(deprovision_ingress))
         .with_state(state);
 

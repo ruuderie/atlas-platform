@@ -47,20 +47,16 @@
 //! 5. 404
 
 use axum::{
+    Json,
     extract::{Extension, Query},
     http::{HeaderMap, StatusCode, header},
     response::IntoResponse,
-    Json,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{
-    atlas_app_deployment_config,
-    platform_product,
-    product_page::variant,
-};
+use crate::entities::{atlas_app_deployment_config, platform_product, product_page::variant};
 use crate::types::gtm::{AppId, LaunchMode, ResolutionType};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -77,26 +73,28 @@ pub struct ResolveResponse {
     pub resolution_type: ResolutionType,
     /// Which app binary owns this product / tenant. Used by CDN workers to
     /// route requests to the correct SSR origin without guessing from the slug.
-    pub app_slug:        String,
-    pub product_id:      Option<Uuid>,
-    pub product_slug:    Option<String>,
-    pub product_name:    Option<String>,
-    pub apex_domain:     Option<String>,
-    pub variant_id:      Option<Uuid>,
-    pub variant_slug:    Option<String>,
-    pub locale:          Option<String>,
+    pub app_slug: String,
+    pub product_id: Option<Uuid>,
+    pub product_slug: Option<String>,
+    pub product_name: Option<String>,
+    pub apex_domain: Option<String>,
+    pub variant_id: Option<Uuid>,
+    pub variant_slug: Option<String>,
+    pub locale: Option<String>,
     /// Typed launch mode so the frontend can gate CTA actions without string compares.
-    pub launch_mode:     Option<LaunchMode>,
+    pub launch_mode: Option<LaunchMode>,
     // Tenant-level (white-label app deployments)
-    pub tenant_id:       Option<Uuid>,
-    pub brand_name:      Option<String>,
+    pub tenant_id: Option<Uuid>,
+    pub brand_name: Option<String>,
 }
 
 fn cdn_headers() -> HeaderMap {
     let mut h = HeaderMap::new();
     h.insert(
         header::CACHE_CONTROL,
-        "public, s-maxage=3600, stale-while-revalidate=86400".parse().unwrap(),
+        "public, s-maxage=3600, stale-while-revalidate=86400"
+            .parse()
+            .unwrap(),
     );
     h
 }
@@ -108,7 +106,12 @@ pub async fn resolve_domain(
     Query(q): Query<ResolveQuery>,
 ) -> impl IntoResponse {
     let domain = q.domain.to_lowercase().trim_matches('/').to_string();
-    let path = q.path.as_deref().unwrap_or("").trim_matches('/').to_string();
+    let path = q
+        .path
+        .as_deref()
+        .unwrap_or("")
+        .trim_matches('/')
+        .to_string();
 
     // ── Step 1: Check product_domain_aliases (exact domain + optional path) ──
     // TODO: wire product_domain_alias entity when entity is generated
@@ -138,11 +141,17 @@ pub async fn resolve_domain(
     // ── 404 ──────────────────────────────────────────────────────────────────
     let resp = ResolveResponse {
         resolution_type: ResolutionType::NotFound,
-        app_slug:     AppId::CorePlatform.to_string(), // sentinel; edge ignores on 404
-        product_id:   None, product_slug:  None, product_name: None,
-        apex_domain:  None, variant_id:    None, variant_slug: None,
-        locale:       None, launch_mode:   None,
-        tenant_id:    None, brand_name:    None,
+        app_slug: AppId::CorePlatform.to_string(), // sentinel; edge ignores on 404
+        product_id: None,
+        product_slug: None,
+        product_name: None,
+        apex_domain: None,
+        variant_id: None,
+        variant_slug: None,
+        locale: None,
+        launch_mode: None,
+        tenant_id: None,
+        brand_name: None,
     };
     (StatusCode::NOT_FOUND, Json(resp)).into_response()
 }
@@ -176,22 +185,26 @@ async fn try_resolve_subdomain(db: &DatabaseConnection, domain: &str) -> Option<
 
     Some(ResolveResponse {
         resolution_type: ResolutionType::Variant,
-        app_slug:     product.app_slug.to_string(),
-        product_id:   Some(product.id),
+        app_slug: product.app_slug.to_string(),
+        product_id: Some(product.id),
         product_slug: Some(product.slug.clone()),
         product_name: Some(product.name.clone()),
-        apex_domain:  Some(apex.to_string()),
-        variant_id:   Some(v.id),
+        apex_domain: Some(apex.to_string()),
+        variant_id: Some(v.id),
         variant_slug: Some(v.variant_slug.clone()),
-        locale:       Some(v.locale.clone()),
-        launch_mode:  LaunchMode::try_from(v.launch_mode.as_str()).ok(),
-        tenant_id:    None,
-        brand_name:   None,
+        locale: Some(v.locale.clone()),
+        launch_mode: LaunchMode::try_from(v.launch_mode.as_str()).ok(),
+        tenant_id: None,
+        brand_name: None,
     })
 }
 
 /// "folio.app" → product master; "folio.app" + path="/miami" → check path-based variant
-async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> Option<ResolveResponse> {
+async fn try_resolve_apex(
+    db: &DatabaseConnection,
+    domain: &str,
+    path: &str,
+) -> Option<ResolveResponse> {
     let product = platform_product::Entity::find()
         .filter(platform_product::Column::ApexDomain.eq(domain))
         .filter(platform_product::Column::ApexDomainVerified.eq(true))
@@ -210,17 +223,17 @@ async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> 
         {
             return Some(ResolveResponse {
                 resolution_type: ResolutionType::Variant,
-                app_slug:     product.app_slug.to_string(),
-                product_id:   Some(product.id),
+                app_slug: product.app_slug.to_string(),
+                product_id: Some(product.id),
                 product_slug: Some(product.slug.clone()),
                 product_name: Some(product.name.clone()),
-                apex_domain:  Some(domain.to_string()),
-                variant_id:   Some(v.id),
+                apex_domain: Some(domain.to_string()),
+                variant_id: Some(v.id),
                 variant_slug: Some(v.variant_slug.clone()),
-                locale:       Some(v.locale.clone()),
-                launch_mode:  LaunchMode::try_from(v.launch_mode.as_str()).ok(),
-                tenant_id:    None,
-                brand_name:   None,
+                locale: Some(v.locale.clone()),
+                launch_mode: LaunchMode::try_from(v.launch_mode.as_str()).ok(),
+                tenant_id: None,
+                brand_name: None,
             });
         }
     }
@@ -228,22 +241,25 @@ async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> 
     // Root apex → product master
     Some(ResolveResponse {
         resolution_type: ResolutionType::Product,
-        app_slug:     product.app_slug.to_string(),
-        product_id:   Some(product.id),
+        app_slug: product.app_slug.to_string(),
+        product_id: Some(product.id),
         product_slug: Some(product.slug.clone()),
         product_name: Some(product.name.clone()),
-        apex_domain:  Some(domain.to_string()),
-        variant_id:   None,
+        apex_domain: Some(domain.to_string()),
+        variant_id: None,
         variant_slug: None,
-        locale:       Some("en".to_string()),
-        launch_mode:  LaunchMode::try_from(product.launch_mode.as_str()).ok(),
-        tenant_id:    None,
-        brand_name:   None,
+        locale: Some("en".to_string()),
+        launch_mode: LaunchMode::try_from(product.launch_mode.as_str()).ok(),
+        tenant_id: None,
+        brand_name: None,
     })
 }
 
 /// "listings.oakwoodpm.com" → tenant white-label app (atlas_app_deployment_config.custom_domain)
-async fn try_resolve_tenant_domain(db: &DatabaseConnection, domain: &str) -> Option<ResolveResponse> {
+async fn try_resolve_tenant_domain(
+    db: &DatabaseConnection,
+    domain: &str,
+) -> Option<ResolveResponse> {
     let cfg = atlas_app_deployment_config::Entity::find()
         .filter(atlas_app_deployment_config::Column::CustomDomain.eq(domain))
         .one(db)
@@ -252,16 +268,16 @@ async fn try_resolve_tenant_domain(db: &DatabaseConnection, domain: &str) -> Opt
 
     Some(ResolveResponse {
         resolution_type: ResolutionType::TenantApp,
-        app_slug:     cfg.app_slug.clone(), // atlas_app_deployment_config already has app_slug
-        product_id:   None,
+        app_slug: cfg.app_slug.clone(), // atlas_app_deployment_config already has app_slug
+        product_id: None,
         product_slug: Some(cfg.app_slug.clone()),
         product_name: None,
-        apex_domain:  Some(domain.to_string()),
-        variant_id:   None,
+        apex_domain: Some(domain.to_string()),
+        variant_id: None,
         variant_slug: None,
-        locale:       None,
-        launch_mode:  None,
-        tenant_id:    Some(cfg.tenant_id),
-        brand_name:   None, // TODO: join tenant.name in follow-up
+        locale: None,
+        launch_mode: None,
+        tenant_id: Some(cfg.tenant_id),
+        brand_name: None, // TODO: join tenant.name in follow-up
     })
 }

@@ -11,16 +11,16 @@ use uuid::Uuid;
 #[sea_orm(table_name = "atlas_role_profiles")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id:                  Uuid,
-    pub tenant_id:           Option<Uuid>,
-    pub app_slug:            String,
-    pub role_slug:           String,
-    pub display_name:        String,
-    pub description:         Option<String>,
+    pub id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub app_slug: String,
+    pub role_slug: String,
+    pub display_name: String,
+    pub description: Option<String>,
     pub is_platform_default: bool,
-    pub metadata:            serde_json::Value,
-    pub created_at:          DateTimeUtc,
-    pub updated_at:          DateTimeUtc,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -32,10 +32,14 @@ pub enum Relation {
 }
 
 impl Related<super::atlas_user_app_roles::Entity> for Entity {
-    fn to() -> RelationDef { Relation::UserAppRoles.def() }
+    fn to() -> RelationDef {
+        Relation::UserAppRoles.def()
+    }
 }
 impl Related<super::atlas_role_profile_permissions::Entity> for Entity {
-    fn to() -> RelationDef { Relation::Permissions.def() }
+    fn to() -> RelationDef {
+        Relation::Permissions.def()
+    }
 }
 
 impl ActiveModelBehavior for ActiveModel {}

@@ -104,12 +104,13 @@ impl MigrationTrait for Migration {
                             .null(),
                     )
                     // ── Identity ──────────────────────────────────────────────
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
                     .col(
-                        ColumnDef::new(Alias::new("tenant_id"))
+                        ColumnDef::new(Alias::new("id"))
                             .uuid()
+                            .primary_key()
                             .not_null(),
                     )
+                    .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     .col(
                         ColumnDef::new(Alias::new("name"))
                             .string_len(255)
@@ -188,11 +189,7 @@ impl MigrationTrait for Migration {
                             .string_len(255)
                             .null(),
                     )
-                    .col(
-                        ColumnDef::new(Alias::new("integration_id"))
-                            .uuid()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("integration_id")).uuid().null())
                     // ── Linked entity (polymorphic FK) ────────────────────────
                     // What this campaign is FOR: 'atlas_assets', 'atlas_events', etc.
                     .col(
@@ -315,12 +312,13 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_sequence_steps"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
                     .col(
-                        ColumnDef::new(Alias::new("campaign_id"))
+                        ColumnDef::new(Alias::new("id"))
                             .uuid()
+                            .primary_key()
                             .not_null(),
                     )
+                    .col(ColumnDef::new(Alias::new("campaign_id")).uuid().not_null())
                     .col(
                         ColumnDef::new(Alias::new("step_number"))
                             .integer()
@@ -333,27 +331,11 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     // ── Content (email/sms) ───────────────────────────────────
-                    .col(
-                        ColumnDef::new(Alias::new("subject_template"))
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Alias::new("body_template"))
-                            .text()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("subject_template")).text().null())
+                    .col(ColumnDef::new(Alias::new("body_template")).text().null())
                     // ── Wait step ─────────────────────────────────────────────
-                    .col(
-                        ColumnDef::new(Alias::new("wait_days"))
-                            .integer()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Alias::new("wait_hours"))
-                            .integer()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("wait_days")).integer().null())
+                    .col(ColumnDef::new(Alias::new("wait_hours")).integer().null())
                     // 'business_hours', 'any_time', 'morning', 'afternoon'
                     .col(
                         ColumnDef::new(Alias::new("send_time_preference"))
@@ -374,16 +356,8 @@ impl MigrationTrait for Migration {
                             .null(),
                     )
                     // Branch step numbers for if/else routing
-                    .col(
-                        ColumnDef::new(Alias::new("on_true_step"))
-                            .integer()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Alias::new("on_false_step"))
-                            .integer()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("on_true_step")).integer().null())
+                    .col(ColumnDef::new(Alias::new("on_false_step")).integer().null())
                     // ── A/B variants ──────────────────────────────────────────
                     // [{subject: "...", body: "...", weight: 50}, ...]
                     .col(
@@ -432,23 +406,16 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_campaign_enrollments"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
                     .col(
-                        ColumnDef::new(Alias::new("campaign_id"))
+                        ColumnDef::new(Alias::new("id"))
                             .uuid()
+                            .primary_key()
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Alias::new("tenant_id"))
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("campaign_id")).uuid().not_null())
+                    .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // ── Contact identity (one of these) ───────────────────────
-                    .col(
-                        ColumnDef::new(Alias::new("contact_user_id"))
-                            .uuid()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("contact_user_id")).uuid().null())
                     .col(
                         ColumnDef::new(Alias::new("contact_email"))
                             .string_len(255)
@@ -558,28 +525,21 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Alias::new("atlas_campaign_events"))
                     .if_not_exists()
-                    .col(ColumnDef::new(Alias::new("id")).uuid().primary_key().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("id"))
+                            .uuid()
+                            .primary_key()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(Alias::new("enrollment_id"))
                             .uuid()
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(Alias::new("campaign_id"))
-                            .uuid()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(Alias::new("tenant_id"))
-                            .uuid()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("campaign_id")).uuid().not_null())
+                    .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // NULL for non-sequence events (PPC click, direct form fill)
-                    .col(
-                        ColumnDef::new(Alias::new("sequence_step_id"))
-                            .uuid()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("sequence_step_id")).uuid().null())
                     // 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced',
                     // 'unsubscribed', 'spam_reported', 'converted', 'form_fill'
                     .col(
@@ -604,16 +564,8 @@ impl MigrationTrait for Migration {
                             .custom(Alias::new("INET"))
                             .null(),
                     )
-                    .col(
-                        ColumnDef::new(Alias::new("user_agent"))
-                            .text()
-                            .null(),
-                    )
-                    .col(
-                        ColumnDef::new(Alias::new("metadata"))
-                            .json_binary()
-                            .null(),
-                    )
+                    .col(ColumnDef::new(Alias::new("user_agent")).text().null())
+                    .col(ColumnDef::new(Alias::new("metadata")).json_binary().null())
                     .col(
                         ColumnDef::new(Alias::new("occurred_at"))
                             .timestamp_with_time_zone()

@@ -20,9 +20,22 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(TenantSetting::TenantId).uuid().not_null())
                     .col(ColumnDef::new(TenantSetting::Key).string().not_null())
                     .col(ColumnDef::new(TenantSetting::Value).text().not_null())
-                    .col(ColumnDef::new(TenantSetting::IsEncrypted).boolean().not_null().default(false))
-                    .col(ColumnDef::new(TenantSetting::UpdatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(TenantSetting::CreatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(TenantSetting::IsEncrypted)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(TenantSetting::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TenantSetting::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_tenant_setting_tenant_id")

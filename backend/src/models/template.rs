@@ -1,7 +1,7 @@
-use chrono::{Utc, DateTime};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TemplateModel {
@@ -40,4 +40,3 @@ pub struct UpdateTemplate {
     pub is_active: bool,
     pub attributes_schema: Option<Value>,
 }
-

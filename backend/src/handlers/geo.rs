@@ -17,11 +17,11 @@
 //! | GET    | /api/geo/status                     | PostGIS availability health check        |
 
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Extension, Json, Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/geo/accounts/radius", get(accounts_radius))
         .route("/api/geo/accounts/{id}/geocode", post(geocode_account))
         .route("/api/geo/service-areas", get(get_service_areas))
-        .route("/api/geo/service-areas/contains", get(service_areas_contains))
+        .route(
+            "/api/geo/service-areas/contains",
+            get(service_areas_contains),
+        )
         .route("/api/geo/service-areas/radius", get(service_areas_radius))
 }
 
@@ -108,8 +111,12 @@ struct ServiceAreasQuery {
     owner_entity_id: Option<Uuid>,
 }
 
-fn default_radius() -> f64 { 10_000.0 }
-fn default_limit() -> u32  { 20 }
+fn default_radius() -> f64 {
+    10_000.0
+}
+fn default_limit() -> u32 {
+    20
+}
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -121,11 +128,11 @@ struct GeoStatusResponse {
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 /// GET /api/geo/status — PostGIS availability check.
-async fn geo_status(
-    Extension(db): Extension<DatabaseConnection>,
-) -> impl IntoResponse {
+async fn geo_status(Extension(db): Extension<DatabaseConnection>) -> impl IntoResponse {
     let available = GeoService::check_postgis(&db).await;
-    Json(GeoStatusResponse { postgis_available: available })
+    Json(GeoStatusResponse {
+        postgis_available: available,
+    })
 }
 
 /// GET /api/geo/leads/radius?lng=&lat=&radius_m=
@@ -245,12 +252,13 @@ async fn get_service_areas(
     Query(q): Query<ServiceAreasQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    let areas = GeoService::get_service_areas(&db, tenant_id, q.owner_entity_type, q.owner_entity_id)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "geo/service-areas list failed");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let areas =
+        GeoService::get_service_areas(&db, tenant_id, q.owner_entity_type, q.owner_entity_id)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "geo/service-areas list failed");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
     Ok(Json(areas))
 }
 

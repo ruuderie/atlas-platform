@@ -1,17 +1,17 @@
 use axum::{
-    extract::{State, Path, Json},
+    Router,
+    extract::{Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
+use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
-use chrono::Utc;
 
-use crate::entities::{listing_ab_test, listing_ab_variant, listing};
+use crate::entities::{listing, listing_ab_test, listing_ab_variant};
 
 #[derive(Deserialize)]
 pub struct CreateTestPayload {
@@ -27,15 +27,27 @@ pub struct CreateVariantPayload {
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/listings/{id}/ab-tests", post(create_test).get(get_tests_for_listing))
-        .route("/api/ab-tests/{id}/variants", post(create_variant).get(get_variants_for_test))
+        .route(
+            "/api/listings/{id}/ab-tests",
+            post(create_test).get(get_tests_for_listing),
+        )
+        .route(
+            "/api/ab-tests/{id}/variants",
+            post(create_variant).get(get_variants_for_test),
+        )
 }
 
 pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/ab-variants/{id}/view", post(increment_variant_view))
-        .route("/api/ab-variants/{id}/conversion", post(increment_variant_conversion))
-        .route("/api/listings/by-slug/{slug}/active-test", get(get_active_test_for_listing_slug))
+        .route(
+            "/api/ab-variants/{id}/conversion",
+            post(increment_variant_conversion),
+        )
+        .route(
+            "/api/listings/by-slug/{slug}/active-test",
+            get(get_active_test_for_listing_slug),
+        )
 }
 
 pub async fn create_test(
@@ -52,7 +64,10 @@ pub async fn create_test(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted = new_test.insert(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let inserted = new_test
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok((StatusCode::CREATED, Json(inserted)))
 }
 
@@ -84,7 +99,10 @@ pub async fn create_variant(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted = new_variant.insert(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let inserted = new_variant
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok((StatusCode::CREATED, Json(inserted)))
 }
 
@@ -113,7 +131,10 @@ pub async fn increment_variant_view(
         v.views += 1;
         let mut active_model: listing_ab_variant::ActiveModel = v.into();
         active_model.updated_at = Set(Utc::now());
-        active_model.update(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        active_model
+            .update(&db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
         Ok((StatusCode::OK, Json(json!({"message": "View incremented"}))))
     } else {
         Err((StatusCode::NOT_FOUND, "Variant not found".into()))
@@ -133,8 +154,14 @@ pub async fn increment_variant_conversion(
         v.conversions += 1;
         let mut active_model: listing_ab_variant::ActiveModel = v.into();
         active_model.updated_at = Set(Utc::now());
-        active_model.update(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        Ok((StatusCode::OK, Json(json!({"message": "Conversion incremented"}))))
+        active_model
+            .update(&db)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        Ok((
+            StatusCode::OK,
+            Json(json!({"message": "Conversion incremented"})),
+        ))
     } else {
         Err((StatusCode::NOT_FOUND, "Variant not found".into()))
     }
@@ -150,7 +177,7 @@ pub async fn get_active_test_for_listing_slug(
         .one(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        
+
     let list_data = match listing_record {
         Some(l) => l,
         None => return Err((StatusCode::NOT_FOUND, "Listing not found".into())),
@@ -163,14 +190,14 @@ pub async fn get_active_test_for_listing_slug(
         .one(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        
+
     if let Some(test) = active_test {
         let variants = listing_ab_variant::Entity::find()
             .filter(listing_ab_variant::Column::TestId.eq(test.id))
             .all(&db)
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-            
+
         Ok(Json(json!({
             "test": test,
             "variants": variants,

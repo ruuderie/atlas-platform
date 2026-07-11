@@ -35,11 +35,27 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Alias::new("id")).uuid().primary_key())
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     // Subject entity — the thing being quoted (asset, service, package, etc.)
-                    .col(ColumnDef::new(Alias::new("subject_entity_type")).string().null())
-                    .col(ColumnDef::new(Alias::new("subject_entity_id")).uuid().null())
+                    .col(
+                        ColumnDef::new(Alias::new("subject_entity_type"))
+                            .string()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("subject_entity_id"))
+                            .uuid()
+                            .null(),
+                    )
                     // Recipient
-                    .col(ColumnDef::new(Alias::new("recipient_user_id")).uuid().null())
-                    .col(ColumnDef::new(Alias::new("recipient_email")).string().null())
+                    .col(
+                        ColumnDef::new(Alias::new("recipient_user_id"))
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("recipient_email"))
+                            .string()
+                            .null(),
+                    )
                     .col(ColumnDef::new(Alias::new("recipient_name")).string().null())
                     // Downstream links
                     .col(ColumnDef::new(Alias::new("campaign_id")).uuid().null()) // G19
@@ -49,27 +65,98 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Alias::new("title")).string().not_null())
                     .col(ColumnDef::new(Alias::new("notes")).text().null())
                     // Status lifecycle: draft → sent → accepted/rejected/expired → converted
-                    .col(ColumnDef::new(Alias::new("status")).string().not_null().default("draft"))
+                    .col(
+                        ColumnDef::new(Alias::new("status"))
+                            .string()
+                            .not_null()
+                            .default("draft"),
+                    )
                     // Financial totals (derived from line items — kept in sync by QuoteService)
-                    .col(ColumnDef::new(Alias::new("subtotal_cents")).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(Alias::new("discount_cents")).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(Alias::new("tax_cents")).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(Alias::new("total_cents")).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(Alias::new("currency")).string().not_null().default("USD"))
+                    .col(
+                        ColumnDef::new(Alias::new("subtotal_cents"))
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("discount_cents"))
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("tax_cents"))
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("total_cents"))
+                            .big_integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("currency"))
+                            .string()
+                            .not_null()
+                            .default("USD"),
+                    )
                     // Validity
-                    .col(ColumnDef::new(Alias::new("valid_from")).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(Alias::new("valid_until")).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(Alias::new("valid_from"))
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("valid_until"))
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     // Conversion tracking
-                    .col(ColumnDef::new(Alias::new("accepted_at")).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(Alias::new("rejected_at")).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(Alias::new("converted_reservation_id")).uuid().null()) // G23
-                    .col(ColumnDef::new(Alias::new("revision_number")).integer().not_null().default(1))
+                    .col(
+                        ColumnDef::new(Alias::new("accepted_at"))
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("rejected_at"))
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("converted_reservation_id"))
+                            .uuid()
+                            .null(),
+                    ) // G23
+                    .col(
+                        ColumnDef::new(Alias::new("revision_number"))
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
                     .col(ColumnDef::new(Alias::new("superseded_by_id")).uuid().null()) // self-ref
                     // Metadata
-                    .col(ColumnDef::new(Alias::new("quote_metadata")).json_binary().null())
-                    .col(ColumnDef::new(Alias::new("created_by_user_id")).uuid().null())
-                    .col(ColumnDef::new(Alias::new("created_at")).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Alias::new("updated_at")).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("quote_metadata"))
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("created_by_user_id"))
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("created_at"))
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("updated_at"))
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -83,17 +170,56 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Alias::new("id")).uuid().primary_key())
                     .col(ColumnDef::new(Alias::new("tenant_id")).uuid().not_null())
                     .col(ColumnDef::new(Alias::new("quote_id")).uuid().not_null())
-                    .col(ColumnDef::new(Alias::new("line_item_type")).string().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("line_item_type"))
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Alias::new("catalog_entry_id")).uuid().null()) // G26
-                    .col(ColumnDef::new(Alias::new("description")).string().not_null())
-                    .col(ColumnDef::new(Alias::new("quantity")).integer().not_null().default(1))
-                    .col(ColumnDef::new(Alias::new("unit_price_cents")).big_integer().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("description"))
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("quantity"))
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("unit_price_cents"))
+                            .big_integer()
+                            .not_null(),
+                    )
                     // For percentage_discount: 0-10000 (basis points). Otherwise 0.
-                    .col(ColumnDef::new(Alias::new("discount_basis_points")).integer().not_null().default(0))
-                    .col(ColumnDef::new(Alias::new("line_total_cents")).big_integer().not_null())
-                    .col(ColumnDef::new(Alias::new("sort_order")).integer().not_null().default(0))
-                    .col(ColumnDef::new(Alias::new("line_metadata")).json_binary().null())
-                    .col(ColumnDef::new(Alias::new("created_at")).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Alias::new("discount_basis_points"))
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("line_total_cents"))
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("sort_order"))
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("line_metadata"))
+                            .json_binary()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Alias::new("created_at"))
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -137,7 +263,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Alias::new("atlas_quote_line_items")).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(Alias::new("atlas_quote_line_items"))
+                    .to_owned(),
+            )
             .await?;
         manager
             .drop_table(Table::drop().table(Alias::new("atlas_quotes")).to_owned())

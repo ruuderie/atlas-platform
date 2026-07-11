@@ -1,21 +1,21 @@
 use axum::{
-    extract::{Extension, Path, Json, Query},
+    Router,
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, Set,
-    ActiveModelTrait, ModelTrait, ColumnTrait, QueryFilter, Condition,
-};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, ModelTrait,
+    QueryFilter, Set,
+};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::entities::{note, user};
-use crate::models::note::{NoteModel, CreateNoteInput, UpdateNoteInput};
 use crate::models::file::FileAssociation;
+use crate::models::note::{CreateNoteInput, NoteModel, UpdateNoteInput};
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
@@ -37,14 +37,14 @@ pub async fn get_user_tenant_id(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::FORBIDDEN)?;
-        
+
     Ok(profile.tenant_id)
 }
 
@@ -67,8 +67,11 @@ async fn create_note(
         updated_at: Set(Utc::now()),
     };
 
-    let note_inserted = new_note.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+    let note_inserted = new_note
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     // Associate files with the note, auto-inserting the File record if needed
     for file in input.files {
         let existing = crate::entities::file::Entity::find_by_id(file.id.to_string())
@@ -93,13 +96,22 @@ async fn create_note(
                 is_anonymous: Set(false),
                 user_id: Set(Some(current_user.id.to_string())),
             };
-            new_file_db.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            new_file_db
+                .insert(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
-        note_inserted.add_file(&db, file.id).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        note_inserted
+            .add_file(&db, file.id)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     let mut model = NoteModel::from(note_inserted.clone());
-    model.files = note_inserted.get_associated_files(&db).await.unwrap_or_default();
+    model.files = note_inserted
+        .get_associated_files(&db)
+        .await
+        .unwrap_or_default();
 
     Ok((StatusCode::CREATED, JsonResponse(model)))
 }
@@ -139,7 +151,10 @@ async fn get_notes(
     let mut note_models = Vec::new();
     for note_item in notes {
         let mut model = NoteModel::from(note_item.clone());
-        model.files = note_item.get_associated_files(&db).await.unwrap_or_default();
+        model.files = note_item
+            .get_associated_files(&db)
+            .await
+            .unwrap_or_default();
         note_models.push(model);
     }
 
@@ -168,7 +183,10 @@ async fn get_note(
     }
 
     let mut model = NoteModel::from(note_item.clone());
-    model.files = note_item.get_associated_files(&db).await.unwrap_or_default();
+    model.files = note_item
+        .get_associated_files(&db)
+        .await
+        .unwrap_or_default();
 
     Ok(JsonResponse(model))
 }
@@ -202,23 +220,38 @@ async fn update_note(
     }
     note_active.updated_at = Set(Utc::now());
 
-    let updated_note = note_active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_note = note_active
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Handle files updating if provided
     if let Some(file_ids) = input.files {
         // Disassociate previous files
-        let current_files = note_item.get_associated_files(&db).await.unwrap_or_default();
+        let current_files = note_item
+            .get_associated_files(&db)
+            .await
+            .unwrap_or_default();
         for f in current_files {
-            note_item.remove_file(&db, f.id).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            note_item
+                .remove_file(&db, f.id)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
         // Associate new files
         for fid in file_ids {
-            note_item.add_file(&db, fid).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            note_item
+                .add_file(&db, fid)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
     }
 
     let mut model = NoteModel::from(updated_note.clone());
-    model.files = updated_note.get_associated_files(&db).await.unwrap_or_default();
+    model.files = updated_note
+        .get_associated_files(&db)
+        .await
+        .unwrap_or_default();
 
     Ok(JsonResponse(model))
 }
@@ -244,7 +277,10 @@ async fn delete_note(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    note_item.delete(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    note_item
+        .delete(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -270,7 +306,10 @@ async fn get_note_files(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let files = note_item.get_associated_files(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let files = note_item
+        .get_associated_files(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(JsonResponse(files))
 }

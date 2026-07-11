@@ -94,7 +94,11 @@ $$ LANGUAGE plpgsql;
                     // Social channels
                     .col(ColumnDef::new(AtlasLead::Whatsapp).string_len(50).null())
                     .col(ColumnDef::new(AtlasLead::Telegram).string_len(50).null())
-                    .col(ColumnDef::new(AtlasLead::LinkedinUrl).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::LinkedinUrl)
+                            .string_len(255)
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasLead::Twitter).string_len(100).null())
                     .col(ColumnDef::new(AtlasLead::Instagram).string_len(100).null())
                     .col(ColumnDef::new(AtlasLead::Facebook).string_len(100).null())
@@ -102,27 +106,55 @@ $$ LANGUAGE plpgsql;
                     // ── Company / Organization ────────────────────────────────
                     .col(ColumnDef::new(AtlasLead::Company).string_len(255).null())
                     .col(ColumnDef::new(AtlasLead::CompanyDba).string_len(255).null())
-                    .col(ColumnDef::new(AtlasLead::CompanyWebsite).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::CompanyWebsite)
+                            .string_len(255)
+                            .null(),
+                    )
                     // extracted domain — primary dedup anchor for company-level dedup
                     .col(ColumnDef::new(AtlasLead::Domain).string_len(100).null())
                     .col(ColumnDef::new(AtlasLead::Industry).string_len(255).null())
-                    .col(ColumnDef::new(AtlasLead::SubIndustry).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::SubIndustry)
+                            .string_len(255)
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasLead::NumEmployees).integer().null())
-                    .col(ColumnDef::new(AtlasLead::AnnualRevenue).decimal_len(18, 2).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::AnnualRevenue)
+                            .decimal_len(18, 2)
+                            .null(),
+                    )
                     // 'public' | 'private' | 'government' | 'nonprofit' | 'individual'
                     .col(ColumnDef::new(AtlasLead::CompanyType).string_len(30).null())
                     // 'headquarters' | 'branch' | 'single' | 'franchise'
-                    .col(ColumnDef::new(AtlasLead::LocationType).string_len(30).null())
-                    .col(ColumnDef::new(AtlasLead::YearEstablished).small_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasLead::LocationType)
+                            .string_len(30)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLead::YearEstablished)
+                            .small_integer()
+                            .null(),
+                    )
                     // ── Industry Classification Codes ─────────────────────────
                     .col(ColumnDef::new(AtlasLead::SicCode).string_len(10).null())
                     .col(ColumnDef::new(AtlasLead::NaicsCode).string_len(10).null())
                     // D-U-N-S — gold-standard business dedup
                     .col(ColumnDef::new(AtlasLead::DunsNumber).string_len(15).null())
                     // ── Credit / Risk Signals ─────────────────────────────────
-                    .col(ColumnDef::new(AtlasLead::CreditScoreCode).string_len(10).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::CreditScoreCode)
+                            .string_len(10)
+                            .null(),
+                    )
                     // ── Address ───────────────────────────────────────────────
-                    .col(ColumnDef::new(AtlasLead::StreetAddress).string_len(255).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::StreetAddress)
+                            .string_len(255)
+                            .null(),
+                    )
                     .col(ColumnDef::new(AtlasLead::City).string_len(100).null())
                     .col(ColumnDef::new(AtlasLead::State).string_len(50).null())
                     .col(ColumnDef::new(AtlasLead::PostalCode).string_len(20).null())
@@ -134,7 +166,11 @@ $$ LANGUAGE plpgsql;
                     )
                     // Separate mailing address — kept as JSONB (rarely queried)
                     // {"street": "...", "city": "...", "state": "...", "zip": "...", "country": "..."}
-                    .col(ColumnDef::new(AtlasLead::MailingAddress).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasLead::MailingAddress)
+                            .json_binary()
+                            .null(),
+                    )
                     // ── Lead Metadata ──────────────────────────────────────────
                     .col(ColumnDef::new(AtlasLead::Message).text().null())
                     // 'new' | 'contacted' | 'qualifying' | 'qualified' | 'disqualified' | 'converted'
@@ -148,7 +184,11 @@ $$ LANGUAGE plpgsql;
                     // 'linkedin' | 'web_form' | 'referral' | 'import'
                     .col(ColumnDef::new(AtlasLead::Source).string_len(50).null())
                     .col(ColumnDef::new(AtlasLead::DataSource).string_len(50).null())
-                    .col(ColumnDef::new(AtlasLead::DataSourceId).string_len(100).null())
+                    .col(
+                        ColumnDef::new(AtlasLead::DataSourceId)
+                            .string_len(100)
+                            .null(),
+                    )
                     // ── Industry / Vertical Specific Data ─────────────────────
                     // FMCSA safety data, MWBE certifications, financial health signals,
                     // social profiles — see spec section 4.2 for full structure.
@@ -174,15 +214,31 @@ $$ LANGUAGE plpgsql;
                             .not_null()
                             .default(false),
                     )
-                    .col(ColumnDef::new(AtlasLead::ConvertedAt).timestamp_with_time_zone().null())
+                    .col(
+                        ColumnDef::new(AtlasLead::ConvertedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
                     // G-01 atlas_accounts — account created during conversion
                     .col(ColumnDef::new(AtlasLead::ConvertedAccountId).uuid().null())
                     // G-01 atlas_contacts — contact created during conversion
                     .col(ColumnDef::new(AtlasLead::ConvertedContactId).uuid().null())
                     // G-15 atlas_opportunities — opportunity created during conversion
-                    .col(ColumnDef::new(AtlasLead::ConvertedOpportunityId).uuid().null())
-                    .col(ColumnDef::new(AtlasLead::DisqualifiedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasLead::DisqualificationReason).text().null())
+                    .col(
+                        ColumnDef::new(AtlasLead::ConvertedOpportunityId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLead::DisqualifiedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasLead::DisqualificationReason)
+                            .text()
+                            .null(),
+                    )
                     // ── Timestamps ─────────────────────────────────────────────
                     .col(
                         ColumnDef::new(AtlasLead::CreatedAt)

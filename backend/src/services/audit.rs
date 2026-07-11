@@ -1,8 +1,8 @@
 use crate::entities::audit_log;
+use chrono::Utc;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use serde_json::Value;
 use uuid::Uuid;
-use chrono::Utc;
 
 pub struct AuditService;
 
@@ -38,13 +38,16 @@ impl AuditService {
                 Ok(_) => {
                     tracing::debug!(
                         "Successfully recorded audit log for {} action on {:?}",
-                         action_type, entity_id
+                        action_type,
+                        entity_id
                     );
                 }
                 Err(e) => {
                     tracing::error!(
                         "Failed to insert audit log for {} action on {}: {:?}",
-                         action_type, entity_id, e
+                        action_type,
+                        entity_id,
+                        e
                     );
                 }
             }

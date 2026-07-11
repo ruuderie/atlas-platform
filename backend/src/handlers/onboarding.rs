@@ -1,20 +1,19 @@
 #![allow(dead_code)]
 use axum::{
-    extract::{Path, State, Query},
-    http::{StatusCode, HeaderMap},
-    Json,
+    Json, Router,
+    extract::{Path, Query, State},
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
-    Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use subtle::ConstantTimeEq;
+use uuid::Uuid;
 
-use crate::entities::onboarding_progress;
 use crate::entities::app_instance;
+use crate::entities::onboarding_progress;
 
 /// Lazily-initialised, zero-allocation registry of active AtlasApp implementations.
 /// `get_active_apps()` previously allocated a new `Vec<Box<dyn AtlasApp>>` on every call;
@@ -222,8 +221,9 @@ async fn build_status_response(
         .map(|step| {
             let data_complete = !incomplete_ids.contains(&step.id);
             let override_record = progress_map.get(&step.id);
-            let explicitly_complete =
-                override_record.map(|r| r.completed_at.is_some()).unwrap_or(false);
+            let explicitly_complete = override_record
+                .map(|r| r.completed_at.is_some())
+                .unwrap_or(false);
             let skipped = override_record.map(|r| r.skipped).unwrap_or(false);
 
             OnboardingStepStatus {
@@ -283,7 +283,8 @@ pub async fn complete_step(
         .find(|a| a.app_id() == instance.app_type.as_str())
         .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
 
-    let valid_ids: Vec<String> = app.onboarding_steps()
+    let valid_ids: Vec<String> = app
+        .onboarding_steps()
         .iter()
         .map(|s| s.id.clone())
         .collect();
@@ -291,7 +292,8 @@ pub async fn complete_step(
     if !valid_ids.contains(&step_id) {
         tracing::warn!(
             "complete_step rejected phantom step_id '{}' for app '{}'",
-            step_id, instance.app_type
+            step_id,
+            instance.app_type
         );
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -320,7 +322,8 @@ pub async fn skip_step(
         .find(|a| a.app_id() == instance.app_type.as_str())
         .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
 
-    let step = app.onboarding_steps()
+    let step = app
+        .onboarding_steps()
         .into_iter()
         .find(|s| s.id == step_id)
         .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
@@ -328,7 +331,8 @@ pub async fn skip_step(
     if step.is_required {
         tracing::warn!(
             "skip_step rejected: step '{}' is required for app '{}'",
-            step_id, instance.app_type
+            step_id,
+            instance.app_type
         );
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -353,10 +357,16 @@ pub async fn dismiss_wizard(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     let meta = payload.metadata;
-    upsert_progress(&db, instance.tenant_id, app_instance_id, "__wizard__", move |m| {
-        m.dismissed_at = Set(Some(Utc::now()));
-        m.metadata = Set(meta);
-    })
+    upsert_progress(
+        &db,
+        instance.tenant_id,
+        app_instance_id,
+        "__wizard__",
+        move |m| {
+            m.dismissed_at = Set(Some(Utc::now()));
+            m.metadata = Set(meta);
+        },
+    )
     .await?;
 
     Ok(StatusCode::NO_CONTENT)
@@ -463,7 +473,10 @@ where
         let mut active: onboarding_progress::ActiveModel = record.into();
         active.updated_at = Set(Utc::now());
         mutate(&mut active);
-        active.update(db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        active
+            .update(db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     } else {
         let mut new_record = onboarding_progress::ActiveModel {
             id: Set(Uuid::new_v4()),
@@ -478,7 +491,10 @@ where
             updated_at: Set(Utc::now()),
         };
         mutate(&mut new_record);
-        new_record.insert(db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        new_record
+            .insert(db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     Ok(())

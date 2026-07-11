@@ -21,12 +21,25 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(OutboxJob::JobType).string().not_null())
                     .col(ColumnDef::new(OutboxJob::Payload).json_binary().not_null())
                     .col(ColumnDef::new(OutboxJob::Status).string().not_null())
-                    .col(ColumnDef::new(OutboxJob::Attempts).integer().not_null().default(0))
+                    .col(
+                        ColumnDef::new(OutboxJob::Attempts)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
                     .col(ColumnDef::new(OutboxJob::ErrorMessage).text())
                     .col(ColumnDef::new(OutboxJob::LockedBy).string())
                     .col(ColumnDef::new(OutboxJob::LockedAt).timestamp_with_time_zone())
-                    .col(ColumnDef::new(OutboxJob::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(OutboxJob::RunAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(OutboxJob::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(OutboxJob::RunAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;

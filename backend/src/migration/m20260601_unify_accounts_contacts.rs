@@ -30,13 +30,30 @@ impl MigrationTrait for Migration {
                             .default(Expr::cust("gen_random_uuid()")),
                     )
                     .col(ColumnDef::new(AtlasAccounts::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasAccounts::AccountType).string().not_null())
+                    .col(
+                        ColumnDef::new(AtlasAccounts::AccountType)
+                            .string()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(AtlasAccounts::Name).string().not_null())
                     .col(ColumnDef::new(AtlasAccounts::FirstName).string().null())
                     .col(ColumnDef::new(AtlasAccounts::LastName).string().null())
-                    .col(ColumnDef::new(AtlasAccounts::PrimaryContactId).uuid().null())
-                    .col(ColumnDef::new(AtlasAccounts::Status).string().not_null().default(Expr::val("active")))
-                    .col(ColumnDef::new(AtlasAccounts::Attributes).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasAccounts::PrimaryContactId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasAccounts::Status)
+                            .string()
+                            .not_null()
+                            .default(Expr::val("active")),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasAccounts::Attributes)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasAccounts::CreatedAt)
                             .timestamp_with_time_zone()
@@ -97,8 +114,17 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AtlasContacts::Phone).string().null())
                     .col(ColumnDef::new(AtlasContacts::Title).string().null())
                     .col(ColumnDef::new(AtlasContacts::Department).string().null())
-                    .col(ColumnDef::new(AtlasContacts::IsPrimary).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasContacts::ContactMetadata).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasContacts::IsPrimary)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasContacts::ContactMetadata)
+                            .json_binary()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasContacts::CreatedAt)
                             .timestamp_with_time_zone()

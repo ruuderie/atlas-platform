@@ -110,10 +110,8 @@ multi-portfolio billing in one platform. Start free, scale to hundreds of units.
         )
         .await?;
 
-        db.execute_unprepared(
-            "DELETE FROM platform_products WHERE slug = 'folio-pm';",
-        )
-        .await?;
+        db.execute_unprepared("DELETE FROM platform_products WHERE slug = 'folio-pm';")
+            .await?;
 
         Ok(())
     }

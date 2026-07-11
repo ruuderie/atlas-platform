@@ -45,4 +45,3 @@ impl Related<super::contact::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
-

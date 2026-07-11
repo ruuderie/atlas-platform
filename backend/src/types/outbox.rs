@@ -64,15 +64,15 @@ pub enum OutboxJobType {
 impl fmt::Display for OutboxJobType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::SendMagicLinkEmail               => "send_magic_link_email",
-            Self::SendWaitlistConfirmation          => "send_waitlist_confirmation",
-            Self::RecomputeScorecardAggregates     => "recompute_scorecard_aggregates",
-            Self::RefreshScorecardTimeSeries       => "refresh_scorecard_time_series",
-            Self::RefreshScorecardPortfolio        => "refresh_scorecard_portfolio",
-            Self::CalibrateScorecardContributors   => "calibrate_scorecard_contributors",
-            Self::EvaluateScorecardNudge           => "evaluate_scorecard_nudge",
-            Self::ReleaseExpiredReservationHolds   => "release_expired_reservation_holds",
-            Self::NotifyChannel                    => "notify_channel",
+            Self::SendMagicLinkEmail => "send_magic_link_email",
+            Self::SendWaitlistConfirmation => "send_waitlist_confirmation",
+            Self::RecomputeScorecardAggregates => "recompute_scorecard_aggregates",
+            Self::RefreshScorecardTimeSeries => "refresh_scorecard_time_series",
+            Self::RefreshScorecardPortfolio => "refresh_scorecard_portfolio",
+            Self::CalibrateScorecardContributors => "calibrate_scorecard_contributors",
+            Self::EvaluateScorecardNudge => "evaluate_scorecard_nudge",
+            Self::ReleaseExpiredReservationHolds => "release_expired_reservation_holds",
+            Self::NotifyChannel => "notify_channel",
         })
     }
 }
@@ -81,16 +81,16 @@ impl TryFrom<String> for OutboxJobType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "send_magic_link_email"              => Ok(Self::SendMagicLinkEmail),
-            "send_waitlist_confirmation"         => Ok(Self::SendWaitlistConfirmation),
-            "recompute_scorecard_aggregates"     => Ok(Self::RecomputeScorecardAggregates),
-            "refresh_scorecard_time_series"      => Ok(Self::RefreshScorecardTimeSeries),
-            "refresh_scorecard_portfolio"        => Ok(Self::RefreshScorecardPortfolio),
-            "calibrate_scorecard_contributors"   => Ok(Self::CalibrateScorecardContributors),
-            "evaluate_scorecard_nudge"           => Ok(Self::EvaluateScorecardNudge),
-            "release_expired_reservation_holds"  => Ok(Self::ReleaseExpiredReservationHolds),
-            "notify_channel"                     => Ok(Self::NotifyChannel),
-            other                                => Err(format!("unknown OutboxJobType: '{other}'")),
+            "send_magic_link_email" => Ok(Self::SendMagicLinkEmail),
+            "send_waitlist_confirmation" => Ok(Self::SendWaitlistConfirmation),
+            "recompute_scorecard_aggregates" => Ok(Self::RecomputeScorecardAggregates),
+            "refresh_scorecard_time_series" => Ok(Self::RefreshScorecardTimeSeries),
+            "refresh_scorecard_portfolio" => Ok(Self::RefreshScorecardPortfolio),
+            "calibrate_scorecard_contributors" => Ok(Self::CalibrateScorecardContributors),
+            "evaluate_scorecard_nudge" => Ok(Self::EvaluateScorecardNudge),
+            "release_expired_reservation_holds" => Ok(Self::ReleaseExpiredReservationHolds),
+            "notify_channel" => Ok(Self::NotifyChannel),
+            other => Err(format!("unknown OutboxJobType: '{other}'")),
         }
     }
 }
@@ -123,10 +123,10 @@ pub enum OutboxJobStatus {
 impl fmt::Display for OutboxJobStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Pending    => "pending",
+            Self::Pending => "pending",
             Self::Processing => "processing",
-            Self::Completed  => "completed",
-            Self::Failed     => "failed",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
         })
     }
 }
@@ -135,11 +135,11 @@ impl TryFrom<String> for OutboxJobStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "pending"    => Ok(Self::Pending),
+            "pending" => Ok(Self::Pending),
             "processing" => Ok(Self::Processing),
-            "completed"  => Ok(Self::Completed),
-            "failed"     => Ok(Self::Failed),
-            other        => Err(format!("unknown OutboxJobStatus: '{other}'")),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            other => Err(format!("unknown OutboxJobStatus: '{other}'")),
         }
     }
 }

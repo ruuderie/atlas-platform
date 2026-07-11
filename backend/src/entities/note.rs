@@ -1,12 +1,12 @@
 #![allow(dead_code, unused_imports)]
+use crate::entities::{file, file_association};
+use crate::models::file::{FileAssociation, FileModel};
+use crate::traits::file::FileAssociable;
+use chrono::{DateTime, Utc};
+use sea_orm::Set;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::traits::file::FileAssociable;
-use crate::models::file::{FileAssociation, FileModel};
-use crate::entities::{file_association,file}; 
-use sea_orm::Set;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "notes")]
 pub struct Model {
@@ -134,7 +134,14 @@ impl Related<super::activity::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(content: String, created_by: Uuid, entity_type: String, entity_id: Uuid, tenant_id: Option<Uuid>, is_private: bool) -> Self {
+    pub fn new(
+        content: String,
+        created_by: Uuid,
+        entity_type: String,
+        entity_id: Uuid,
+        tenant_id: Option<Uuid>,
+        is_private: bool,
+    ) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
@@ -167,7 +174,9 @@ impl FileAssociation for Model {
             file_id: Set(file.id),
             associated_entity_type: Set(Entity::entity_type().to_string()),
             associated_entity_id: Set(self.id),
-        }.insert(db).await?;
+        }
+        .insert(db)
+        .await?;
 
         Ok(())
     }

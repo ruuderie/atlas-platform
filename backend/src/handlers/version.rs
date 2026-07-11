@@ -1,11 +1,6 @@
 use axum::{
-    extract::Request,
-    http::HeaderValue,
-    middleware::Next,
-    response::Response,
-    Json,
+    Json, Router, extract::Request, http::HeaderValue, middleware::Next, response::Response,
     routing::get,
-    Router,
 };
 use sea_orm::DatabaseConnection;
 use serde::Serialize;

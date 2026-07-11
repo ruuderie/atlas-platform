@@ -11,23 +11,38 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(Session::Table)
                     .if_not_exists()
-                    .col(
-                        ColumnDef::new(Session::Id)
-                            .uuid()
-                            .not_null()
-                            .primary_key(),
-                    )
+                    .col(ColumnDef::new(Session::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Session::UserId).uuid().not_null())
                     .col(ColumnDef::new(Session::BearerToken).string().not_null())
                     .col(ColumnDef::new(Session::RefreshToken).string().not_null())
-                    .col(ColumnDef::new(Session::TokenExpiration).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Session::RefreshTokenExpiration).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Session::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Session::LastAccessedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Session::TokenExpiration)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Session::RefreshTokenExpiration)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Session::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Session::LastAccessedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(Session::IsAdmin).boolean().not_null())
                     .col(ColumnDef::new(Session::IsActive).boolean().not_null())
                     .col(ColumnDef::new(Session::IntegrityHash).string().not_null())
-                    .col(ColumnDef::new(Session::LastModifiedDate).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Session::LastModifiedDate)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await?;

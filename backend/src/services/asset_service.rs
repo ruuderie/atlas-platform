@@ -1,10 +1,12 @@
 #![allow(unused_variables, dead_code)]
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 use serde_json::Value;
+use uuid::Uuid;
 
-use crate::entities::atlas_asset::{self, Entity as AssetEntity, ActiveModel as AssetActiveModel};
+use crate::entities::atlas_asset::{self, ActiveModel as AssetActiveModel, Entity as AssetEntity};
 
 /// Service layer for GENERIC-10: AtlasAsset
 /// Central registry for all physical and digital assets with hierarchy support.
@@ -58,8 +60,7 @@ impl AssetService {
         status: Option<&str>,
         limit: u64,
     ) -> Result<Vec<atlas_asset::Model>, String> {
-        let mut q = AssetEntity::find()
-            .filter(atlas_asset::Column::TenantId.eq(tenant_id));
+        let mut q = AssetEntity::find().filter(atlas_asset::Column::TenantId.eq(tenant_id));
 
         if let Some(at) = asset_type {
             q = q.filter(atlas_asset::Column::AssetType.eq(at.to_string()));
@@ -68,10 +69,7 @@ impl AssetService {
             q = q.filter(atlas_asset::Column::Status.eq(st.to_string()));
         }
 
-        q.limit(limit)
-            .all(db)
-            .await
-            .map_err(|e| e.to_string())
+        q.limit(limit).all(db).await.map_err(|e| e.to_string())
     }
 
     pub async fn list_children(

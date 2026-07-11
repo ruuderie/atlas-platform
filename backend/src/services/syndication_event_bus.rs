@@ -40,15 +40,14 @@ use std::time::Duration;
 
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
-    EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    QueryOrder, QuerySelect,
 };
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::entities::{
-    atlas_app_instance_syndication,
-    atlas_integration_events,
+    atlas_app_instance_syndication, atlas_integration_events,
     atlas_syndication_outbox::{self, MAX_RETRY_COUNT},
 };
 
@@ -84,14 +83,8 @@ impl SyndicationEventBus {
     ) -> Result<Vec<Uuid>, sea_orm::DbErr> {
         // Fetch all active links for this source instance
         let links = atlas_app_instance_syndication::Entity::find()
-            .filter(
-                atlas_app_instance_syndication::Column::SourceConfigId
-                    .eq(source_config_id),
-            )
-            .filter(
-                atlas_app_instance_syndication::Column::Status
-                    .eq("active"),
-            )
+            .filter(atlas_app_instance_syndication::Column::SourceConfigId.eq(source_config_id))
+            .filter(atlas_app_instance_syndication::Column::Status.eq("active"))
             .all(db)
             .await?;
 
@@ -114,18 +107,18 @@ impl SyndicationEventBus {
             });
 
             let row = atlas_syndication_outbox::ActiveModel {
-                id:               Set(Uuid::new_v4()),
-                link_id:          Set(link.id),
+                id: Set(Uuid::new_v4()),
+                link_id: Set(link.id),
                 source_config_id: Set(source_config_id),
-                event_type:       Set(event_type.to_string()),
-                payload:          Set(payload),
-                status:           Set("pending".to_string()),
-                retry_count:      Set(0),
+                event_type: Set(event_type.to_string()),
+                payload: Set(payload),
+                status: Set("pending".to_string()),
+                retry_count: Set(0),
                 last_http_status: Set(None),
-                last_error:       Set(None),
-                next_attempt_at:  Set(Utc::now().into()),
-                created_at:       Set(Utc::now().into()),
-                updated_at:       Set(Utc::now().into()),
+                last_error: Set(None),
+                next_attempt_at: Set(Utc::now().into()),
+                created_at: Set(Utc::now().into()),
+                updated_at: Set(Utc::now().into()),
             };
 
             let inserted = row.insert(db).await?;
@@ -163,10 +156,7 @@ impl SyndicationEventBus {
 
     /// Reset a dead-letter row back to `pending` so the worker picks it up
     /// again.  Exposed via `POST /api/admin/syndication/outbox/{id}/replay`.
-    pub async fn replay(
-        db: &DatabaseConnection,
-        outbox_id: Uuid,
-    ) -> Result<(), sea_orm::DbErr> {
+    pub async fn replay(db: &DatabaseConnection, outbox_id: Uuid) -> Result<(), sea_orm::DbErr> {
         let existing = match atlas_syndication_outbox::Entity::find_by_id(outbox_id)
             .one(db)
             .await?
@@ -176,9 +166,9 @@ impl SyndicationEventBus {
         };
 
         let mut active: atlas_syndication_outbox::ActiveModel = existing.into();
-        active.status      = Set("pending".to_string());
+        active.status = Set("pending".to_string());
         active.retry_count = Set(0);
-        active.last_error  = Set(None);
+        active.last_error = Set(None);
         active.next_attempt_at = Set(Utc::now().into());
         active.update(db).await?;
 
@@ -195,14 +185,11 @@ impl SyndicationEventBus {
         let now_str = now.to_rfc3339();
         let rows = atlas_syndication_outbox::Entity::find()
             .filter(atlas_syndication_outbox::Column::Status.eq("pending"))
-            .filter(
-                sea_orm::Condition::all().add(
-                    sea_orm::sea_query::Expr::col(
-                        atlas_syndication_outbox::Column::NextAttemptAt,
-                    )
-                    .lte(sea_orm::sea_query::Expr::cust(format!("'{}'::timestamptz", now_str)))
+            .filter(sea_orm::Condition::all().add(
+                sea_orm::sea_query::Expr::col(atlas_syndication_outbox::Column::NextAttemptAt).lte(
+                    sea_orm::sea_query::Expr::cust(format!("'{}'::timestamptz", now_str)),
                 ),
-            )
+            ))
             .order_by_asc(atlas_syndication_outbox::Column::NextAttemptAt)
             .limit(50)
             .all(db)
@@ -237,8 +224,7 @@ impl SyndicationEventBus {
 
             // Build HMAC-SHA256 signature header if secret is configured
             let attempt_start = std::time::Instant::now();
-            let payload_bytes = serde_json::to_vec(&row.payload)
-                .unwrap_or_default();
+            let payload_bytes = serde_json::to_vec(&row.payload).unwrap_or_default();
 
             let sig_header = link.inbound_webhook_secret.as_deref().map(|secret| {
                 use hmac::{Hmac, Mac};
@@ -290,7 +276,8 @@ impl SyndicationEventBus {
                             Some(status_code),
                             Some(truncated),
                             latency_ms,
-                        ).await?;
+                        )
+                        .await?;
                     } else {
                         Self::handle_retry(
                             db,
@@ -298,17 +285,13 @@ impl SyndicationEventBus {
                             Some(status_code),
                             &format!("HTTP {status_code}: {truncated}"),
                             latency_ms,
-                        ).await?;
+                        )
+                        .await?;
                     }
                 }
                 Err(e) => {
-                    Self::handle_retry(
-                        db,
-                        &row,
-                        None,
-                        &format!("request error: {e}"),
-                        latency_ms,
-                    ).await?;
+                    Self::handle_retry(db, &row, None, &format!("request error: {e}"), latency_ms)
+                        .await?;
                 }
             }
         }
@@ -342,15 +325,27 @@ impl SyndicationEventBus {
         };
 
         let mut a: atlas_syndication_outbox::ActiveModel = row.clone().into();
-        a.status           = Set(new_status.clone());
-        a.retry_count      = Set(new_retry);
+        a.status = Set(new_status.clone());
+        a.retry_count = Set(new_retry);
         a.last_http_status = Set(http_status);
-        a.last_error       = Set(Some(error.chars().take(1024).collect()));
-        a.next_attempt_at  = Set(next_attempt);
+        a.last_error = Set(Some(error.chars().take(1024).collect()));
+        a.next_attempt_at = Set(next_attempt);
         a.update(db).await?;
 
-        let outcome = if new_status == "failed" { "failed" } else { "failed" }; // logged as failed either way
-        Self::log_event(db, row, outcome, http_status, Some(error.to_string()), latency_ms).await?;
+        let outcome = if new_status == "failed" {
+            "failed"
+        } else {
+            "failed"
+        }; // logged as failed either way
+        Self::log_event(
+            db,
+            row,
+            outcome,
+            http_status,
+            Some(error.to_string()),
+            latency_ms,
+        )
+        .await?;
 
         if new_status == "failed" {
             tracing::warn!(
@@ -373,10 +368,18 @@ impl SyndicationEventBus {
         latency_ms: Option<i32>,
     ) -> Result<(), sea_orm::DbErr> {
         let mut a: atlas_syndication_outbox::ActiveModel = row.clone().into();
-        a.status    = Set("failed".to_string());
+        a.status = Set("failed".to_string());
         a.last_error = Set(Some(reason.to_string()));
         a.update(db).await?;
-        Self::log_event(db, row, "skipped", http_status, Some(reason.to_string()), latency_ms.unwrap_or(0)).await
+        Self::log_event(
+            db,
+            row,
+            "skipped",
+            http_status,
+            Some(reason.to_string()),
+            latency_ms.unwrap_or(0),
+        )
+        .await
     }
 
     async fn log_event(
@@ -388,18 +391,18 @@ impl SyndicationEventBus {
         latency_ms: i32,
     ) -> Result<(), sea_orm::DbErr> {
         let ev = atlas_integration_events::ActiveModel {
-            id:               Set(Uuid::new_v4()),
-            outbox_id:        Set(Some(row.id)),
-            link_id:          Set(row.link_id),
+            id: Set(Uuid::new_v4()),
+            outbox_id: Set(Some(row.id)),
+            link_id: Set(row.link_id),
             source_config_id: Set(row.source_config_id),
-            event_type:       Set(row.event_type.clone()),
-            direction:        Set("outbound".to_string()),
-            outcome:          Set(outcome.to_string()),
-            http_status:      Set(http_status),
-            response_body:    Set(response_body.map(|b| b.chars().take(2048).collect())),
-            latency_ms:       Set(Some(latency_ms)),
-            attempt_number:   Set(row.retry_count + 1),
-            created_at:       Set(Utc::now().into()),
+            event_type: Set(row.event_type.clone()),
+            direction: Set("outbound".to_string()),
+            outcome: Set(outcome.to_string()),
+            http_status: Set(http_status),
+            response_body: Set(response_body.map(|b| b.chars().take(2048).collect())),
+            latency_ms: Set(Some(latency_ms)),
+            attempt_number: Set(row.retry_count + 1),
+            created_at: Set(Utc::now().into()),
         };
         ev.insert(db).await?;
         Ok(())

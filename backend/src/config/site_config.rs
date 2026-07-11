@@ -1,9 +1,9 @@
 #![allow(dead_code)]
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use std::collections::HashMap;
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 // ModuleFlags defines the available features that can be enabled/disabled per site
 // Each flag represents a distinct piece of functionality that can be toggled

@@ -1,13 +1,16 @@
+use crate::entities::{
+    file::{self, Entity as File},
+    file_association,
+};
+use crate::models::file::{CreateFileInput, FileModel, UpdateFileInput};
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, QueryFilter, ColumnTrait};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use uuid::Uuid;
-use crate::entities::{file::{self, Entity as File}, file_association};
-use crate::models::file::{FileModel, CreateFileInput, UpdateFileInput};
 
 pub async fn create_file(
     State(db): State<DatabaseConnection>,
@@ -19,7 +22,10 @@ pub async fn create_file(
         size: Set(input.size),
         mime_type: Set(input.mime_type),
         hash_sha256: Set(input.hash_sha256),
-        storage_type: Set(input.storage_type.parse().map_err(|_| StatusCode::BAD_REQUEST)?),
+        storage_type: Set(input
+            .storage_type
+            .parse()
+            .map_err(|_| StatusCode::BAD_REQUEST)?),
         storage_path: Set(input.storage_path),
         views: Set(0),
         downloads: Set(0),
@@ -31,7 +37,10 @@ pub async fn create_file(
         user_id: Set(input.user_id.map(|id| id.to_string())),
     };
 
-    let file = new_file.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let file = new_file
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok((StatusCode::CREATED, Json(FileModel::from(file))))
 }
 
@@ -66,7 +75,10 @@ pub async fn update_file(
         file.date_last_view = Set(Some(date_last_view.into()));
     }
 
-    let updated_file = file.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_file = file
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok((StatusCode::OK, Json(FileModel::from(updated_file))))
 }
 
@@ -141,7 +153,7 @@ pub async fn get_user_files(
     let file_models: Vec<FileModel> = files.into_iter().map(FileModel::from).collect();
     Ok((StatusCode::OK, Json(file_models)))
 }
-/* 
+/*
 
 Function to Get User Lists  after it has been implemented for user object
 
@@ -167,7 +179,8 @@ pub async fn associate_file(
         associated_entity_id: Set(entity_id),
     };
 
-    file_association.insert(&db)
+    file_association
+        .insert(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, NaiveDate, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::Value;
+use uuid::Uuid;
 
 /// GENERIC-10: AtlasAsset
 /// The central physical/digital asset registry for the platform.
@@ -28,13 +28,13 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub tenant_id: Uuid,
-    pub portfolio_id: Option<Uuid>,      // FK to atlas_portfolios (GENERIC-09)
-    pub parent_asset_id: Option<Uuid>,   // Self-referential for hierarchy
+    pub portfolio_id: Option<Uuid>, // FK to atlas_portfolios (GENERIC-09)
+    pub parent_asset_id: Option<Uuid>, // Self-referential for hierarchy
     pub owner_user_id: Option<Uuid>,
     pub asset_type: String,
     pub name: String,
     pub serial_or_folio_number: Option<String>,
-    pub status: String,                  // Backed by atlas_asset_status enum in DB
+    pub status: String, // Backed by atlas_asset_status enum in DB
     pub address_line_1: Option<String>,
     pub address_line_2: Option<String>,
     pub city: Option<String>,
@@ -47,7 +47,6 @@ pub struct Model {
     pub attributes: Option<Value>,
 
     // ── G-10 Lifecycle Extension (m20260900) ─────────────────────────────────
-
     /// Next scheduled maintenance / calibration / inspection due date.
     /// Indexed. Written by each app; queried platform-wide for alert generation.
     pub scheduled_service_date: Option<NaiveDate>,
@@ -70,7 +69,6 @@ pub struct Model {
     // STR capability is a PROPERTY trait, not a user persona trait.
     // A Landlord with str_eligible assets gets the STR nav sections shown
     // dynamically via `has_str_assets` in SessionInfo. No role change needed.
-
     /// Landlord has opted this property into STR and accepted the STR terms.
     /// Gate for all STR functionality on this asset. Default: false.
     pub str_eligible: bool,

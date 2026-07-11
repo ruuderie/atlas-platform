@@ -1,11 +1,13 @@
 #![allow(dead_code, unused)]
 
-use serde::{Deserialize, Serialize};
-use sea_orm::{EnumIter, DeriveActiveEnum};
-use strum_macros::{EnumString, Display};
 use sea_orm::sea_query::StringLen;
+use sea_orm::{DeriveActiveEnum, EnumIter};
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString};
 
-#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, EnumString, Display)]
+#[derive(
+    Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, EnumString, Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(32))")]
 pub enum PropertyType {
     #[sea_orm(string_value = "ServiceDetail")]
@@ -32,7 +34,9 @@ pub enum PropertyType {
     Tag,
 }
 
-#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, EnumString, Display)]
+#[derive(
+    Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, EnumString, Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(50))")]
 pub enum PropertyKey {
     // Service-related keys

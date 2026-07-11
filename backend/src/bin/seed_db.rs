@@ -1,15 +1,18 @@
-use sea_orm::{ActiveModelTrait, Database, Set};
-use atlas_backend::entities::{tenant, user, account, profile, listing, user_account, category, template, customer, contact, lead, deal, case, activity, note, feed};
-use uuid::Uuid;
+use atlas_backend::auth::hash_password;
+use atlas_backend::entities::{
+    account, activity, case, category, contact, customer, deal, feed, lead, listing, note, profile,
+    template, tenant, user, user_account,
+};
 use chrono::Utc;
 use dotenv::dotenv;
-use atlas_backend::auth::hash_password;
+use sea_orm::{ActiveModelTrait, Database, Set};
 use std::env;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    
+
     // Setup logging
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -22,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Connected to the database. Beginning Seed Process.");
 
     // 2. Locate or Create Tenant
-    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let existing_tenant = tenant::Entity::find()
         .filter(tenant::Column::Name.eq("ctbuildpros"))
@@ -53,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_1 = Uuid::new_v4();
     let cat1 = category::ActiveModel {
         id: Set(cat_id_1),
-        
+
         parent_category_id: Set(None),
         name: Set("Kitchen & Bath".to_string()),
         description: Set("Remodels & Upgrades".to_string()),
@@ -70,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_2 = Uuid::new_v4();
     let cat2 = category::ActiveModel {
         id: Set(cat_id_2),
-        
+
         parent_category_id: Set(None),
         name: Set("Roofing & Siding".to_string()),
         description: Set("Exterior Specialists".to_string()),
@@ -87,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_3 = Uuid::new_v4();
     let cat3 = category::ActiveModel {
         id: Set(cat_id_3),
-        
+
         parent_category_id: Set(None),
         name: Set("Home Services".to_string()),
         description: Set("Plumbers, electricians, and more".to_string()),
@@ -104,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_4 = Uuid::new_v4();
     let cat4 = category::ActiveModel {
         id: Set(cat_id_4),
-        
+
         parent_category_id: Set(None),
         name: Set("Professional Services".to_string()),
         description: Set("Accountants, Lawyers, Consulting".to_string()),
@@ -177,12 +180,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 5. Generate 10 Users + Accounts + Profiles + Listings
     let mut admin_user_id = Uuid::nil();
-    let first_names = ["John", "Sarah", "Mike", "Emily", "David", "Jessica", "Robert", "Lisa", "James", "Anna"];
-    let last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"];
+    let first_names = [
+        "John", "Sarah", "Mike", "Emily", "David", "Jessica", "Robert", "Lisa", "James", "Anna",
+    ];
+    let last_names = [
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
+    ];
     let business_names = [
-        "Apex Renovation", "ProPlumb CT", "Hartford Electric", 
-        "Elite Siding", "Master Painters", "Green Lawns", 
-        "Secure Gates", "Crystal Clear Windows", "Top Tier Roofing", "Precision Builders"
+        "Apex Renovation",
+        "ProPlumb CT",
+        "Hartford Electric",
+        "Elite Siding",
+        "Master Painters",
+        "Green Lawns",
+        "Secure Gates",
+        "Crystal Clear Windows",
+        "Top Tier Roofing",
+        "Precision Builders",
     ];
 
     let password_hash = hash_password("Password123!")?;
@@ -192,8 +215,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let user_id = Uuid::new_v4();
         let first_name = first_names[i].to_string();
         let last_name = last_names[i].to_string();
-        let email = format!("{}.{}@example.com", first_name.to_lowercase(), last_name.to_lowercase());
-        
+        let email = format!(
+            "{}.{}@example.com",
+            first_name.to_lowercase(),
+            last_name.to_lowercase()
+        );
+
         let u = user::ActiveModel {
             id: Set(user_id),
             username: Set(email.clone()),
@@ -288,7 +315,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             title: Set(business_names[i].to_string()),
             description: Set(format!("Professional services by {}", business_names[i])),
             status: Set(atlas_backend::models::listing::ListingStatus::Approved),
-            category_id: Set(Some(if i % 2 == 0 { cat_id_1 } else { cat_id_2 })), 
+            category_id: Set(Some(if i % 2 == 0 { cat_id_1 } else { cat_id_2 })),
             listing_type: Set("SERVICE".to_string()),
             price: Set(None),
             price_type: Set(None),
@@ -317,23 +344,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Seed data pre-dates asset tracking; no atlas_asset to link
             asset_id: Set(None),
         };
-        
+
         lst.insert(&db).await?;
-        
+
         tracing::info!("Created User & Listing for {}", business_names[i]);
     }
 
-    
     // 6. CRM Entities
     // We will generate 3 Customers, some Contacts, Leads, Deals, Cases, Activities and Notes
     let mut cust_ids = Vec::new();
     let statuses = ["Prospecting", "Qualification", "Closed Won", "Closed Lost"];
-    let stages = ["Initial Contact", "Meeting Scheduled", "Proposal Sent", "Contract Signed"];
+    let stages = [
+        "Initial Contact",
+        "Meeting Scheduled",
+        "Proposal Sent",
+        "Contract Signed",
+    ];
 
     for j in 0..3 {
         let cust_id = Uuid::new_v4();
         cust_ids.push(cust_id);
-        
+
         // Customer
         let cust = customer::ActiveModel {
             id: Set(cust_id),
@@ -341,16 +372,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             primary_contact_id: Set(None),
             customer_type: Set(customer::CustomerType::BusinessEntity),
             attributes: Set(customer::CustomerAttributes {
-                shipper: false, carrier: false, loan_seeker: false, loan_broker: false, 
-                software_vendor: false, tenant: false, software_development_client: false, 
-                salesforce_client: false, web3_client: false, bitcoiner: false, zk: false, 
-                lender: false, advertiser: false, gp: false, construction_contractor: true, 
-                construction_client: false, landlord: false
+                shipper: false,
+                carrier: false,
+                loan_seeker: false,
+                loan_broker: false,
+                software_vendor: false,
+                tenant: false,
+                software_development_client: false,
+                salesforce_client: false,
+                web3_client: false,
+                bitcoiner: false,
+                zk: false,
+                lender: false,
+                advertiser: false,
+                gp: false,
+                construction_contractor: true,
+                construction_client: false,
+                landlord: false,
             }),
-            cpf: Set(None), cnpj: Set(None), tin: Set(None),
+            cpf: Set(None),
+            cnpj: Set(None),
+            tin: Set(None),
             email: Set(Some(format!("contact@enterprise{}.com", j))),
             phone: Set(Some(format!("555-020{}", j))),
-            whatsapp: Set(None), telegram: Set(None), twitter: Set(None), instagram: Set(None), facebook: Set(None),
+            whatsapp: Set(None),
+            telegram: Set(None),
+            twitter: Set(None),
+            instagram: Set(None),
+            facebook: Set(None),
             website: Set(Some(format!("https://enterprise{}.com", j))),
             annual_revenue: Set(Some(1000000.0 * (j as f64 + 1.0))),
             employee_count: Set(Some(10 * (j + 1))),
@@ -374,7 +423,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             last_name: Set(Some(format!("Name {}", j))),
             email: Set(Some(format!("contact{}@enterprise{}.com", j, j))),
             phone: Set(Some(format!("555-030{}", j))),
-            whatsapp: Set(None), telegram: Set(None), twitter: Set(None), instagram: Set(None), facebook: Set(None),
+            whatsapp: Set(None),
+            telegram: Set(None),
+            twitter: Set(None),
+            instagram: Set(None),
+            facebook: Set(None),
             billing_address: Set(None),
             shipping_address: Set(None),
             created_at: Set(Utc::now()),
@@ -459,7 +512,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             updated_at: Set(Utc::now()),
         };
         nt.insert(&db).await?;
-        
+
         tracing::info!("Created CRM entries for enterprise {}", j);
     }
 
@@ -475,7 +528,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             last_name: Set(Some(format!("LeadLast{}", j))),
             email: Set(Some(format!("lead{}@example.com", j))),
             phone: Set(Some(format!("555-040{}", j))),
-            whatsapp: Set(None), telegram: Set(None), twitter: Set(None), instagram: Set(None), facebook: Set(None),
+            whatsapp: Set(None),
+            telegram: Set(None),
+            twitter: Set(None),
+            instagram: Set(None),
+            facebook: Set(None),
             billing_address: Set(None),
             shipping_address: Set(None),
             message: Set(Some("I would like a quote.".to_string())),
@@ -512,6 +569,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     fd.insert(&db).await?;
     tracing::info!("Created Feed: {}", feed_id);
 
-tracing::info!("Database successfully seeded!");
+    tracing::info!("Database successfully seeded!");
     Ok(())
 }

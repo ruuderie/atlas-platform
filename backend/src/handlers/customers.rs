@@ -1,19 +1,19 @@
+use crate::entities::{activity, contact, customer, note, user};
+use crate::handlers::Validate;
 use axum::{
-    extract::{Extension, Path, Json, Query},
+    Router,
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, PaginatorTrait
-};
-use crate::handlers::Validate;
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    Set,
+};
 use serde_json::json;
-use crate::entities::{customer, user, contact, note, activity};
+use uuid::Uuid;
 // ============================================================
 // LEGACY CRM HANDLER - CUTOVER IN PROGRESS
 // Prefer AccountService + ContactService going forward.
@@ -22,13 +22,13 @@ use crate::entities::{customer, user, contact, note, activity};
 use crate::entities::customer::CustomerType;
 
 // Unified cutover services
-use crate::models::customer::{CreateCustomerInput, UpdateCustomerInput};
-use crate::models::contact::{ CreateContactInput};
-use crate::models::note::{CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
-use crate::models::file::FileAssociation;
-use crate::models::customer::Customer as CustomerModel;
 use crate::models::contact::Contact as ContactModel;
+use crate::models::contact::CreateContactInput;
+use crate::models::customer::Customer as CustomerModel;
+use crate::models::customer::{CreateCustomerInput, UpdateCustomerInput};
+use crate::models::file::FileAssociation;
+use crate::models::note::CreateNoteInput;
 use crate::models::note::NoteModel;
 
 pub fn routes() -> Router<DatabaseConnection> {
@@ -38,14 +38,26 @@ pub fn routes() -> Router<DatabaseConnection> {
         .route("/api/customers/{id}", get(get_customer))
         .route("/api/customers/{id}", put(update_customer))
         .route("/api/customers/{id}", delete(delete_customer))
-        .route("/api/customers/{customer_id}/files/{file_id}", post(add_file_to_customer))
+        .route(
+            "/api/customers/{customer_id}/files/{file_id}",
+            post(add_file_to_customer),
+        )
         .route("/api/customers/{id}/files", get(get_customer_files))
-        .route("/api/customers/{id}/contacts", post(create_customer_contact))
+        .route(
+            "/api/customers/{id}/contacts",
+            post(create_customer_contact),
+        )
         .route("/api/customers/{id}/contacts", get(get_customer_contacts))
         .route("/api/customers/{id}/notes", post(create_customer_note))
         .route("/api/customers/{id}/notes", get(get_customer_notes))
-        .route("/api/customers/{id}/activities", post(create_customer_activity))
-        .route("/api/customers/{id}/activities", get(get_customer_activities))
+        .route(
+            "/api/customers/{id}/activities",
+            post(create_customer_activity),
+        )
+        .route(
+            "/api/customers/{id}/activities",
+            get(get_customer_activities),
+        )
 }
 
 pub async fn create_customer(
@@ -130,30 +142,32 @@ pub async fn get_customers(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
-    let items_per_page: u64 = params.get("items_per_page").and_then(|v| v.parse().ok()).unwrap_or(10);
+    let items_per_page: u64 = params
+        .get("items_per_page")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
 
-    let paginator = customer::Entity::find()
-        .paginate(&db, items_per_page);
+    let paginator = customer::Entity::find().paginate(&db, items_per_page);
     let total_pages = paginator.num_pages().await.map_err(|e| {
         tracing::error!("Failed to get total pages: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let customers = paginator
-        .fetch_page(page - 1)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch customers: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let customers = paginator.fetch_page(page - 1).await.map_err(|e| {
+        tracing::error!("Failed to fetch customers: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let customer_models: Vec<CustomerModel> = customers.into_iter().map(Into::into).collect();
 
-    Ok((StatusCode::OK, JsonResponse(json!({
-        "customers": customer_models,
-        "total_pages": total_pages,
-        "current_page": page,
-    }))))
+    Ok((
+        StatusCode::OK,
+        JsonResponse(json!({
+            "customers": customer_models,
+            "total_pages": total_pages,
+            "current_page": page,
+        })),
+    ))
 }
 
 pub async fn get_customer(
@@ -263,7 +277,7 @@ pub async fn update_customer(
             tracing::error!("Invalid billing address: {:?}", e);
             StatusCode::BAD_REQUEST
         })?;
-        updated_customer.billing_address = Some(billing_address);  // Removed .0
+        updated_customer.billing_address = Some(billing_address); // Removed .0
     }
 
     if let Some(shipping_address) = payload.shipping_address {
@@ -272,7 +286,7 @@ pub async fn update_customer(
             tracing::error!("Invalid shipping address: {:?}", e);
             StatusCode::BAD_REQUEST
         })?;
-        updated_customer.shipping_address = Some(shipping_address);  // Removed .0
+        updated_customer.shipping_address = Some(shipping_address); // Removed .0
     }
 
     let customer_model: CustomerModel = updated_customer.into();
@@ -313,12 +327,10 @@ pub async fn add_file_to_customer(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    customer.add_file(&db, file_id)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to add file to customer: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    customer.add_file(&db, file_id).await.map_err(|e| {
+        tracing::error!("Failed to add file to customer: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(StatusCode::OK)
 }
@@ -337,12 +349,10 @@ pub async fn get_customer_files(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let file_ids = customer.get_associated_files(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to get associated files: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let file_ids = customer.get_associated_files(&db).await.map_err(|e| {
+        tracing::error!("Failed to get associated files: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(file_ids))
 }
@@ -430,9 +440,15 @@ pub async fn create_customer_note(
         updated_at: Set(Utc::now()),
     };
 
-    let inserted_note = new_note.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(NoteModel::from(inserted_note))))
+    let inserted_note = new_note
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(NoteModel::from(inserted_note)),
+    ))
 }
 
 pub async fn get_customer_notes(
@@ -478,9 +494,15 @@ pub async fn create_customer_activity(
         ..Default::default()
     };
 
-    let inserted_activity = new_activity.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(inserted_activity))))
+    let inserted_activity = new_activity
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok((
+        StatusCode::CREATED,
+        JsonResponse(ActivityModel::from(inserted_activity)),
+    ))
 }
 
 pub async fn get_customer_activities(
@@ -493,7 +515,7 @@ pub async fn get_customer_activities(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let activity_models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
+    let activity_models: Vec<ActivityModel> =
+        activities.into_iter().map(ActivityModel::from).collect();
     Ok(JsonResponse(activity_models))
 }
-

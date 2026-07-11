@@ -21,7 +21,8 @@ impl MigrationTrait for Migration {
         db.execute(sea_orm::Statement::from_string(
             backend,
             "ALTER TABLE atlas_scorecard_templates \
-             ADD COLUMN IF NOT EXISTS display_config JSONB;".to_owned(),
+             ADD COLUMN IF NOT EXISTS display_config JSONB;"
+                .to_owned(),
         ))
         .await?;
 
@@ -35,7 +36,8 @@ impl MigrationTrait for Migration {
         db.execute(sea_orm::Statement::from_string(
             backend,
             "ALTER TABLE atlas_scorecard_templates \
-             DROP COLUMN IF EXISTS display_config;".to_owned(),
+             DROP COLUMN IF EXISTS display_config;"
+                .to_owned(),
         ))
         .await?;
 

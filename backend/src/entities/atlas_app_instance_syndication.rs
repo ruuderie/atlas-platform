@@ -83,7 +83,11 @@ impl Model {
     pub fn active_types(&self) -> Vec<String> {
         self.syndication_types
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -104,7 +108,17 @@ impl Model {
 }
 
 /// Lifecycle status of an active syndication link.
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    strum_macros::Display,
+)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(20))")]
 pub enum SyndicationStatus {
     #[sea_orm(string_value = "active")]

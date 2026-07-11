@@ -15,10 +15,7 @@
 //! layer on top of profile-level permissions — additive, user-specific overrides.
 //! `has_permission()` checks profile permissions first, then the override layer.
 
-use sea_orm::{
-    ColumnTrait, DatabaseConnection,
-    DbBackend, EntityTrait, QueryFilter, Statement,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, DbBackend, EntityTrait, QueryFilter, Statement};
 use uuid::Uuid;
 
 use crate::entities::{atlas_role_profiles, atlas_user_app_roles};
@@ -31,8 +28,8 @@ impl RbacService {
     /// Resolve a user's `role_slug` for a given app+tenant.
     /// Returns `None` if the user has no active role in the app.
     pub async fn get_user_app_role(
-        db:       &DatabaseConnection,
-        user_id:  Uuid,
+        db: &DatabaseConnection,
+        user_id: Uuid,
         tenant_id: Uuid,
         app_slug: &str,
     ) -> Option<String> {
@@ -70,10 +67,10 @@ impl RbacService {
     /// Wildcard evaluation is done in Rust after fetching, not in SQL, to keep
     /// the query simple and avoid regex injection surface.
     pub async fn has_permission(
-        db:             &DatabaseConnection,
-        user_id:        Uuid,
-        tenant_id:      Uuid,
-        app_slug:       &str,
+        db: &DatabaseConnection,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        app_slug: &str,
         permission_slug: &str,
     ) -> bool {
         use sea_orm::ConnectionTrait;
@@ -99,11 +96,7 @@ impl RbacService {
                          AND uar.is_active = true
                          AND (uar.expires_at IS NULL OR uar.expires_at > NOW())
                          AND rpp.is_allowed = true"#,
-                    [
-                        user_id.into(),
-                        tenant_id.into(),
-                        app_slug.into(),
-                    ],
+                    [user_id.into(), tenant_id.into(), app_slug.into()],
                 ))
                 .await
                 .unwrap_or_default();
@@ -113,8 +106,7 @@ impl RbacService {
         };
 
         let profile_match = profile_slugs.iter().any(|stored| {
-            stored == permission_slug
-                || slug_prefix.as_deref().map_or(false, |pfx| stored == pfx)
+            stored == permission_slug || slug_prefix.as_deref().map_or(false, |pfx| stored == pfx)
         });
 
         if profile_match {
@@ -154,11 +146,11 @@ impl RbacService {
     /// `role_slug` must match an existing `atlas_role_profiles.role_slug` for
     /// the given `app_slug` (platform-default or tenant-scoped).
     pub async fn assign_role(
-        db:         &DatabaseConnection,
-        user_id:    Uuid,
-        tenant_id:  Uuid,
-        app_slug:   &str,
-        role_slug:  &str,
+        db: &DatabaseConnection,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        app_slug: &str,
+        role_slug: &str,
         granted_by: Option<Uuid>,
     ) -> Result<Uuid, sea_orm::DbErr> {
         use sea_orm::ConnectionTrait;
@@ -177,9 +169,11 @@ impl RbacService {
                 [app_slug.into(), role_slug.into(), tenant_id.into()],
             ))
             .await?
-            .ok_or_else(|| sea_orm::DbErr::Custom(
-                format!("Role profile '{role_slug}' not found for app '{app_slug}'")
-            ))?;
+            .ok_or_else(|| {
+                sea_orm::DbErr::Custom(format!(
+                    "Role profile '{role_slug}' not found for app '{app_slug}'"
+                ))
+            })?;
 
         let profile_id: uuid::Uuid = profile_row
             .try_get("", "id")
@@ -191,7 +185,7 @@ impl RbacService {
         // Passing None as an empty string caused a type mismatch on the UUID column.
         let granted_by_value: sea_orm::Value = match granted_by {
             Some(uid) => uid.into(),
-            None      => sea_orm::Value::Uuid(None),
+            None => sea_orm::Value::Uuid(None),
         };
 
         db.execute(Statement::from_sql_and_values(
@@ -222,10 +216,10 @@ impl RbacService {
 
     /// Revoke a user's role in an app (soft-delete: sets is_active = false).
     pub async fn revoke_role(
-        db:        &DatabaseConnection,
-        user_id:   Uuid,
+        db: &DatabaseConnection,
+        user_id: Uuid,
         tenant_id: Uuid,
-        app_slug:  &str,
+        app_slug: &str,
     ) -> Result<u64, sea_orm::DbErr> {
         use sea_orm::ConnectionTrait;
 
@@ -250,9 +244,9 @@ impl RbacService {
     /// List all role profiles available to a tenant for an app (platform defaults
     /// + any tenant-scoped custom profiles).
     pub async fn list_role_profiles(
-        db:        &DatabaseConnection,
+        db: &DatabaseConnection,
         tenant_id: Uuid,
-        app_slug:  &str,
+        app_slug: &str,
     ) -> Result<Vec<atlas_role_profiles::Model>, sea_orm::DbErr> {
         atlas_role_profiles::Entity::find()
             .filter(atlas_role_profiles::Column::AppSlug.eq(app_slug))

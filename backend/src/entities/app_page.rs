@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "app_pages")]
@@ -15,6 +15,7 @@ pub struct Model {
     /// Used by the platform-admin Landing Page Builder to scope pages by app.
     pub app_id: String,
     pub slug: String,
+    pub locale: String,
     pub title: String,
     #[sea_orm(column_type = "Text")]
     pub description: String,

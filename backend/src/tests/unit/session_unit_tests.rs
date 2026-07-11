@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests {
     use crate::handlers::sessions::{
-        session_cookie_header, clear_session_cookie_header, extract_session_token,
+        clear_session_cookie_header, extract_session_token, session_cookie_header,
     };
     use axum::http::{HeaderMap, HeaderValue};
 
@@ -34,7 +34,10 @@ mod tests {
             cookie.contains("session=tok"),
             "cookie must contain session=<token>; got: {cookie}"
         );
-        assert!(cookie.contains("HttpOnly"), "must be HttpOnly; got: {cookie}");
+        assert!(
+            cookie.contains("HttpOnly"),
+            "must be HttpOnly; got: {cookie}"
+        );
         assert!(cookie.contains("Secure"), "must be Secure; got: {cookie}");
         assert!(
             cookie.contains("SameSite=Strict"),

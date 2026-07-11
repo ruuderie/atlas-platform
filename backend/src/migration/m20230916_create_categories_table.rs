@@ -17,17 +17,34 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Category::Name).string().not_null())
                     .col(ColumnDef::new(Category::Description).string().not_null())
                     .col(ColumnDef::new(Category::IsCustom).boolean().not_null())
-                    .col(ColumnDef::new(Category::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(Category::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Category::UpdatedAt).timestamp_with_time_zone().not_null())
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-category-directory_type_id")
-                        .from(Category::Table, Category::DirectoryTypeId)
-                        .to(DirectoryType::Table, DirectoryType::Id))
-                    .foreign_key(ForeignKey::create()
-                        .name("fk-category-parent_category_id")
-                        .from(Category::Table, Category::ParentCategoryId)
-                        .to(Category::Table, Category::Id))
+                    .col(
+                        ColumnDef::new(Category::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Category::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Category::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-category-directory_type_id")
+                            .from(Category::Table, Category::DirectoryTypeId)
+                            .to(DirectoryType::Table, DirectoryType::Id),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-category-parent_category_id")
+                            .from(Category::Table, Category::ParentCategoryId)
+                            .to(Category::Table, Category::Id),
+                    )
                     .to_owned(),
             )
             .await

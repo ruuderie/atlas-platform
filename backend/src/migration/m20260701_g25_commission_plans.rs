@@ -57,12 +57,24 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCommissionPlans::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCommissionPlans::Name).string_len(255).not_null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::Name)
+                            .string_len(255)
+                            .not_null(),
+                    )
                     // plan_type discriminator examples:
                     //   'broker_split', 'agent_override', 'carrier_remittance',
                     //   'platform_fee', 'cpm_payout', 'referral', 'property_mgmt_fee'
-                    .col(ColumnDef::new(AtlasCommissionPlans::PlanType).string_len(50).not_null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::PlanType)
+                            .string_len(50)
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCommissionPlans::IsActive)
                             .boolean()
@@ -70,9 +82,17 @@ impl MigrationTrait for Migration {
                             .default(true),
                     )
                     // Default split structure
-                    .col(ColumnDef::new(AtlasCommissionPlans::CommissionBasis).string_len(20).not_null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::CommissionBasis)
+                            .string_len(20)
+                            .not_null(),
+                    )
                     // percentage (e.g. 15.00 = 15%) or flat amount in cents
-                    .col(ColumnDef::new(AtlasCommissionPlans::DefaultRate).decimal_len(8, 4).null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::DefaultRate)
+                            .decimal_len(8, 4)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCommissionPlans::Currency)
                             .char_len(3)
@@ -81,26 +101,74 @@ impl MigrationTrait for Migration {
                     )
                     // Tiered rates — used when commission_basis = 'tiered'
                     // Structure: [{min_volume_cents, max_volume_cents, rate}, ...]
-                    .col(ColumnDef::new(AtlasCommissionPlans::Tiers).json_binary().null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::Tiers)
+                            .json_binary()
+                            .null(),
+                    )
                     // Caps and minimums (per transaction)
-                    .col(ColumnDef::new(AtlasCommissionPlans::CapCents).big_integer().null())
-                    .col(ColumnDef::new(AtlasCommissionPlans::MinimumCents).big_integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::CapCents)
+                            .big_integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::MinimumCents)
+                            .big_integer()
+                            .null(),
+                    )
                     // Clawback: if cancelled within N days, commission reversed via G-03 ledger
-                    .col(ColumnDef::new(AtlasCommissionPlans::ClawbackDays).integer().null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::ClawbackDays)
+                            .integer()
+                            .null(),
+                    )
                     // What entity this plan is associated with (polymorphic)
                     // e.g. 'atlas_service_providers', 'atlas_accounts'
-                    .col(ColumnDef::new(AtlasCommissionPlans::AppliesToEntityType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCommissionPlans::AppliesToEntityId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::AppliesToEntityType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::AppliesToEntityId)
+                            .uuid()
+                            .null(),
+                    )
                     // What transaction type this plan governs (e.g. 'hotel_booking', 'insurance_policy')
-                    .col(ColumnDef::new(AtlasCommissionPlans::AppliesToLedgerType).string_len(50).null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::AppliesToLedgerType)
+                            .string_len(50)
+                            .null(),
+                    )
                     // Primary recipient
                     // 'platform', 'broker', 'agent', 'carrier', 'creator', 'property_manager'
-                    .col(ColumnDef::new(AtlasCommissionPlans::RecipientType).string_len(50).null())
-                    .col(ColumnDef::new(AtlasCommissionPlans::RecipientAccountId).uuid().null()) // FK atlas_accounts
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::RecipientType)
+                            .string_len(50)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::RecipientAccountId)
+                            .uuid()
+                            .null(),
+                    ) // FK atlas_accounts
                     // Effective date range
-                    .col(ColumnDef::new(AtlasCommissionPlans::EffectiveFrom).date().not_null())
-                    .col(ColumnDef::new(AtlasCommissionPlans::EffectiveTo).date().null())
-                    .col(ColumnDef::new(AtlasCommissionPlans::CreatedByUserId).uuid().null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::EffectiveFrom)
+                            .date()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::EffectiveTo)
+                            .date()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlans::CreatedByUserId)
+                            .uuid()
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCommissionPlans::CreatedAt)
                             .timestamp_with_time_zone()
@@ -149,14 +217,42 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::PlanId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::TenantId).uuid().not_null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::PlanId)
+                            .uuid()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::TenantId)
+                            .uuid()
+                            .not_null(),
+                    )
                     // 'platform', 'broker', 'carrier', 'mga', 'agent', 'creator'
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::RecipientType).string_len(50).not_null())
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::RecipientAccountId).uuid().null())
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::RecipientLabel).string_len(100).null())
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::SplitBasis).string_len(20).not_null())
-                    .col(ColumnDef::new(AtlasCommissionPlanSplits::SplitRate).decimal_len(8, 4).not_null())
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::RecipientType)
+                            .string_len(50)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::RecipientAccountId)
+                            .uuid()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::RecipientLabel)
+                            .string_len(100)
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::SplitBasis)
+                            .string_len(20)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AtlasCommissionPlanSplits::SplitRate)
+                            .decimal_len(8, 4)
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasCommissionPlanSplits::CapCents)
                             .big_integer()

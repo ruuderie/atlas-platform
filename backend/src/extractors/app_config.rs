@@ -45,7 +45,7 @@
 use axum::{
     Extension,
     extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
+    http::{StatusCode, request::Parts},
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde_json::Value;
@@ -57,25 +57,25 @@ use crate::extractors::tenant::TenantContext;
 // Cache key — one per app slug per request
 #[derive(Clone, Debug)]
 struct CachedAppConfig {
-    app_slug:   String,
-    mode:       AppDeploymentMode,
+    app_slug: String,
+    mode: AppDeploymentMode,
     folio_mode: FolioMode,
-    config:     Value,
+    config: Value,
 }
 
 /// Resolved deployment configuration for the current tenant + app.
 #[derive(Clone, Debug)]
 pub struct AppDeploymentConfig {
-    pub tenant_id:  Uuid,
-    pub app_slug:   String,
+    pub tenant_id: Uuid,
+    pub app_slug: String,
     /// Platform-level deployment topology.
-    pub mode:       AppDeploymentMode,
+    pub mode: AppDeploymentMode,
     /// Folio operational identity (standard | pmc | brokerage).
     /// Only meaningful when `app_slug = "property_management"`.
     /// Always `Standard` for other apps.
     pub folio_mode: FolioMode,
     /// Arbitrary JSON config for this deployment. `{}` if not configured.
-    pub config:     Value,
+    pub config: Value,
 }
 
 impl AppDeploymentConfig {
@@ -91,14 +91,16 @@ impl AppDeploymentConfig {
 
     /// Returns `tenant_portal_enabled` config flag (default: false).
     pub fn tenant_portal_enabled(&self) -> bool {
-        self.config.get("tenant_portal_enabled")
+        self.config
+            .get("tenant_portal_enabled")
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
     }
 
     /// Returns `vendor_portal_enabled` config flag (default: false).
     pub fn vendor_portal_enabled(&self) -> bool {
-        self.config.get("vendor_portal_enabled")
+        self.config
+            .get("vendor_portal_enabled")
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
     }
@@ -120,11 +122,11 @@ where
         if let Some(cached) = parts.extensions.get::<CachedAppConfig>().cloned() {
             let ctx = TenantContext::from_request_parts(parts, state).await?;
             return Ok(AppDeploymentConfig {
-                tenant_id:  ctx.tenant_id,
-                app_slug:   cached.app_slug,
-                mode:       cached.mode,
+                tenant_id: ctx.tenant_id,
+                app_slug: cached.app_slug,
+                mode: cached.mode,
                 folio_mode: cached.folio_mode,
-                config:     cached.config,
+                config: cached.config,
             });
         }
 
@@ -160,10 +162,10 @@ where
         };
 
         let cached = CachedAppConfig {
-            app_slug:   app_slug.clone(),
-            mode:       mode.clone(),
+            app_slug: app_slug.clone(),
+            mode: mode.clone(),
             folio_mode: folio_mode.clone(),
-            config:     config.clone(),
+            config: config.clone(),
         };
         parts.extensions.insert(cached);
 

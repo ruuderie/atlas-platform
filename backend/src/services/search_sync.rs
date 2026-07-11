@@ -1,7 +1,7 @@
+use crate::entities::global_search_index;
 use sea_orm::*;
 use serde_json::Value;
 use uuid::Uuid;
-use crate::entities::global_search_index;
 
 pub async fn upsert_search_index<C>(
     db: &C,

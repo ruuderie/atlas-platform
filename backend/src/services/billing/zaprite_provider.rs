@@ -1,9 +1,9 @@
 #![allow(dead_code, unused)]
 
+use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData, WebhookPayload};
 use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
-use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData, WebhookPayload};
 
 pub struct ZapriteProvider {
     client: reqwest::Client,
@@ -21,7 +21,13 @@ impl ZapriteProvider {
 
 #[async_trait]
 impl PaymentProvider for ZapriteProvider {
-    async fn create_subscription(&self, _tenant_id: Uuid, _plan_name: &str, _price_cents: i64, _currency: &str) -> Result<SubscriptionData> {
+    async fn create_subscription(
+        &self,
+        _tenant_id: Uuid,
+        _plan_name: &str,
+        _price_cents: i64,
+        _currency: &str,
+    ) -> Result<SubscriptionData> {
         // Crypto subscriptions typically involve setting up rolling invoices or smart contracts
         tracing::info!("Creating Zaprite recurring invoice tracking...");
         Ok(SubscriptionData {
@@ -31,9 +37,14 @@ impl PaymentProvider for ZapriteProvider {
         })
     }
 
-    async fn capture_payment(&self, tenant_id: Uuid, amount_cents: i64, currency: &str) -> Result<TransactionData> {
+    async fn capture_payment(
+        &self,
+        tenant_id: Uuid,
+        amount_cents: i64,
+        currency: &str,
+    ) -> Result<TransactionData> {
         tracing::info!("Generating Zaprite Invoice for tenant {}", tenant_id);
-        
+
         // POST to Zaprite to generate Lightning/On-chain Invoice
         Ok(TransactionData {
             transaction_id: format!("zap_txn_{}", Uuid::new_v4()),

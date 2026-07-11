@@ -1,22 +1,17 @@
 // src/handlers/user_accounts.rs
 
+use crate::entities::{account, user, user_account};
+use crate::models::user_account::*;
 use axum::{
-    extract::{Extension, Path, Json},
+    Router,
+    extract::{Extension, Json, Path},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, Set,
-    ActiveModelTrait,
-};
-use crate::entities::{
-    user_account, user, account,
-};
-use crate::models::user_account::*;
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
+use uuid::Uuid;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
@@ -82,13 +77,10 @@ pub async fn get_user_accounts(
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Fetching all user accounts");
 
-    let user_accounts = user_account::Entity::find()
-        .all(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Error fetching user accounts: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let user_accounts = user_account::Entity::find().all(&db).await.map_err(|e| {
+        tracing::error!("Error fetching user accounts: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok((StatusCode::OK, JsonResponse(user_accounts)))
 }

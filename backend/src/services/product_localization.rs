@@ -50,14 +50,13 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
     entities::{
-        atlas_ai_task,
+        atlas_ai_task, platform_product,
         product_page::{template, variant},
-        platform_product,
     },
     services::ai_task_service::AiTaskService,
 };
@@ -153,10 +152,12 @@ impl ProductLocalizationService {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("task {task_id} not found"))?;
 
-        let output = task.output_payload
+        let output = task
+            .output_payload
             .ok_or_else(|| "task has no output_payload".to_string())?;
 
-        let variant_id = task.callback_entity_id
+        let variant_id = task
+            .callback_entity_id
             .or(task.source_entity_id)
             .ok_or_else(|| "task has no variant_id reference".to_string())?;
 
@@ -231,7 +232,9 @@ impl ProductLocalizationService {
         for v in variants {
             match Self::enqueue_variant_localization(db, v.id).await {
                 Ok(tid) => task_ids.push(tid),
-                Err(e) => tracing::warn!(variant_id = %v.id, error = %e, "failed to enqueue localization"),
+                Err(e) => {
+                    tracing::warn!(variant_id = %v.id, error = %e, "failed to enqueue localization")
+                }
             }
         }
 
@@ -241,7 +244,10 @@ impl ProductLocalizationService {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-fn build_localization_instructions(v: &variant::Model, product: &platform_product::Model) -> String {
+fn build_localization_instructions(
+    v: &variant::Model,
+    product: &platform_product::Model,
+) -> String {
     let city = v.city.as_deref().unwrap_or("this market");
     let locale = &v.locale;
     let country = v.country_code.as_deref().unwrap_or("");

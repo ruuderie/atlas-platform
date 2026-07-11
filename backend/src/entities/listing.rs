@@ -1,12 +1,12 @@
 #![allow(dead_code, unused_imports)]
+use crate::models::listing::ListingStatus;
+use crate::services::search_sync;
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use crate::models::listing::ListingStatus;
-use crate::services::search_sync;
 use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "listing")]
@@ -112,7 +112,6 @@ impl Related<super::template::Entity> for Entity {
     }
 }
 
-
 impl Related<super::ad_purchase::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AdPurchase.def()
@@ -127,11 +126,7 @@ impl Related<super::atlas_asset::Entity> for Entity {
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {
-    async fn after_save<C>(
-        model: Model,
-        db: &C,
-        _insert: bool,
-    ) -> Result<Model, DbErr>
+    async fn after_save<C>(model: Model, db: &C, _insert: bool) -> Result<Model, DbErr>
     where
         C: ConnectionTrait,
     {
@@ -154,10 +149,7 @@ impl ActiveModelBehavior for ActiveModel {
         Ok(model)
     }
 
-    async fn after_delete<C>(
-        self,
-        db: &C,
-    ) -> Result<Self, DbErr>
+    async fn after_delete<C>(self, db: &C) -> Result<Self, DbErr>
     where
         C: ConnectionTrait,
     {

@@ -1,15 +1,18 @@
 use axum::{
-    extract::{Extension, Query, Path, State},
+    Json, Router,
+    extract::{Extension, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
-    Json, Router
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set, ActiveModelTrait, PaginatorTrait};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, Set,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::entities::{atlas_verification_request, tenant, user};
 
@@ -65,7 +68,10 @@ pub async fn list_verification_requests(
     }
 
     let requests = query.all(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        )
     })?;
 
     let mut response_list = Vec::new();
@@ -113,7 +119,10 @@ pub async fn approve_request(
     active.reviewed_at = Set(Some(Utc::now()));
 
     let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update: {}", e),
+        )
     })?;
 
     Ok((StatusCode::OK, Json(updated)))
@@ -138,15 +147,21 @@ pub async fn reject_request(
     active.reviewed_at = Set(Some(Utc::now()));
 
     let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update: {}", e))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to update: {}", e),
+        )
     })?;
 
     Ok((StatusCode::OK, Json(updated)))
 }
 
 async fn seed_mock_requests(db: &DatabaseConnection) -> Result<(), String> {
-    let tenants = tenant::Entity::find().all(db).await.map_err(|e| e.to_string())?;
-    
+    let tenants = tenant::Entity::find()
+        .all(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
     // Seed 3 request samples
     let sample_data = vec![
         ("Business", "Nexus Property Group"),
@@ -158,9 +173,12 @@ async fn seed_mock_requests(db: &DatabaseConnection) -> Result<(), String> {
     ];
 
     for (idx, (req_type, _name)) in sample_data.into_iter().enumerate() {
-        let tenant_id = tenants.get(idx % tenants.len()).map(|t| t.id).unwrap_or_else(Uuid::new_v4);
+        let tenant_id = tenants
+            .get(idx % tenants.len())
+            .map(|t| t.id)
+            .unwrap_or_else(Uuid::new_v4);
         let id = Uuid::new_v4();
-        
+
         let vr = atlas_verification_request::ActiveModel {
             id: Set(id),
             tenant_id: Set(tenant_id),
@@ -168,7 +186,11 @@ async fn seed_mock_requests(db: &DatabaseConnection) -> Result<(), String> {
             subject_id: Set(tenant_id), // Link subject to tenant itself
             requested_by_user_id: Set(Uuid::new_v4()),
             attachment_id: Set(Some(Uuid::new_v4())),
-            status: Set(if idx == 5 { "approved".to_string() } else { "pending".to_string() }),
+            status: Set(if idx == 5 {
+                "approved".to_string()
+            } else {
+                "pending".to_string()
+            }),
             created_at: Set(Utc::now() - chrono::Duration::days((idx + 1) as i64)),
             ..Default::default()
         };
@@ -180,7 +202,16 @@ async fn seed_mock_requests(db: &DatabaseConnection) -> Result<(), String> {
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/admin/verification-requests", get(list_verification_requests))
-        .route("/api/admin/verification-requests/{id}/approve", post(approve_request))
-        .route("/api/admin/verification-requests/{id}/reject", post(reject_request))
+        .route(
+            "/api/admin/verification-requests",
+            get(list_verification_requests),
+        )
+        .route(
+            "/api/admin/verification-requests/{id}/approve",
+            post(approve_request),
+        )
+        .route(
+            "/api/admin/verification-requests/{id}/reject",
+            post(reject_request),
+        )
 }

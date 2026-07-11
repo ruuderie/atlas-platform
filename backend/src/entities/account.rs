@@ -1,15 +1,15 @@
 #![allow(dead_code, unused_imports)]
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "account")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub tenant_id: Uuid,  // New field to associate with Tenant
+    pub tenant_id: Uuid, // New field to associate with Tenant
     pub name: String,
     pub is_active: bool,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
@@ -36,7 +36,7 @@ impl RelationTrait for Relation {
                 .from(Column::TenantId)
                 .to(super::tenant::Column::Id)
                 .into(),
-            }
+        }
     }
 }
 

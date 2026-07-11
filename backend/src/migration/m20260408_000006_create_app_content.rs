@@ -26,7 +26,7 @@ impl MigrationTrait for Migration {
                 CREATE INDEX IF NOT EXISTS idx_app_content_status ON app_content(status);
             END $$;
         "##;
-        
+
         db.execute_unprepared(sql).await?;
         Ok(())
     }

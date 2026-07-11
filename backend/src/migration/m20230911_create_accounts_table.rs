@@ -14,9 +14,22 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Account::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Account::DirectoryId).uuid().not_null())
                     .col(ColumnDef::new(Account::Name).string().not_null())
-                    .col(ColumnDef::new(Account::IsActive).boolean().not_null().default(true))
-                    .col(ColumnDef::new(Account::CreatedAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(Account::UpdatedAt).timestamp_with_time_zone().not_null())
+                    .col(
+                        ColumnDef::new(Account::IsActive)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Account::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Account::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .to_owned(),
             )
             .await

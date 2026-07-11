@@ -1,18 +1,19 @@
-use axum::{
-    extract::{Path, State, Extension},
-    http::StatusCode,
-    Json,
-    routing::get,
-    Router,
-};
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, ModelTrait};
+use crate::config::SiteConfig;
 use crate::entities::app_page::{self, Entity as AppPage};
 use crate::entities::user;
-use crate::config::SiteConfig;
+use axum::{
+    Json, Router,
+    extract::{Extension, Path, State},
+    http::StatusCode,
+    routing::get,
+};
+use chrono::Utc;
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set,
+};
 use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
-use chrono::Utc;
 
 #[derive(Deserialize)]
 pub struct CreatePagePayload {
@@ -37,7 +38,10 @@ pub struct UpdatePagePayload {
 pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/anchor/pages", get(list_pages).post(create_page))
-        .route("/api/anchor/pages/{id}", get(get_page).put(update_page).delete(delete_page))
+        .route(
+            "/api/anchor/pages/{id}",
+            get(get_page).put(update_page).delete(delete_page),
+        )
         .with_state(db)
 }
 
@@ -98,7 +102,10 @@ pub async fn create_page(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if existing.is_some() {
-        return Err((StatusCode::CONFLICT, "A page with this slug already exists".into()));
+        return Err((
+            StatusCode::CONFLICT,
+            "A page with this slug already exists".into(),
+        ));
     }
 
     let new_page = app_page::ActiveModel {
@@ -106,6 +113,7 @@ pub async fn create_page(
         tenant_id: Set(site_config.tenant_id),
         app_id: Set("anchor".to_string()), // Anchor CMS handler — always scoped to the Anchor app
         slug: Set(clean_slug),
+        locale: Set("en".to_string()),
         title: Set(payload.title),
         description: Set(String::new()),
         page_type: Set(payload.page_type),
@@ -118,7 +126,10 @@ pub async fn create_page(
 
     let inserted = new_page.insert(&db).await.map_err(|e| {
         tracing::error!("Error creating page: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create page".into())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create page".into(),
+        )
     })?;
 
     Ok((StatusCode::CREATED, Json(inserted)))
@@ -143,7 +154,7 @@ pub async fn update_page(
 
     if let Some(slug) = payload.slug {
         let clean_slug = slug.trim_start_matches('/').to_string();
-        
+
         // Check uniqueness if slug changed
         if active_page.slug.as_ref() != &clean_slug {
             let existing = AppPage::find()
@@ -154,7 +165,10 @@ pub async fn update_page(
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
             if existing.is_some() {
-                return Err((StatusCode::CONFLICT, "A page with this slug already exists".into()));
+                return Err((
+                    StatusCode::CONFLICT,
+                    "A page with this slug already exists".into(),
+                ));
             }
         }
         active_page.slug = Set(clean_slug);
@@ -180,7 +194,10 @@ pub async fn update_page(
 
     let updated = active_page.update(&db).await.map_err(|e| {
         tracing::error!("Error updating page: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update page".into())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to update page".into(),
+        )
     })?;
 
     Ok(Json(updated))
@@ -202,7 +219,10 @@ pub async fn delete_page(
 
     page.delete(&db).await.map_err(|e| {
         tracing::error!("Error deleting page: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete page".into())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to delete page".into(),
+        )
     })?;
 
     Ok(StatusCode::NO_CONTENT)

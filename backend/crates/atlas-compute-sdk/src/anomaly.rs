@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn is_anomaly_false_at_and_below_threshold() {
-        assert!(!is_anomaly(2.0));  // strict >
+        assert!(!is_anomaly(2.0)); // strict >
         assert!(!is_anomaly(-2.0));
         assert!(!is_anomaly(1.5));
         assert!(!is_anomaly(0.0));
@@ -125,8 +125,8 @@ mod tests {
 
     #[test]
     fn anomaly_direction_none_within_bounds() {
-        assert_eq!(anomaly_direction(2.0),  None); // boundary: not anomalous
+        assert_eq!(anomaly_direction(2.0), None); // boundary: not anomalous
         assert_eq!(anomaly_direction(-2.0), None);
-        assert_eq!(anomaly_direction(0.0),  None);
+        assert_eq!(anomaly_direction(0.0), None);
     }
 }

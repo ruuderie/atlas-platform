@@ -16,7 +16,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AtlasLpEvents::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(AtlasLpEvents::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(AtlasLpEvents::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(AtlasLpEvents::AppPageId).uuid().not_null())
                     .col(
                         ColumnDef::new(AtlasLpEvents::EventType)
@@ -32,7 +37,11 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AtlasLpEvents::UtmTerm).string().null())
                     .col(ColumnDef::new(AtlasLpEvents::Viewport).string().null())
                     .col(ColumnDef::new(AtlasLpEvents::Referrer).string().null())
-                    .col(ColumnDef::new(AtlasLpEvents::CountryCode).string_len(2).null())
+                    .col(
+                        ColumnDef::new(AtlasLpEvents::CountryCode)
+                            .string_len(2)
+                            .null(),
+                    )
                     .col(
                         ColumnDef::new(AtlasLpEvents::CreatedAt)
                             .timestamp_with_time_zone()

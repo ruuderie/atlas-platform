@@ -12,7 +12,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -24,25 +24,28 @@ use crate::tests::test_utils;
 // ─────────────────────────────────────────────────────────────────────────────
 
 async fn get_tenant_for_user(db: &sea_orm::DatabaseConnection, user_id: Uuid) -> Uuid {
-    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     let user_account = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user_id))
         .one(db)
         .await
         .unwrap()
         .expect("user account missing");
-    
+
     let account = crate::entities::account::Entity::find_by_id(user_account.account_id)
         .one(db)
         .await
         .unwrap()
         .expect("account missing");
-        
+
     account.tenant_id
 }
 
-async fn get_or_create_app_instance_for_tenant(db: &sea_orm::DatabaseConnection, tenant_id: Uuid) -> Uuid {
-    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
+async fn get_or_create_app_instance_for_tenant(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: Uuid,
+) -> Uuid {
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
     let instance = crate::entities::app_instance::Entity::find()
         .filter(crate::entities::app_instance::Column::TenantId.eq(tenant_id))
         .one(db)
@@ -75,8 +78,8 @@ async fn seed_module(
     sort_order: i32,
     is_fixed: bool,
 ) {
-    use sea_orm::{Set, ActiveModelTrait};
     use crate::entities::app_instance_module;
+    use sea_orm::{ActiveModelTrait, Set};
 
     app_instance_module::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -194,9 +197,9 @@ async fn test_get_admin_modules_returns_sorted_list() {
     let instance_id = get_or_create_app_instance_for_tenant(&db, tenant_id).await;
 
     // Seed modules in reverse sort order intentionally
-    seed_module(&db, instance_id, "SECURITY",  30, true).await;
-    seed_module(&db, instance_id, "DASHBOARD",  0, true).await;
-    seed_module(&db, instance_id, "BLOG",       10, false).await;
+    seed_module(&db, instance_id, "SECURITY", 30, true).await;
+    seed_module(&db, instance_id, "DASHBOARD", 0, true).await;
+    seed_module(&db, instance_id, "BLOG", 10, false).await;
 
     let response = app
         .oneshot(
@@ -226,7 +229,10 @@ async fn test_get_admin_modules_returns_sorted_list() {
         .collect();
     let mut sorted = orders.clone();
     sorted.sort();
-    assert_eq!(orders, sorted, "modules should be returned sorted by sort_order ASC");
+    assert_eq!(
+        orders, sorted,
+        "modules should be returned sorted by sort_order ASC"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -326,7 +332,8 @@ async fn test_fixed_module_cannot_be_disabled_via_api() {
         "icon": null
     });
 
-    let response = app.clone()
+    let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
@@ -397,9 +404,18 @@ mod unit_tests {
 
     #[test]
     fn test_dashboard_settings_security_are_fixed() {
-        assert!(AdminModuleType::Dashboard.is_fixed(), "Dashboard must be fixed");
-        assert!(AdminModuleType::Settings.is_fixed(),  "Settings must be fixed");
-        assert!(AdminModuleType::Security.is_fixed(),  "Security must be fixed");
+        assert!(
+            AdminModuleType::Dashboard.is_fixed(),
+            "Dashboard must be fixed"
+        );
+        assert!(
+            AdminModuleType::Settings.is_fixed(),
+            "Settings must be fixed"
+        );
+        assert!(
+            AdminModuleType::Security.is_fixed(),
+            "Security must be fixed"
+        );
     }
 
     #[test]
@@ -424,9 +440,18 @@ mod unit_tests {
         let app = AnchorApp;
         let modules = app.default_modules();
         let types: Vec<_> = modules.iter().map(|(t, _, _, _)| *t).collect();
-        assert!(types.contains(&AdminModuleType::Leads),    "AnchorApp must include Leads module");
-        assert!(types.contains(&AdminModuleType::Contacts), "AnchorApp must include Contacts module");
-        assert!(types.contains(&AdminModuleType::Dashboard),"AnchorApp must include Dashboard module");
+        assert!(
+            types.contains(&AdminModuleType::Leads),
+            "AnchorApp must include Leads module"
+        );
+        assert!(
+            types.contains(&AdminModuleType::Contacts),
+            "AnchorApp must include Contacts module"
+        );
+        assert!(
+            types.contains(&AdminModuleType::Dashboard),
+            "AnchorApp must include Dashboard module"
+        );
     }
 
     #[test]
@@ -436,8 +461,14 @@ mod unit_tests {
         let app = NetworkInstanceApp;
         let modules = app.default_modules();
         let types: Vec<_> = modules.iter().map(|(t, _, _, _)| *t).collect();
-        assert!(types.contains(&AdminModuleType::Leads),    "NetworkInstanceApp must include Leads");
-        assert!(types.contains(&AdminModuleType::Listings), "NetworkInstanceApp must include Listings");
+        assert!(
+            types.contains(&AdminModuleType::Leads),
+            "NetworkInstanceApp must include Leads"
+        );
+        assert!(
+            types.contains(&AdminModuleType::Listings),
+            "NetworkInstanceApp must include Listings"
+        );
     }
 
     #[test]
@@ -448,9 +479,21 @@ mod unit_tests {
         for app in apps {
             let modules = app.default_modules();
             let types: Vec<_> = modules.iter().map(|(t, _, _, _)| *t).collect();
-            assert!(types.contains(&AdminModuleType::Dashboard), "{} missing Dashboard", app.app_id());
-            assert!(types.contains(&AdminModuleType::Settings),  "{} missing Settings",  app.app_id());
-            assert!(types.contains(&AdminModuleType::Security),  "{} missing Security",  app.app_id());
+            assert!(
+                types.contains(&AdminModuleType::Dashboard),
+                "{} missing Dashboard",
+                app.app_id()
+            );
+            assert!(
+                types.contains(&AdminModuleType::Settings),
+                "{} missing Settings",
+                app.app_id()
+            );
+            assert!(
+                types.contains(&AdminModuleType::Security),
+                "{} missing Security",
+                app.app_id()
+            );
         }
     }
 
@@ -472,7 +515,8 @@ mod unit_tests {
         orders.sort();
         orders.dedup();
         assert_eq!(
-            orders.len(), modules.len(),
+            orders.len(),
+            modules.len(),
             "Each module must have a unique sort_order"
         );
     }
@@ -482,7 +526,10 @@ mod unit_tests {
         use crate::atlas_apps::anchor::AnchorApp;
         use crate::atlas_apps::network_instance::NetworkInstanceApp;
         use crate::traits::atlas_app::AtlasApp;
-        for app in [AnchorApp.default_modules(), NetworkInstanceApp.default_modules()] {
+        for app in [
+            AnchorApp.default_modules(),
+            NetworkInstanceApp.default_modules(),
+        ] {
             for (_, display_name, _, _) in app {
                 assert!(!display_name.is_empty(), "display_name must not be empty");
             }
@@ -509,8 +556,7 @@ mod unit_tests {
         const EXPECTED_VARIANT_COUNT: usize = 20;
         let actual = AdminModuleType::iter().count();
         assert_eq!(
-            actual,
-            EXPECTED_VARIANT_COUNT,
+            actual, EXPECTED_VARIANT_COUNT,
             "AdminModuleType has {actual} variants but expected {EXPECTED_VARIANT_COUNT}. \
              If you added a new variant, also add it to \
              apps/shared-ui/src/components/admin_module_sidebar.rs and update this constant."
