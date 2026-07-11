@@ -3,11 +3,13 @@
 //! See `docs/architecture/g36_atlas_programs_spec.md`.
 
 use chrono::Utc;
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, Statement};
+use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseConnection, DbErr, Set, Statement};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
+use crate::entities::outbox_job;
+use crate::types::outbox::OutboxJobType;
 use crate::types::pm::{ProgramActionStatus, ProgramKind, ProgramOutcomeType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -186,6 +188,20 @@ impl ProgramService {
         .await
         .map_err(|e| format!("outcome create failed: {e}"))?;
 
+        // Best-effort outbound invite email via transactional outbox.
+        if let Err(e) = Self::enqueue_network_invite_email(
+            db,
+            tenant_id.unwrap_or(actor_user_id),
+            actor_user_id,
+            &target_email,
+            &code,
+            personal_note.as_deref(),
+        )
+        .await
+        {
+            tracing::warn!("G-36 network invite email enqueue failed (non-fatal): {e}");
+        }
+
         Ok(ProgramActionRow {
             id: action_id,
             program_id,
@@ -201,6 +217,101 @@ impl ProgramService {
             outcome_status: Some("pending".into()),
             created_at: Utc::now().to_rfc3339(),
         })
+    }
+
+    async fn enqueue_network_invite_email(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        actor_user_id: Uuid,
+        target_email: &str,
+        invite_code: &str,
+        personal_note: Option<&str>,
+    ) -> Result<(), String> {
+        let inviter = db
+            .query_one(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"SELECT COALESCE(
+                       NULLIF(trim(first_name || ' ' || last_name), ''),
+                       NULLIF(trim(email), ''),
+                       'A Folio member'
+                   ) AS name
+                   FROM "user" WHERE id = $1"#,
+                [actor_user_id.into()],
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+        let inviter_name: String = inviter
+            .and_then(|r| r.try_get::<String>("", "name").ok())
+            .unwrap_or_else(|| "A Folio member".into());
+
+        let base = std::env::var("FOLIO_PUBLIC_URL")
+            .or_else(|_| std::env::var("PUBLIC_BASE_URL"))
+            .unwrap_or_else(|_| "http://localhost:3000".into());
+        let join_url = format!("{}/join/{}", base.trim_end_matches('/'), invite_code);
+
+        let note_html = personal_note
+            .map(|n| n.trim())
+            .filter(|n| !n.is_empty())
+            .map(|n| {
+                format!(
+                    r#"<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#475569;border-left:3px solid #cbd5e1;padding-left:12px;">{}</p>"#,
+                    html_escape(n)
+                )
+            })
+            .unwrap_or_default();
+
+        let body_html = format!(
+            r#"<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>You're invited to Folio</title></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;"><tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;max-width:560px;width:100%;">
+      <tr><td style="padding:28px 32px 8px;">
+        <div style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;">Folio</div>
+        <h1 style="margin:12px 0 8px;font-size:22px;font-weight:800;letter-spacing:-.02em;">You're invited</h1>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#475569;">
+          {inviter} invited you to join Folio. Open your personal link to get started.
+        </p>
+        {note}
+        <a href="{join}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 18px;border-radius:8px;">Accept invite</a>
+        <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+          Or paste this link into your browser:<br/>
+          <span style="color:#64748b;word-break:break-all;">{join}</span>
+        </p>
+      </td></tr>
+      <tr><td style="padding:16px 32px 28px;font-size:11px;color:#94a3b8;">
+        If you were not expecting this, you can ignore this email.
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>"#,
+            inviter = html_escape(&inviter_name),
+            note = note_html,
+            join = join_url,
+        );
+
+        let payload = crate::handlers::communications::SendEmailPayload {
+            tenant_id,
+            to_email: target_email.to_string(),
+            subject: format!("{inviter_name} invited you to Folio"),
+            body_html,
+            attachments: Vec::new(),
+        };
+        let job_payload = serde_json::to_value(&payload).map_err(|e| e.to_string())?;
+        let job = outbox_job::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            tenant_id: Set(tenant_id),
+            job_type: Set(OutboxJobType::SendMagicLinkEmail.to_string()),
+            payload: Set(job_payload),
+            status: Set("pending".to_string()),
+            attempts: Set(0),
+            created_at: Set(Utc::now()),
+            run_at: Set(Utc::now()),
+            ..Default::default()
+        };
+        job.insert(db).await.map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     pub async fn mark_action_accepted(
@@ -379,4 +490,17 @@ impl ProgramService {
         }
         Ok(out)
     }
+}
+
+fn html_escape(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '&' => "&amp;".to_string(),
+            '<' => "&lt;".to_string(),
+            '>' => "&gt;".to_string(),
+            '"' => "&quot;".to_string(),
+            '\'' => "&#39;".to_string(),
+            _ => c.to_string(),
+        })
+        .collect()
 }

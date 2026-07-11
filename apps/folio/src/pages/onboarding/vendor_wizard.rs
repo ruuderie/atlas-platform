@@ -19,6 +19,7 @@
 
 use leptos::prelude::*;
 use crate::components::wizard_shell::{ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code};
+use crate::pages::onboarding::invite_codes_client::accept_invite_code;
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
@@ -166,8 +167,9 @@ pub fn VendorWizard() -> impl IntoView {
             let ln = license_num.get();
             let hr = hourly_rate.get();
             leptos::task::spawn_local(async move {
-                match submit_vendor_profile(code, bn, cf, cl, em, ph, trades_str, cv, ln, hr).await {
+                match submit_vendor_profile(code.clone(), bn, cf, cl, em, ph, trades_str, cv, ln, hr).await {
                     Ok(_) => {
+                        let _ = accept_invite_code(code, "/v".to_string()).await;
                         let nav = leptos_router::hooks::use_navigate();
                         nav("/v", Default::default());
                     }

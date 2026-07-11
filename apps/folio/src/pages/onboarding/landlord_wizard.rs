@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::components::wizard_shell::{
     ResolvedInviteCode, WizardShell, WizardStepDesc, resolve_invite_code,
 };
+use crate::pages::onboarding::invite_codes_client::accept_invite_code;
 
 // ── Server function — submit landlord onboarding ──────────────────────────────
 
@@ -238,8 +239,14 @@ pub fn LandlordWizard() -> impl IntoView {
             return;
         }
         if idx + 1 >= total {
-            let navigate = leptos_router::hooks::use_navigate();
-            navigate("/l", Default::default());
+            let invite_id = invite_sig.get().map(|c| c.code.clone()).unwrap_or_default();
+            leptos::task::spawn_local(async move {
+                let nav = leptos_router::hooks::use_navigate();
+                match accept_invite_code(invite_id, "/l".to_string()).await {
+                    Ok(resp) => nav(&resp.redirect, Default::default()),
+                    Err(_) => nav("/l", Default::default()),
+                }
+            });
         } else {
             current_idx.set(idx + 1);
         }
