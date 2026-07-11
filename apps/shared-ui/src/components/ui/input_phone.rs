@@ -40,7 +40,12 @@ pub use components::*;
 
 #[component]
 fn CountryItem(country: Country, selected_country: RwSignal<Country>) -> impl IntoView {
-    let search_value = format!("{} {} {}", country.name(), country.alpha2(), country.dial_code_formatted(),);
+    let search_value = format!(
+        "{} {} {}",
+        country.name(),
+        country.alpha2(),
+        country.dial_code_formatted(),
+    );
     let is_selected = Signal::derive(move || selected_country.get() == country);
 
     view! {

@@ -37,8 +37,11 @@ impl UseHistory {
     /// Sets up `⌘Z` / `⌘⇧Z` / `⌃Y` keyboard shortcuts on the document.
     #[must_use]
     pub fn init() -> Self {
-        let hook =
-            Self { history: RwSignal::new(Vec::new()), index: RwSignal::new(0), is_navigating: RwSignal::new(false) };
+        let hook = Self {
+            history: RwSignal::new(Vec::new()),
+            index: RwSignal::new(0),
+            is_navigating: RwSignal::new(false),
+        };
 
         provide_context(hook);
 
@@ -75,7 +78,8 @@ impl UseHistory {
             });
 
             if let Some(document) = window().document() {
-                let _ = document.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
+                let _ = document
+                    .add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
             }
 
             closure.forget();
@@ -111,7 +115,10 @@ impl UseHistory {
         let new_idx = idx - 1;
         self.index.set(new_idx);
 
-        let url = self.history.with_untracked(|h| h.get(new_idx).cloned()).unwrap_or_default();
+        let url = self
+            .history
+            .with_untracked(|h| h.get(new_idx).cloned())
+            .unwrap_or_default();
         Self::replace_state(&url);
 
         self.is_navigating.set(false);
@@ -129,7 +136,10 @@ impl UseHistory {
         let new_idx = idx + 1;
         self.index.set(new_idx);
 
-        let url = self.history.with_untracked(|h| h.get(new_idx).cloned()).unwrap_or_default();
+        let url = self
+            .history
+            .with_untracked(|h| h.get(new_idx).cloned())
+            .unwrap_or_default();
         Self::replace_state(&url);
 
         self.is_navigating.set(false);
@@ -165,7 +175,9 @@ impl UseHistory {
     /* ========================================================== */
 
     fn replace_state(url: &str) {
-        let Ok(history) = window().history() else { return };
+        let Ok(history) = window().history() else {
+            return;
+        };
         let _ = history.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(url));
     }
 }

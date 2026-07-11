@@ -24,11 +24,11 @@
 //! - Stops polling once the signal is set to `true`.
 //! - Network errors are silently ignored (retry next interval).
 
+use js_sys::Promise;
 use leptos::prelude::*;
 use serde::Deserialize;
-use wasm_bindgen_futures::JsFuture;
-use js_sys::Promise;
 use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::JsFuture;
 
 const POLL_INTERVAL_MS: i32 = 5 * 60 * 1000; // 5 minutes
 
@@ -51,11 +51,7 @@ async fn sleep_ms(ms: i32) {
 /// Fetch `{api_base}/api/version` and return the `build_sha` on success.
 async fn fetch_build_sha(api_base: &str) -> Option<String> {
     let url = format!("{}/api/version", api_base.trim_end_matches('/'));
-    let res = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .ok()?;
+    let res = reqwest::Client::new().get(&url).send().await.ok()?;
     if res.status().is_success() {
         res.json::<VersionInfo>().await.ok().map(|v| v.build_sha)
     } else {

@@ -22,10 +22,7 @@ impl BadgeIntent {
 }
 
 #[component]
-pub fn Badge(
-    children: Children,
-    #[prop(optional)] intent: Option<BadgeIntent>,
-) -> impl IntoView {
+pub fn Badge(children: Children, #[prop(optional)] intent: Option<BadgeIntent>) -> impl IntoView {
     let intent_val = intent.unwrap_or(BadgeIntent::Default);
     let class_name = format!("badge badge-{}", intent_val.as_class());
     view! {

@@ -1,7 +1,8 @@
-use leptos::prelude::*;
 use crate::components::ui::data_table::{
-    DataTable as RustUITable, DataTableBody, DataTableCell, DataTableHead, DataTableHeader, DataTableRow
+    DataTable as RustUITable, DataTableBody, DataTableCell, DataTableHead, DataTableHeader,
+    DataTableRow,
 };
+use leptos::prelude::*;
 
 #[component]
 pub fn DataTable(
@@ -26,7 +27,7 @@ pub fn DataTable(
                         children=move |row| {
                             let row_clone = row.clone();
                             view! {
-                                <DataTableRow 
+                                <DataTableRow
                                     class=if on_row_click.is_some() { "cursor-pointer hover:bg-muted/50".to_string() } else { "".to_string() }
                                     on:click=move |_| {
                                         if let Some(cb) = on_row_click {

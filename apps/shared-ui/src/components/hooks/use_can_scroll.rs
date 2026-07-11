@@ -7,7 +7,9 @@ use leptos::prelude::*;
 /// - `update_fn`: Function to call on scroll events to update fade states
 /// - `show_left_signal`: ReadSignal<bool> indicating if left fade should be visible
 /// - `show_right_signal`: ReadSignal<bool> indicating if right fade should be visible
-pub fn use_can_scroll(node_ref: NodeRef<Nav>) -> (impl Fn() + Clone, ReadSignal<bool>, ReadSignal<bool>) {
+pub fn use_can_scroll(
+    node_ref: NodeRef<Nav>,
+) -> (impl Fn() + Clone, ReadSignal<bool>, ReadSignal<bool>) {
     let show_left_fade_signal = RwSignal::new(false);
     let show_right_fade_signal = RwSignal::new(true);
 
@@ -22,5 +24,9 @@ pub fn use_can_scroll(node_ref: NodeRef<Nav>) -> (impl Fn() + Clone, ReadSignal<
         }
     };
 
-    (update_fades, show_left_fade_signal.read_only(), show_right_fade_signal.read_only())
+    (
+        update_fades,
+        show_left_fade_signal.read_only(),
+        show_right_fade_signal.read_only(),
+    )
 }

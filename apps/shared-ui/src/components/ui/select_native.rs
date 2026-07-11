@@ -66,8 +66,10 @@ pub fn LabelNative(
     #[prop(optional, into)] r#for: String,
     children: Children,
 ) -> impl IntoView {
-    let class =
-        tw_merge!("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", class);
+    let class = tw_merge!(
+        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+        class
+    );
 
     view! {
         <label class=class r#for=r#for>

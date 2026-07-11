@@ -71,5 +71,9 @@ pub fn use_horizontal_scroll(
         update_scroll_state();
     });
 
-    HorizontalScrollContext { scroll_state: scroll_state_signal, scroll_by, on_scroll }
+    HorizontalScrollContext {
+        scroll_state: scroll_state_signal,
+        scroll_by,
+        on_scroll,
+    }
 }

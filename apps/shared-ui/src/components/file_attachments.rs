@@ -25,7 +25,7 @@ pub fn FileAttachments(
     let (is_dragging, set_dragging) = signal(false);
     let (is_uploading, set_uploading) = signal(false);
     let (error_msg, set_error_msg) = signal::<Option<String>>(None);
-    
+
     // File input reference
     let file_input_ref = NodeRef::<leptos::html::Input>::new();
 
@@ -38,10 +38,10 @@ pub fn FileAttachments(
     let handle_file_upload = move |file: web_sys::File| {
         set_uploading.set(true);
         set_error_msg.set(None);
-        
+
         let on_upload = on_upload.clone();
         let on_file_drop = on_file_drop.clone();
-        
+
         leptos::task::spawn_local(async move {
             #[cfg(not(feature = "ssr"))]
             {
@@ -69,7 +69,9 @@ pub fn FileAttachments(
     };
 
     let handle_change = move |ev: web_sys::Event| {
-        let target = ev.target().and_then(|t| wasm_bindgen::JsCast::dyn_into::<web_sys::HtmlInputElement>(t).ok());
+        let target = ev
+            .target()
+            .and_then(|t| wasm_bindgen::JsCast::dyn_into::<web_sys::HtmlInputElement>(t).ok());
         if let Some(input) = target {
             if let Some(files) = input.files() {
                 if let Some(file) = files.get(0) {
@@ -92,15 +94,15 @@ pub fn FileAttachments(
             </div>
 
             // Hidden file input
-            <input 
-                type="file" 
+            <input
+                type="file"
                 node_ref=file_input_ref
                 on:change=handle_change
                 class="hidden"
             />
 
             // Drag and Drop Zone
-            <div 
+            <div
                 class=move || {
                     let mut base = "border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-all duration-300 cursor-pointer ".to_string();
                     if is_dragging.get() {
@@ -115,9 +117,9 @@ pub fn FileAttachments(
                 on:click=trigger_file_select
                 on:dragover=move |e| { e.prevent_default(); set_dragging.set(true); }
                 on:dragleave=move |e| { e.prevent_default(); set_dragging.set(false); }
-                on:drop=move |e| { 
-                    e.prevent_default(); 
-                    set_dragging.set(false); 
+                on:drop=move |e| {
+                    e.prevent_default();
+                    set_dragging.set(false);
                     if let Some(dt) = e.data_transfer() {
                         if let Some(files) = dt.files() {
                             if let Some(file) = files.get(0) {
@@ -127,7 +129,7 @@ pub fn FileAttachments(
                     }
                 }
             >
-                <Show 
+                <Show
                     when=move || is_uploading.get()
                     fallback=move || view! {
                         <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
@@ -163,12 +165,12 @@ pub fn FileAttachments(
                     let files_sig = files.unwrap();
                     let on_delete = on_delete.clone();
                     let on_download = on_download.clone();
-                    
+
                     view! {
                         <div class="space-y-2">
-                            <For 
-                                each=move || files_sig.get() 
-                                key=|f| f.id 
+                            <For
+                                each=move || files_sig.get()
+                                key=|f| f.id
                                 children={
                                     let on_delete = on_delete.clone();
                                     let on_download = on_download.clone();
@@ -178,20 +180,20 @@ pub fn FileAttachments(
                                         let file_url = f.file_url.clone();
                                         let on_delete = on_delete.clone();
                                         let on_download = on_download.clone();
-                                        
+
                                         let is_pdf = file_name.to_lowercase().ends_with(".pdf");
-                                        let is_image = file_name.to_lowercase().ends_with(".png") 
-                                            || file_name.to_lowercase().ends_with(".jpg") 
-                                            || file_name.to_lowercase().ends_with(".jpeg") 
-                                            || file_name.to_lowercase().ends_with(".webp") 
+                                        let is_image = file_name.to_lowercase().ends_with(".png")
+                                            || file_name.to_lowercase().ends_with(".jpg")
+                                            || file_name.to_lowercase().ends_with(".jpeg")
+                                            || file_name.to_lowercase().ends_with(".webp")
                                             || file_name.to_lowercase().ends_with(".gif");
-                                            
+
                                         let icon = if is_pdf { "picture_as_pdf" } else if is_image { "image" } else { "description" };
                                         let icon_color = if is_pdf { "text-red-500" } else if is_image { "text-blue-500" } else { "text-slate-500" };
 
                                         view! {
                                             <div class="flex items-center justify-between p-3 bg-surface-container-lowest border border-outline-variant/20 rounded-xl hover:border-outline-variant/60 transition-all group">
-                                                <div 
+                                                <div
                                                     on:click={
                                                         let on_download = on_download.clone();
                                                         let file_url = file_url.clone();
@@ -213,7 +215,7 @@ pub fn FileAttachments(
                                                 </div>
 
                                                 <div class="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                    <button 
+                                                    <button
                                                         on:click={
                                                             let on_download = on_download.clone();
                                                             let file_url = file_url.clone();
@@ -229,7 +231,7 @@ pub fn FileAttachments(
                                                     >
                                                         <span class="material-symbols-outlined text-[16px]">"download"</span>
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         on:click={
                                                             let on_delete = on_delete.clone();
                                                             move |e| {
@@ -268,57 +270,70 @@ pub fn FileAttachments(
 #[cfg(not(feature = "ssr"))]
 pub async fn upload_file_to_s3(file: web_sys::File) -> Result<(String, String), String> {
     use wasm_bindgen_futures::JsFuture;
-    
+
     let filename = file.name();
     let content_type = file.type_();
-    let content_type = if content_type.is_empty() { "application/octet-stream".to_string() } else { content_type };
-    
+    let content_type = if content_type.is_empty() {
+        "application/octet-stream".to_string()
+    } else {
+        content_type
+    };
+
     // 1. Get presigned URL
     #[derive(serde::Serialize)]
     struct PresignedReq {
         filename: String,
         content_type: String,
     }
-    
+
     #[derive(serde::Deserialize)]
     struct PresignedResp {
         upload_url: String,
         file_key: String,
     }
-    
+
     let client = reqwest::Client::new();
-    let presigned_res = client.post("/api/forms/upload-url")
-        .json(&PresignedReq { filename: filename.clone(), content_type: content_type.clone() })
+    let presigned_res = client
+        .post("/api/forms/upload-url")
+        .json(&PresignedReq {
+            filename: filename.clone(),
+            content_type: content_type.clone(),
+        })
         .send()
         .await
         .map_err(|e| format!("Failed to get presigned URL: {}", e))?;
-        
+
     if !presigned_res.status().is_success() {
-        return Err(format!("Presigned URL server error: {}", presigned_res.status()));
+        return Err(format!(
+            "Presigned URL server error: {}",
+            presigned_res.status()
+        ));
     }
-    
-    let resp: PresignedResp = presigned_res.json()
+
+    let resp: PresignedResp = presigned_res
+        .json()
         .await
         .map_err(|e| format!("Failed to parse presigned response: {}", e))?;
-        
+
     // 2. Read file bytes
     let array_buffer = JsFuture::from(file.array_buffer())
         .await
         .map_err(|e| format!("Failed to read file: {:?}", e))?;
     let array = js_sys::Uint8Array::new(&array_buffer);
     let bytes = array.to_vec();
-    
+
     // 3. PUT bytes to S3
-    let upload_res = client.put(&resp.upload_url)
+    let upload_res = client
+        .put(&resp.upload_url)
         .header("Content-Type", content_type)
         .body(bytes)
         .send()
         .await
         .map_err(|e| format!("Failed to upload to S3: {}", e))?;
-        
+
     if !upload_res.status().is_success() {
         return Err(format!("S3 upload failed: {}", upload_res.status()));
     }
-    
+
     Ok((filename, resp.file_key))
 }

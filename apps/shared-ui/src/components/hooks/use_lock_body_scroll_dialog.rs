@@ -26,7 +26,9 @@ pub fn use_lock_body_scroll_dialog(initial_locked: bool) -> RwSignal<bool> {
     let scroll_position_signal = RwSignal::new(0.0);
 
     Effect::new(move |_| {
-        let Some(document) = window().document() else { return };
+        let Some(document) = window().document() else {
+            return;
+        };
         let Some(body) = document.body() else { return };
 
         if locked_signal.get() {

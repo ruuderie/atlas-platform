@@ -73,26 +73,26 @@ pub enum AdminModuleType {
 impl std::fmt::Display for AdminModuleType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::Dashboard      => "Dashboard",
-            Self::Settings       => "Settings",
-            Self::Security       => "Security",
-            Self::Blog           => "Blog",
+            Self::Dashboard => "Dashboard",
+            Self::Settings => "Settings",
+            Self::Security => "Security",
+            Self::Blog => "Blog",
             Self::ResumeProfiles => "Resume Profiles",
-            Self::ResumeEntries  => "Resume Entries",
-            Self::LandingPages   => "Landing Pages",
-            Self::Webforms       => "Webforms",
-            Self::Navigation     => "Navigation",
-            Self::Footer         => "Footer",
-            Self::PageHeaders    => "Page Headers",
-            Self::Leads          => "Leads",
-            Self::Contacts       => "Contacts",
-            Self::LeadOptions    => "Lead Options",
-            Self::Services       => "Services",
-            Self::CaseStudies    => "Case Studies",
-            Self::Highlights     => "Highlights",
-            Self::Properties     => "Properties",
-            Self::Listings       => "Listings",
-            Self::Custom         => "Custom",
+            Self::ResumeEntries => "Resume Entries",
+            Self::LandingPages => "Landing Pages",
+            Self::Webforms => "Webforms",
+            Self::Navigation => "Navigation",
+            Self::Footer => "Footer",
+            Self::PageHeaders => "Page Headers",
+            Self::Leads => "Leads",
+            Self::Contacts => "Contacts",
+            Self::LeadOptions => "Lead Options",
+            Self::Services => "Services",
+            Self::CaseStudies => "Case Studies",
+            Self::Highlights => "Highlights",
+            Self::Properties => "Properties",
+            Self::Listings => "Listings",
+            Self::Custom => "Custom",
         };
         write!(f, "{s}")
     }
@@ -102,26 +102,26 @@ impl AdminModuleType {
     /// Returns the default material symbol icon name for this module type.
     pub fn default_icon(self) -> &'static str {
         match self {
-            Self::Dashboard      => "dashboard",
-            Self::Settings       => "settings",
-            Self::Security       => "security",
-            Self::Blog           => "article",
+            Self::Dashboard => "dashboard",
+            Self::Settings => "settings",
+            Self::Security => "security",
+            Self::Blog => "article",
             Self::ResumeProfiles => "person",
-            Self::ResumeEntries  => "work",
-            Self::LandingPages   => "web",
-            Self::Webforms       => "dynamic_form",
-            Self::Navigation     => "menu",
-            Self::Footer         => "vertical_align_bottom",
-            Self::PageHeaders    => "title",
-            Self::Leads          => "person_add",
-            Self::Contacts       => "contacts",
-            Self::LeadOptions    => "tune",
-            Self::Services       => "build",
-            Self::CaseStudies    => "cases",
-            Self::Highlights     => "star",
-            Self::Properties     => "home",
-            Self::Listings       => "list",
-            Self::Custom         => "category",
+            Self::ResumeEntries => "work",
+            Self::LandingPages => "web",
+            Self::Webforms => "dynamic_form",
+            Self::Navigation => "menu",
+            Self::Footer => "vertical_align_bottom",
+            Self::PageHeaders => "title",
+            Self::Leads => "person_add",
+            Self::Contacts => "contacts",
+            Self::LeadOptions => "tune",
+            Self::Services => "build",
+            Self::CaseStudies => "cases",
+            Self::Highlights => "star",
+            Self::Properties => "home",
+            Self::Listings => "list",
+            Self::Custom => "category",
         }
     }
 }
@@ -181,27 +181,27 @@ impl SidebarTheme {
     pub fn tokens(&self) -> SidebarThemeTokens {
         match self {
             Self::Anchor => SidebarThemeTokens {
-                bg:            "bg-[#0a0a0a]",
-                brand_text:    "text-white font-mono text-sm tracking-widest",
+                bg: "bg-[#0a0a0a]",
+                brand_text: "text-white font-mono text-sm tracking-widest",
                 // slate-200 (#e2e8f0) on #0a0a0a gives ~13:1 contrast — WCAG AAA.
                 // Previously slate-400 (~4.5:1) was barely AA and icons appeared washed out.
                 text_inactive: "text-slate-200 hover:text-white hover:bg-white/5",
-                text_active:   "text-white bg-white/10 border-l-2 border-white",
-                bg_active:     "bg-white/10",
-                font_class:    "font-mono",
-                border:        "border-white/10",
+                text_active: "text-white bg-white/10 border-l-2 border-white",
+                bg_active: "bg-white/10",
+                font_class: "font-mono",
+                border: "border-white/10",
                 // slate-400 is enough contrast for the logout action (lower prominence intentional).
-                logout_text:   "text-slate-400 hover:text-red-400",
+                logout_text: "text-slate-400 hover:text-red-400",
             },
             Self::Network => SidebarThemeTokens {
-                bg:            "bg-white",
-                brand_text:    "text-slate-900 font-semibold text-sm",
+                bg: "bg-white",
+                brand_text: "text-slate-900 font-semibold text-sm",
                 text_inactive: "text-slate-700 hover:text-slate-900 hover:bg-slate-50",
-                text_active:   "text-primary bg-slate-100 border-l-2 border-primary",
-                bg_active:     "bg-slate-100",
-                font_class:    "font-sans",
-                border:        "border-slate-200",
-                logout_text:   "text-slate-600 hover:text-red-600",
+                text_active: "text-primary bg-slate-100 border-l-2 border-primary",
+                bg_active: "bg-slate-100",
+                font_class: "font-sans",
+                border: "border-slate-200",
+                logout_text: "text-slate-600 hover:text-red-600",
             },
             Self::Custom(t) => t.clone(),
         }
@@ -230,10 +230,8 @@ pub fn AdminModuleSidebar(
     active_tab: ReadSignal<AdminModuleType>,
     set_active_tab: WriteSignal<AdminModuleType>,
     on_logout: Callback<()>,
-    #[prop(default = SidebarTheme::Anchor)]
-    theme: SidebarTheme,
-    #[prop(into, optional)]
-    brand_label: Option<String>,
+    #[prop(default = SidebarTheme::Anchor)] theme: SidebarTheme,
+    #[prop(into, optional)] brand_label: Option<String>,
 ) -> impl IntoView {
     let tokens = theme.tokens();
     let bg = tokens.bg;
@@ -270,7 +268,7 @@ pub fn AdminModuleSidebar(
     view! {
         // Enclosing layout container
         <div class=format!("flex flex-col md:h-full md:w-48 shrink-0 {font_class}")>
-            
+
             // ── Mobile Sticky Header Bar ─────────────────────────────────────
             <div class=format!("flex md:hidden w-full h-12 items-center justify-between px-4 border-b {border} {bg} shrink-0")>
                 <span class=format!("uppercase tracking-widest {brand_text_class}")>
@@ -288,8 +286,8 @@ pub fn AdminModuleSidebar(
             </div>
 
             // ── Mobile Backdrop Overlay ──────────────────────────────────────
-            <div 
-                class=backdrop_class 
+            <div
+                class=backdrop_class
                 on:click=move |_| is_open.set(false)
             />
 
@@ -319,7 +317,7 @@ pub fn AdminModuleSidebar(
                             .unwrap_or_else(|| module_type.default_icon().to_string());
                         let text_inactive = text_inactive.to_string();
                         let text_active   = text_active.to_string();
-                        
+
                         let on_item_click = Callback::new(move |_: ()| {
                             is_open.set(false);
                         });
@@ -369,11 +367,10 @@ fn SidebarNavItem(
     set_active_tab: WriteSignal<AdminModuleType>,
     text_inactive: String,
     text_active: String,
-    #[prop(into, optional)]
-    on_click: Option<Callback<()>>,
+    #[prop(into, optional)] on_click: Option<Callback<()>>,
 ) -> impl IntoView {
     let text_inactive_clone = text_inactive.clone();
-    let text_active_clone   = text_active.clone();
+    let text_active_clone = text_active.clone();
 
     let item_class = move || {
         if active_tab.get() == module_type {

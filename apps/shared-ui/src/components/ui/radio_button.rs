@@ -2,7 +2,11 @@ use leptos::prelude::*;
 use tw_merge::tw_merge;
 
 #[component]
-pub fn RadioGroup(#[prop(into, optional)] class: String, value: RwSignal<String>, children: Children) -> impl IntoView {
+pub fn RadioGroup(
+    #[prop(into, optional)] class: String,
+    value: RwSignal<String>,
+    children: Children,
+) -> impl IntoView {
     provide_context(value);
 
     let class = tw_merge!("flex flex-col gap-3", class);

@@ -47,8 +47,8 @@
 //! // <LanguageSwitcher current_lang="en".to_string() />
 //! ```
 
-pub mod lang;
 pub mod format;
+pub mod lang;
 
-pub use lang::{Lang, get_current_lang, set_language, LanguageSwitcher};
 pub use format::{format_currency, format_date_short};
+pub use lang::{Lang, LanguageSwitcher, get_current_lang, set_language};

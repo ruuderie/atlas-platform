@@ -66,9 +66,10 @@ impl UsePressHold {
             }
         });
 
-        if let Ok(id) =
-            window().set_interval_with_callback_and_timeout_and_arguments_0(callback.as_ref().unchecked_ref(), 16)
-        {
+        if let Ok(id) = window().set_interval_with_callback_and_timeout_and_arguments_0(
+            callback.as_ref().unchecked_ref(),
+            16,
+        ) {
             self.interval_id.set(Some(id));
         }
 
@@ -115,9 +116,10 @@ impl UsePressHold {
             }
         });
 
-        if let Ok(id) =
-            window().set_interval_with_callback_and_timeout_and_arguments_0(callback.as_ref().unchecked_ref(), 16)
-        {
+        if let Ok(id) = window().set_interval_with_callback_and_timeout_and_arguments_0(
+            callback.as_ref().unchecked_ref(),
+            16,
+        ) {
             self.interval_id.set(Some(id));
         }
 
@@ -128,7 +130,11 @@ impl UsePressHold {
 /// Press-and-hold interaction pattern.
 /// Progress fills while holding, drains when released.
 /// Calls `on_complete` when progress reaches 1.0, then resets.
-pub fn use_press_hold(duration_ms: u32, on_complete: Callback<()>, disabled: Signal<bool>) -> UsePressHold {
+pub fn use_press_hold(
+    duration_ms: u32,
+    on_complete: Callback<()>,
+    disabled: Signal<bool>,
+) -> UsePressHold {
     UsePressHold {
         progress_signal: RwSignal::new(0.0),
         is_holding_signal: RwSignal::new(false),

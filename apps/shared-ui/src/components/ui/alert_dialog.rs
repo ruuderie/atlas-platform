@@ -2,8 +2,8 @@ use leptos::prelude::*;
 
 use crate::components::ui::button::{ButtonSize, ButtonVariant};
 use crate::components::ui::dialog::{
-    Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-    DialogTrigger,
+    Dialog, DialogBody, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+    DialogTitle, DialogTrigger,
 };
 
 #[component]
@@ -26,7 +26,10 @@ pub fn AlertDialogTrigger(
 }
 
 #[component]
-pub fn AlertDialogContent(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn AlertDialogContent(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     view! {
         <DialogContent class=class close_on_backdrop_click=false data_name_prefix="AlertDialog">
             {children()}
@@ -44,7 +47,10 @@ pub fn AlertDialogBody(children: Children, #[prop(optional, into)] class: String
 }
 
 #[component]
-pub fn AlertDialogHeader(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn AlertDialogHeader(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     view! {
         <DialogHeader class=class attr:data-name="AlertDialogHeader">
             {children()}
@@ -53,7 +59,10 @@ pub fn AlertDialogHeader(children: Children, #[prop(optional, into)] class: Stri
 }
 
 #[component]
-pub fn AlertDialogTitle(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn AlertDialogTitle(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     view! {
         <DialogTitle class=class attr:data-name="AlertDialogTitle">
             {children()}
@@ -62,7 +71,10 @@ pub fn AlertDialogTitle(children: Children, #[prop(optional, into)] class: Strin
 }
 
 #[component]
-pub fn AlertDialogDescription(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn AlertDialogDescription(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     view! {
         <DialogDescription class=class attr:data-name="AlertDialogDescription">
             {children()}
@@ -71,7 +83,10 @@ pub fn AlertDialogDescription(children: Children, #[prop(optional, into)] class:
 }
 
 #[component]
-pub fn AlertDialogFooter(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn AlertDialogFooter(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     view! {
         <DialogFooter class=class attr:data-name="AlertDialogFooter">
             {children()}

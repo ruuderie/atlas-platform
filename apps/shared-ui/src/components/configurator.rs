@@ -1,12 +1,12 @@
-use leptos::prelude::*;
-use std::str::FromStr;
 use crate::components::scorecard::{
     DisplayRulesSection,
     models::{
-        ColdStartStrategy, DisplayRuleForm, DimensionForm, OptionForm, ScaleType, ScoringMethod,
+        ColdStartStrategy, DimensionForm, DisplayRuleForm, OptionForm, ScaleType, ScoringMethod,
         TemplateForm, TemplateScope,
     },
 };
+use leptos::prelude::*;
+use std::str::FromStr;
 
 /// Re-export for consumers that import from `configurator`.
 pub use crate::components::scorecard::models::{ConfiguratorMode, TemplateSavePayload};
@@ -23,17 +23,22 @@ pub use crate::components::scorecard::models::{ConfiguratorMode, TemplateSavePay
 #[component]
 pub fn Configurator(
     /// Existing template data for edit mode; None for create mode.
-    #[prop(optional)] initial_template: Option<TemplateForm>,
+    #[prop(optional)]
+    initial_template: Option<TemplateForm>,
     /// Existing dimensions for edit mode.
-    #[prop(optional)] initial_dimensions: Option<Vec<DimensionForm>>,
+    #[prop(optional)]
+    initial_dimensions: Option<Vec<DimensionForm>>,
     /// Existing display rules for edit mode.
-    #[prop(optional)] initial_display_rules: Option<Vec<DisplayRuleForm>>,
+    #[prop(optional)]
+    initial_display_rules: Option<Vec<DisplayRuleForm>>,
     /// Operator vs tenant-admin field locks (default: PlatformOperator).
-    #[prop(default = ConfiguratorMode::PlatformOperator)] mode: ConfiguratorMode,
+    #[prop(default = ConfiguratorMode::PlatformOperator)]
+    mode: ConfiguratorMode,
     /// Called on save with full template payload (incl. rules + display_config).
     on_save: Callback<TemplateSavePayload>,
     /// Called when the user cancels.
-    #[prop(optional)] on_cancel: Option<Callback<()>>,
+    #[prop(optional)]
+    on_cancel: Option<Callback<()>>,
 ) -> impl IntoView {
     let template = RwSignal::new(initial_template.unwrap_or_default());
     let dimensions = RwSignal::new(initial_dimensions.unwrap_or_default());
@@ -84,7 +89,9 @@ pub fn Configurator(
             if let Some(pos) = dims.iter().position(|d| d.local_id == local_id) {
                 if pos > 0 {
                     dims.swap(pos, pos - 1);
-                    dims.iter_mut().enumerate().for_each(|(i, d)| d.sort_order = i as i32);
+                    dims.iter_mut()
+                        .enumerate()
+                        .for_each(|(i, d)| d.sort_order = i as i32);
                 }
             }
         });
@@ -95,7 +102,9 @@ pub fn Configurator(
             if let Some(pos) = dims.iter().position(|d| d.local_id == local_id) {
                 if pos + 1 < dims.len() {
                     dims.swap(pos, pos + 1);
-                    dims.iter_mut().enumerate().for_each(|(i, d)| d.sort_order = i as i32);
+                    dims.iter_mut()
+                        .enumerate()
+                        .for_each(|(i, d)| d.sort_order = i as i32);
                 }
             }
         });
@@ -198,12 +207,12 @@ fn ConfiguratorTopBar(
 
     let entity_label = move || {
         match template.get().entity_type.as_str() {
-            "atlas_lead"     => "Lead",
-            "atlas_account"  => "Account",
-            "atlas_contact"  => "Contact",
-            "atlas_asset"    => "Asset",
-            "atlas_case"     => "Case",
-            other            => other,
+            "atlas_lead" => "Lead",
+            "atlas_account" => "Account",
+            "atlas_contact" => "Contact",
+            "atlas_asset" => "Asset",
+            "atlas_case" => "Case",
+            other => other,
         }
         .to_string()
     };
@@ -414,9 +423,7 @@ fn TemplateOverviewSection(
     save_attempted: ReadSignal<bool>,
     mode: ConfiguratorMode,
 ) -> impl IntoView {
-    let name_error = move || {
-        save_attempted.get() && template.get().name.trim().is_empty()
-    };
+    let name_error = move || save_attempted.get() && template.get().name.trim().is_empty();
     let is_operator = mode == ConfiguratorMode::PlatformOperator;
 
     view! {
@@ -668,7 +675,9 @@ fn DisplayConfigSection(template: RwSignal<TemplateForm>) -> impl IntoView {
                 "show_on_portfolio_table" => c.show_on_portfolio_table = !c.show_on_portfolio_table,
                 "show_on_anomaly_panel" => c.show_on_anomaly_panel = !c.show_on_anomaly_panel,
                 "show_on_leaderboard" => c.show_on_leaderboard = !c.show_on_leaderboard,
-                "show_on_maintenance_queue" => c.show_on_maintenance_queue = !c.show_on_maintenance_queue,
+                "show_on_maintenance_queue" => {
+                    c.show_on_maintenance_queue = !c.show_on_maintenance_queue
+                }
                 "show_on_property_detail" => c.show_on_property_detail = !c.show_on_property_detail,
                 "show_on_lead_card" => c.show_on_lead_card = !c.show_on_lead_card,
                 "show_on_public_listing" => c.show_on_public_listing = !c.show_on_public_listing,
@@ -939,11 +948,15 @@ fn DimensionEditor(
     };
 
     let dim = move || {
-        dimensions.get().into_iter().find(|d| d.local_id == local_id)
+        dimensions
+            .get()
+            .into_iter()
+            .find(|d| d.local_id == local_id)
     };
 
     let needs_options = move || {
-        dim().map(|d| d.scale_type == ScaleType::PollSingle || d.scale_type == ScaleType::PollMulti)
+        dim()
+            .map(|d| d.scale_type == ScaleType::PollSingle || d.scale_type == ScaleType::PollMulti)
             .unwrap_or(false)
     };
 
@@ -1255,9 +1268,7 @@ fn DimensionEditor(
 // ═══════════════════════════════════════════════════════════════════════════
 
 #[component]
-fn CombinatorSection(
-    dimensions: RwSignal<Vec<DimensionForm>>,
-) -> impl IntoView {
+fn CombinatorSection(dimensions: RwSignal<Vec<DimensionForm>>) -> impl IntoView {
     view! {
         <div class="cfg-section">
             <div class="cfg-section-header">

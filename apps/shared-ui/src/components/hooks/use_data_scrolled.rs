@@ -11,11 +11,19 @@ pub fn use_data_scrolled(threshold_px: u32) -> RwSignal<bool> {
         let threshold = f64::from(threshold_px);
 
         // Try to find the scroll target, fallback to window
-        let scroll_container = window().document().and_then(|d| d.get_element_by_id(DATA_SCROLL_TARGET));
+        let scroll_container = window()
+            .document()
+            .and_then(|d| d.get_element_by_id(DATA_SCROLL_TARGET));
 
         let get_scroll_pos = {
             let container = scroll_container.clone();
-            move || -> f64 { if let Some(ref el) = container { el.scroll_top() as f64 } else { get_scroll_position() } }
+            move || -> f64 {
+                if let Some(ref el) = container {
+                    el.scroll_top() as f64
+                } else {
+                    get_scroll_position()
+                }
+            }
         };
 
         // Set initial value
@@ -28,7 +36,8 @@ pub fn use_data_scrolled(threshold_px: u32) -> RwSignal<bool> {
         if let Some(el) = scroll_container {
             let _ = el.add_event_listener_with_callback("scroll", closure.as_ref().unchecked_ref());
         } else {
-            let _ = window().add_event_listener_with_callback("scroll", closure.as_ref().unchecked_ref());
+            let _ = window()
+                .add_event_listener_with_callback("scroll", closure.as_ref().unchecked_ref());
         }
 
         closure.forget();
@@ -45,11 +54,17 @@ pub fn use_data_scrolled(threshold_px: u32) -> RwSignal<bool> {
 /// When `use_lock_body_scroll_popover` applies padding-right to body, fixed elements need the same padding to prevent shifting.
 fn sync_header_padding_with_body(padding: &str) {
     let _ = (|| -> Option<()> {
-        let element = window().document()?.query_selector("[data-name='NavMenuFixed']").ok()??;
+        let element = window()
+            .document()?
+            .query_selector("[data-name='NavMenuFixed']")
+            .ok()??;
         let header_el = element.dyn_ref::<web_sys::HtmlElement>()?;
 
         if !padding.is_empty() && padding != "0px" {
-            header_el.style().set_property("padding-right", padding).ok()?;
+            header_el
+                .style()
+                .set_property("padding-right", padding)
+                .ok()?;
         } else {
             header_el.style().remove_property("padding-right").ok()?;
         }
@@ -65,7 +80,9 @@ fn get_scroll_position() -> f64 {
 
     let style = body.style();
     let is_fixed = style.get_property_value("position").ok() == Some("fixed".to_string());
-    let padding = style.get_property_value("padding-right").unwrap_or_default();
+    let padding = style
+        .get_property_value("padding-right")
+        .unwrap_or_default();
 
     sync_header_padding_with_body(&padding);
 

@@ -38,7 +38,9 @@ pub type SheetSize = ButtonSize;
 #[component]
 pub fn Sheet(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
     let sheet_target_id = use_random_id_for("sheet");
-    let ctx = SheetContext { target_id: sheet_target_id };
+    let ctx = SheetContext {
+        target_id: sheet_target_id,
+    };
 
     let merged_class = tw_merge!("", class);
 

@@ -49,7 +49,10 @@ pub fn Collapsible(
 /* ========================================================== */
 
 #[component]
-pub fn CollapsibleTrigger(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn CollapsibleTrigger(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let ctx = expect_context::<CollapsibleContext>();
 
     view! {

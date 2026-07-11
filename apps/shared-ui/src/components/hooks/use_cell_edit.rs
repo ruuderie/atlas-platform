@@ -41,7 +41,10 @@ impl<C: DataGridColumn> CellEditContext<C> {
 
 /// Create and provide cell edit context. Call once at the grid level.
 pub fn use_cell_edit<C: DataGridColumn + 'static>() -> CellEditContext<C> {
-    let ctx = CellEditContext { editing_cell: RwSignal::new(None), edit_value: RwSignal::new(String::new()) };
+    let ctx = CellEditContext {
+        editing_cell: RwSignal::new(None),
+        edit_value: RwSignal::new(String::new()),
+    };
     provide_context(ctx);
     ctx
 }

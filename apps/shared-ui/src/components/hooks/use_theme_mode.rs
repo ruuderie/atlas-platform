@@ -23,7 +23,9 @@ impl ThemeMode {
     #[must_use]
     /// Initializes a new ThemeMode instance.
     pub fn init() -> Self {
-        let theme_mode = Self { state: RwSignal::new(false) };
+        let theme_mode = Self {
+            state: RwSignal::new(false),
+        };
 
         provide_context(theme_mode);
 
@@ -102,7 +104,9 @@ impl ThemeMode {
     /// Stores the dark mode state in local storage.
     fn set_storage_state(state: bool) {
         if let Some(storage) = Self::get_storage() {
-            storage.set(LOCALSTORAGE_KEY, state.to_string().as_str()).ok();
+            storage
+                .set(LOCALSTORAGE_KEY, state.to_string().as_str())
+                .ok();
         }
     }
 }

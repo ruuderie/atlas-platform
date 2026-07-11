@@ -10,7 +10,13 @@ pub fn Checkbox(
     #[prop(into, optional)] on_checked_change: Option<Callback<bool>>,
     #[prop(into, optional, default = "Checkbox".to_string())] aria_label: String,
 ) -> impl IntoView {
-    let checked_state = move || if checked.get() { "checked" } else { "unchecked" };
+    let checked_state = move || {
+        if checked.get() {
+            "checked"
+        } else {
+            "unchecked"
+        }
+    };
 
     let checkbox_class = tw_merge!(
         "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",

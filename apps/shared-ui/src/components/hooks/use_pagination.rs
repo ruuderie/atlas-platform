@@ -19,7 +19,12 @@ pub fn use_pagination() -> PaginationContext {
     let location = use_location();
     let current_page_str = QueryUtils::extract(QUERY::PAGE.to_string());
 
-    let current_page = Memo::new(move |_| current_page_str.get().and_then(|s| s.parse::<u32>().ok()).unwrap_or(FIRST_PAGE));
+    let current_page = Memo::new(move |_| {
+        current_page_str
+            .get()
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(FIRST_PAGE)
+    });
 
     let page_href = Callback::new(move |page: u32| {
         location.query.with(|q| {
@@ -38,7 +43,11 @@ pub fn use_pagination() -> PaginationContext {
 
     let prev_href = Signal::derive(move || {
         let current = current_page.get();
-        if current > FIRST_PAGE { page_href.run(current - 1) } else { "#".to_string() }
+        if current > FIRST_PAGE {
+            page_href.run(current - 1)
+        } else {
+            "#".to_string()
+        }
     });
 
     let next_href = Signal::derive(move || {
@@ -48,7 +57,20 @@ pub fn use_pagination() -> PaginationContext {
 
     let is_first_page = Signal::derive(move || current_page.get() <= FIRST_PAGE);
 
-    let aria_current = Callback::new(move |page: u32| if current_page.get() == page { QUERY::PAGE } else { "" });
+    let aria_current = Callback::new(move |page: u32| {
+        if current_page.get() == page {
+            QUERY::PAGE
+        } else {
+            ""
+        }
+    });
 
-    PaginationContext { current_page, page_href, prev_href, next_href, is_first_page, aria_current }
+    PaginationContext {
+        current_page,
+        page_href,
+        prev_href,
+        next_href,
+        is_first_page,
+        aria_current,
+    }
 }

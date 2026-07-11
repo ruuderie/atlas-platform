@@ -115,7 +115,12 @@ impl<C: DataGridColumn> UseDragSelection<C> {
     /// Returns None if no multi-cell selection exists.
     ///
     /// Format: columns separated by tabs, rows separated by CRLF (Excel-compatible).
-    pub fn collect_selection_values<R, F>(&self, rows: &[R], columns: &[(C, i32)], get_value: F) -> Option<String>
+    pub fn collect_selection_values<R, F>(
+        &self,
+        rows: &[R],
+        columns: &[(C, i32)],
+        get_value: F,
+    ) -> Option<String>
     where
         F: Fn(&R, C) -> String,
     {
@@ -155,5 +160,9 @@ pub fn use_drag_selection<C: DataGridColumn>() -> UseDragSelection<C> {
     let drag_start_signal: RwSignal<Option<(usize, C)>> = RwSignal::new(None);
     let drag_end_signal: RwSignal<Option<(usize, C)>> = RwSignal::new(None);
 
-    UseDragSelection { is_dragging_signal, drag_start_signal, drag_end_signal }
+    UseDragSelection {
+        is_dragging_signal,
+        drag_start_signal,
+        drag_end_signal,
+    }
 }

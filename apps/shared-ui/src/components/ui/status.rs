@@ -47,7 +47,9 @@ pub fn StatusIndactor(
     #[prop(into, optional)] class: String,
 ) -> impl IntoView {
     let merged_class = move || {
-        let status_indicator = StatusIndactorClass { variant: variant.get() };
+        let status_indicator = StatusIndactorClass {
+            variant: variant.get(),
+        };
         status_indicator.with_class(class.clone())
     };
 

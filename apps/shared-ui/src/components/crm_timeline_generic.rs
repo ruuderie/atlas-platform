@@ -1,8 +1,8 @@
+#[cfg(not(feature = "ssr"))]
+use crate::components::file_attachments::upload_file_to_s3;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-#[cfg(not(feature = "ssr"))]
-use crate::components::file_attachments::upload_file_to_s3;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ActivityType {
@@ -112,14 +112,22 @@ pub fn CrmTimelineGeneric(
     notes: Signal<Vec<NoteModel>>,
     activities: Signal<Vec<ActivityModel>>,
     #[prop(into)] on_add_note: Callback<(String, bool, Vec<FileModel>)>, // (content, is_private, files)
-    #[prop(into)] on_add_activity: Callback<(ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)>, // (type, title, desc, status, due_date, completed_at, files)
+    #[prop(into)] on_add_activity: Callback<(
+        ActivityType,
+        String,
+        Option<String>,
+        ActivityStatus,
+        Option<String>,
+        Option<String>,
+        Vec<FileModel>,
+    )>, // (type, title, desc, status, due_date, completed_at, files)
     #[prop(into)] on_update_activity_status: Callback<(Uuid, ActivityStatus)>,
     #[prop(into)] on_delete_note: Callback<Uuid>,
     #[prop(into)] on_delete_activity: Callback<Uuid>,
 ) -> impl IntoView {
     // Current Active Tab: "note" | "log" | "task" | "event"
     let (active_tab, set_active_tab) = signal("note".to_string());
-    
+
     // Notes Staged Fields
     let (note_text, set_note_text) = signal(String::new());
     let (note_private, set_note_private) = signal(false);
@@ -127,7 +135,8 @@ pub fn CrmTimelineGeneric(
     // Logs Staged Fields
     let (log_title, set_log_title) = signal("Phone Call".to_string());
     let (log_desc, set_log_desc) = signal(String::new());
-    let (log_date, set_log_date) = signal(chrono::Local::now().format("%Y-%m-%dT%H:%M").to_string());
+    let (log_date, set_log_date) =
+        signal(chrono::Local::now().format("%Y-%m-%dT%H:%M").to_string());
 
     // Tasks Staged Fields
     let (task_title, set_task_title) = signal(String::new());
@@ -147,7 +156,9 @@ pub fn CrmTimelineGeneric(
 
     // Helper to turn SagedFiles into FileModels
     let get_file_models = move || -> Vec<FileModel> {
-        staged_files.get().into_iter()
+        staged_files
+            .get()
+            .into_iter()
             .filter(|f| !f.is_uploading && f.error.is_none() && !f.key.is_empty())
             .map(|f| FileModel {
                 id: f.id,
@@ -172,7 +183,7 @@ pub fn CrmTimelineGeneric(
     let handle_file_upload = move |file: web_sys::File| {
         let file_id = Uuid::new_v4();
         let filename = file.name();
-        
+
         let new_staged = StagedFile {
             id: file_id,
             name: filename.clone(),
@@ -180,9 +191,9 @@ pub fn CrmTimelineGeneric(
             is_uploading: true,
             error: None,
         };
-        
+
         set_staged_files.update(|v| v.push(new_staged));
-        
+
         leptos::task::spawn_local(async move {
             #[cfg(not(feature = "ssr"))]
             {
@@ -215,7 +226,7 @@ pub fn CrmTimelineGeneric(
     let on_file_change = move |ev: web_sys::Event| {
         let target: web_sys::HtmlInputElement = event_target(&ev);
         let files = target.files();
-            
+
         if let Some(file_list) = files {
             let len = file_list.length();
             for i in 0..len {
@@ -274,10 +285,12 @@ pub fn CrmTimelineGeneric(
         let desc = log_desc.get();
         if !desc.trim().is_empty() {
             let title_str = format!("Logged: {}", log_title.get());
-            let completed_at = Some(chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", log_date.get()))
-                .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
-                .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()));
-            
+            let completed_at = Some(
+                chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", log_date.get()))
+                    .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
+                    .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()),
+            );
+
             on_add_activity.run((
                 ActivityType::Log,
                 title_str,
@@ -285,7 +298,7 @@ pub fn CrmTimelineGeneric(
                 ActivityStatus::Completed,
                 None,
                 completed_at,
-                get_file_models()
+                get_file_models(),
             ));
             set_log_desc.set(String::new());
             set_staged_files.set(Vec::new());
@@ -301,9 +314,11 @@ pub fn CrmTimelineGeneric(
         let title = task_title.get();
         let due = task_due.get();
         if !title.trim().is_empty() && !due.is_empty() {
-            let due_date = Some(chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", due))
-                .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
-                .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()));
+            let due_date = Some(
+                chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", due))
+                    .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
+                    .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()),
+            );
 
             on_add_activity.run((
                 ActivityType::Task,
@@ -312,7 +327,7 @@ pub fn CrmTimelineGeneric(
                 ActivityStatus::Open,
                 due_date,
                 None,
-                get_file_models()
+                get_file_models(),
             ));
             set_task_title.set(String::new());
             set_task_desc.set(String::new());
@@ -331,13 +346,17 @@ pub fn CrmTimelineGeneric(
         let start = event_start.get();
         let end = event_end.get();
         if !title.trim().is_empty() && !start.is_empty() && !end.is_empty() {
-            let start_date = Some(chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", start))
-                .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
-                .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()));
+            let start_date = Some(
+                chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", start))
+                    .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
+                    .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()),
+            );
 
-            let end_date = Some(chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", end))
-                .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
-                .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()));
+            let end_date = Some(
+                chrono::DateTime::parse_from_rfc3339(&format!("{}:00Z", end))
+                    .map(|dt| dt.with_timezone(&chrono::Utc).to_rfc3339())
+                    .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339()),
+            );
 
             on_add_activity.run((
                 ActivityType::Event,
@@ -346,7 +365,7 @@ pub fn CrmTimelineGeneric(
                 ActivityStatus::Open,
                 start_date,
                 end_date,
-                get_file_models()
+                get_file_models(),
             ));
             set_event_title.set(String::new());
             set_event_desc.set(String::new());
@@ -369,7 +388,10 @@ pub fn CrmTimelineGeneric(
         }
         for a in activities.get() {
             let primary_time = match a.activity_type {
-                ActivityType::Log => a.completed_at.clone().unwrap_or_else(|| a.created_at.clone()),
+                ActivityType::Log => a
+                    .completed_at
+                    .clone()
+                    .unwrap_or_else(|| a.created_at.clone()),
                 ActivityType::Task => a.due_date.clone().unwrap_or_else(|| a.created_at.clone()),
                 ActivityType::Event => a.due_date.clone().unwrap_or_else(|| a.created_at.clone()),
             };
@@ -383,10 +405,15 @@ pub fn CrmTimelineGeneric(
         match act_type {
             ActivityType::Log => {
                 let t = title.to_lowercase();
-                if t.contains("call") { "call" }
-                else if t.contains("meeting") { "calendar_today" }
-                else if t.contains("email") { "mail" }
-                else { "chat_bubble" }
+                if t.contains("call") {
+                    "call"
+                } else if t.contains("meeting") {
+                    "calendar_today"
+                } else if t.contains("email") {
+                    "mail"
+                } else {
+                    "chat_bubble"
+                }
             }
             ActivityType::Task => "task_alt",
             ActivityType::Event => "celebration",
@@ -397,10 +424,15 @@ pub fn CrmTimelineGeneric(
         match act_type {
             ActivityType::Log => {
                 let t = title.to_lowercase();
-                if t.contains("call") { "bg-blue-500/10 text-blue-500 border-blue-500/30" }
-                else if t.contains("meeting") { "bg-indigo-500/10 text-indigo-500 border-indigo-500/30" }
-                else if t.contains("email") { "bg-purple-500/10 text-purple-500 border-purple-500/30" }
-                else { "bg-slate-500/10 text-slate-500 border-slate-500/30" }
+                if t.contains("call") {
+                    "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                } else if t.contains("meeting") {
+                    "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
+                } else if t.contains("email") {
+                    "bg-purple-500/10 text-purple-500 border-purple-500/30"
+                } else {
+                    "bg-slate-500/10 text-slate-500 border-slate-500/30"
+                }
             }
             ActivityType::Task => "bg-orange-500/10 text-orange-500 border-orange-500/30",
             ActivityType::Event => "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
@@ -464,7 +496,7 @@ pub fn CrmTimelineGeneric(
                     <form on:submit=submit_note class="space-y-4">
                         <div class="flex justify-between items-center">
                             <label class="block text-[10px] jetbrains uppercase text-outline">"Note Content"</label>
-                            
+
                             // Privacy Toggle lock icon
                             <button
                                 type="button"
@@ -732,10 +764,10 @@ pub fn CrmTimelineGeneric(
                                 let created_at = note.created_at.clone();
                                 let content = note.content.clone();
                                 let files = note.files.clone();
-                                
+
                                 let files_for_show = files.clone();
                                 let files_for_map = files.clone();
-                                
+
                                 view! {
                                     <div class="relative group">
                                         // Bullet circle icon
@@ -764,7 +796,7 @@ pub fn CrmTimelineGeneric(
                                                 </div>
                                             </div>
                                             <p class="text-sm text-on-surface whitespace-pre-wrap leading-relaxed">{content.clone()}</p>
-                                            
+
                                             // Associated Files list
                                             <Show when=move || !files_for_show.is_empty()>
                                                 <div class="mt-3 flex flex-wrap gap-2 border-t border-outline-variant/20 pt-2">
@@ -801,7 +833,7 @@ pub fn CrmTimelineGeneric(
                                 let due_date = act.due_date.clone();
                                 let created_at = act.created_at.clone();
                                 let files = act.files.clone();
-                                
+
                                 let is_completed = status == ActivityStatus::Completed;
                                 let icon = get_activity_icon(&act_type, &title);
                                 let icon_color = get_activity_icon_color(&act_type, &title);
@@ -810,7 +842,7 @@ pub fn CrmTimelineGeneric(
                                     ActivityType::Task => "TASK".to_string(),
                                     ActivityType::Event => "EVENT".to_string(),
                                 };
-                                
+
                                 let display_time = match act_type {
                                     ActivityType::Log => completed_at.clone().unwrap_or_else(|| created_at.clone()),
                                     ActivityType::Task => due_date.clone().unwrap_or_else(|| created_at.clone()),
@@ -843,7 +875,7 @@ pub fn CrmTimelineGeneric(
                                                     <span class="text-xs font-bold text-secondary-container text-secondary jetbrains uppercase tracking-wide">
                                                         {label}
                                                     </span>
-                                                    
+
                                                     // Task completion check checkbox
                                                     <Show when={
                                                         let act_type = act_type_for_show.clone();

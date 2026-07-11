@@ -37,8 +37,16 @@ impl Country {
         ]
     }
 
-    pub fn name(&self) -> &'static str { "Unknown" }
-    pub fn alpha2(&self) -> &'static str { "UN" }
-    pub fn dial_code_formatted(&self) -> &'static str { "+00" }
-    pub fn flag_emoji(&self) -> &'static str { "🏳️" }
+    pub fn name(&self) -> &'static str {
+        "Unknown"
+    }
+    pub fn alpha2(&self) -> &'static str {
+        "UN"
+    }
+    pub fn dial_code_formatted(&self) -> &'static str {
+        "+00"
+    }
+    pub fn flag_emoji(&self) -> &'static str {
+        "🏳️"
+    }
 }

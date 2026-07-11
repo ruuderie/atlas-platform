@@ -1,6 +1,6 @@
-use leptos::prelude::*;
 use crate::components::card::Card;
 use crate::components::ui::button::{Button, ButtonVariant};
+use leptos::prelude::*;
 
 #[component]
 pub fn RelatedList(

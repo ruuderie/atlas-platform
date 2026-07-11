@@ -18,8 +18,10 @@ pub fn ButtonAction(
 ) -> impl IntoView {
     let press_hold = use_press_hold(duration_ms, on_complete, disabled);
 
-    let button_class =
-        tw_merge!("relative overflow-hidden select-none active:scale-[0.99] transition-transform", class);
+    let button_class = tw_merge!(
+        "relative overflow-hidden select-none active:scale-[0.99] transition-transform",
+        class
+    );
 
     let progress_style = move || {
         let width_percent = press_hold.progress_signal.get() * 100.0;
@@ -29,7 +31,11 @@ pub fn ButtonAction(
     };
 
     let wrapper_class = move || {
-        if disabled.get() { "pointer-events-none opacity-50" } else { "" }
+        if disabled.get() {
+            "pointer-events-none opacity-50"
+        } else {
+            ""
+        }
     };
 
     let ph1 = press_hold.clone();

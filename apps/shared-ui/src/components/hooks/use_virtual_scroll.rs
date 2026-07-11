@@ -53,7 +53,10 @@ pub fn use_virtual_scroll_context() -> Option<VirtualScrollState> {
 ///     children=move |i| { ... }
 /// />
 /// ```
-pub fn use_virtual_scroll(container_ref: NodeRef<html::Div>, total_rows: Signal<usize>) -> VirtualScrollState {
+pub fn use_virtual_scroll(
+    container_ref: NodeRef<html::Div>,
+    total_rows: Signal<usize>,
+) -> VirtualScrollState {
     let scroll_top_signal = RwSignal::new(0usize);
     let container_height_signal = RwSignal::new(600usize); // Default height
 
@@ -105,7 +108,10 @@ pub fn use_virtual_scroll(container_ref: NodeRef<html::Div>, total_rows: Signal<
                 }
             }) as Box<dyn Fn()>);
 
-            let _ = el.add_event_listener_with_callback("scroll", scroll_handler.as_ref().unchecked_ref());
+            let _ = el.add_event_listener_with_callback(
+                "scroll",
+                scroll_handler.as_ref().unchecked_ref(),
+            );
 
             // Keep the closure alive - it will check is_mounted before accessing signals
             scroll_handler.forget();
@@ -132,5 +138,9 @@ pub fn use_virtual_scroll(container_ref: NodeRef<html::Div>, total_rows: Signal<
 
     let total_height = Signal::derive(move || total_rows.get() * PAGINATION::ROW_HEIGHT);
 
-    VirtualScrollState { start_index, end_index, total_height }
+    VirtualScrollState {
+        start_index,
+        end_index,
+        total_height,
+    }
 }

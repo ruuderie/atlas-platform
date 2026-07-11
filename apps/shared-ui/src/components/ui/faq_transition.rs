@@ -33,7 +33,10 @@ pub fn FaqLabel(
     #[prop(into)] for_attr: &'static str,
     children: Children,
 ) -> impl IntoView {
-    let merged_class = tw_merge!("flex justify-between items-center py-2 px-4 mt-2 w-full cursor-pointer", class);
+    let merged_class = tw_merge!(
+        "flex justify-between items-center py-2 px-4 mt-2 w-full cursor-pointer",
+        class
+    );
 
     view! {
         <label class=merged_class for=for_attr>

@@ -18,7 +18,10 @@ pub fn InputOTP(
 ) -> impl IntoView {
     let id = use_random_id();
     let container_id = format!("otp_{}", id);
-    let class = tw_merge!("relative flex items-center gap-2 has-[:disabled]:opacity-50", class);
+    let class = tw_merge!(
+        "relative flex items-center gap-2 has-[:disabled]:opacity-50",
+        class
+    );
 
     view! {
         <div data-slot="input-otp" data-otp-root="" id=container_id class=class>
@@ -81,7 +84,10 @@ pub fn InputOTPSlot(
 
 #[component]
 pub fn InputOTPSeparator(#[prop(optional, into)] class: String) -> impl IntoView {
-    let class = tw_merge!("flex items-center justify-center text-muted-foreground", class);
+    let class = tw_merge!(
+        "flex items-center justify-center text-muted-foreground",
+        class
+    );
     view! {
         <div data-slot="input-otp-separator" role="separator" class=class>
             <Minus class="size-4" />

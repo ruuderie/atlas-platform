@@ -44,7 +44,10 @@ pub enum MaskSide {
 
 #[derive(TwVariant)]
 pub enum MaskColor {
-    #[tw(default, class = "from-pink-500 to-violet-500 dark:from-purple-700 dark:to-indigo-700")]
+    #[tw(
+        default,
+        class = "from-pink-500 to-violet-500 dark:from-purple-700 dark:to-indigo-700"
+    )]
     Pink,
 }
 

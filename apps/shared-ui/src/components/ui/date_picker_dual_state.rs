@@ -12,7 +12,10 @@ pub struct DatePickerDualState {
 
 impl DatePickerDualState {
     pub fn new(start_date: Date, end_date: Date) -> Self {
-        Self { start_date, end_date }
+        Self {
+            start_date,
+            end_date,
+        }
     }
 
     /// Create a new state from URL parameters with fallback defaults
@@ -55,7 +58,9 @@ impl DatePickerDualState {
             return;
         }
 
-        let Some(new_date) = Date::from_calendar_date(year, month, day).ok() else { return };
+        let Some(new_date) = Date::from_calendar_date(year, month, day).ok() else {
+            return;
+        };
 
         // If clicking before or at start date, set as new start
         // Otherwise set as end date
@@ -81,7 +86,9 @@ impl DatePickerDualState {
 
     /// Calculates calendar data for the date picker
     pub fn calculate_calendar_data(year: i32, month: Month) -> Vec<(u8, Month, i32, bool, bool)> {
-        let Some(first_day) = Date::from_calendar_date(year, month, 1).ok() else { return vec![] };
+        let Some(first_day) = Date::from_calendar_date(year, month, 1).ok() else {
+            return vec![];
+        };
         let first_weekday = first_day.weekday().number_from_sunday() as usize - 1;
 
         let (prev_month_val, prev_year_val) = DateUtils::prev_month_year(month, year);

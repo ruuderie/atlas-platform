@@ -23,7 +23,10 @@ pub fn Animate(
     children: Children,
 ) -> impl IntoView {
     let merged_class = move || {
-        let animate = Animate { variant: variant.get(), hover_variant: hover_variant.get() };
+        let animate = Animate {
+            variant: variant.get(),
+            hover_variant: hover_variant.get(),
+        };
         animate.with_class(class.clone())
     };
 
@@ -52,7 +55,10 @@ pub fn AnimateGroupItem(
     children: Children,
 ) -> impl IntoView {
     let merged_class = move || {
-        let animate = Animate { variant: variant.get(), hover_variant: hover_variant.get() };
+        let animate = Animate {
+            variant: variant.get(),
+            hover_variant: hover_variant.get(),
+        };
         animate.with_class(class.clone())
     };
 

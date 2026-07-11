@@ -26,7 +26,10 @@ pub use components::*;
 
 #[component]
 pub fn MenubarShortcut(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
-    let class = tw_merge!("ml-auto text-xs tracking-widest text-muted-foreground", class);
+    let class = tw_merge!(
+        "ml-auto text-xs tracking-widest text-muted-foreground",
+        class
+    );
     view! {
         <span data-slot="menubar-shortcut" class=class>
             {children()}
@@ -96,7 +99,9 @@ pub fn MenubarRadioGroup<T>(children: Children, value: RwSignal<T>) -> impl Into
 where
     T: Clone + PartialEq + Send + Sync + 'static,
 {
-    let ctx = MenubarRadioContext { value_signal: value };
+    let ctx = MenubarRadioContext {
+        value_signal: value,
+    };
 
     view! {
         <Provider value=ctx>
@@ -108,7 +113,11 @@ where
 }
 
 #[component]
-pub fn MenubarRadioItem<T>(children: Children, value: T, #[prop(optional, into)] class: String) -> impl IntoView
+pub fn MenubarRadioItem<T>(
+    children: Children,
+    value: T,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView
 where
     T: Clone + PartialEq + Send + Sync + 'static,
 {
@@ -151,9 +160,14 @@ struct MenubarContext {
 #[component]
 pub fn Menubar(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
     let menubar_id = use_random_id_for("menubar");
-    let ctx = MenubarContext { menubar_id: menubar_id.clone() };
+    let ctx = MenubarContext {
+        menubar_id: menubar_id.clone(),
+    };
 
-    let class = tw_merge!("flex h-8 items-center gap-0.5 rounded-lg border bg-background p-[3px]", class);
+    let class = tw_merge!(
+        "flex h-8 items-center gap-0.5 rounded-lg border bg-background p-[3px]",
+        class
+    );
 
     view! {
         <Provider value=ctx>
@@ -203,7 +217,10 @@ pub fn MenubarMenu(children: Children) -> impl IntoView {
     let menubar_ctx = expect_context::<MenubarContext>();
     let menu_id = use_random_id_for("menubarmenu");
 
-    let ctx = MenubarMenuContext { menu_id, menubar_id: menubar_ctx.menubar_id };
+    let ctx = MenubarMenuContext {
+        menu_id,
+        menubar_id: menubar_ctx.menubar_id,
+    };
 
     view! {
         <Provider value=ctx>
@@ -425,7 +442,10 @@ pub fn MenubarSub(children: Children) -> impl IntoView {
 }
 
 #[component]
-pub fn MenubarSubTrigger(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn MenubarSubTrigger(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let class = tw_merge!("flex items-center justify-between w-full", class);
 
     view! {

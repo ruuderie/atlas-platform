@@ -12,7 +12,10 @@ pub fn close_context_menu() {
     let Some(document) = window().document() else {
         return;
     };
-    let Some(menu) = document.query_selector("[data-target='target__context'][data-state='open']").ok().flatten()
+    let Some(menu) = document
+        .query_selector("[data-target='target__context'][data-state='open']")
+        .ok()
+        .flatten()
     else {
         return;
     };
@@ -87,7 +90,9 @@ struct ContextMenuContext {
 pub fn ContextMenu(children: Children) -> impl IntoView {
     let context_target_id = use_random_id_for("context");
 
-    let ctx = ContextMenuContext { target_id: context_target_id };
+    let ctx = ContextMenuContext {
+        target_id: context_target_id,
+    };
 
     view! {
         <Provider value=ctx>
@@ -340,7 +345,10 @@ pub fn ContextMenuSub(children: Children) -> impl IntoView {
 }
 
 #[component]
-pub fn ContextMenuSubTrigger(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn ContextMenuSubTrigger(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let class = tw_merge!("flex items-center justify-between w-full", class);
 
     view! {
@@ -352,7 +360,10 @@ pub fn ContextMenuSubTrigger(children: Children, #[prop(optional, into)] class: 
 }
 
 #[component]
-pub fn ContextMenuSubItem(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn ContextMenuSubItem(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let class = tw_merge!(
         "inline-flex gap-2 items-center w-full rounded-sm px-3 py-2 text-sm transition-all duration-150 ease text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer hover:translate-x-[2px]",
         class

@@ -6,10 +6,16 @@ use serde_json;
 use validator::Validate;
 
 /// Trait alias for types that can be used with forms
-pub trait FormData: Validate + Clone + Default + Serialize + for<'de> Deserialize<'de> + 'static {}
+pub trait FormData:
+    Validate + Clone + Default + Serialize + for<'de> Deserialize<'de> + 'static
+{
+}
 
 /// Blanket implementation for all types that satisfy the bounds
-impl<T> FormData for T where T: Validate + Clone + Default + Serialize + for<'de> Deserialize<'de> + 'static {}
+impl<T> FormData for T where
+    T: Validate + Clone + Default + Serialize + for<'de> Deserialize<'de> + 'static
+{
+}
 
 /// Type alias for form field value setter function
 pub type SetValueFn = Box<dyn Fn(&str, String) + Send + Sync>;
@@ -48,7 +54,11 @@ where
     T: FormData,
 {
     pub fn value(&self, field: &str) -> String {
-        self.values_signal.get().get(field).cloned().unwrap_or_default()
+        self.values_signal
+            .get()
+            .get(field)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn error(&self, field: &str) -> Option<String> {
@@ -97,12 +107,20 @@ where
     fn validate_field(&self, field: &str) -> Option<String> {
         let data = self.map_to_struct(&self.values_signal.get())?;
 
-        data.validate().err()?.field_errors().get(field)?.first()?.message.as_ref().map(|m| m.to_string())
+        data.validate()
+            .err()?
+            .field_errors()
+            .get(field)?
+            .first()?
+            .message
+            .as_ref()
+            .map(|m| m.to_string())
     }
 
     fn map_to_struct(&self, values: &HashMap<String, String>) -> Option<T> {
         let default_value = serde_json::to_value(T::default()).ok()?;
-        let mut default_map: HashMap<String, serde_json::Value> = serde_json::from_value(default_value).ok()?;
+        let mut default_map: HashMap<String, serde_json::Value> =
+            serde_json::from_value(default_value).ok()?;
 
         for (key, value) in values {
             // Skip empty values - keep the default value from the struct

@@ -21,8 +21,8 @@ where
 {
     Effect::new(move |_| {
         let callback = on_click_outside.clone();
-        let handler =
-            wasm_bindgen::closure::Closure::<dyn Fn(web_sys::MouseEvent)>::new(move |ev: web_sys::MouseEvent| {
+        let handler = wasm_bindgen::closure::Closure::<dyn Fn(web_sys::MouseEvent)>::new(
+            move |ev: web_sys::MouseEvent| {
                 // Use try_get_untracked() since we're in an event handler, not a reactive context
                 if let Some(Some(element)) = node_ref.try_get_untracked()
                     && let Some(target) = ev.target()
@@ -31,10 +31,12 @@ where
                 {
                     callback();
                 }
-            });
+            },
+        );
 
         if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-            let _ = document.add_event_listener_with_callback("mousedown", handler.as_ref().unchecked_ref());
+            let _ = document
+                .add_event_listener_with_callback("mousedown", handler.as_ref().unchecked_ref());
         }
 
         // Keep the closure alive for the lifetime of the component

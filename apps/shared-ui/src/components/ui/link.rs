@@ -42,7 +42,11 @@ pub fn Link(
     };
 
     let class_with_active = move |path_segment: &str| -> String {
-        let active_styles = if is_active(path_segment) { "font-semibold" } else { "" };
+        let active_styles = if is_active(path_segment) {
+            "font-semibold"
+        } else {
+            ""
+        };
         tw_merge!(&class, active_styles)
     };
 

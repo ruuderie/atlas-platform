@@ -60,7 +60,15 @@ pub fn AutoForm<T>(
     children: Option<Children>,
 ) -> impl IntoView
 where
-    T: AutoFormFields + Validate + Clone + Default + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static,
+    T: AutoFormFields
+        + Validate
+        + Clone
+        + Default
+        + Serialize
+        + for<'de> Deserialize<'de>
+        + Send
+        + Sync
+        + 'static,
 {
     let merged_class = tw_merge!("max-w-md", class);
 
@@ -141,20 +149,32 @@ pub fn FormTextarea(
 
 /// Form checkbox component that integrates with the form context.
 #[component]
-pub fn FormCheckbox(#[prop(into, optional)] class: String, #[prop(into)] label: String) -> impl IntoView {
+pub fn FormCheckbox(
+    #[prop(into, optional)] class: String,
+    #[prop(into)] label: String,
+) -> impl IntoView {
     let field_name = expect_context::<FieldContext>().name;
     let form_ctx = expect_context::<FormContext>();
 
     // Get the current checked state from form values
     let checked = Signal::derive({
         let field_name = field_name.clone();
-        move || form_ctx.values_signal.get().get(&field_name).map(|v| v == "true").unwrap_or(false)
+        move || {
+            form_ctx
+                .values_signal
+                .get()
+                .get(&field_name)
+                .map(|v| v == "true")
+                .unwrap_or(false)
+        }
     });
 
     let on_change = {
         let field_name = field_name.clone();
         Callback::new(move |new_value: bool| {
-            form_ctx.set_value.with_value(|f| f(&field_name, new_value.to_string()));
+            form_ctx
+                .set_value
+                .with_value(|f| f(&field_name, new_value.to_string()));
         })
     };
 
@@ -172,14 +192,24 @@ pub fn FormCheckbox(#[prop(into, optional)] class: String, #[prop(into)] label: 
 
 /// Form switch component that integrates with the form context.
 #[component]
-pub fn FormSwitch(#[prop(into, optional)] class: String, #[prop(into)] label: String) -> impl IntoView {
+pub fn FormSwitch(
+    #[prop(into, optional)] class: String,
+    #[prop(into)] label: String,
+) -> impl IntoView {
     let field_name = expect_context::<FieldContext>().name;
     let form_ctx = expect_context::<FormContext>();
 
     // Get the current checked state from form values
     let checked = {
         let field_name = field_name.clone();
-        move || form_ctx.values_signal.get().get(&field_name).map(|v| v == "true").unwrap_or(false)
+        move || {
+            form_ctx
+                .values_signal
+                .get()
+                .get(&field_name)
+                .map(|v| v == "true")
+                .unwrap_or(false)
+        }
     };
 
     let handle_change = {
@@ -187,7 +217,9 @@ pub fn FormSwitch(#[prop(into, optional)] class: String, #[prop(into)] label: St
         move |ev: leptos::ev::Event| {
             let target = event_target::<web_sys::HtmlInputElement>(&ev);
             let new_value = target.checked();
-            form_ctx.set_value.with_value(|f| f(&field_name, new_value.to_string()));
+            form_ctx
+                .set_value
+                .with_value(|f| f(&field_name, new_value.to_string()));
         }
     };
 

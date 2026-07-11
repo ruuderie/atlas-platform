@@ -42,10 +42,14 @@ pub fn SonnerTrigger(
     let variant_classes = match variant {
         ToastType::Default => "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
         ToastType::Success => "bg-success text-success-foreground hover:bg-success/90",
-        ToastType::Error => "bg-destructive text-white shadow-xs hover:bg-destructive/90 dark:bg-destructive/60",
+        ToastType::Error => {
+            "bg-destructive text-white shadow-xs hover:bg-destructive/90 dark:bg-destructive/60"
+        }
         ToastType::Warning => "bg-warning text-warning-foreground hover:bg-warning/90",
         ToastType::Info => "bg-info text-info-foreground shadow-xs hover:bg-info/90",
-        ToastType::Loading => "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ToastType::Loading => {
+            "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80"
+        }
     };
 
     let merged_class = tw_merge!(
@@ -55,7 +59,11 @@ pub fn SonnerTrigger(
     );
 
     // Only set position attribute if not empty
-    let position_attr = if position.is_empty() { None } else { Some(position) };
+    let position_attr = if position.is_empty() {
+        None
+    } else {
+        Some(position)
+    };
 
     view! {
         <button
@@ -119,10 +127,14 @@ pub fn SonnerList(
 }
 
 #[component]
-pub fn SonnerToaster(#[prop(default = SonnerPosition::default())] position: SonnerPosition) -> impl IntoView {
+pub fn SonnerToaster(
+    #[prop(default = SonnerPosition::default())] position: SonnerPosition,
+) -> impl IntoView {
     // Auto-derive direction from position
     let direction = match position {
-        SonnerPosition::TopLeft | SonnerPosition::TopCenter | SonnerPosition::TopRight => SonnerDirection::TopDown,
+        SonnerPosition::TopLeft | SonnerPosition::TopCenter | SonnerPosition::TopRight => {
+            SonnerDirection::TopDown
+        }
         _ => SonnerDirection::BottomUp,
     };
 

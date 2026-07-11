@@ -7,13 +7,15 @@ pub struct PhoneNumber {
 
 impl PhoneNumber {
     pub fn new(val: &str, _max_digits: usize) -> Self {
-        Self { value: val.to_string() }
+        Self {
+            value: val.to_string(),
+        }
     }
-    
+
     pub fn format(&self, _country: crate::utils::country::Country) -> String {
         self.value.clone()
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.value.is_empty()
     }
@@ -33,7 +35,7 @@ impl PhoneFormat {
     pub fn for_country(_country: crate::utils::country::Country) -> Self {
         Self { max_digits: 15 }
     }
-    
+
     pub fn placeholder(&self) -> &'static str {
         "+1 (555) 555-5555"
     }

@@ -71,7 +71,9 @@ impl UseLocks {
     /// Initialize and provide as context. No params are locked by default.
     #[must_use]
     pub fn init() -> Self {
-        let hook = Self { locks: RwSignal::new(HashSet::new()) };
+        let hook = Self {
+            locks: RwSignal::new(HashSet::new()),
+        };
         provide_context(hook);
         hook
     }

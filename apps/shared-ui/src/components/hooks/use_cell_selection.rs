@@ -96,5 +96,9 @@ pub fn use_cell_selection<C: DataGridColumn>() -> UseCellSelection<C> {
     let context_menu_cell_signal = RwSignal::new(None);
     let context_menu_reopening_signal = RwSignal::new(false);
 
-    UseCellSelection { active_cell_signal, context_menu_cell_signal, context_menu_reopening_signal }
+    UseCellSelection {
+        active_cell_signal,
+        context_menu_cell_signal,
+        context_menu_reopening_signal,
+    }
 }

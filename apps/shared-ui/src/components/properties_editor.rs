@@ -1,10 +1,8 @@
 use leptos::prelude::*;
-use serde_json::{Value, Map};
+use serde_json::{Map, Value};
 
 #[component]
-pub fn PropertiesEditor(
-    #[prop(into)] properties: RwSignal<Option<Value>>,
-) -> impl IntoView {
+pub fn PropertiesEditor(#[prop(into)] properties: RwSignal<Option<Value>>) -> impl IntoView {
     // Convert Value to Vec<(usize, String, String)> for easy iteration and reactivity
     let (pairs, set_pairs) = signal(Vec::<(usize, String, String)>::new());
     let (next_id, set_next_id) = signal(0usize);
@@ -40,7 +38,7 @@ pub fn PropertiesEditor(
         let mut map = Map::new();
         for (_, k, v) in current_pairs {
             if !k.is_empty() {
-                // parse value dynamically 
+                // parse value dynamically
                 let parsed_val = if v == "true" {
                     Value::Bool(true)
                 } else if v == "false" {
@@ -93,16 +91,16 @@ pub fn PropertiesEditor(
         <div class="space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-sm font-medium text-gray-900">"Custom Properties"</h3>
-                <button 
-                    type="button" 
-                    on:click=add_field 
+                <button
+                    type="button"
+                    on:click=add_field
                     class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                     <span class="material-symbols-outlined text-sm mr-1">"add"</span>
                     "Add Property"
                 </button>
             </div>
-            
+
             <div class="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-3">
                 <For
                     each=move || pairs.get()
@@ -111,25 +109,25 @@ pub fn PropertiesEditor(
                         view! {
                             <div class="flex items-center space-x-2">
                                 <div class="w-1/3">
-                                    <input 
-                                        type="text" 
-                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" 
+                                    <input
+                                        type="text"
+                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
                                         placeholder="Property Key"
                                         prop:value=key.clone()
                                         on:input=move |ev| update_key(id, event_target_value(&ev))
                                     />
                                 </div>
                                 <div class="w-1/2">
-                                    <input 
-                                        type="text" 
-                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" 
+                                    <input
+                                        type="text"
+                                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
                                         placeholder="Property Value"
                                         prop:value=val.clone()
                                         on:input=move |ev| update_val(id, event_target_value(&ev))
                                     />
                                 </div>
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     on:click=move |_| remove_field(id)
                                     class="p-1 text-gray-400 hover:text-red-500 transition-colors"
                                 >
@@ -139,7 +137,7 @@ pub fn PropertiesEditor(
                         }
                     }
                 />
-                
+
                 <Show when=move || pairs.get().is_empty()>
                     <div class="text-center py-4 text-sm text-gray-500">
                         "No custom properties defined. Click 'Add Property' to add one."

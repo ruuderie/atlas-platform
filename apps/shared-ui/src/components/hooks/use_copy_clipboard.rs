@@ -29,8 +29,10 @@ pub fn use_copy_clipboard(timeout_ms: Option<i32>) -> (impl Fn(&str) + Clone, Re
                 let closure = Closure::once_into_js(move || {
                     let _ = copied_clone.try_set(false);
                 });
-                let _ = window
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), timeout);
+                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    closure.as_ref().unchecked_ref(),
+                    timeout,
+                );
             }
         }
     };

@@ -68,7 +68,10 @@ pub fn SidenavWrapper(
     let open = RwSignal::new(default_open);
     provide_context(SidenavContext { open });
 
-    let merged_class = tw_merge!("group/sidenav-wrapper has-data-[variant=Inset]:bg-sidenav flex h-full w-full", class);
+    let merged_class = tw_merge!(
+        "group/sidenav-wrapper has-data-[variant=Inset]:bg-sidenav flex h-full w-full",
+        class
+    );
 
     view! {
         <div class=merged_class data-name="SidenavWrapper">
@@ -166,8 +169,9 @@ pub fn Sidenav(
 ) -> impl IntoView {
     let ctx = use_context::<SidenavContext>();
     // Context signal takes priority; falls back to static prop (JS can still mutate data-state directly)
-    let is_open: Signal<bool> =
-        ctx.map(|c| c.open.into()).unwrap_or_else(|| Signal::derive(move || data_state == SidenavState::Expanded));
+    let is_open: Signal<bool> = ctx
+        .map(|c| c.open.into())
+        .unwrap_or_else(|| Signal::derive(move || data_state == SidenavState::Expanded));
 
     view! {
         {if data_collapsible == SidenavCollapsible::None {

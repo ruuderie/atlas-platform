@@ -31,7 +31,7 @@ impl Lang {
             "pt" => Lang::Pt,
             "es" => Lang::Es,
             "fr" => Lang::Fr,
-            _    => Lang::En,
+            _ => Lang::En,
         }
     }
 
@@ -79,13 +79,12 @@ impl Lang {
     /// Used as a geo fallback when no `folio_lang` cookie is set.
     pub fn from_country(country_code: &str) -> Self {
         match country_code {
-            "BR"                                             => Lang::Pt,
-            "MX" | "CO" | "AR" | "CL" | "PE" | "EC"
-            | "VE" | "UY" | "PY" | "BO" | "GT" | "HN"
-            | "SV" | "NI" | "CR" | "PA" | "DO" | "CU"     => Lang::Es,
+            "BR" => Lang::Pt,
+            "MX" | "CO" | "AR" | "CL" | "PE" | "EC" | "VE" | "UY" | "PY" | "BO" | "GT" | "HN"
+            | "SV" | "NI" | "CR" | "PA" | "DO" | "CU" => Lang::Es,
             // Quebec detection requires city-level data; default CA to EN for now.
             // When FR translations are ready: match "CA" with city "Quebec City" etc.
-            _                                               => Lang::En,
+            _ => Lang::En,
         }
     }
 
@@ -192,7 +191,7 @@ pub fn LanguageSwitcher(
     #[prop(default = "en".to_string())]
     current_lang: String,
 ) -> impl IntoView {
-    let open    = RwSignal::new(false);
+    let open = RwSignal::new(false);
     let current = Lang::from_code(&current_lang);
 
     view! {

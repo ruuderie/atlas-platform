@@ -26,7 +26,7 @@ pub fn CrmTimeline(
     let (note_text, set_note_text) = signal(String::new());
     let (activity_type, set_activity_type) = signal("call".to_string());
     let (activity_desc, set_activity_desc) = signal(String::new());
-    
+
     let (active_tab, set_active_tab) = signal("note"); // "note" or "activity"
 
     let submit_note = move |ev: web_sys::SubmitEvent| {

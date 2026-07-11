@@ -29,7 +29,13 @@ pub fn Switch(
         is_checked.set(val);
     });
 
-    let state = move || if is_checked.get() { "checked" } else { "unchecked" };
+    let state = move || {
+        if is_checked.get() {
+            "checked"
+        } else {
+            "unchecked"
+        }
+    };
 
     let variant_for_class = variant.clone();
     let variant_for_thumb = variant.clone();

@@ -32,8 +32,10 @@ pub fn FieldLegend(
         FieldLegendVariant::Label => "label",
     };
 
-    let merged_class =
-        tw_merge!("mb-3 font-medium data-[variant=legend]:text-base data-[variant=label]:text-sm", class);
+    let merged_class = tw_merge!(
+        "mb-3 font-medium data-[variant=legend]:text-base data-[variant=label]:text-sm",
+        class
+    );
 
     view! {
         <legend attr:data-slot="field-legend" attr:data-variant=variant_attr class=merged_class>
@@ -92,7 +94,10 @@ pub fn FieldSeparator(
 ) -> impl IntoView {
     let has_content = children.is_some();
 
-    let merged_class = tw_merge!("relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2", class);
+    let merged_class = tw_merge!(
+        "relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2",
+        class
+    );
 
     view! {
         <div attr:data-slot="field-separator" attr:data-content=has_content.to_string() class=merged_class>

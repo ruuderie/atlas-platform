@@ -6,11 +6,11 @@ impl DateUtils {
     pub fn parse_from_url(_s: Option<String>) -> Option<Date> {
         None
     }
-    
+
     pub fn prev_month_year(_month: Month, year: i32) -> (Month, i32) {
         (Month::January, year)
     }
-    
+
     pub fn next_month_year(_month: Month, year: i32) -> (Month, i32) {
         (Month::February, year)
     }

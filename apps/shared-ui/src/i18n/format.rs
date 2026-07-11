@@ -40,14 +40,14 @@ use super::Lang;
 /// ```
 pub fn format_currency(amount: f64, lang: Lang) -> String {
     let (symbol, decimal_sep, thousands_sep) = match lang {
-        Lang::En => ("$",   ".", ","),
+        Lang::En => ("$", ".", ","),
         Lang::Pt => ("R$ ", ",", "."),
-        Lang::Es => ("$",   ".", ","),   // simplified — no per-country currency symbol yet
-        Lang::Fr => ("CA$ ",".", " "),
+        Lang::Es => ("$", ".", ","), // simplified — no per-country currency symbol yet
+        Lang::Fr => ("CA$ ", ".", " "),
     };
 
-    let whole    = amount as u64;
-    let cents    = ((amount - whole as f64) * 100.0).round() as u32;
+    let whole = amount as u64;
+    let cents = ((amount - whole as f64) * 100.0).round() as u32;
     let whole_fmt = format_thousands(whole, thousands_sep);
 
     if cents == 0 {
@@ -82,10 +82,18 @@ fn format_thousands(n: u64, sep: &str) -> String {
 /// format_date_short(2026, 7, 5, Lang::Pt)  // "5 de jul. 2026"
 /// ```
 pub fn format_date_short(year: i32, month: u32, day: u32, lang: Lang) -> String {
-    let months_en = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    let months_pt = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-    let months_es = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-    let months_fr = ["janv","févr","mars","avr","mai","juin","juil","août","sept","oct","nov","déc"];
+    let months_en = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let months_pt = [
+        "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez",
+    ];
+    let months_es = [
+        "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic",
+    ];
+    let months_fr = [
+        "janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc",
+    ];
 
     let m = (month.saturating_sub(1) as usize).min(11);
 

@@ -19,8 +19,8 @@
 //! when a new backend deployment is detected. A spacer `<div class="h-10" />`
 //! is also rendered so content does not sit behind the bar.
 
-use leptos::prelude::*;
 use super::hooks::use_version_check::use_version_check;
+use leptos::prelude::*;
 
 #[component]
 pub fn VersionBanner(

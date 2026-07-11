@@ -8,7 +8,11 @@ pub fn Pressable(children: Children, #[prop(into, optional)] class: String) -> i
 
     let wrapper_class = move || {
         let base = format!("transition-transform {class}");
-        if is_pressed_signal.get() { format!("{base} scale-[0.98]") } else { base }
+        if is_pressed_signal.get() {
+            format!("{base} scale-[0.98]")
+        } else {
+            base
+        }
     };
 
     view! {

@@ -30,10 +30,12 @@ use leptos::prelude::*;
 pub fn ThemeProvider(
     /// The tenant's brand/primary color. Can be a hex string (#2079f7),
     /// an RGB string, or any valid CSS color value.
-    #[prop(into)] primary_color: Signal<String>,
+    #[prop(into)]
+    primary_color: Signal<String>,
     /// Optional: override the primary-foreground color (text on primary bg).
     /// Defaults to white (#ffffff).
-    #[prop(into, optional, default = "#ffffff".to_string())] primary_foreground: String,
+    #[prop(into, optional, default = "#ffffff".to_string())]
+    primary_foreground: String,
     children: Children,
 ) -> impl IntoView {
     let pf = primary_foreground.clone();

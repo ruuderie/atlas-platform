@@ -78,8 +78,10 @@ pub fn FormLegend(
     #[prop(default = FormLegendVariant::Legend)] variant: FormLegendVariant,
     children: Children,
 ) -> impl IntoView {
-    let merged_class =
-        tw_merge!("mb-3 font-medium data-[variant=Legend]:text-base data-[variant=Label]:text-sm", class);
+    let merged_class = tw_merge!(
+        "mb-3 font-medium data-[variant=Legend]:text-base data-[variant=Label]:text-sm",
+        class
+    );
 
     view! {
         <legend data-name="FormLegend" attr:data-variant=variant.to_string() class=merged_class>
@@ -114,7 +116,9 @@ pub fn FormLabel(
     children: Children,
 ) -> impl IntoView {
     let field_name = if html_for.is_empty() {
-        use_context::<FieldContext>().map(|ctx| ctx.name).unwrap_or_default()
+        use_context::<FieldContext>()
+            .map(|ctx| ctx.name)
+            .unwrap_or_default()
     } else {
         html_for
     };
@@ -138,7 +142,10 @@ pub fn FormSeparator(
 ) -> impl IntoView {
     let has_content = children.is_some();
 
-    let merged_class = tw_merge!("relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2", class);
+    let merged_class = tw_merge!(
+        "relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2",
+        class
+    );
 
     view! {
         <div attr:data-name="FormSeparator" attr:data-content=has_content.to_string() class=merged_class>
@@ -271,13 +278,19 @@ pub fn FormError(
 
 #[component]
 pub fn FormField(#[prop(into)] field: String, children: Children) -> impl IntoView {
-    provide_context(FieldContext { name: field.clone() });
+    provide_context(FieldContext {
+        name: field.clone(),
+    });
 
     let ctx = expect_context::<FormContext>();
     // Only show invalid state if field is touched AND has error
     let has_error = move || {
         let is_touched = ctx.touched_signal.get().contains(&field);
-        let has_error = ctx.errors_signal.get().get(&field).is_some_and(|e| e.is_some());
+        let has_error = ctx
+            .errors_signal
+            .get()
+            .get(&field)
+            .is_some_and(|e| e.is_some());
         (is_touched && has_error).then_some("true")
     };
 

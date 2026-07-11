@@ -28,21 +28,32 @@ struct HoverCardContext {
 /* ========================================================== */
 
 #[component]
-pub fn HoverCard(children: Children, #[prop(default = HoverCardSide::default())] side: HoverCardSide) -> impl IntoView {
+pub fn HoverCard(
+    children: Children,
+    #[prop(default = HoverCardSide::default())] side: HoverCardSide,
+) -> impl IntoView {
     let id = use_random_id();
     let anchor_name = format!("--hc_anchor_{}", id);
     let trigger_id = format!("hc_trigger_{}", id);
     let content_id = format!("hc_content_{}", id);
 
     let (position_styles, transform_origin) = match side {
-        HoverCardSide::Bottom => ("position-area: block-end; margin-top: 8px;".to_string(), "center top".to_string()),
-        HoverCardSide::Top => {
-            ("position-area: block-start; margin-bottom: 8px;".to_string(), "center bottom".to_string())
-        }
-        HoverCardSide::Left => {
-            ("position-area: inline-start; margin-right: 8px;".to_string(), "right center".to_string())
-        }
-        HoverCardSide::Right => ("position-area: inline-end; margin-left: 8px;".to_string(), "left center".to_string()),
+        HoverCardSide::Bottom => (
+            "position-area: block-end; margin-top: 8px;".to_string(),
+            "center top".to_string(),
+        ),
+        HoverCardSide::Top => (
+            "position-area: block-start; margin-bottom: 8px;".to_string(),
+            "center bottom".to_string(),
+        ),
+        HoverCardSide::Left => (
+            "position-area: inline-start; margin-right: 8px;".to_string(),
+            "right center".to_string(),
+        ),
+        HoverCardSide::Right => (
+            "position-area: inline-end; margin-left: 8px;".to_string(),
+            "left center".to_string(),
+        ),
     };
 
     let ctx = HoverCardContext {
@@ -123,7 +134,10 @@ pub fn HoverCard(children: Children, #[prop(default = HoverCardSide::default())]
 }
 
 #[component]
-pub fn HoverCardTrigger(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn HoverCardTrigger(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let ctx = expect_context::<HoverCardContext>();
 
     view! {
@@ -138,9 +152,15 @@ pub fn HoverCardTrigger(children: Children, #[prop(optional, into)] class: Strin
 }
 
 #[component]
-pub fn HoverCardContent(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn HoverCardContent(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let ctx = expect_context::<HoverCardContext>();
-    let class = tw_merge!("overflow-visible relative z-50 p-4 rounded-lg border bg-card shadow-md w-64", class);
+    let class = tw_merge!(
+        "overflow-visible relative z-50 p-4 rounded-lg border bg-card shadow-md w-64",
+        class
+    );
 
     view! {
         <div class=class id=ctx.content_id popover="manual">

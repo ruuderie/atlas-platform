@@ -18,7 +18,10 @@ pub struct DatePickerState {
 
 impl DatePickerState {
     pub fn new(start_date: Date, end_date: Date) -> Self {
-        Self { start_date, end_date }
+        Self {
+            start_date,
+            end_date,
+        }
     }
 
     /// Create a new state from URL parameters with fallback defaults
@@ -38,7 +41,11 @@ impl DatePickerState {
 
             // Check if we have both dates from URL and if they're invalid
             let dates_from_url_invalid =
-                if let (Some(s), Some(e)) = (start_date_parsed, end_date_parsed) { s > e } else { false };
+                if let (Some(s), Some(e)) = (start_date_parsed, end_date_parsed) {
+                    s > e
+                } else {
+                    false
+                };
 
             let (start_date, end_date) = if dates_from_url_invalid {
                 // Invalid dates from URL - use defaults and clear query (in browser only)
@@ -47,7 +54,10 @@ impl DatePickerState {
 
                 (default_start, default_end)
             } else {
-                (start_date_parsed.unwrap_or(default_start), end_date_parsed.unwrap_or(default_end))
+                (
+                    start_date_parsed.unwrap_or(default_start),
+                    end_date_parsed.unwrap_or(default_end),
+                )
             };
 
             state_signal.set(Self::new(start_date, end_date));
@@ -58,7 +68,9 @@ impl DatePickerState {
 
     /// Gets calendar days for the given month, including leading/trailing days from adjacent months
     pub fn get_calendar_days(year: i32, month: Month) -> Vec<DatePickerDay> {
-        let Some(first_day) = Date::from_calendar_date(year, month, 1).ok() else { return vec![] };
+        let Some(first_day) = Date::from_calendar_date(year, month, 1).ok() else {
+            return vec![];
+        };
         let first_weekday = first_day.weekday().number_from_monday() as usize - 1;
 
         let (prev_month, prev_year) = DateUtils::prev_month_year(month, year);
@@ -70,18 +82,27 @@ impl DatePickerState {
         // Leading days from previous month
         for i in 0..first_weekday {
             let day = days_in_prev_month - (first_weekday as u8) + (i as u8) + 1;
-            days.push(DatePickerDay { day, disabled: true });
+            days.push(DatePickerDay {
+                day,
+                disabled: true,
+            });
         }
 
         // Days in current month
         for day in 1..=days_in_month {
-            days.push(DatePickerDay { day, disabled: false });
+            days.push(DatePickerDay {
+                day,
+                disabled: false,
+            });
         }
 
         // Trailing days from next month to fill the last week
         let trailing = (7 - days.len() % 7) % 7;
         for day in 1..=trailing as u8 {
-            days.push(DatePickerDay { day, disabled: true });
+            days.push(DatePickerDay {
+                day,
+                disabled: true,
+            });
         }
 
         days

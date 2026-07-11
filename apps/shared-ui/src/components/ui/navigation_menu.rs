@@ -36,8 +36,13 @@ struct NavigationMenuItemContext {
 #[component]
 pub fn NavigationMenu(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
     let menu_id = use_random_id_for("navmenu");
-    let ctx = NavigationMenuContext { menu_id: menu_id.clone() };
-    let class = tw_merge!("relative z-10 flex max-w-max flex-1 items-center justify-center", class);
+    let ctx = NavigationMenuContext {
+        menu_id: menu_id.clone(),
+    };
+    let class = tw_merge!(
+        "relative z-10 flex max-w-max flex-1 items-center justify-center",
+        class
+    );
 
     view! {
         <Provider value=ctx>
@@ -180,8 +185,14 @@ pub fn NavigationMenu(children: Children, #[prop(optional, into)] class: String)
 /* ========================================================== */
 
 #[component]
-pub fn NavigationMenuList(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
-    let class = tw_merge!("group flex flex-1 list-none items-center justify-center gap-1", class);
+pub fn NavigationMenuList(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
+    let class = tw_merge!(
+        "group flex flex-1 list-none items-center justify-center gap-1",
+        class
+    );
 
     view! {
         <ul data-name="NavigationMenuList" class=class>
@@ -214,7 +225,10 @@ pub fn NavigationMenuItem(children: Children) -> impl IntoView {
 /* ========================================================== */
 
 #[component]
-pub fn NavigationMenuTrigger(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn NavigationMenuTrigger(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let item_ctx = expect_context::<NavigationMenuItemContext>();
     let menu_ctx = expect_context::<NavigationMenuContext>();
 
@@ -245,7 +259,10 @@ pub fn NavigationMenuTrigger(children: Children, #[prop(optional, into)] class: 
 /// Absolutely positioned relative to NavigationMenu (not NavigationMenuItem),
 /// so all content panels share the same anchor point below the menu bar.
 #[component]
-pub fn NavigationMenuContent(children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn NavigationMenuContent(
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
     let ctx = expect_context::<NavigationMenuItemContext>();
 
     let class = tw_merge!(
