@@ -9,6 +9,7 @@ pub mod catalog; // Phase 6 — Product catalog, pricebook & availability (G26)
 pub mod commission_plans; // Phase 6 — Commission plan application & splits (G25)
 pub mod comms; // G-07 — Unified communications: rooms, messages, platform_support
 pub mod events; // Phase 6 — Event management, ticketing & check-in (G21)
+pub mod flags; // Feature flag resolution for Folio clients
 pub mod household; // G-22 — Vehicle & occupant registration (lease-scoped, type-safe)
 pub mod invite_codes; // Invite code CRUD + public resolve endpoint for /join/:code flow
 pub mod leads; // Phase 6 — PM-tier lead lifecycle: qualify, convert, disqualify (G31)

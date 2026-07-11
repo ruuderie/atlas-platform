@@ -442,6 +442,26 @@ pub struct UpsertDeploymentsInput {
     pub deployments: Vec<UpsertDeploymentItem>,
 }
 
+// ── Scorecard push (admin-pushed feedback survey) ─────────────────────────────
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ScorecardPushInput {
+    pub template_id: Uuid,
+    pub target_user_ids: Vec<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ScorecardPushResponse {
+    pub session_ids: Vec<Uuid>,
+    pub pushed: usize,
+}
+
 // ── API functions ─────────────────────────────────────────────────────────────
 
 pub async fn list_catalog(is_published: Option<bool>) -> Result<Vec<ScorecardTemplate>, String> {
@@ -717,6 +737,23 @@ pub async fn list_template_deployments(
     api_get(&format!(
         "api/admin/scorecard-templates/{template_id}/deployments"
     ))
+    .await
+}
+
+/// Push a G27 feedback survey to target users on an app instance.
+///
+/// `POST /api/admin/tenants/{tid}/app-instances/{iid}/scorecard-push`
+pub async fn scorecard_push(
+    tenant_id: &str,
+    instance_id: &str,
+    input: &ScorecardPushInput,
+) -> Result<ScorecardPushResponse, String> {
+    api_post(
+        &format!(
+            "api/admin/tenants/{tenant_id}/app-instances/{instance_id}/scorecard-push"
+        ),
+        input,
+    )
     .await
 }
 

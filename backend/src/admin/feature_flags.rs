@@ -4,6 +4,7 @@
 //! - Global on/off toggle with canary rollout percentages (0-100%)
 //! - Plan-gated visibility (Enterprise / Growth / Starter)
 //! - Per-tenant (NI) override grants or denies
+//! - Per-app-instance enablements (grant / deny / inherit)
 //! - Immutable audit trail for every mutation
 //!
 //! # Routes
@@ -32,6 +33,13 @@
 //! DELETE /api/admin/flags/{key}/overrides/{tenant_id}
 //!      Remove a per-tenant override. Writes audit log entry.
 //!      -> 204 No Content
+//!
+//! GET  /api/admin/app-instances/{id}/feature-flags
+//!      Catalog flags with this instance's enablement (or inherit).
+//!
+//! PUT  /api/admin/app-instances/{id}/feature-flags
+//!      Upsert / clear instance enablements.
+//!      Body: { updates: [{ flag_key, effect: grant|deny|null }] }
 //! ```
 
 use axum::{
@@ -49,7 +57,11 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{feature_flag, flag_audit_log, flag_override, user};
+use crate::entities::{
+    app_instance, atlas_flag_instance_enablement, feature_flag, flag_audit_log, flag_override, user,
+};
+use crate::services::audit::AuditService;
+use crate::types::flags::FlagEffect;
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -61,6 +73,10 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
         .route(
             "/api/admin/flags/{key}/overrides/{tenant_id}",
             delete(remove_override),
+        )
+        .route(
+            "/api/admin/app-instances/{id}/feature-flags",
+            get(list_instance_feature_flags).put(update_instance_feature_flags),
         )
 }
 
@@ -166,6 +182,37 @@ pub struct CreateOverrideInput {
     pub changed_by: Option<String>,
 }
 
+/// One catalog flag as seen from an app-instance config surface.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InstanceFlagRow {
+    pub flag_key: String,
+    pub description: String,
+    pub catalog_enabled: bool,
+    pub has_global: bool,
+    pub global_rollout_pct: i32,
+    /// Explicit instance effect, or `null` when inheriting tenant/global resolution.
+    pub effect: Option<FlagEffect>,
+    pub rollout_pct: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InstanceFlagsResponse {
+    pub flags: Vec<InstanceFlagRow>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InstanceFlagUpdateItem {
+    pub flag_key: String,
+    /// `grant` | `deny` to upsert; `null` to clear (inherit).
+    pub effect: Option<FlagEffect>,
+    pub rollout_pct: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateInstanceFlagsInput {
+    pub updates: Vec<InstanceFlagUpdateItem>,
+}
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 
 async fn write_audit(
@@ -229,6 +276,17 @@ async fn load_full_flag(
             .map(FlagAuditLogModel::from)
             .collect(),
     })
+}
+
+async fn require_app_instance(
+    db: &DatabaseConnection,
+    id: Uuid,
+) -> Result<app_instance::Model, StatusCode> {
+    app_instance::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -402,6 +460,26 @@ pub async fn update_flag(
 
     write_audit(&db, flag_id, actor, &action).await?;
 
+    AuditService::log_action(
+        db.clone(),
+        None,
+        Some(current_user.id),
+        "feature_flag.updated".to_string(),
+        "FeatureFlag".to_string(),
+        flag_id,
+        Some(serde_json::json!({
+            "is_enabled": prev_enabled,
+            "global_rollout_pct": prev_rollout,
+        })),
+        Some(serde_json::json!({
+            "is_enabled": new_enabled,
+            "global_rollout_pct": new_rollout,
+            "key": key,
+            "action": action,
+        })),
+        None,
+    );
+
     let model = load_full_flag(&db, flag_id).await?;
     Ok(axum::Json(model))
 }
@@ -426,6 +504,9 @@ pub async fn add_override(
         .clone()
         .unwrap_or_else(|| current_user.email.clone());
 
+    let effect =
+        FlagEffect::try_from(input.override_type.as_str()).map_err(|_| StatusCode::BAD_REQUEST)?;
+
     // Upsert: remove existing override for same tenant if any
     flag_override::Entity::delete_many()
         .filter(flag_override::Column::FlagId.eq(flag_id))
@@ -434,7 +515,7 @@ pub async fn add_override(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let rollout = if input.override_type == "deny" {
+    let rollout = if effect == FlagEffect::Deny {
         0
     } else {
         input.rollout_pct.unwrap_or(100).clamp(0, 100)
@@ -444,7 +525,7 @@ pub async fn add_override(
         id: Set(Uuid::new_v4()),
         flag_id: Set(flag_id),
         tenant_id: Set(input.tenant_id),
-        override_type: Set(input.override_type.clone()),
+        override_type: Set(effect.to_string()),
         rollout_pct: Set(rollout),
         reason: Set(input.reason.clone()),
         jira: Set(input.jira.clone()),
@@ -461,10 +542,9 @@ pub async fn add_override(
         &actor,
         &format!(
             "NI {} added: {} (Reason: {})",
-            if input.override_type == "deny" {
-                "Deny"
-            } else {
-                "Grant"
+            match effect {
+                FlagEffect::Deny => "Deny",
+                FlagEffect::Grant => "Grant",
             },
             input.tenant_id,
             input.reason
@@ -510,4 +590,148 @@ pub async fn remove_override(
     .await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// GET /api/admin/app-instances/{id}/feature-flags
+pub async fn list_instance_feature_flags(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    require_app_instance(&db, id).await?;
+
+    let flags = feature_flag::Entity::find()
+        .order_by_asc(feature_flag::Column::Key)
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let enablements = atlas_flag_instance_enablement::Entity::find()
+        .filter(atlas_flag_instance_enablement::Column::AppInstanceId.eq(id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let by_key: std::collections::HashMap<String, atlas_flag_instance_enablement::Model> =
+        enablements
+            .into_iter()
+            .map(|e| (e.flag_key.clone(), e))
+            .collect();
+
+    let rows: Vec<InstanceFlagRow> = flags
+        .into_iter()
+        .map(|flag| {
+            let en = by_key.get(&flag.key);
+            let effect = en.and_then(|e| FlagEffect::try_from(e.effect.as_str()).ok());
+            InstanceFlagRow {
+                flag_key: flag.key,
+                description: flag.description,
+                catalog_enabled: flag.is_enabled,
+                has_global: flag.has_global,
+                global_rollout_pct: flag.global_rollout_pct,
+                effect,
+                rollout_pct: en.map(|e| e.rollout_pct),
+            }
+        })
+        .collect();
+
+    Ok(axum::Json(InstanceFlagsResponse { flags: rows }))
+}
+
+/// PUT /api/admin/app-instances/{id}/feature-flags
+pub async fn update_instance_feature_flags(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+    Json(input): Json<UpdateInstanceFlagsInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    require_app_instance(&db, id).await?;
+
+    let actor_id = current_user.id;
+    let now = Utc::now();
+
+    for item in &input.updates {
+        let key = item.flag_key.trim();
+        if key.is_empty() {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+
+        // Ensure the key exists in the catalog
+        let flag = feature_flag::Entity::find()
+            .filter(feature_flag::Column::Key.eq(key))
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::BAD_REQUEST)?;
+
+        match item.effect {
+            None => {
+                atlas_flag_instance_enablement::Entity::delete_many()
+                    .filter(atlas_flag_instance_enablement::Column::FlagKey.eq(key))
+                    .filter(atlas_flag_instance_enablement::Column::AppInstanceId.eq(id))
+                    .exec(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                write_audit(
+                    &db,
+                    flag.id,
+                    &current_user.email,
+                    &format!("Instance enablement cleared for {}", id),
+                )
+                .await?;
+            }
+            Some(effect) => {
+                let rollout = if effect == FlagEffect::Deny {
+                    0
+                } else {
+                    item.rollout_pct.unwrap_or(100).clamp(0, 100)
+                };
+
+                let existing = atlas_flag_instance_enablement::Entity::find()
+                    .filter(atlas_flag_instance_enablement::Column::FlagKey.eq(key))
+                    .filter(atlas_flag_instance_enablement::Column::AppInstanceId.eq(id))
+                    .one(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                if let Some(row) = existing {
+                    let mut active: atlas_flag_instance_enablement::ActiveModel = row.into();
+                    active.effect = Set(effect.to_string());
+                    active.rollout_pct = Set(rollout);
+                    active.updated_by = Set(Some(actor_id));
+                    active.updated_at = Set(now);
+                    active
+                        .update(&db)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                } else {
+                    atlas_flag_instance_enablement::ActiveModel {
+                        id: Set(Uuid::new_v4()),
+                        flag_key: Set(key.to_string()),
+                        app_instance_id: Set(id),
+                        effect: Set(effect.to_string()),
+                        rollout_pct: Set(rollout),
+                        updated_by: Set(Some(actor_id)),
+                        created_at: Set(now),
+                        updated_at: Set(now),
+                    }
+                    .insert(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                }
+
+                write_audit(
+                    &db,
+                    flag.id,
+                    &current_user.email,
+                    &format!("Instance {} enablement set to {} for {}", effect, id, key),
+                )
+                .await?;
+            }
+        }
+    }
+
+    // Return refreshed list
+    list_instance_feature_flags(State(db), Extension(current_user), Path(id)).await
 }

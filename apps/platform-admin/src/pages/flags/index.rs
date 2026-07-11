@@ -408,7 +408,7 @@ pub fn FeatureFlags() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <div class="page-title">"Feature Flags"</div>
-                    <div class="page-subtitle">"Flag registry · Each flag may have a Global variant, Plan gate, and per-NI overrides — all managed here"</div>
+                    <div class="page-subtitle">"Global catalog — define keys, kill-switches, rollouts, and tenant overrides. Per-instance grants live on each App Instance → Features tab."</div>
                 </div>
                 <div class="page-actions">
                     <button

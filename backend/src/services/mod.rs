@@ -29,6 +29,7 @@ pub mod tax_service; // GENERIC-17 // GENERIC-18
 // === Platform Generics Round 1 Gap Fills (June 2026) ===
 pub mod ai_task_service; // GENERIC-08
 pub mod external_integration_service; // GENERIC-05
+pub mod flag_service; // Feature flag resolution (instance → tenant → global)
 pub mod geo_service;
 pub mod notification_service; // GENERIC-07 ext: multi-channel notification dispatch
 pub mod program_service; // GENERIC-36: growth/incentive programs

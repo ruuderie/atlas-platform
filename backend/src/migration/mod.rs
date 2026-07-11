@@ -344,6 +344,7 @@ pub mod m20261023_folio_marketing_hero_seeds; // Folio marketing CMS hero overla
 pub mod m20261024_folio_marketing_section_blocks; // Folio marketing CMS section overlay seed payloads
 pub mod m20261025_folio_founding_beta_products; // Folio founding + beta campaign product seeds
 pub mod m20261026_folio_vendor_trade_categories; // Folio vendor trade category CMS overlay seed
+pub mod m20261027_atlas_flag_instance_enablements; // Per-app-instance feature flag enablements
 
 pub struct Migrator;
 
@@ -656,6 +657,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261024_folio_marketing_section_blocks::Migration),
             Box::new(m20261025_folio_founding_beta_products::Migration),
             Box::new(m20261026_folio_vendor_trade_categories::Migration),
+            Box::new(m20261027_atlas_flag_instance_enablements::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

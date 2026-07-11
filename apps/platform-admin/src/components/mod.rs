@@ -2,6 +2,7 @@ pub mod app_manifest;
 pub mod callout;
 pub mod dynamic_form;
 pub mod gtm_process_strip;
+pub mod instance_features_panel;
 pub mod instance_operational_config_panel;
 pub mod instance_programs_panel;
 pub mod instance_syndication_panel;

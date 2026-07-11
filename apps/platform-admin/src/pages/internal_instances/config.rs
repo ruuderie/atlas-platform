@@ -147,12 +147,14 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                 </div>
 
                                 <div class="tab-bar">
-                                    {["overview", "domain", "users", "programs", "deployment", "danger"].map(|tab| {
+                                    {["overview", "domain", "users", "programs", "features", "feedback", "deployment", "danger"].map(|tab| {
                                         let label = match tab {
                                             "overview"   => "Overview",
                                             "domain"     => "Domain & SSL",
                                             "users"      => "Users & Roles",
                                             "programs"   => "Growth programs",
+                                            "features"   => "Features",
+                                            "feedback"   => "Feedback",
                                             "deployment" => "Deployment",
                                             "danger"     => "⚠ Danger Zone",
                                             _            => tab,
@@ -178,6 +180,19 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                             None => view! { <div class="callout">"Invalid instance id — cannot load growth programs."</div> }.into_any(),
                                         }
                                     },
+                                    "features"   => {
+                                        let iid = uuid::Uuid::parse_str(&app.get_value().instance_id).ok();
+                                        match iid {
+                                            Some(id) => view! { <crate::components::instance_features_panel::InstanceFeaturesPanel app_instance_id=id /> }.into_any(),
+                                            None => view! { <div class="callout">"Invalid instance id — cannot load feature flags."</div> }.into_any(),
+                                        }
+                                    },
+                                    "feedback"   => view! {
+                                        <FeedbackTab
+                                            tenant_id=app.get_value().tenant_id.clone()
+                                            instance_id=app.get_value().instance_id.clone()
+                                        />
+                                    }.into_any(),
                                     "deployment" => view! { <DeploymentTab app=app.get_value() /> }.into_any(),
                                     "danger"     => view! { <DangerZoneTab instance_id=app.get_value().instance_id.clone() instance_name=app.get_value().name.clone() /> }.into_any(),
                                     _            => view! { <></> }.into_any(),
@@ -630,6 +645,219 @@ fn UsersTab(tenant_id: String) -> impl IntoView {
                     }
                 }}
             </Suspense>
+        </div>
+    }
+}
+
+// ── Feedback Push ─────────────────────────────────────────────────────────────
+
+#[component]
+fn FeedbackTab(tenant_id: String, instance_id: String) -> impl IntoView {
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
+    let tid = store_value(tenant_id);
+    let iid = store_value(instance_id);
+
+    let selected_template = RwSignal::new(String::new());
+    let selected_users: RwSignal<Vec<String>> = RwSignal::new(Vec::new());
+    let pushing = RwSignal::new(false);
+
+    let deps_res = LocalResource::new(move || {
+        let t = tid.get_value();
+        let i = iid.get_value();
+        async move {
+            crate::api::scorecards::list_instance_deployments(&t, &i)
+                .await
+                .map(|deps| {
+                    deps.into_iter()
+                        .filter(|d| d.is_enabled)
+                        .collect::<Vec<_>>()
+                })
+        }
+    });
+
+    let users_res =
+        LocalResource::new(move || async move { get_tenant_users(&tid.get_value()).await });
+
+    Effect::new(move |_| {
+        if selected_template.get_untracked().is_empty() {
+            if let Some(Ok(deps)) = deps_res.get() {
+                if let Some(d) = deps.first() {
+                    selected_template.set(d.template_id.to_string());
+                }
+            }
+        }
+    });
+
+    let toggle_user = move |user_id: String| {
+        selected_users.update(|ids| {
+            if let Some(pos) = ids.iter().position(|id| id == &user_id) {
+                ids.remove(pos);
+            } else {
+                ids.push(user_id);
+            }
+        });
+    };
+
+    let on_push = {
+        let toast = toast.clone();
+        move |_| {
+            let template_raw = selected_template.get();
+            let user_ids = selected_users.get();
+            if template_raw.is_empty() {
+                toast.show_toast("Error", "Select an enabled template.", "error");
+                return;
+            }
+            if user_ids.is_empty() {
+                toast.show_toast("Error", "Select at least one user.", "error");
+                return;
+            }
+            let Ok(template_uuid) = uuid::Uuid::parse_str(&template_raw) else {
+                toast.show_toast("Error", "Invalid template id.", "error");
+                return;
+            };
+            let mut target_user_ids = Vec::new();
+            for u in &user_ids {
+                match uuid::Uuid::parse_str(u) {
+                    Ok(id) => target_user_ids.push(id),
+                    Err(_) => {
+                        toast.show_toast("Error", &format!("Invalid user id: {u}"), "error");
+                        return;
+                    }
+                }
+            }
+            pushing.set(true);
+            let t = tid.get_value();
+            let i = iid.get_value();
+            let toast = toast.clone();
+            leptos::task::spawn_local(async move {
+                let input = crate::api::scorecards::ScorecardPushInput {
+                    template_id: template_uuid,
+                    target_user_ids,
+                    subject_type: None,
+                    subject_id: None,
+                    note: Some("Instance feedback push".into()),
+                };
+                match crate::api::scorecards::scorecard_push(&t, &i, &input).await {
+                    Ok(resp) => {
+                        pushing.set(false);
+                        selected_users.set(Vec::new());
+                        toast.show_toast(
+                            "Pushed",
+                            &format!("Survey pushed to {} user(s).", resp.pushed),
+                            "success",
+                        );
+                    }
+                    Err(e) => {
+                        pushing.set(false);
+                        toast.show_toast("Error", &e, "error");
+                    }
+                }
+            });
+        }
+    };
+
+    view! {
+        <div class="section" style="max-width:640px;">
+            <div class="section-hdr">
+                <span class="section-title">"Feedback Push"</span>
+                <span style="font-size:10px;color:var(--text-muted);">"POST …/scorecard-push"</span>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+                <p style="font-size:11px;color:var(--text-muted);line-height:1.6;">
+                    "Open a G27 scorecard session for selected users on this instance. Template must be deployed & enabled here."
+                </p>
+
+                <div>
+                    <div class="inset-label" style="margin-bottom:6px;">"Scorecard Template"</div>
+                    <Suspense fallback=move || view! {
+                        <div class="text-xs text-on-surface-variant/60 animate-pulse">"Loading deployments…"</div>
+                    }>
+                        {move || match deps_res.get() {
+                            Some(Ok(deps)) if deps.is_empty() => view! {
+                                <p class="text-xs text-amber-400">
+                                    "No enabled scorecard deployments on this instance. Enable templates under Billing → Scorecards."
+                                </p>
+                            }.into_any(),
+                            Some(Ok(deps)) => view! {
+                                <select
+                                    class="input input-sm w-full"
+                                    prop:value=move || selected_template.get()
+                                    on:change=move |ev| selected_template.set(event_target_value(&ev))
+                                >
+                                    {deps.into_iter().map(|d| {
+                                        let id = d.template_id.to_string();
+                                        let name = d.template_name.unwrap_or_else(|| {
+                                            d.template_id.to_string().chars().take(8).collect()
+                                        });
+                                        view! { <option value=id.clone()>{name}</option> }
+                                    }).collect_view()}
+                                </select>
+                            }.into_any(),
+                            Some(Err(e)) => view! {
+                                <div>{crate::utils::inline_error(&e)}</div>
+                            }.into_any(),
+                            None => view! {
+                                <div class="text-xs text-on-surface-variant/60 animate-pulse">"Loading…"</div>
+                            }.into_any(),
+                        }}
+                    </Suspense>
+                </div>
+
+                <div>
+                    <div class="inset-label" style="margin-bottom:6px;">"Target Users"</div>
+                    <Suspense fallback=move || view! {
+                        <div class="text-xs text-on-surface-variant/60 animate-pulse">"Loading users…"</div>
+                    }>
+                        {move || match users_res.get() {
+                            Some(Ok(users)) if users.is_empty() => view! {
+                                <p class="text-xs text-on-surface-variant/60">"No users on this tenant."</p>
+                            }.into_any(),
+                            Some(Ok(users)) => view! {
+                                <div style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;">
+                                    {users.into_iter().map(|u| {
+                                        let uid = u.id.clone();
+                                        let uid_check = uid.clone();
+                                        let display_name = match (&u.first_name, &u.last_name) {
+                                            (Some(f), Some(l)) => format!("{} {}", f, l),
+                                            (Some(f), None) => f.clone(),
+                                            _ => u.email.clone(),
+                                        };
+                                        let role = u.role.clone().unwrap_or_else(|| "member".into());
+                                        let label = format!("{} · {} · {}", display_name, u.email, role);
+                                        view! {
+                                            <label class="flex items-center gap-2 text-xs text-on-surface cursor-pointer"
+                                                   style="padding:6px 8px;border:1px solid rgba(255,255,255,0.06);border-radius:6px;">
+                                                <input
+                                                    type="checkbox"
+                                                    prop:checked=move || selected_users.get().contains(&uid_check)
+                                                    on:change=move |_| toggle_user(uid.clone())
+                                                />
+                                                {label}
+                                            </label>
+                                        }
+                                    }).collect_view()}
+                                </div>
+                            }.into_any(),
+                            Some(Err(e)) => view! {
+                                <div>{crate::utils::inline_error(&e)}</div>
+                            }.into_any(),
+                            None => view! {
+                                <div class="text-xs text-on-surface-variant/60 animate-pulse">"Loading…"</div>
+                            }.into_any(),
+                        }}
+                    </Suspense>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;">
+                    <button
+                        class="btn btn-primary"
+                        disabled=move || pushing.get()
+                        on:click=on_push
+                    >
+                        {move || if pushing.get() { "Pushing…" } else { "Push survey" }}
+                    </button>
+                </div>
+            </div>
         </div>
     }
 }

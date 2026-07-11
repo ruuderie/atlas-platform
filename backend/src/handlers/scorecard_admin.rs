@@ -29,8 +29,10 @@ use crate::entities::{
 use crate::services::scorecard_analytics_service::ScorecardAnalyticsService;
 use crate::services::scorecard_service::ScorecardService;
 use crate::types::pm::TemplateScope;
+use crate::services::scorecard_triggers;
 use crate::types::scorecard::{
-    ColdStartStrategy, ScaleType, ScorecardEntityType, ScoringMethod, SessionType, SourceType,
+    ColdStartStrategy, DeploymentTriggerEvent, ScaleType, ScorecardEntityType, ScoringMethod,
+    SessionType, SourceType,
 };
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -110,6 +112,11 @@ pub fn routes() -> Router<DatabaseConnection> {
         .route(
             "/api/admin/scorecard-templates/{id}/deployments",
             get(list_template_deployments),
+        )
+        // Admin-pushed feedback survey (opens sessions + nudges for target raters)
+        .route(
+            "/api/admin/tenants/{tenant_id}/app-instances/{instance_id}/scorecard-push",
+            post(scorecard_push),
         )
 }
 
@@ -285,6 +292,28 @@ pub struct UpsertDeploymentItem {
 #[derive(Debug, Deserialize)]
 pub struct UpsertDeploymentsInput {
     pub deployments: Vec<UpsertDeploymentItem>,
+}
+
+/// Body for `POST …/scorecard-push`.
+///
+/// Opens a rating session per target user and enqueues a nudge so Folio
+/// `ScorecardNudgeHost` shows `NudgePrompt`.
+#[derive(Debug, Deserialize)]
+pub struct ScorecardPushInput {
+    pub template_id: Uuid,
+    pub target_user_ids: Vec<Uuid>,
+    /// Subject entity type (defaults to `app_instance`).
+    pub subject_type: Option<ScorecardEntityType>,
+    /// Subject entity id (defaults to the path `instance_id`).
+    pub subject_id: Option<Uuid>,
+    /// Optional label / operator note stored as `session_label`.
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ScorecardPushResponse {
+    pub session_ids: Vec<Uuid>,
+    pub pushed: usize,
 }
 
 // ── Catalog ───────────────────────────────────────────────────────────────────
@@ -1042,6 +1071,128 @@ async fn upsert_instance_deployments(
     }
 
     Ok(Json(results))
+}
+
+/// POST /api/admin/tenants/{tenant_id}/app-instances/{instance_id}/scorecard-push
+///
+/// Opens rating sessions for each `target_user_id` and enqueues
+/// `evaluate_scorecard_nudge` so Folio `ScorecardNudgeHost` shows the modal.
+///
+/// Requires the template to be deployed and enabled on the instance
+/// (`trigger_event` may be `manual` or any other enabled trigger).
+async fn scorecard_push(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(_user): Extension<user::Model>,
+    Path((tenant_id, instance_id)): Path<(Uuid, Uuid)>,
+    Json(input): Json<ScorecardPushInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    if input.target_user_ids.is_empty() {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    let _ = load_instance(&db, tenant_id, instance_id).await?;
+    let _ = load_template(&db, tenant_id, input.template_id).await?;
+
+    let deployment = deployments::Entity::find()
+        .filter(deployments::Column::TenantId.eq(tenant_id))
+        .filter(deployments::Column::AppInstanceId.eq(instance_id))
+        .filter(deployments::Column::TemplateId.eq(input.template_id))
+        .filter(deployments::Column::IsEnabled.eq(true))
+        .one(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %instance_id, "scorecard_push deployment lookup: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    // Accept any enabled deployment; Manual is the common admin-push case.
+    let _trigger = DeploymentTriggerEvent::try_from(deployment.trigger_event.clone())
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    let subject_type = input
+        .subject_type
+        .unwrap_or(ScorecardEntityType::AppInstance);
+    let subject_id = input.subject_id.unwrap_or(instance_id);
+    let subject_type_str = subject_type.to_string();
+    let session_type = SessionType::Call;
+    let activity_type = DeploymentTriggerEvent::Manual.to_string();
+    let session_label = input
+        .note
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("Admin feedback request");
+
+    let scorecard_id = ScorecardService::get_or_create(
+        &db,
+        tenant_id,
+        input.template_id,
+        &subject_type_str,
+        subject_id,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, "scorecard_push get_or_create: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut session_ids = Vec::with_capacity(input.target_user_ids.len());
+
+    for rater_user_id in input.target_user_ids {
+        let session_id = ScorecardService::open_session(
+            &db,
+            scorecard_id,
+            rater_user_id,
+            tenant_id,
+            Utc::now(),
+            &session_type.to_string(),
+            None,
+            None,
+            Some(session_label),
+            Some(instance_id),
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                %tenant_id,
+                %scorecard_id,
+                %rater_user_id,
+                "scorecard_push open_session: {e:#}"
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        if let Err(e) = scorecard_triggers::enqueue_scorecard_nudge(
+            &db,
+            tenant_id,
+            input.template_id,
+            &subject_type_str,
+            subject_id,
+            &activity_type,
+            rater_user_id,
+            session_id,
+            scorecard_id,
+        )
+        .await
+        {
+            tracing::warn!(
+                %tenant_id,
+                %session_id,
+                "scorecard_push nudge enqueue failed (non-fatal): {e:#}"
+            );
+        }
+
+        session_ids.push(session_id);
+    }
+
+    let pushed = session_ids.len();
+    Ok((
+        StatusCode::CREATED,
+        Json(ScorecardPushResponse {
+            session_ids,
+            pushed,
+        }),
+    ))
 }
 
 /// GET /api/admin/scorecard-templates/{id}/deployments

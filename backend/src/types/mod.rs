@@ -1,5 +1,6 @@
 pub mod account;
 pub mod activity;
+pub mod flags; // Feature-flag domain enums (FlagEffect)
 pub mod gtm;
 pub mod lead;
 pub mod note;

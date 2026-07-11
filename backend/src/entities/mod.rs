@@ -186,6 +186,7 @@ pub mod platform_product_plan; // Product-scoped marketing pricing plans
 pub mod product_page; // product_page_templates + product_page_variants (programmatic SEO)
 
 // FEATURE FLAGS — flag registry, per-tenant overrides, and audit trail
+pub mod atlas_flag_instance_enablement; // Per-app-instance grant/deny enablements
 pub mod feature_flag;
 pub mod flag_audit_log;
 pub mod flag_override;

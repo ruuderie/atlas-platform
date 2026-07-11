@@ -811,6 +811,14 @@ pub struct WaitlistAnalyticsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VerificationAttachmentModel {
+    pub id: uuid::Uuid,
+    pub title: Option<String>,
+    pub url: String,
+    pub mime_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VerificationRequestModel {
     pub id: uuid::Uuid,
     pub tenant_id: uuid::Uuid,
@@ -820,6 +828,10 @@ pub struct VerificationRequestModel {
     pub created_at: String,
     pub document_count: u32,
     pub rejection_reason: Option<String>,
+    #[serde(default)]
+    pub reviewer_notes: Option<String>,
+    #[serde(default)]
+    pub attachment: Option<VerificationAttachmentModel>,
 }
 
 // ==== TENANT / PLATFORM ADMIN REGISTRY ====
@@ -1067,7 +1079,7 @@ pub struct SupportMessageRow {
     pub id: String,
     pub sender_user_id: Option<String>,
     pub sender_name: Option<String>,
-    pub message_type: String, // "text" | "system" | "operator_reply"
+    pub message_type: String, // "text" | "system" | "operator_reply" | "internal_note"
     pub content: String,
     pub created_at: String,
     pub is_operator: bool,

@@ -147,7 +147,9 @@ pub async fn open_sessions_for_trigger(
     Ok(opened)
 }
 
-async fn enqueue_scorecard_nudge(
+/// Enqueue `evaluate_scorecard_nudge` so Folio `ScorecardNudgeHost` can surface
+/// the session (WS / pending poll). Used by domain triggers and admin push.
+pub async fn enqueue_scorecard_nudge(
     db: &DatabaseConnection,
     tenant_id: Uuid,
     template_id: Uuid,

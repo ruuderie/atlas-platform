@@ -415,6 +415,21 @@ pub async fn close_support_thread(id: String) -> Result<(), String> {
     .map(|_| ())
 }
 
+/// Add an operator-only internal note to a support thread.
+/// Calls `POST /api/admin/support/threads/{id}/notes`
+pub async fn send_support_note(id: String, content: String) -> Result<(), String> {
+    #[derive(serde::Serialize)]
+    struct Payload {
+        content: String,
+    }
+    crate::api::client::api_post::<_, serde_json::Value>(
+        &format!("api/admin/support/threads/{id}/notes"),
+        &Payload { content },
+    )
+    .await
+    .map(|_| ())
+}
+
 /// Legacy CRM case stubs — kept for backward compatibility with older pages.
 /// Calls `GET /api/admin/cases`
 #[allow(dead_code)]
@@ -480,6 +495,111 @@ pub async fn add_flag_override(
 pub async fn remove_flag_override(key: String, tenant_id: String) -> Result<(), String> {
     crate::api::client::api_delete(&format!("api/admin/flags/{}/overrides/{}", key, tenant_id))
         .await
+}
+
+// ============================================================
+// PER-INSTANCE FEATURE FLAGS
+// ============================================================
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum FlagEffect {
+    Grant,
+    Deny,
+}
+
+impl FlagEffect {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Grant => "grant",
+            Self::Deny => "deny",
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Grant => "Grant",
+            Self::Deny => "Deny",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct InstanceFlagRow {
+    pub flag_key: String,
+    pub description: String,
+    pub catalog_enabled: bool,
+    pub has_global: bool,
+    pub global_rollout_pct: i32,
+    pub effect: Option<FlagEffect>,
+    pub rollout_pct: Option<i32>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct InstanceFlagsResponse {
+    pub flags: Vec<InstanceFlagRow>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct InstanceFlagUpdateItem {
+    pub flag_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effect: Option<FlagEffect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rollout_pct: Option<i32>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct UpdateInstanceFlagsInput {
+    pub updates: Vec<InstanceFlagUpdateItem>,
+}
+
+/// List catalog flags with this instance's enablement (or inherit).
+/// Calls `GET /api/admin/app-instances/{id}/feature-flags`
+pub async fn get_instance_feature_flags(
+    app_instance_id: &str,
+) -> Result<InstanceFlagsResponse, String> {
+    crate::api::client::api_get(&format!(
+        "api/admin/app-instances/{}/feature-flags",
+        app_instance_id
+    ))
+    .await
+}
+
+/// Upsert or clear instance feature-flag enablements.
+/// Calls `PUT /api/admin/app-instances/{id}/feature-flags`
+/// Pass `effect: None` (serialized as null) to clear / inherit.
+pub async fn update_instance_feature_flags(
+    app_instance_id: &str,
+    updates: Vec<InstanceFlagUpdateItem>,
+) -> Result<InstanceFlagsResponse, String> {
+    // Explicit null for clear: serialize effect as Option so null clears inherit.
+    #[derive(Serialize)]
+    struct WireItem<'a> {
+        flag_key: &'a str,
+        effect: Option<&'a FlagEffect>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rollout_pct: Option<i32>,
+    }
+    #[derive(Serialize)]
+    struct WireBody<'a> {
+        updates: Vec<WireItem<'a>>,
+    }
+    let body = WireBody {
+        updates: updates
+            .iter()
+            .map(|u| WireItem {
+                flag_key: &u.flag_key,
+                effect: u.effect.as_ref(),
+                rollout_pct: u.rollout_pct,
+            })
+            .collect(),
+    };
+    crate::api::client::api_put(
+        &format!("api/admin/app-instances/{}/feature-flags", app_instance_id),
+        &body,
+    )
+    .await
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -600,6 +720,41 @@ pub async fn rerun_ai_task(id: String) -> Result<(), String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {
         Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct AiQueueStatus {
+    pub paused: bool,
+}
+
+pub async fn get_ai_queue_status() -> Result<AiQueueStatus, String> {
+    crate::api::client::api_get("api/admin/ai-tasks/queue/status").await
+}
+
+pub async fn pause_ai_queue() -> Result<AiQueueStatus, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url("api/admin/ai-tasks/queue/pause");
+    let req = client.post(&url);
+    let req = crate::api::client::with_credentials(req);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn resume_ai_queue() -> Result<AiQueueStatus, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url("api/admin/ai-tasks/queue/resume");
+    let req = client.post(&url);
+    let req = crate::api::client::with_credentials(req);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
     } else {
         Err(res.text().await.unwrap_or_default())
     }
