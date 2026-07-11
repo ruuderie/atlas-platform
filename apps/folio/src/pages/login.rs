@@ -1,14 +1,12 @@
 use leptos::prelude::*;
+use std::time::Duration;
 
-/// Folio login page — split-screen layout.
+/// Folio login — dark-harmonized split screen matching public marketing pages.
 ///
-/// Left panel: brand / social proof (desktop only)
-/// Right panel: 6-state auth flow
-///   0 → email entry
-///   1 → magic link sent
-///   2 → passkey prompt (if credential registered)
+/// Guided auth screens (from stitch `pub_login_v3`):
+///   Entry → PasskeyPrompt | MagicRequest → MagicSent
 ///
-/// Uses the existing `request_magic_link` server function from `crate::auth`.
+/// Passkey registration after first magic-link verify lives at `/auth/passkey-setup`.
 #[component]
 pub fn Login() -> impl IntoView {
     view! {
@@ -19,30 +17,29 @@ pub fn Login() -> impl IntoView {
     }
 }
 
+/// Closed set of auth panel screens — typed at the domain boundary.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LoginScreen {
+    Entry,
+    PasskeyPrompt,
+    MagicRequest,
+    MagicSent,
+}
+
 // ── Brand panel ───────────────────────────────────────────────────────────────
 
 #[component]
 fn BrandPanel() -> impl IntoView {
-    let testimonials = vec![
-        ("\"Folio replaced four apps. Rent, leases, maintenance, STR calendar — one login, finally.\"",
-         "Marcus D.", "Landlord · 14 units · Miami, FL"),
-        ("\"My tenants love the portal. Maintenance tickets get closed 40% faster.\"",
-         "Priya K.", "Property Manager · 87 units · Toronto, ON"),
-        ("\"Airbnb + LTR in one dashboard changed everything for my portfolio.\"",
-         "Lucas M.", "STR Host + Landlord · Curitiba, BR"),
-    ];
-
     view! {
         <aside class="login-brand">
             <div class="login-brand-grid"></div>
+            <div class="login-brand-glow"></div>
             <div class="login-brand-inner">
-                <div class="login-brand-logo">
+                <a href="/" class="login-brand-logo">
                     <span class="login-logo-mark">"F"</span>
                     <span class="login-logo-text">"Folio"</span>
-                </div>
-                <div class="login-brand-tagline">
-                    "Your portfolio. Finally under control."
-                </div>
+                </a>
+                <p class="login-brand-tagline">"Your portfolio. Finally under control."</p>
 
                 <div class="login-brand-hero-copy">
                     <p class="login-brand-headline">
@@ -58,7 +55,7 @@ fn BrandPanel() -> impl IntoView {
                 </div>
 
                 <div class="login-brand-stats">
-                    {[("40%", "faster maintenance close"), ("1", "login for your whole portfolio"), ("3", "countries — US · CA · BR")].iter().map(|(v, l)| view! {
+                    {[("40%", "Faster maintenance close"), ("1", "Login for your whole portfolio"), ("3", "Countries — US · CA · BR")].iter().map(|(v, l)| view! {
                         <div class="login-stat">
                             <div class="login-stat-val">{*v}</div>
                             <div class="login-stat-label">{*l}</div>
@@ -72,16 +69,12 @@ fn BrandPanel() -> impl IntoView {
                     }).collect_view()}
                 </div>
 
-                <div class="login-testimonial-carousel">
-                    {testimonials.into_iter().enumerate().map(|(i, (quote, name, meta))| view! {
-                        <div class=format!("login-testimonial{}", if i == 0 { " login-testimonial--active" } else { "" })>
-                            <p class="login-testimonial-quote">{quote}</p>
-                            <div class="login-testimonial-attr">
-                                <strong class="login-testimonial-name">{name}</strong>
-                                <span class="login-testimonial-meta">{meta}</span>
-                            </div>
-                        </div>
-                    }).collect_view()}
+                <div class="login-brand-footer">
+                    <p class="login-testimonial-quote">
+                        "\"Folio replaced four apps. Rent, leases, maintenance, STR calendar — one login, finally.\""
+                    </p>
+                    <strong class="login-testimonial-name">"Marcus D."</strong>
+                    <span class="login-testimonial-meta">"Landlord · 14 units · Miami, FL"</span>
                 </div>
             </div>
         </aside>
@@ -92,66 +85,166 @@ fn BrandPanel() -> impl IntoView {
 
 #[component]
 fn AuthPanel() -> impl IntoView {
-    let email   = RwSignal::new(String::new());
+    let screen = RwSignal::new(LoginScreen::Entry);
+    let email = RwSignal::new(String::new());
     let pending = RwSignal::new(false);
-    let sent    = RwSignal::new(false);
-    let err     = RwSignal::new(Option::<String>::None);
+    let err = RwSignal::new(Option::<String>::None);
     let passkey_pending = RwSignal::new(false);
-    let passkey_prompt  = RwSignal::new(false);
-    let navigate = leptos_router::hooks::use_navigate();
-    let navigate = StoredValue::new(navigate);
+    let countdown = RwSignal::new(900u32);
+    let navigate = StoredValue::new(leptos_router::hooks::use_navigate());
 
-    let submit = move |ev: leptos::ev::SubmitEvent| {
-        ev.prevent_default();
-        if pending.get() { return; }
+    // Live countdown while on MagicSent
+    Effect::new(move |_| {
+        if screen.get() != LoginScreen::MagicSent {
+            return;
+        }
+        countdown.set(900);
+        #[cfg(feature = "hydrate")]
+        {
+            let handle = set_interval_with_handle(
+                move || {
+                    countdown.update(|s| {
+                        if *s > 0 {
+                            *s -= 1;
+                        }
+                    });
+                },
+                Duration::from_secs(1),
+            )
+            .ok();
+            on_cleanup(move || {
+                if let Some(h) = handle {
+                    h.clear();
+                }
+            });
+        }
+    });
+
+    let go_entry = move |_| {
+        screen.set(LoginScreen::Entry);
+        pending.set(false);
+        passkey_pending.set(false);
+        err.set(None);
+    };
+
+    let start_passkey = move |_| {
+        if passkey_pending.get() {
+            return;
+        }
+        passkey_pending.set(true);
+        err.set(None);
+        screen.set(LoginScreen::PasskeyPrompt);
+        leptos::task::spawn_local(async move {
+            match crate::utils::passkey_js::authenticate_passkey().await {
+                Ok(_) => match crate::auth::get_session().await {
+                    Ok(info) => {
+                        let dest = if !info.has_passkey {
+                            "/auth/passkey-setup"
+                        } else if !info.onboarding_complete {
+                            "/onboarding"
+                        } else {
+                            "/dashboard"
+                        };
+                        navigate.with_value(|n| n(dest, Default::default()));
+                    }
+                    Err(e) => {
+                        err.set(Some(e.to_string()));
+                        passkey_pending.set(false);
+                    }
+                },
+                Err(e) => {
+                    err.set(Some(e));
+                    passkey_pending.set(false);
+                }
+            }
+        });
+    };
+
+    let retry_passkey = move |_| {
+        if passkey_pending.get() {
+            return;
+        }
+        err.set(None);
+        passkey_pending.set(true);
+        leptos::task::spawn_local(async move {
+            match crate::utils::passkey_js::authenticate_passkey().await {
+                Ok(_) => match crate::auth::get_session().await {
+                    Ok(info) => {
+                        let dest = if !info.has_passkey {
+                            "/auth/passkey-setup"
+                        } else if !info.onboarding_complete {
+                            "/onboarding"
+                        } else {
+                            "/dashboard"
+                        };
+                        navigate.with_value(|n| n(dest, Default::default()));
+                    }
+                    Err(e) => {
+                        err.set(Some(e.to_string()));
+                        passkey_pending.set(false);
+                    }
+                },
+                Err(e) => {
+                    err.set(Some(e));
+                    passkey_pending.set(false);
+                }
+            }
+        });
+    };
+
+    let continue_email = move || {
         let e = email.get();
         if e.is_empty() || !e.contains('@') {
             err.set(Some("Please enter a valid email address.".to_string()));
+            return;
+        }
+        err.set(None);
+        screen.set(LoginScreen::MagicRequest);
+    };
+
+    let send_magic_link = move |_| {
+        if pending.get() {
+            return;
+        }
+        let e = email.get();
+        if e.is_empty() || !e.contains('@') {
+            err.set(Some("Please enter a valid email address.".to_string()));
+            screen.set(LoginScreen::Entry);
             return;
         }
         pending.set(true);
         err.set(None);
         leptos::task::spawn_local(async move {
             match crate::auth::request_magic_link(e).await {
-                Ok(_)  => { sent.set(true); }
-                Err(e) => { err.set(Some(e.to_string())); }
+                Ok(_) => {
+                    screen.set(LoginScreen::MagicSent);
+                }
+                Err(e) => {
+                    err.set(Some(e.to_string()));
+                }
             }
             pending.set(false);
         });
     };
 
-    let on_passkey = move |_| {
-        if passkey_pending.get() { return; }
-        passkey_pending.set(true);
-        passkey_prompt.set(true);
+    let use_magic_instead = move |_| {
+        passkey_pending.set(false);
         err.set(None);
-        leptos::task::spawn_local(async move {
-            match crate::utils::passkey_js::authenticate_passkey().await {
-                Ok(_) => {
-                    match crate::auth::get_session().await {
-                        Ok(info) => {
-                            let dest = if !info.has_passkey {
-                                "/auth/passkey-setup"
-                            } else if !info.onboarding_complete {
-                                "/onboarding"
-                            } else {
-                                "/dashboard"
-                            };
-                            navigate.with_value(|n| n(dest, Default::default()));
-                        }
-                        Err(e) => {
-                            err.set(Some(e.to_string()));
-                            passkey_prompt.set(false);
-                        }
-                    }
-                }
-                Err(e) => {
-                    err.set(Some(e));
-                    passkey_prompt.set(false);
-                }
-            }
-            passkey_pending.set(false);
-        });
+        let e = email.get();
+        if e.is_empty() || !e.contains('@') {
+            screen.set(LoginScreen::Entry);
+        } else {
+            screen.set(LoginScreen::MagicRequest);
+        }
+    };
+
+    let countdown_label = move || {
+        let s = countdown.get();
+        format!("{}:{:02}", s / 60, s % 60)
+    };
+    let countdown_pct = move || {
+        let s = countdown.get();
+        format!("width:{}%", (s as f32 / 900.0) * 100.0)
     };
 
     view! {
@@ -162,34 +255,8 @@ fn AuthPanel() -> impl IntoView {
                     <span class="login-logo-text">"Folio"</span>
                 </div>
 
-                // Passkey prompt screen (browser WebAuthn dialog in progress)
-                <div class="login-passkey-prompt" style=move || {
-                    if passkey_prompt.get() && !sent.get() { "" } else { "display: none" }
-                }>
-                    <div class="login-passkey-ring-wrap">
-                        <div class="login-passkey-ring">
-                            <span class="material-symbols-outlined" style="font-size:40px;color:#069669;font-variation-settings:'FILL' 1">"fingerprint"</span>
-                        </div>
-                    </div>
-                    <h1 class="login-auth-h1">"Authenticate with your passkey"</h1>
-                    <p class="login-auth-sub">"Your device will prompt you for Face ID, Touch ID, or PIN."</p>
-                    <p class="login-field-error" style=move || if err.get().is_some() { "" } else { "display: none" }>
-                        {move || err.get().unwrap_or_default()}
-                    </p>
-                    <button
-                        type="button"
-                        class="login-resend-btn"
-                        on:click=move |_| {
-                            passkey_prompt.set(false);
-                            passkey_pending.set(false);
-                            err.set(None);
-                        }
-                    >"Cancel"</button>
-                </div>
-
-                <div class="login-auth-form-wrap" style=move || {
-                    if sent.get() || passkey_prompt.get() { "display: none" } else { "" }
-                }>
+                // ── 1 · Entry ─────────────────────────────────────────────
+                <div class="login-screen" class:login-screen--active=move || screen.get() == LoginScreen::Entry>
                     <h1 class="login-auth-h1">"Welcome back"</h1>
                     <p class="login-auth-sub">"Sign in with a passkey or get a secure email link. No password required."</p>
 
@@ -198,24 +265,21 @@ fn AuthPanel() -> impl IntoView {
                         class="login-passkey-btn"
                         id="login-passkey-btn"
                         disabled=move || passkey_pending.get()
-                        on:click=on_passkey
+                        on:click=start_passkey
                     >
-                        <div class="login-passkey-icon-box">
-                            <span class="material-symbols-outlined" style="font-size:22px;color:#069669;font-variation-settings:'FILL' 1">"fingerprint"</span>
-                        </div>
-                        <div class="login-passkey-btn-text">
-                            <span class="login-passkey-btn-label">
-                                {move || if passkey_pending.get() { "Waiting for device…" } else { "Sign in with a passkey" }}
-                            </span>
+                        <span class="login-passkey-icon-box" aria-hidden="true">
+                            <span class="material-symbols-outlined login-icon-fill">"fingerprint"</span>
+                        </span>
+                        <span class="login-passkey-btn-text">
+                            <span class="login-passkey-btn-label">"Sign in with a passkey"</span>
                             <span class="login-passkey-btn-sub">"Face ID, Touch ID, or device PIN"</span>
-                        </div>
+                        </span>
+                        <span class="material-symbols-outlined login-passkey-chevron" aria-hidden="true">"chevron_right"</span>
                     </button>
 
-                    <div class="login-divider">
-                        <span>"or"</span>
-                    </div>
+                    <div class="login-divider"><span>"or"</span></div>
 
-                    <form on:submit=submit class="login-auth-form">
+                    <div class="login-auth-form">
                         <div class="login-field">
                             <label class="login-field-label" for="auth-email">"Email address"</label>
                             <input
@@ -224,67 +288,180 @@ fn AuthPanel() -> impl IntoView {
                                 class="login-field-input"
                                 placeholder="you@example.com"
                                 autocomplete="email"
-                                required
                                 prop:value=move || email.get()
                                 on:input=move |ev| email.set(event_target_value(&ev))
+                                on:keydown=move |ev| {
+                                    if ev.key() == "Enter" {
+                                        ev.prevent_default();
+                                        continue_email();
+                                    }
+                                }
                             />
                         </div>
-                        <p class="login-field-error" style=move || if err.get().is_some() { "" } else { "display: none" }>
+                        <p class="login-field-error" class:login-field-error--show=move || {
+                            err.get().is_some() && screen.get() == LoginScreen::Entry
+                        }>
                             {move || err.get().unwrap_or_default()}
                         </p>
                         <button
-                            type="submit"
+                            type="button"
                             class="login-auth-btn"
-                            disabled=move || pending.get()
                             id="login-submit-btn"
+                            on:click=move |_| continue_email()
                         >
-                            <span class="login-btn-content" style=move || if pending.get() { "display: none" } else { "display: inline-flex; align-items: center; gap: 8px;" }>
-                                <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"send"</span>
-                                "Send login link"
-                            </span>
-                            <span class="login-btn-content" style=move || if pending.get() { "display: inline-flex; align-items: center; gap: 8px;" } else { "display: none" }>
-                                <span class="login-btn-spinner"></span>
-                                "Sending…"
-                            </span>
+                            "Continue"
+                            <span class="material-symbols-outlined" style="font-size:18px">"arrow_forward"</span>
                         </button>
-                    </form>
+                    </div>
 
                     <div class="login-alt-actions">
                         <p class="login-alt-text">
                             "New to Folio? "
-                            <a href="#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
+                            <a href="/#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
                         </p>
                     </div>
+                    <p class="login-legal">
+                        "By continuing you agree to Folio's "
+                        <a href="/legal/terms">"Terms"</a>
+                        " and "
+                        <a href="/legal/privacy">"Privacy Policy"</a>
+                        "."
+                    </p>
                 </div>
 
-                <div class="login-sent-wrap" style=move || if sent.get() { "" } else { "display: none" }>
-                    <div class="login-sent-icon">
-                        <span class="material-symbols-outlined" style="font-size:48px;color:#06d6a0;font-variation-settings:'FILL' 1">"mark_email_read"</span>
+                // ── 2A · Passkey guidance ─────────────────────────────────
+                <div class="login-screen" class:login-screen--active=move || screen.get() == LoginScreen::PasskeyPrompt>
+                    <button type="button" class="login-back-btn" on:click=go_entry>
+                        <span class="material-symbols-outlined" style="font-size:16px">"arrow_back"</span>
+                        " Back"
+                    </button>
+                    <div class="login-passkey-prompt">
+                        <div class="login-passkey-ring-wrap">
+                            <div class="login-passkey-ring">
+                                <span class="material-symbols-outlined login-icon-fill" style="font-size:40px">"fingerprint"</span>
+                            </div>
+                            <div class="login-passkey-ring-badge">
+                                <span class="material-symbols-outlined login-icon-fill" style="font-size:13px">"fingerprint"</span>
+                            </div>
+                        </div>
+                        <h1 class="login-auth-h1">"Authenticate with your passkey"</h1>
+                        <p class="login-auth-sub">
+                            {move || if passkey_pending.get() {
+                                "Your device will prompt you for Face ID, Touch ID, or PIN."
+                            } else if err.get().is_some() {
+                                "Authentication didn’t complete. Try again, or use a magic link."
+                            } else {
+                                "Your device will prompt you for Face ID, Touch ID, or PIN."
+                            }}
+                        </p>
+                        <div class="login-dots" aria-hidden="true" class:login-dots--hidden=move || !passkey_pending.get()>
+                            <span class="login-dot login-dot--1"></span>
+                            <span class="login-dot login-dot--2"></span>
+                            <span class="login-dot login-dot--3"></span>
+                        </div>
+                        <p class="login-field-error" class:login-field-error--show=move || err.get().is_some()>
+                            {move || err.get().unwrap_or_default()}
+                        </p>
                     </div>
-                    <h1 class="login-auth-h1">"Check your inbox"</h1>
+                    <button
+                        type="button"
+                        class="login-auth-btn login-auth-btn--green"
+                        disabled=move || passkey_pending.get()
+                        on:click=retry_passkey
+                    >
+                        <span class="material-symbols-outlined login-icon-fill" style="font-size:18px">"fingerprint"</span>
+                        {move || if passkey_pending.get() { "Waiting for device…" } else { "Authenticate with Passkey" }}
+                    </button>
+                    <button type="button" class="login-btn-text" on:click=use_magic_instead>
+                        <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:0.25rem">"mail"</span>
+                        "Use a magic link instead"
+                    </button>
+                </div>
+
+                // ── 2B · Magic link request + email preview ───────────────
+                <div class="login-screen" class:login-screen--active=move || screen.get() == LoginScreen::MagicRequest>
+                    <button type="button" class="login-back-btn" on:click=go_entry>
+                        <span class="material-symbols-outlined" style="font-size:16px">"arrow_back"</span>
+                        " Back"
+                    </button>
+                    <h1 class="login-auth-h1">"Sign in with email"</h1>
                     <p class="login-auth-sub">
-                        "We sent a secure login link to "
+                        "We'll send a secure sign-in link to "
                         <strong>{move || email.get()}</strong>
                         ". It expires in 15 minutes."
                     </p>
-                    <div class="login-sent-tips">
-                        <p class="login-sent-tip">
-                            <span class="material-symbols-outlined" style="font-size:16px;color:var(--folio-muted)">"info"</span>
-                            "Don't see it? Check your spam folder."
-                        </p>
+                    <div class="login-email-preview">
+                        <div class="login-email-preview-hdr">
+                            <div class="login-email-icon">"F"</div>
+                            <div>
+                                <div class="login-email-subj">"Sign in to Folio"</div>
+                                <div class="login-email-from">"no-reply@folio.app"</div>
+                            </div>
+                        </div>
+                        <div class="login-email-body">
+                            <p>"Click the link below to sign in securely. This link expires in 15 minutes and can only be used once."</p>
+                            <span class="login-email-cta">
+                                <span class="material-symbols-outlined" style="font-size:13px">"login"</span>
+                                " Log In Now"
+                            </span>
+                        </div>
                     </div>
-                    <button class="login-resend-btn"
-                        on:click=move |_| { sent.set(false); err.set(None); }
-                    >"Use a different email"</button>
+                    <p class="login-field-error" class:login-field-error--show=move || err.get().is_some()>
+                        {move || err.get().unwrap_or_default()}
+                    </p>
+                    <button
+                        type="button"
+                        class="login-auth-btn"
+                        id="login-send-magic"
+                        disabled=move || pending.get()
+                        on:click=send_magic_link
+                    >
+                        <span class="login-btn-content" style=move || if pending.get() { "display:none" } else { "display:inline-flex;align-items:center;gap:8px" }>
+                            <span class="material-symbols-outlined" style="font-size:18px">"send"</span>
+                            "Send magic link"
+                        </span>
+                        <span class="login-btn-content" style=move || if pending.get() { "display:inline-flex;align-items:center;gap:8px" } else { "display:none" }>
+                            <span class="login-btn-spinner"></span>
+                            "Sending…"
+                        </span>
+                    </button>
                 </div>
 
-                <p class="login-legal">
-                    "By continuing you agree to Folio's "
-                    <a href="/legal/terms">"Terms"</a>
-                    " and "
-                    <a href="/legal/privacy">"Privacy Policy"</a>
-                    "."
-                </p>
+                // ── 3 · Sent + countdown ──────────────────────────────────
+                <div
+                    class="login-screen login-screen--center"
+                    class:login-screen--active=move || screen.get() == LoginScreen::MagicSent
+                >
+                    <div class="login-status-circle login-status-circle--green">
+                        <span class="material-symbols-outlined login-icon-fill" style="font-size:40px">"mark_email_read"</span>
+                    </div>
+                    <h1 class="login-auth-h1">"Check your email"</h1>
+                    <p class="login-auth-sub" style="margin-bottom:0.35rem">"We sent a sign-in link to"</p>
+                    <p class="login-sent-email">{move || email.get()}</p>
+                    <div class="login-cd-wrap">
+                        <div class="login-cd-hdr">
+                            <span>"Link valid for"</span>
+                            <span class="login-cd-time">{move || countdown_label()}</span>
+                        </div>
+                        <div class="login-cd-track">
+                            <div class="login-cd-fill" style=move || countdown_pct()></div>
+                        </div>
+                    </div>
+                    <div class="login-stack-gap">
+                        <button
+                            type="button"
+                            class="login-resend-btn"
+                            disabled=move || pending.get()
+                            on:click=send_magic_link
+                        >
+                            <span class="material-symbols-outlined" style="font-size:16px">"refresh"</span>
+                            " Resend link"
+                        </button>
+                        <button type="button" class="login-btn-text" on:click=go_entry>
+                            "Use a different email"
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
     }
