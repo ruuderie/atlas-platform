@@ -47,13 +47,22 @@ Leptos 0.6, its own Postgres) — not part of the core product and not needed to
 
 ### Auth / how to actually log in (hello-world)
 
-- The platform-admin WASM app defaults its API base URL to `http://api.localhost`, so it needs
-  Caddy running (see below) to reach the backend.
-- Login is **passwordless magic-link**, not password-based: submitting the admin email issues a
-  single-use token. In dev the token/link is printed in the **backend logs**; visiting
-  `http://admin.localhost/verify-token/<token>` completes login and lands on the admin dashboard.
-- The backend also exposes a direct JSON login for scripting:
-  `curl -X POST http://localhost:8000/login -H 'Content-Type: application/json' -d '{"email":"admin@oply.co","password":"Admin123!"}'` returns a JWT.
+- The platform-admin WASM app talks to the backend at `http://api.localhost`, so it needs Caddy
+  running (see below).
+- Admin auth is **passwordless magic-link**: submitting the admin email issues a single-use token
+  and triggers an email send. With no SMTP configured the send is mocked and logged in the backend
+  as `SMTP Host not configured. Mocking email send to: <email>`; the token is retrievable from the
+  backend logs / `magic_link` table. This UI request (WASM → Caddy → backend → Postgres outbox) is a
+  good hello-world even without completing the handshake.
+- The backend also exposes a direct JSON login for scripting; on `dev` it returns HTTP 200 and
+  delivers the JWT via an **httpOnly `session` cookie** (the token is no longer in the body):
+  `curl -i -X POST http://localhost:8000/login -H 'Content-Type: application/json' -d '{"email":"admin@oply.co","password":"Admin123!"}'`
+- **Completing the magic-link handshake in a browser needs HTTPS.** The session cookie is issued
+  `Secure`, so Chrome silently drops it over plain `http://admin.localhost` and the verify-token
+  page reports "Handshake failed". The backend side works (curl above shows the `Set-Cookie`). Serve
+  the `.localhost` hosts over TLS (Caddy can, via its internal CA) if you need full in-browser login.
+- On `dev` the admin app gates on a first-run setup that expects a `user_account` with role
+  `PlatformSuperAdmin` for the admin user; the plain admin bootstrap does not create it.
 
 ### Caddy (`.localhost` routing)
 
@@ -70,14 +79,21 @@ http://*.network.localhost, http://network.localhost { reverse_proxy 127.0.0.1:8
 
 ### Lint / test / build
 
-- Backend lint: `cargo clippy` (from `backend/`). Tests: `cargo test` (uses in-process
-  sqlx-sqlite, no external DB needed; 39 tests). Build: `cargo build`.
+- Backend tests: `cargo test` (from `backend/`; uses in-process sqlx-sqlite, no external DB needed).
+  On `dev` this is ~970 tests and they pass. Build: `cargo build`.
+- Backend lint: `cargo clippy`. NOTE: on `dev` clippy currently **fails** (exit 101) on a
+  pre-existing, deny-by-default lint — `clippy::deprecated_semver` at
+  `src/services/lead_billing.rs` (`#[deprecated(since = "2026-06-01", ...)]` is not a semver
+  version). `cargo build` is unaffected; this is a source-code issue, not an environment problem.
 - Frontends build with `env -u NO_COLOR trunk build` (platform-admin) and
   `env -u NO_COLOR cargo-leptos build` (network-instance).
 
-### Known issue
+### Notes on `dev` app state (not env issues)
 
-- `apps/network-instance` **compiles but panics at startup**: `main.rs` registers the route
-  `/api/*fn_name`, which the resolved axum 0.8 rejects (`Path segments must not start with '*'`;
-  axum 0.8 wants `{*fn_name}`). This is a pre-existing source-code incompatibility, unrelated to
-  environment setup. The backend and platform-admin run fine.
+- `dev` is the active development branch and moves fast; some flows are mid-refactor:
+  - `apps/network-instance` builds and serves fine on `dev` (SSR HTML renders), but a tenant page
+    shows "Connection Dropped" because the SSR calls `GET {api}/networks/lookup?domain=<host>`
+    while the `dev` backend exposes `GET /tenants/lookup` — a frontend/backend route mismatch.
+  - The admin browser login handshake needs HTTPS (see Auth section).
+  - `dev` seeds several tenants (e.g. `directory.localhost`, `ct-build-pros.oply.co`) in the
+    `app_domains` table; the network-instance resolves the tenant from the incoming `Host` header.
