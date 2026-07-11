@@ -1,4 +1,3 @@
-use crate::api::models::{SupportThreadDetail, SupportThreadSummary};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -70,13 +69,21 @@ pub fn SupportQueue() -> impl IntoView {
     // ── Reply / action state ─────────────────────────────────────────────────
     let reply_text = RwSignal::new(String::new());
     let show_internal_modal = RwSignal::new(false);
-    let show_escalate_modal = RwSignal::new(false);
-    let show_impersonate_modal = RwSignal::new(false);
+    let show_feedback_modal = RwSignal::new(false);
     let internal_note_input = RwSignal::new(String::new());
-    let escalate_reason = RwSignal::new("SLA breach imminent".to_string());
-    let escalate_target = RwSignal::new("Engineering On-Call".to_string());
-    let escalate_notes = RwSignal::new(String::new());
     let sending = RwSignal::new(false);
+    let saving_note = RwSignal::new(false);
+
+    // Feedback push (G27 scorecard-push)
+    let feedback_tenant_id = RwSignal::new(String::new());
+    let feedback_user_id = RwSignal::new(String::new());
+    let feedback_user_label = RwSignal::new(String::new());
+    let feedback_instance_id = RwSignal::new(String::new());
+    let feedback_template_id = RwSignal::new(String::new());
+    let feedback_pushing = RwSignal::new(false);
+    let feedback_loading = RwSignal::new(false);
+    let feedback_instances: RwSignal<Vec<(String, String)>> = RwSignal::new(Vec::new());
+    let feedback_templates: RwSignal<Vec<(String, String)>> = RwSignal::new(Vec::new());
 
     // ── Handlers ─────────────────────────────────────────────────────────────
     let handle_close = {
@@ -138,39 +145,182 @@ pub fn SupportQueue() -> impl IntoView {
                 toast.show_toast("Error", "Note cannot be empty.", "error");
                 return;
             }
-            show_internal_modal.set(false);
-            internal_note_input.set(String::new());
-            toast.show_toast(
-                "Saved",
-                "Internal note registered (hidden from user).",
-                "success",
-            );
+            let Some(id) = selected_id.get() else {
+                return;
+            };
+            let toast = toast.clone();
+            saving_note.set(true);
+            spawn_local(async move {
+                match crate::api::admin::send_support_note(id, note).await {
+                    Ok(_) => {
+                        saving_note.set(false);
+                        show_internal_modal.set(false);
+                        internal_note_input.set(String::new());
+                        thread_detail_resource.refetch();
+                        toast.show_toast(
+                            "Saved",
+                            "Internal note registered (hidden from user).",
+                            "success",
+                        );
+                    }
+                    Err(e) => {
+                        saving_note.set(false);
+                        toast.show_toast("Error", &e, "error");
+                    }
+                }
+            });
         }
     };
 
-    let handle_save_escalation = {
-        let toast = toast.clone();
-        move |_| {
-            let target = escalate_target.get();
-            show_escalate_modal.set(false);
-            escalate_notes.set(String::new());
-            toast.show_toast(
-                "Escalated",
-                &format!("Thread assigned to {}.", target),
-                "warn",
-            );
-        }
+    let open_feedback_modal = move |tenant_id: String, user_id: String, user_label: String| {
+        feedback_tenant_id.set(tenant_id.clone());
+        feedback_user_id.set(user_id);
+        feedback_user_label.set(user_label);
+        feedback_instance_id.set(String::new());
+        feedback_template_id.set(String::new());
+        feedback_templates.set(Vec::new());
+        feedback_instances.set(Vec::new());
+        show_feedback_modal.set(true);
+        feedback_loading.set(true);
+        spawn_local(async move {
+            let apps = crate::api::admin::get_all_platform_apps()
+                .await
+                .unwrap_or_default();
+            let mut for_tenant: Vec<(String, String)> = apps
+                .into_iter()
+                .filter(|a| a.tenant_id == tenant_id)
+                .map(|a| {
+                    let label = if a.app_type == "property_management" || a.app_type == "folio" {
+                        format!("{} (Folio)", a.name)
+                    } else {
+                        format!("{} ({})", a.name, a.app_type)
+                    };
+                    (a.instance_id, label)
+                })
+                .collect();
+            for_tenant.sort_by(|a, b| {
+                let a_folio = a.1.contains("(Folio)");
+                let b_folio = b.1.contains("(Folio)");
+                b_folio.cmp(&a_folio)
+            });
+            let default_iid = for_tenant
+                .first()
+                .map(|(id, _)| id.clone())
+                .unwrap_or_default();
+            feedback_instances.set(for_tenant);
+            if !default_iid.is_empty() {
+                feedback_instance_id.set(default_iid.clone());
+                match crate::api::scorecards::list_instance_deployments(&tenant_id, &default_iid)
+                    .await
+                {
+                    Ok(deps) => {
+                        let opts: Vec<(String, String)> = deps
+                            .into_iter()
+                            .filter(|d| d.is_enabled)
+                            .map(|d| {
+                                (
+                                    d.template_id.to_string(),
+                                    d.template_name.unwrap_or_else(|| {
+                                        d.template_id.to_string().chars().take(8).collect()
+                                    }),
+                                )
+                            })
+                            .collect();
+                        if let Some((id, _)) = opts.first() {
+                            feedback_template_id.set(id.clone());
+                        }
+                        feedback_templates.set(opts);
+                    }
+                    Err(_) => feedback_templates.set(Vec::new()),
+                }
+            }
+            feedback_loading.set(false);
+        });
     };
 
-    let handle_confirm_impersonate = {
+    let load_feedback_templates = move |instance_id: String| {
+        let tid = feedback_tenant_id.get();
+        if tid.is_empty() || instance_id.is_empty() {
+            return;
+        }
+        feedback_instance_id.set(instance_id.clone());
+        feedback_template_id.set(String::new());
+        feedback_loading.set(true);
+        spawn_local(async move {
+            match crate::api::scorecards::list_instance_deployments(&tid, &instance_id).await {
+                Ok(deps) => {
+                    let opts: Vec<(String, String)> = deps
+                        .into_iter()
+                        .filter(|d| d.is_enabled)
+                        .map(|d| {
+                            (
+                                d.template_id.to_string(),
+                                d.template_name.unwrap_or_else(|| {
+                                    d.template_id.to_string().chars().take(8).collect()
+                                }),
+                            )
+                        })
+                        .collect();
+                    if let Some((id, _)) = opts.first() {
+                        feedback_template_id.set(id.clone());
+                    }
+                    feedback_templates.set(opts);
+                }
+                Err(_) => feedback_templates.set(Vec::new()),
+            }
+            feedback_loading.set(false);
+        });
+    };
+
+    let handle_push_feedback = {
         let toast = toast.clone();
         move |_| {
-            show_impersonate_modal.set(false);
-            toast.show_toast(
-                "Warning",
-                "⚠ Impersonation token active. Audit log registered.",
-                "warn",
-            );
+            let tid = feedback_tenant_id.get();
+            let iid = feedback_instance_id.get();
+            let template_id = feedback_template_id.get();
+            let user_id = feedback_user_id.get();
+            if tid.is_empty() || iid.is_empty() || template_id.is_empty() || user_id.is_empty() {
+                toast.show_toast(
+                    "Error",
+                    "Select an instance and an enabled template.",
+                    "error",
+                );
+                return;
+            }
+            let Ok(template_uuid) = uuid::Uuid::parse_str(&template_id) else {
+                toast.show_toast("Error", "Invalid template id.", "error");
+                return;
+            };
+            let Ok(user_uuid) = uuid::Uuid::parse_str(&user_id) else {
+                toast.show_toast("Error", "Invalid user id.", "error");
+                return;
+            };
+            feedback_pushing.set(true);
+            let toast = toast.clone();
+            spawn_local(async move {
+                let input = crate::api::scorecards::ScorecardPushInput {
+                    template_id: template_uuid,
+                    target_user_ids: vec![user_uuid],
+                    subject_type: None,
+                    subject_id: None,
+                    note: Some("Support-requested feedback".into()),
+                };
+                match crate::api::scorecards::scorecard_push(&tid, &iid, &input).await {
+                    Ok(resp) => {
+                        show_feedback_modal.set(false);
+                        feedback_pushing.set(false);
+                        toast.show_toast(
+                            "Pushed",
+                            &format!("Feedback survey sent — {} session(s) opened.", resp.pushed),
+                            "success",
+                        );
+                    }
+                    Err(e) => {
+                        feedback_pushing.set(false);
+                        toast.show_toast("Error", &e, "error");
+                    }
+                }
+            });
         }
     };
 
@@ -384,7 +534,6 @@ pub fn SupportQueue() -> impl IntoView {
                                             let name  = thread.submitter_name.clone()
                                                 .unwrap_or_else(|| thread.submitter_email.clone().unwrap_or_else(|| "Unknown User".to_string()));
                                             let email = thread.submitter_email.clone().unwrap_or_default();
-                                            let tid   = thread.id.clone();
                                             let msgs  = thread.messages.clone();
                                             let is_open = thread.is_active;
 
@@ -410,11 +559,24 @@ pub fn SupportQueue() -> impl IntoView {
 
                                                     <div class="flex items-center gap-2 flex-shrink-0">
                                                         <button
-                                                            on:click=move |_| show_impersonate_modal.set(true)
+                                                            on:click={
+                                                                let tid = thread.tenant_id.clone();
+                                                                let uid = thread.entity_id.clone();
+                                                                let label = format!(
+                                                                    "{} ({})",
+                                                                    name.clone(),
+                                                                    email.clone()
+                                                                );
+                                                                move |_| open_feedback_modal(
+                                                                    tid.clone(),
+                                                                    uid.clone(),
+                                                                    label.clone(),
+                                                                )
+                                                            }
                                                             class="btn btn-ghost btn-sm"
                                                         >
-                                                            <span class="material-symbols-outlined text-sm">"key"</span>
-                                                            "Impersonate"
+                                                            <span class="material-symbols-outlined text-sm">"rate_review"</span>
+                                                            "Request feedback"
                                                         </button>
                                                         <Show when=move || is_open>
                                                             <button
@@ -454,6 +616,7 @@ pub fn SupportQueue() -> impl IntoView {
                                                                 children=move |msg| {
                                                                     let is_op  = msg.is_operator;
                                                                     let is_sys = msg.message_type == "system";
+                                                                    let is_note = msg.message_type == "internal_note";
                                                                     let sender = msg.sender_name.clone()
                                                                         .unwrap_or_else(|| if is_op { "Platform Support".to_string() } else { "User".to_string() });
                                                                     let ini    = initials(&msg.sender_name);
@@ -470,6 +633,21 @@ pub fn SupportQueue() -> impl IntoView {
                                                                                 <div class="flex-1 h-px bg-outline-variant/10"/>
                                                                             </div>
                                                                         }.into_any()
+                                                                    } else if is_note {
+                                                                        view! {
+                                                                            <div class="flex gap-3 justify-end">
+                                                                                <div class="space-y-1 max-w-[75%]">
+                                                                                    <div class="text-[10px] text-amber-400/80 text-right flex items-center justify-end gap-1">
+                                                                                        <span class="material-symbols-outlined text-[12px]">"lock"</span>
+                                                                                        "Internal note · " {time}
+                                                                                    </div>
+                                                                                    <div class="p-3 rounded-2xl rounded-tr-none text-xs leading-relaxed bg-amber-500/10 border border-amber-500/25 text-on-surface">
+                                                                                        <div class="text-[9px] font-bold text-amber-400 uppercase tracking-wider mb-1">"Staff only"</div>
+                                                                                        {content}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        }.into_any()
                                                                     } else if is_op {
                                                                         // Operator bubble — right aligned
                                                                         view! {
@@ -479,13 +657,13 @@ pub fn SupportQueue() -> impl IntoView {
                                                                                         "Platform Support · " {time}
                                                                                     </div>
                                                                                     <div class="p-3 rounded-2xl rounded-tr-none text-xs leading-relaxed bg-primary/15 border border-primary/30 text-on-surface">
-                                                                                        <div class="text-[9px] font-bold text-primary uppercase tracking-wider mb-1">"🛡 Atlas Support"</div>
+                                                                                        <div class="text-[9px] font-bold text-primary uppercase tracking-wider mb-1">"Atlas Support"</div>
                                                                                         {content}
                                                                                     </div>
                                                                                 </div>
                                                                                 <div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 border border-white/5"
                                                                                     style="background: linear-gradient(135deg, #0A84FF, #5E5CE6)">
-                                                                                    "🛡"
+                                                                                    "A"
                                                                                 </div>
                                                                             </div>
                                                                         }.into_any()
@@ -532,13 +710,6 @@ pub fn SupportQueue() -> impl IntoView {
                                                                 >
                                                                     <span class="material-symbols-outlined text-[14px]">"lock"</span>
                                                                     "Internal Note"
-                                                                </button>
-                                                                <button
-                                                                    on:click=move |_| show_escalate_modal.set(true)
-                                                                    class="btn btn-warn btn-sm"
-                                                                >
-                                                                    <span class="material-symbols-outlined text-[14px]">"campaign"</span>
-                                                                    "Escalate"
                                                                 </button>
                                                             </div>
                                                             <button
@@ -593,81 +764,85 @@ pub fn SupportQueue() -> impl IntoView {
                         </div>
                         <div class="flex justify-end gap-3">
                             <button on:click=move |_| show_internal_modal.set(false) class="btn btn-ghost">"Cancel"</button>
-                            <button on:click=handle_save_internal_note class="btn btn-primary">"Save Internal Note"</button>
+                            <button
+                                on:click=handle_save_internal_note
+                                disabled=move || saving_note.get()
+                                class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {move || if saving_note.get() { "Saving…" } else { "Save Internal Note" }}
+                            </button>
                         </div>
                     </div>
                 </div>
             </Show>
 
-            // ── Escalate Modal ───────────────────────────────────────────────
-            <Show when=move || show_escalate_modal.get()>
+            // ── Request Feedback Modal ───────────────────────────────────────
+            <Show when=move || show_feedback_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_escalate_modal.set(false)>"✕"</button>
-                        <h3 class="text-lg font-bold mb-2">"Escalate Support Thread"</h3>
-                        <p class="text-xs text-on-surface-variant mb-4">"Escalations flag the thread for senior review and update the internal audit log."</p>
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_feedback_modal.set(false)>"✕"</button>
+                        <h3 class="text-lg font-bold mb-2">"Request feedback"</h3>
+                        <div class="p-3 bg-primary/10 border border-primary/20 rounded-lg text-xs text-on-surface-variant mb-4 leading-relaxed">
+                            "Pushes a G27 survey to the thread user via scorecard-push. They see NudgePrompt in Folio."
+                        </div>
                         <div class="space-y-4 mb-6">
                             <div class="flex flex-col gap-1.5">
-                                <label class="text-xs font-semibold text-on-surface-variant">"Escalation Reason"</label>
+                                <label class="text-xs font-semibold text-on-surface-variant">"Target"</label>
+                                <input
+                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full"
+                                    prop:value=move || feedback_user_label.get()
+                                    readonly
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-xs font-semibold text-on-surface-variant">"App instance"</label>
                                 <select
                                     class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full"
-                                    on:change=move |ev| escalate_reason.set(event_target_value(&ev))
+                                    prop:value=move || feedback_instance_id.get()
+                                    on:change=move |ev| {
+                                        load_feedback_templates(event_target_value(&ev));
+                                    }
                                 >
-                                    <option value="SLA breach imminent">"SLA breach imminent"</option>
-                                    <option value="Requires engineering access">"Requires engineering database access"</option>
-                                    <option value="Billing dispute — finance">"Billing dispute — needs finance review"</option>
-                                    <option value="Security / compliance hold">"Security / compliance hold"</option>
+                                    <Show when=move || feedback_instances.get().is_empty()>
+                                        <option value="">"No instances for this tenant"</option>
+                                    </Show>
+                                    {move || feedback_instances.get().into_iter().map(|(id, label)| {
+                                        view! { <option value=id.clone()>{label}</option> }
+                                    }).collect_view()}
                                 </select>
                             </div>
                             <div class="flex flex-col gap-1.5">
-                                <label class="text-xs font-semibold text-on-surface-variant">"Assign To"</label>
+                                <label class="text-xs font-semibold text-on-surface-variant">"Template"</label>
                                 <select
                                     class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full"
-                                    on:change=move |ev| escalate_target.set(event_target_value(&ev))
+                                    prop:value=move || feedback_template_id.get()
+                                    on:change=move |ev| feedback_template_id.set(event_target_value(&ev))
+                                    disabled=move || feedback_loading.get()
                                 >
-                                    <option value="Engineering On-Call">"Engineering On-Call"</option>
-                                    <option value="Senior Support">"Senior Support"</option>
-                                    <option value="Billing Team">"Billing Team"</option>
-                                    <option value="Security">"Security Team"</option>
+                                    <Show when=move || feedback_templates.get().is_empty()>
+                                        <option value="">
+                                            {move || if feedback_loading.get() {
+                                                "Loading…"
+                                            } else {
+                                                "No enabled deployments"
+                                            }}
+                                        </option>
+                                    </Show>
+                                    {move || feedback_templates.get().into_iter().map(|(id, name)| {
+                                        view! { <option value=id.clone()>{name}</option> }
+                                    }).collect_view()}
                                 </select>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <label class="text-xs font-semibold text-on-surface-variant">"Context / Notes"</label>
-                                <textarea
-                                    rows="3"
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full placeholder:text-on-surface-variant/40"
-                                    placeholder="Provide context for the escalation team..."
-                                    prop:value=escalate_notes
-                                    on:input=move |ev| escalate_notes.set(event_target_value(&ev))
-                                ></textarea>
-                            </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_escalate_modal.set(false) class="btn btn-ghost">"Cancel"</button>
-                            <button on:click=handle_save_escalation class="btn btn-warn">"Escalate Thread"</button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
-
-            // ── Impersonate Modal ────────────────────────────────────────────
-            <Show when=move || show_impersonate_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_impersonate_modal.set(false)>"✕"</button>
-                        <h3 class="text-lg font-bold text-red-400 mb-2 flex items-center gap-1.5">
-                            <span class="material-symbols-outlined">"warning"</span>
-                            "Impersonate tenant operator view"
-                        </h3>
-                        <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 mb-4 leading-relaxed">
-                            "You are about to start a diagnostics session as this user. All actions will be audit-logged under your staff profile."
-                        </div>
-                        <p class="text-xs text-on-surface-variant mb-6 leading-relaxed">
-                            "This grants access to view private listings, customer billing data, and run platform adjustments. Use strictly for resolving support cases."
-                        </p>
-                        <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_impersonate_modal.set(false) class="btn btn-ghost">"Cancel"</button>
-                            <button on:click=handle_confirm_impersonate class="btn btn-danger">"Audit & Impersonate"</button>
+                            <button on:click=move |_| show_feedback_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                            <button
+                                on:click=handle_push_feedback
+                                disabled=move || feedback_pushing.get() || feedback_template_id.get().is_empty()
+                                class="btn btn-primary disabled:opacity-50"
+                            >
+                                {move || if feedback_pushing.get() { "Pushing…" } else { "Push survey" }}
+                            </button>
                         </div>
                     </div>
                 </div>

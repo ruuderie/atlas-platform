@@ -7,7 +7,9 @@
 /// Every notification is stored here regardless of which external channels were triggered.
 /// - `notification_type`: lease_expiring | rent_due | maintenance_request | message_received |
 ///                        violation_filed | inspection_scheduled | payment_received |
-///                        lead_assigned | scorecard_nudge | system | announcement
+///                        lead_assigned | scorecard_nudge | system | announcement |
+///                        support_reply | service_request_received | review_received
+///   (free TEXT — no DB CHECK; documented conventions only)
 /// - `channels_attempted`: JSONB array of {channel, status, attempted_at} — delivery receipt log
 /// - `entity_type` / `entity_id`: the Atlas record this notification is about (optional)
 ///

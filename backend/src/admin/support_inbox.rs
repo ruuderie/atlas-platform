@@ -8,8 +8,9 @@
 //!
 //! Routes:
 //!   GET  /api/admin/support/threads            — list all support threads (paginated)
-//!   GET  /api/admin/support/threads/{id}        — thread detail + messages
+//!   GET  /api/admin/support/threads/{id}        — thread detail + messages (incl. internal notes)
 //!   POST /api/admin/support/threads/{id}/reply  — operator sends a message
+//!   POST /api/admin/support/threads/{id}/notes  — operator adds an internal note
 //!   PUT  /api/admin/support/threads/{id}/close  — mark thread closed
 
 use axum::{
@@ -28,6 +29,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::{atlas_ws_message, atlas_ws_room, user};
+use crate::services::notification_service::{
+    DispatchInput, NotificationPriority, NotificationService,
+};
+use crate::types::realtime::WsMessageType;
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +41,7 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
         .route("/api/admin/support/threads", get(list_threads))
         .route("/api/admin/support/threads/{id}", get(get_thread))
         .route("/api/admin/support/threads/{id}/reply", post(reply_thread))
+        .route("/api/admin/support/threads/{id}/notes", post(add_note))
         .route("/api/admin/support/threads/{id}/close", put(close_thread))
 }
 
@@ -78,7 +84,7 @@ struct MessageRow {
     id: Uuid,
     sender_user_id: Option<Uuid>,
     sender_name: Option<String>,
-    /// "text" | "system" | "operator_reply"
+    /// Wire value of [`WsMessageType`].
     message_type: String,
     content: String,
     created_at: DateTime<Utc>,
@@ -89,6 +95,11 @@ struct MessageRow {
 
 #[derive(Debug, Deserialize)]
 struct ReplyInput {
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct NoteInput {
     content: String,
 }
 
@@ -159,7 +170,11 @@ async fn get_thread(
     let messages: Vec<MessageRow> = messages_raw
         .into_iter()
         .map(|m| {
-            let is_op = m.message_type == "operator_reply";
+            let msg_ty = WsMessageType::try_from(m.message_type.as_str()).ok();
+            let is_op = matches!(
+                msg_ty,
+                Some(WsMessageType::OperatorReply | WsMessageType::InternalNote)
+            );
             let name = m
                 .sender_user_id
                 .and_then(|uid| user_names.get(&uid).cloned());
@@ -211,6 +226,75 @@ async fn reply_thread(
     }
 
     // Verify room exists and is a support room
+    let room = atlas_ws_room::Entity::find_by_id(room_id)
+        .filter(atlas_ws_room::Column::RoomType.eq("platform_support"))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let content = body.content.trim().to_string();
+
+    let msg = atlas_ws_message::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        room_id: Set(room_id),
+        sender_user_id: Set(Some(user.id)),
+        message_type: Set(WsMessageType::OperatorReply.to_string()),
+        content: Set(content.clone()),
+        translated_content: Set(None),
+        attachment_id: Set(None),
+        created_at: Set(Utc::now()),
+        ..Default::default()
+    };
+    let created = msg.insert(&db).await.map_err(|e| {
+        tracing::error!(%room_id, "support/reply error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Notify the Folio user who opened the support thread (non-fatal on failure)
+    let preview: String = content.chars().take(120).collect();
+    let dispatch = DispatchInput {
+        tenant_id: room.tenant_id,
+        user_id: room.entity_id,
+        notification_type: "support_reply".to_string(),
+        title: "Support replied".to_string(),
+        body: preview,
+        priority: NotificationPriority::Normal,
+        entity_type: Some("atlas_ws_room".to_string()),
+        entity_id: Some(room_id),
+        metadata: Some(serde_json::json!({
+            "room_id": room_id,
+            "action_url": "/tenant/inbox",
+        })),
+        include_broadcast: false,
+    };
+    if let Err(e) = NotificationService::dispatch(&db, dispatch).await {
+        tracing::warn!(
+            %room_id,
+            user_id = %room.entity_id,
+            error = %e,
+            "support/reply: support_reply notification failed (non-fatal)"
+        );
+    }
+
+    Ok::<_, StatusCode>((
+        StatusCode::CREATED,
+        axum::response::Json(serde_json::json!({ "id": created.id })),
+    ))
+}
+
+// ── POST /api/admin/support/threads/:id/notes ────────────────────────────────
+
+async fn add_note(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+    Path(room_id): Path<Uuid>,
+    Json(body): Json<NoteInput>,
+) -> impl IntoResponse {
+    if body.content.trim().is_empty() {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
     atlas_ws_room::Entity::find_by_id(room_id)
         .filter(atlas_ws_room::Column::RoomType.eq("platform_support"))
         .one(&db)
@@ -222,7 +306,7 @@ async fn reply_thread(
         id: Set(Uuid::new_v4()),
         room_id: Set(room_id),
         sender_user_id: Set(Some(user.id)),
-        message_type: Set("operator_reply".to_string()),
+        message_type: Set(WsMessageType::InternalNote.to_string()),
         content: Set(body.content.trim().to_string()),
         translated_content: Set(None),
         attachment_id: Set(None),
@@ -230,7 +314,7 @@ async fn reply_thread(
         ..Default::default()
     };
     let created = msg.insert(&db).await.map_err(|e| {
-        tracing::error!(%room_id, "support/reply error: {e:#}");
+        tracing::error!(%room_id, "support/notes error: {e:#}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -265,7 +349,7 @@ async fn close_thread(
         id: Set(Uuid::new_v4()),
         room_id: Set(room_id),
         sender_user_id: Set(None),
-        message_type: Set("system".to_string()),
+        message_type: Set(WsMessageType::System.to_string()),
         content: Set("This support thread has been closed by the platform team.".to_string()),
         translated_content: Set(None),
         attachment_id: Set(None),

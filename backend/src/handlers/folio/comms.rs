@@ -45,6 +45,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::{atlas_ws_message, atlas_ws_room, user};
+use crate::types::realtime::WsMessageType;
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -137,6 +138,10 @@ async fn list_rooms(
     for room in rooms {
         let last = atlas_ws_message::Entity::find()
             .filter(atlas_ws_message::Column::RoomId.eq(room.id))
+            .filter(
+                atlas_ws_message::Column::MessageType
+                    .ne(WsMessageType::InternalNote.as_str()),
+            )
             .order_by_desc(atlas_ws_message::Column::CreatedAt)
             .limit(1)
             .one(&db)
@@ -262,6 +267,9 @@ async fn list_messages(
 
     let msgs = atlas_ws_message::Entity::find()
         .filter(atlas_ws_message::Column::RoomId.eq(room_id))
+        .filter(
+            atlas_ws_message::Column::MessageType.ne(WsMessageType::InternalNote.as_str()),
+        )
         .order_by_asc(atlas_ws_message::Column::CreatedAt)
         .limit(limit)
         .all(&db)
@@ -299,6 +307,13 @@ async fn send_message(
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
 
+    // Folio callers may only post user-visible text; reject operator/system types.
+    let message_type = match WsMessageType::try_from(body.message_type.as_str()) {
+        Ok(WsMessageType::Text) => WsMessageType::Text.to_string(),
+        Ok(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+        Err(_) => return Err(StatusCode::UNPROCESSABLE_ENTITY),
+    };
+
     // Tenant-scope guard
     atlas_ws_room::Entity::find()
         .filter(atlas_ws_room::Column::TenantId.eq(tenant_id))
@@ -312,7 +327,7 @@ async fn send_message(
         id: Set(Uuid::new_v4()),
         room_id: Set(room_id),
         sender_user_id: Set(Some(user.id)),
-        message_type: Set(body.message_type),
+        message_type: Set(message_type),
         content: Set(body.content.trim().to_string()),
         created_at: Set(Utc::now()),
         ..Default::default()
