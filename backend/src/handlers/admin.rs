@@ -321,7 +321,7 @@ pub struct SetPurposeInput {
 /// Merges into the existing config so other keys are preserved.
 pub async fn set_deployment_purpose(
     State(db): State<DatabaseConnection>,
-    Extension(_current_user): Extension<user::Model>,
+    Extension(current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
     Path(tenant_id): Path<Uuid>,
     Json(body): Json<SetPurposeInput>,
@@ -329,6 +329,7 @@ pub async fn set_deployment_purpose(
     use crate::entities::atlas_app_deployment_config::{
         self, ActiveModel, AppDeploymentMode, AppInstanceStatus, FolioMode,
     };
+    use crate::services::audit::AuditService;
     use sea_orm::{ActiveValue::Set, IntoActiveModel};
 
     let app_slug = body
@@ -353,6 +354,11 @@ pub async fn set_deployment_purpose(
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
     }
+
+    let old_purpose = existing
+        .as_ref()
+        .and_then(|row| row.config.get("purpose").cloned());
+    let entity_id = existing.as_ref().map(|r| r.id).unwrap_or(tenant_id);
 
     match existing {
         Some(row) => {
@@ -382,7 +388,7 @@ pub async fn set_deployment_purpose(
             let new_row = ActiveModel {
                 id: Set(Uuid::new_v4()),
                 tenant_id: Set(tenant_id),
-                app_slug: Set(app_slug),
+                app_slug: Set(app_slug.clone()),
                 mode: Set(AppDeploymentMode::InternalOperator),
                 config: Set(config),
                 folio_mode: Set(FolioMode::Standard),
@@ -399,6 +405,18 @@ pub async fn set_deployment_purpose(
             })?;
         }
     }
+
+    AuditService::log_action(
+        db.clone(),
+        Some(tenant_id),
+        Some(current_user.id),
+        "app_instance.purpose_changed".to_string(),
+        "AppInstance".to_string(),
+        entity_id,
+        Some(serde_json::json!({ "purpose": old_purpose, "app_slug": app_slug })),
+        Some(serde_json::json!({ "purpose": body.purpose, "app_slug": app_slug })),
+        None,
+    );
 
     Ok(StatusCode::NO_CONTENT)
 }

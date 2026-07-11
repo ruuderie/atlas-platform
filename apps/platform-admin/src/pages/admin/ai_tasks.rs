@@ -20,8 +20,15 @@ pub struct AiTaskItem {
 pub fn AiTasks() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    // Global Queue Pause state
+    // Global Queue Pause state — hydrated from API
     let queue_paused = RwSignal::new(false);
+    Effect::new(move |_| {
+        leptos::task::spawn_local(async move {
+            if let Ok(status) = crate::api::admin::get_ai_queue_status().await {
+                queue_paused.set(status.paused);
+            }
+        });
+    });
 
     // Tasks list database state
     let tasks_trigger = RwSignal::new(0);
@@ -165,12 +172,32 @@ pub fn AiTasks() -> impl IntoView {
     };
 
     let toggle_pause = move |_| {
-        queue_paused.update(|p| *p = !*p);
-        if queue_paused.get() {
-            toast.show_toast("Warning", "Background task scheduler PAUSED.", "warn");
-        } else {
-            toast.show_toast("Success", "Background task scheduler RESUMED.", "success");
-        }
+        let t_toast = toast.clone();
+        let currently_paused = queue_paused.get();
+        leptos::task::spawn_local(async move {
+            let result = if currently_paused {
+                crate::api::admin::resume_ai_queue().await
+            } else {
+                crate::api::admin::pause_ai_queue().await
+            };
+            match result {
+                Ok(status) => {
+                    queue_paused.set(status.paused);
+                    if status.paused {
+                        t_toast.show_toast("Warning", "Background task scheduler PAUSED.", "warn");
+                    } else {
+                        t_toast.show_toast(
+                            "Success",
+                            "Background task scheduler RESUMED.",
+                            "success",
+                        );
+                    }
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Queue control failed: {}", e), "error");
+                }
+            }
+        });
     };
 
     let retry_all_failed = move |_| {

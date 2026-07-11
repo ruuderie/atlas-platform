@@ -303,6 +303,10 @@ async fn main() {
     crate::services::data_sync::DataSyncService::start_worker(sync_db).await;
     let outbox_db = conn.clone();
     crate::services::outbox_worker::OutboxWorker::start_worker(outbox_db).await;
+    // G-08 AI Task Queue — dequeues atlas_ai_tasks every 10s (SKIP LOCKED),
+    // runs localize_product_page and other handlers, respects admin pause flag.
+    let ai_task_db = conn.clone();
+    crate::services::ai_task_service::AiTaskService::start_worker(ai_task_db).await;
     // G-05 Syndication Event Bus — polls atlas_syndication_outbox every 10s,
     // dispatches outbound events to linked NI webhook URLs with HMAC-SHA256 signing,
     // exponential back-off, and dead-letter after 5 failed attempts.

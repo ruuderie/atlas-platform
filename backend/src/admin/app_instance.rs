@@ -45,6 +45,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::atlas_app_deployment_config;
+use crate::entities::user;
+use crate::services::audit::AuditService;
 use crate::services::ingress_provisioner::IngressProvisioner;
 use std::sync::Arc;
 
@@ -620,25 +622,49 @@ pub async fn update_operational_config(
 
 pub async fn suspend_instance(
     State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<SuspendBody>,
 ) -> impl IntoResponse {
-    set_instance_status(&db, instance_id, "suspended", &body.reason).await
+    set_instance_status(
+        &db,
+        instance_id,
+        "suspended",
+        &body.reason,
+        Some(current_user.id),
+    )
+    .await
 }
 
 pub async fn resume_instance(
     State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    set_instance_status(&db, instance_id, "active", "resumed by platform admin").await
+    set_instance_status(
+        &db,
+        instance_id,
+        "active",
+        "resumed by platform admin",
+        Some(current_user.id),
+    )
+    .await
 }
 
 pub async fn archive_instance(
     State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<ArchiveBody>,
 ) -> impl IntoResponse {
-    set_instance_status(&db, instance_id, "archived", &body.reason).await
+    set_instance_status(
+        &db,
+        instance_id,
+        "archived",
+        &body.reason,
+        Some(current_user.id),
+    )
+    .await
 }
 
 async fn set_instance_status(
@@ -646,6 +672,7 @@ async fn set_instance_status(
     instance_id: Uuid,
     status: &str,
     reason: &str,
+    actor_id: Option<Uuid>,
 ) -> axum::response::Response {
     use crate::entities::atlas_app_deployment_config::AppInstanceStatus;
     let existing = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
@@ -656,6 +683,9 @@ async fn set_instance_status(
         Ok(None) => return (StatusCode::NOT_FOUND, "instance not found").into_response(),
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
+
+    let old_status = existing.instance_status.to_string();
+    let tenant_id = existing.tenant_id;
 
     let status_enum = match status {
         "active" => AppInstanceStatus::Active,
@@ -674,6 +704,17 @@ async fn set_instance_status(
                 status = status,
                 reason = reason,
                 "instance status changed"
+            );
+            AuditService::log_action(
+                db.clone(),
+                Some(tenant_id),
+                actor_id,
+                format!("app_instance.{}", status),
+                "AppInstance".to_string(),
+                instance_id,
+                Some(serde_json::json!({ "instance_status": old_status })),
+                Some(serde_json::json!({ "instance_status": status, "reason": reason })),
+                None,
             );
             (
                 StatusCode::OK,
@@ -805,6 +846,7 @@ pub async fn get_instance_stats(
 
 pub async fn delete_instance(
     State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
     set_instance_status(
@@ -812,6 +854,7 @@ pub async fn delete_instance(
         instance_id,
         "archived",
         "archived via platform-admin DELETE",
+        Some(current_user.id),
     )
     .await
 }
@@ -823,13 +866,20 @@ pub async fn delete_instance(
 
 pub async fn reset_instance(
     State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
     use crate::entities::onboarding_progress;
 
     // 1. Set instance status back to active
-    let status_result =
-        set_instance_status(&db, instance_id, "active", "reset by platform admin").await;
+    let status_result = set_instance_status(
+        &db,
+        instance_id,
+        "active",
+        "reset by platform admin",
+        Some(current_user.id),
+    )
+    .await;
     let status_code = status_result.status();
     if !status_code.is_success() {
         return status_result;

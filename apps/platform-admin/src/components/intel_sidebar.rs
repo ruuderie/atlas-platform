@@ -44,16 +44,25 @@ pub fn IntelSidebar() -> impl IntoView {
                         view! {
                             <div>
                                 {recent.into_iter().map(|task| {
-                                    let (status_icon, status_class) = match task.status_class.as_str() {
-                                        "running"  => ("↻", "running"),
-                                        "done"     => ("✓", "done"),
-                                        "failed"   => ("✗", "failed"),
-                                        "queued"   => ("·", "queued"),
-                                        _          => ("·", "queued"),
+                                    let (status_icon, status_class) = match task.status.as_str() {
+                                        "Running" => ("↻", "running"),
+                                        "Success" => ("✓", "done"),
+                                        "Failed" => ("✗", "failed"),
+                                        "Queued" => ("·", "queued"),
+                                        other if other.eq_ignore_ascii_case("running") => {
+                                            ("↻", "running")
+                                        }
+                                        other if other.eq_ignore_ascii_case("success") => {
+                                            ("✓", "done")
+                                        }
+                                        other if other.eq_ignore_ascii_case("failed") => {
+                                            ("✗", "failed")
+                                        }
+                                        _ => ("·", "queued"),
                                     };
                                     let task_name = task.task_type.clone();
-                                    let entity    = task.entity.clone();
-                                    let runtime   = task.runtime.clone();
+                                    let entity = task.entity.clone();
+                                    let runtime = task.runtime.clone();
                                     view! {
                                         <div class="job-row">
                                             <div class={format!("job-status {}", status_class)}>{status_icon}</div>

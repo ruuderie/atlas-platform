@@ -178,6 +178,21 @@ impl AtlasApp for CorePlatformApp {
                     })
                 }),
             },
+            // ── G-08 AI Task Queue Processor ─────────────────────────────────
+            // Dequeues queued atlas_ai_tasks (SKIP LOCKED), runs handlers
+            // (e.g. localize_product_page), and completes/fails each task.
+            // Respects the in-memory ai_queue_paused flag from admin pause/resume.
+            BackgroundJob {
+                job_type: "process_ai_tasks".to_string(),
+                default_interval_seconds: 10,
+                is_active_by_default: true,
+                default_config_payload: None,
+                executor: Box::new(|db, _tenant_id, _config| {
+                    Box::pin(async move {
+                        crate::services::ai_task_service::AiTaskService::process_ai_tasks(&db).await
+                    })
+                }),
+            },
         ]
     }
 
@@ -281,12 +296,10 @@ mod tests {
         let app = CorePlatformApp;
         let jobs = app.background_jobs();
 
-        // G-23: The reservation hold expiry sweeper must be present so the
-        // background job poller can sweep expired holds platform-wide every 5 minutes.
         assert_eq!(
             jobs.len(),
-            1,
-            "Expected exactly 1 platform background job registered"
+            2,
+            "Expected exactly 2 platform background jobs registered"
         );
         assert_eq!(
             jobs[0].job_type, "release_expired_reservation_holds",
@@ -294,6 +307,13 @@ mod tests {
         );
         assert_eq!(jobs[0].default_interval_seconds, 300);
         assert!(jobs[0].is_active_by_default);
+
+        assert_eq!(
+            jobs[1].job_type, "process_ai_tasks",
+            "G-08 AI task processor must be registered"
+        );
+        assert_eq!(jobs[1].default_interval_seconds, 10);
+        assert!(jobs[1].is_active_by_default);
     }
 
     /// `provision()` overrides the default no-op and issues Postgres-specific SQL.

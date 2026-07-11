@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use serde_json::Value;
 
-use crate::api::audit_logs::{AuditLogModel, get_audit_logs};
+use crate::api::audit_logs::{AuditLogModel, audit_logs_export_url, get_audit_logs};
 use crate::app::GlobalToast;
 
 #[allow(dead_code)]
@@ -36,9 +36,24 @@ pub fn AuditLogs() -> impl IntoView {
 
     let fetch_logs = move || {
         set_loading.set(true);
+        let from = date_from.get();
+        let to = date_to.get();
+        // Treat a UUID-shaped search as actor_id filter for the API.
+        let actor_id = {
+            let q = search_query.get();
+            uuid::Uuid::parse_str(q.trim()).ok()
+        };
         leptos::task::spawn_local(async move {
             let tenant_id = active_network.get();
-            match get_audit_logs(tenant_id, None, None).await {
+            match get_audit_logs(
+                tenant_id,
+                actor_id,
+                None,
+                Some(from.as_str()).filter(|s| !s.is_empty()),
+                Some(to.as_str()).filter(|s| !s.is_empty()),
+            )
+            .await
+            {
                 Ok(data) => {
                     set_logs.set(data);
                 }
@@ -52,15 +67,12 @@ pub fn AuditLogs() -> impl IntoView {
     };
 
     let csv_export_url = Signal::derive(move || {
-        let tenant = active_network
-            .get()
-            .map(|id| id.to_string())
-            .unwrap_or_default();
-        format!(
-            "/api/audit-logs/export?tenant_id={}&start={}&end={}",
-            tenant,
-            date_from.get(),
-            date_to.get()
+        let actor_id = uuid::Uuid::parse_str(search_query.get().trim()).ok();
+        audit_logs_export_url(
+            active_network.get(),
+            actor_id,
+            &date_from.get(),
+            &date_to.get(),
         )
     });
 

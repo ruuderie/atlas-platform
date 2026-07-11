@@ -22,6 +22,8 @@ pub async fn get_audit_logs(
     tenant_id: Option<Uuid>,
     actor_id: Option<Uuid>,
     entity_id: Option<Uuid>,
+    date_from: Option<&str>,
+    date_to: Option<&str>,
 ) -> Result<Vec<AuditLogModel>, String> {
     let client = create_client();
     let mut url = "/api/admin/audit-logs".to_string();
@@ -35,6 +37,12 @@ pub async fn get_audit_logs(
     }
     if let Some(e) = entity_id {
         params.push(format!("entity_id={}", e));
+    }
+    if let Some(from) = date_from.filter(|s| !s.is_empty()) {
+        params.push(format!("date_from={}", from));
+    }
+    if let Some(to) = date_to.filter(|s| !s.is_empty()) {
+        params.push(format!("date_to={}", to));
     }
 
     if !params.is_empty() {
@@ -52,5 +60,32 @@ pub async fn get_audit_logs(
         Ok(logs)
     } else {
         Err(format!("Error fetching audit logs: {}", response.status()))
+    }
+}
+
+/// Build the CSV export download URL with the same filters as the list endpoint.
+pub fn audit_logs_export_url(
+    tenant_id: Option<Uuid>,
+    actor_id: Option<Uuid>,
+    date_from: &str,
+    date_to: &str,
+) -> String {
+    let mut params = Vec::new();
+    if let Some(t) = tenant_id {
+        params.push(format!("tenant_id={}", t));
+    }
+    if let Some(a) = actor_id {
+        params.push(format!("actor_id={}", a));
+    }
+    if !date_from.is_empty() {
+        params.push(format!("date_from={}", date_from));
+    }
+    if !date_to.is_empty() {
+        params.push(format!("date_to={}", date_to));
+    }
+    if params.is_empty() {
+        "/api/admin/audit-logs/export".to_string()
+    } else {
+        format!("/api/admin/audit-logs/export?{}", params.join("&"))
     }
 }

@@ -7,28 +7,40 @@ use axum::{
     extract::{Extension, Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
 };
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder,
+    ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::{atlas_ai_task, user};
+use crate::services::ai_task_service::AiTaskService;
 
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/admin/ai-tasks", get(list_ai_tasks))
         .route(
             "/api/admin/ai-tasks/{id}/abort",
-            axum::routing::post(abort_ai_task),
+            post(abort_ai_task),
         )
         .route(
             "/api/admin/ai-tasks/{id}/rerun",
-            axum::routing::post(rerun_ai_task),
+            post(rerun_ai_task),
+        )
+        .route(
+            "/api/admin/ai-tasks/queue/pause",
+            post(pause_ai_queue),
+        )
+        .route(
+            "/api/admin/ai-tasks/queue/resume",
+            post(resume_ai_queue),
+        )
+        .route(
+            "/api/admin/ai-tasks/queue/status",
+            get(ai_queue_status),
         )
 }
 
@@ -50,9 +62,19 @@ pub struct AdminAiTaskResponse {
     pub streamable: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AiQueueStatusResponse {
+    pub paused: bool,
+}
+
 // ── Helper to format logs dynamically from DB record state ───────────────────
 
 fn generate_task_logs(task: &atlas_ai_task::Model) -> Vec<String> {
+    // Prefer persisted log lines when present
+    if let Some(stored) = AiTaskService::stored_log_lines(task) {
+        return stored;
+    }
+
     let mut logs = vec![
         format!(
             "[INFO] Task registered in queue at {}",
@@ -110,6 +132,30 @@ fn generate_task_logs(task: &atlas_ai_task::Model) -> Vec<String> {
     }
 
     logs
+}
+
+async fn find_task_by_id_str(
+    db: &DatabaseConnection,
+    id_str: &str,
+) -> Result<atlas_ai_task::Model, StatusCode> {
+    let clean_id = id_str.replace("ait_", "");
+    // Prefer exact UUID parse when the full id is provided
+    if let Ok(uuid) = Uuid::parse_str(&clean_id) {
+        return atlas_ai_task::Entity::find_by_id(uuid)
+            .one(db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::NOT_FOUND);
+    }
+
+    let tasks = atlas_ai_task::Entity::find()
+        .all(db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    tasks
+        .into_iter()
+        .find(|t| t.id.to_string().starts_with(&clean_id))
+        .ok_or(StatusCode::NOT_FOUND)
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -218,18 +264,11 @@ pub async fn list_ai_tasks(
 
 pub async fn abort_ai_task(
     State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id_str): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    // Locate task by short Uuid prefix or actual ID
-    let tasks = atlas_ai_task::Entity::find()
-        .all(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let clean_id = id_str.replace("ait_", "");
-    let task = tasks
-        .into_iter()
-        .find(|t| t.id.to_string().starts_with(&clean_id))
-        .ok_or(StatusCode::NOT_FOUND)?;
+    let task = find_task_by_id_str(&db, &id_str).await?;
+    let task_id = task.id;
 
     let mut active: atlas_ai_task::ActiveModel = task.into();
     active.status = Set("failed".to_string());
@@ -242,22 +281,22 @@ pub async fn abort_ai_task(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let _ = AiTaskService::append_log_line(
+        &db,
+        task_id,
+        "[ABORT] Task manually aborted by Platform Super-Admin",
+    )
+    .await;
+
     Ok(StatusCode::OK)
 }
 
 pub async fn rerun_ai_task(
     State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id_str): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tasks = atlas_ai_task::Entity::find()
-        .all(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let clean_id = id_str.replace("ait_", "");
-    let task = tasks
-        .into_iter()
-        .find(|t| t.id.to_string().starts_with(&clean_id))
-        .ok_or(StatusCode::NOT_FOUND)?;
+    let task = find_task_by_id_str(&db, &id_str).await?;
 
     let mut active: atlas_ai_task::ActiveModel = task.into();
     active.status = Set("queued".to_string());
@@ -267,12 +306,35 @@ pub async fn rerun_ai_task(
     active.retry_count = Set(0);
     active.input_tokens = Set(None);
     active.output_tokens = Set(None);
+    active.output_payload = Set(Some(serde_json::json!({ "log_lines": [] })));
     active
         .update(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::OK)
+}
+
+pub async fn pause_ai_queue(
+    Extension(_current_user): Extension<user::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    AiTaskService::set_queue_paused(true);
+    Ok(Json(AiQueueStatusResponse { paused: true }))
+}
+
+pub async fn resume_ai_queue(
+    Extension(_current_user): Extension<user::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    AiTaskService::set_queue_paused(false);
+    Ok(Json(AiQueueStatusResponse { paused: false }))
+}
+
+pub async fn ai_queue_status(
+    Extension(_current_user): Extension<user::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    Ok(Json(AiQueueStatusResponse {
+        paused: AiTaskService::is_queue_paused(),
+    }))
 }
 
 /// `GET /api/admin/ai-tasks/{id}/logs`
@@ -282,18 +344,10 @@ pub async fn rerun_ai_task(
 /// Returns a complete snapshot each call — frontend replaces its log buffer.
 pub async fn get_task_logs(
     State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id_str): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tasks = atlas_ai_task::Entity::find()
-        .all(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let clean_id = id_str.replace("ait_", "");
-    let task = tasks
-        .into_iter()
-        .find(|t| t.id.to_string().starts_with(&clean_id))
-        .ok_or(StatusCode::NOT_FOUND)?;
-
+    let task = find_task_by_id_str(&db, &id_str).await?;
     let logs = generate_task_logs(&task);
     Ok(Json(logs))
 }

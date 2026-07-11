@@ -1,12 +1,15 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::entities::user;
+use crate::services::audit::AuditService;
 
 /// Response returned after a successful (or failed) provision call.
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,6 +28,7 @@ pub struct ProvisionResponse {
 pub async fn provision_tenant(
     Path(tenant_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let apps = crate::atlas_apps::get_active_apps();
 
@@ -35,6 +39,20 @@ pub async fn provision_tenant(
                 app.app_id(),
                 tenant_id,
                 e
+            );
+            AuditService::log_action(
+                db.clone(),
+                Some(tenant_id),
+                Some(current_user.id),
+                "tenant.provision.failed".to_string(),
+                "Tenant".to_string(),
+                tenant_id,
+                None,
+                Some(serde_json::json!({
+                    "app_id": app.app_id(),
+                    "error": e.to_string(),
+                })),
+                None,
             );
             return Ok((
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -52,6 +70,20 @@ pub async fn provision_tenant(
             tenant_id
         );
     }
+
+    AuditService::log_action(
+        db.clone(),
+        Some(tenant_id),
+        Some(current_user.id),
+        "tenant.provisioned".to_string(),
+        "Tenant".to_string(),
+        tenant_id,
+        None,
+        Some(serde_json::json!({
+            "apps_count": apps.len(),
+        })),
+        None,
+    );
 
     Ok((
         StatusCode::OK,
