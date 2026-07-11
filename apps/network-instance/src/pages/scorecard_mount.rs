@@ -134,6 +134,7 @@ fn deserialize_opt_loose_number<'de, D: serde::Deserializer<'de>>(
     }))
 }
 
+#[cfg(feature = "ssr")]
 fn session_cookie() -> String {
     use axum::http::request::Parts;
     if let Some(req_parts) = leptos::prelude::use_context::<Parts>() {
@@ -151,6 +152,11 @@ fn session_cookie() -> String {
     } else {
         String::new()
     }
+}
+
+#[cfg(not(feature = "ssr"))]
+fn session_cookie() -> String {
+    String::new()
 }
 
 #[server]
