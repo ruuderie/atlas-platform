@@ -341,6 +341,9 @@ impl OutboxWorker {
                 // The frontend ScorecardWidget subscribes to "scorecard_nudge" rooms on
                 // entity page load and renders NudgePrompt on receipt.
                 crate::types::outbox::OutboxJobType::EvaluateScorecardNudge => {
+                    // Async block so skip/`?` paths yield to `result` (mark completed/failed)
+                    // instead of `return`ing from `process_next_job` and leaving status=processing.
+                    async {
                     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::{tenant_setting, atlas_ws_room, atlas_ws_message};
 
@@ -366,7 +369,7 @@ impl OutboxWorker {
                             (Some(t), Some(et), Some(ei), Some(at)) => (t, et, ei, at),
                             _ => {
                                 error!("evaluate_scorecard_nudge: missing required payload fields, skipping");
-                                return Ok(());   // early exit from process_next_job — treat as success
+                                return Ok(());
                             }
                         };
 
@@ -377,8 +380,7 @@ impl OutboxWorker {
                         .filter(tenant_setting::Column::Value.eq("true"))
                         .one(db)
                         .await
-                        .map_err(|e| format!("evaluate_scorecard_nudge: tenant_setting query: {e}"))
-                        .map_err(|e| sea_orm::DbErr::Custom(e))?;
+                        .map_err(|e| format!("evaluate_scorecard_nudge: tenant_setting query: {e}"))?;
 
                     if enabled.is_none() {
                         info!("evaluate_scorecard_nudge: feature disabled for tenant {}, skipping", job.tenant_id);
@@ -395,7 +397,7 @@ impl OutboxWorker {
                         &act_type,
                     )
                     .await
-                    .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: get_nudge_dimensions: {e}")))?;
+                    .map_err(|e| format!("evaluate_scorecard_nudge: get_nudge_dimensions: {e}"))?;
 
                     // Trigger path fallback: no display-rule match → surface all
                     // active template dimensions so post_checkout / case_resolved
@@ -413,7 +415,7 @@ impl OutboxWorker {
                                 .filter(dims::Column::IsActive.eq(true))
                                 .all(db)
                                 .await
-                                .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: dim fallback: {e}")))?;
+                                .map_err(|e| format!("evaluate_scorecard_nudge: dim fallback: {e}"))?;
                             nudges = dim_rows
                                 .into_iter()
                                 .map(|d| crate::services::scorecard_service::NudgeDimension {
@@ -449,7 +451,7 @@ impl OutboxWorker {
                         .filter(atlas_ws_room::Column::IsActive.eq(true))
                         .one(db)
                         .await
-                        .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: ws_room query: {e}")))?;
+                        .map_err(|e| format!("evaluate_scorecard_nudge: ws_room query: {e}"))?;
 
                     let room_id = if let Some(r) = room {
                         r.id
@@ -465,7 +467,7 @@ impl OutboxWorker {
                         };
                         new_room.insert(db)
                             .await
-                            .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: ws_room insert: {e}")))?
+                            .map_err(|e| format!("evaluate_scorecard_nudge: ws_room insert: {e}"))?
                             .id
                     };
 
@@ -473,7 +475,7 @@ impl OutboxWorker {
                     // Content is the full NudgeDimension list as JSON.
                     // The frontend ScorecardWidget deserializes and renders NudgePrompt.
                     let content = serde_json::to_string(&nudges)
-                        .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: serialize: {e}")))?;
+                        .map_err(|e| format!("evaluate_scorecard_nudge: serialize: {e}"))?;
 
                     let msg = atlas_ws_message::ActiveModel {
                         id: Set(uuid::Uuid::new_v4()),
@@ -487,7 +489,7 @@ impl OutboxWorker {
                     };
                     msg.insert(db)
                         .await
-                        .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: ws_message insert: {e}")))?;
+                        .map_err(|e| format!("evaluate_scorecard_nudge: ws_message insert: {e}"))?;
 
                     info!(
                         "evaluate_scorecard_nudge: dispatched {} nudge dimensions to room {} ({}/{})",
@@ -499,6 +501,7 @@ impl OutboxWorker {
                     }
 
                     Ok(())
+                    }.await
                 }
 
 

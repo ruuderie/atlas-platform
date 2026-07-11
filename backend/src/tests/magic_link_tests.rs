@@ -444,20 +444,43 @@ async fn test_magic_link_outbox_processing() {
         .await
         .unwrap();
 
-    // Verify exactly one job exists
+    // Verify exactly one job exists for this request path.
     assert!(!pending_jobs.is_empty(), "A pending outbox job must have been enqueued");
-    
-    // 3. Run the worker's processing logic manually to verify checkout, execution, and status transition.
-    crate::services::outbox_worker::OutboxWorker::process_next_job(&db).await.unwrap();
+    let job_id = pending_jobs[0].id;
 
-    // 4. Verify that the job was completed in the database.
-    let processed_jobs = outbox_job::Entity::find()
-        .filter(outbox_job::Column::Status.eq("completed"))
-        .all(&db)
+    // Shared test DB: other suites may enqueue earlier `run_at` jobs. Drain until
+    // *this* magic-link job completes (same scoping pattern as user_id filters above).
+    for _ in 0..32 {
+        let job = outbox_job::Entity::find_by_id(job_id)
+            .one(&db)
+            .await
+            .unwrap()
+            .expect("outbox job row");
+        if job.status == "completed" {
+            return;
+        }
+        if job.status == "failed" {
+            panic!(
+                "magic-link outbox job failed: {:?}",
+                job.error_message
+            );
+        }
+        crate::services::outbox_worker::OutboxWorker::process_next_job(&db)
+            .await
+            .unwrap();
+    }
+
+    let job = outbox_job::Entity::find_by_id(job_id)
+        .one(&db)
         .await
-        .unwrap();
-
-    assert!(!processed_jobs.is_empty(), "The outbox job must be marked as 'completed'");
+        .unwrap()
+        .expect("outbox job row");
+    assert_eq!(
+        job.status, "completed",
+        "The outbox job must be marked as 'completed' (got status={}, err={:?})",
+        job.status,
+        job.error_message
+    );
     }).await;
 }
 
