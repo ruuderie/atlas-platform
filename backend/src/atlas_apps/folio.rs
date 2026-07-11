@@ -486,17 +486,18 @@ impl AtlasApp for FolioApp {
         let now = Utc::now();
 
         // ── 1. Default jurisdiction setting ───────────────────────────────────
+        // `id` is a non-default UUID PK — must be supplied (see tenant_setting entity).
         db.execute(Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Postgres,
             r#"
-            INSERT INTO tenant_setting (tenant_id, key, value, created_at, updated_at)
-            SELECT $1, 'folio_jurisdiction_code', 'US', $2, $2
+            INSERT INTO tenant_setting (id, tenant_id, key, value, is_encrypted, created_at, updated_at)
+            SELECT $1, $2, 'folio_jurisdiction_code', 'US', false, $3, $3
             WHERE NOT EXISTS (
                 SELECT 1 FROM tenant_setting
-                WHERE tenant_id = $1 AND key = 'folio_jurisdiction_code'
+                WHERE tenant_id = $2 AND key = 'folio_jurisdiction_code'
             )
             "#,
-            vec![tenant_id.into(), now.into()],
+            vec![Uuid::new_v4().into(), tenant_id.into(), now.into()],
         ))
         .await
         .map_err(|e| format!("folio provision: jurisdiction seed failed: {e}"))?;
@@ -505,14 +506,14 @@ impl AtlasApp for FolioApp {
         db.execute(Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Postgres,
             r#"
-            INSERT INTO tenant_setting (tenant_id, key, value, created_at, updated_at)
-            SELECT $1, 'scorecard_display_rules_enabled', 'true', $2, $2
+            INSERT INTO tenant_setting (id, tenant_id, key, value, is_encrypted, created_at, updated_at)
+            SELECT $1, $2, 'scorecard_display_rules_enabled', 'true', false, $3, $3
             WHERE NOT EXISTS (
                 SELECT 1 FROM tenant_setting
-                WHERE tenant_id = $1 AND key = 'scorecard_display_rules_enabled'
+                WHERE tenant_id = $2 AND key = 'scorecard_display_rules_enabled'
             )
             "#,
-            vec![tenant_id.into(), now.into()],
+            vec![Uuid::new_v4().into(), tenant_id.into(), now.into()],
         ))
         .await
         .map_err(|e| format!("folio provision: scorecard_display_rules_enabled seed failed: {e}"))?;
