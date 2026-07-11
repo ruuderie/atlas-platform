@@ -1,10 +1,10 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
+    use atlas_network_instance::app::*;
     use axum::Router;
     use leptos::prelude::*;
-    use leptos_axum::{generate_route_list, LeptosRoutes};
-    use atlas_network_instance::app::*;
+    use leptos_axum::{LeptosRoutes, generate_route_list};
 
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -12,7 +12,10 @@ async fn main() {
     let routes = generate_route_list(App);
 
     let app = Router::new()
-        .route("/api/{*fn_name}", axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns))
+        .route(
+            "/api/{*fn_name}",
+            axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
+        )
         .route("/sitemap.xml", axum::routing::get(sitemap_handler))
         .leptos_routes(&leptos_options, routes, {
             let leptos_options = leptos_options.clone();
@@ -23,14 +26,20 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     println!("Listening on http://{}", &addr);
-    axum::serve(listener, app.into_make_service()).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }
 
 #[cfg(feature = "ssr")]
 async fn sitemap_handler(headers: axum::http::HeaderMap) -> impl axum::response::IntoResponse {
     use axum::http::{StatusCode, header};
-    let host = headers.get("host").and_then(|h| h.to_str().ok()).unwrap_or("localhost");
-    let xml = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+    let host = headers
+        .get("host")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("localhost");
+    let xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
         <loc>https://{}/</loc>
@@ -40,20 +49,22 @@ async fn sitemap_handler(headers: axum::http::HeaderMap) -> impl axum::response:
         <loc>https://{}/ct-contractor-demo</loc>
         <priority>0.8</priority>
     </url>
-</urlset>"#, host, host);
+</urlset>"#,
+        host, host
+    );
 
     (
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/xml")],
-        xml
+        xml,
     )
 }
 
 #[cfg(feature = "ssr")]
 pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
+    use atlas_network_instance::app::App;
     use leptos::prelude::*;
     use leptos_meta::MetaTags;
-    use atlas_network_instance::app::App;
 
     let env = std::env::var("ENVIRONMENT").unwrap_or_default();
     let is_deployed = !env.is_empty() && env != "local";

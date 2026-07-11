@@ -8,7 +8,7 @@ pub fn CategoryNavigation() -> impl IntoView {
                 // Fade edges
                 <div class="absolute left-0 top-0 bottom-0 w-12 bg-background z-10 pointer-events-none" style="opacity:0.8"></div>
                 <div class="absolute right-0 top-0 bottom-0 w-12 bg-background z-10 pointer-events-none" style="opacity:0.8"></div>
-                
+
                 <div class="flex overflow-x-auto gap-8 pb-1 snap-x snap-mandatory hide-scrollbar px-2">
                     {vec![
                         ("Contractors", "contractors", "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"),

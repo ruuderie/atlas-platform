@@ -33,7 +33,7 @@ pub fn Login() -> impl IntoView {
                             "Sign in to manage your listings and profile"
                         </p>
                     </div>
-                    
+
                     <div class="mt-8 space-y-6">
                         {move || auth.error.get().map(|msg| view! {
                             <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-xl text-sm font-medium animate-slide-up">
@@ -54,19 +54,19 @@ pub fn Login() -> impl IntoView {
                                                 on:input=move |ev| auth.email.set(event_target_value(&ev))
                                             />
                                         </div>
-                                        <button 
+                                        <button
                                             class="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all disabled:opacity-70 shadow-sm"
-                                            on:click=move |_| { auth.dispatch_login.dispatch(()); } 
+                                            on:click=move |_| { auth.dispatch_login.dispatch(()); }
                                             disabled=move || auth.email.get().is_empty() || auth.is_loading.get() || (auth.countdown.get() > 0)
                                         >
-                                            {move || if auth.is_loading.get() { 
-                                                "Sending...".to_string() 
+                                            {move || if auth.is_loading.get() {
+                                                "Sending...".to_string()
                                             } else if auth.countdown.get() > 0 {
                                                 format!("Resend in {}s", auth.countdown.get())
                                             } else if auth.error.get() == Some("Magic link sent! Check your email.".to_string()) {
                                                 "Resend Magic Link".to_string()
-                                            } else { 
-                                                "Send Magic Link".to_string() 
+                                            } else {
+                                                "Send Magic Link".to_string()
                                             }}
                                         </button>
 
@@ -90,7 +90,7 @@ pub fn Login() -> impl IntoView {
                                             </p>
                                         </div>
                                         <div class="py-2">
-                                            <PasskeyLoginButton 
+                                            <PasskeyLoginButton
                                                 api_base_url=crate::get_api_base_url() + "/api/auth/passkeys"
                                                 email=RwSignal::new("".to_string())
                                                 on_success=handle_passkey_success.clone()
@@ -110,7 +110,7 @@ pub fn Login() -> impl IntoView {
                                 }.into_any()
                             }}
                         </div>
-                        
+
                         <div class="text-center mt-6">
                             <p class="text-sm text-on-surface-variant font-medium">
                                 "Don't have an account? "

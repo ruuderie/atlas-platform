@@ -1,12 +1,12 @@
-use leptos::prelude::*;
 use crate::app::NetworkConfig;
 use crate::auth::AuthContext;
+use leptos::prelude::*;
 
 #[component]
 pub fn GlobalHeader() -> impl IntoView {
     let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
     let auth = use_context::<AuthContext>();
-    
+
     view! {
         <nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none transition-all duration-300">
             <div class="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
@@ -49,7 +49,7 @@ pub fn GlobalHeader() -> impl IntoView {
 #[component]
 pub fn Footer() -> impl IntoView {
     let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
-    
+
     view! {
         <footer class="w-full border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 mt-auto">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-12 px-8 py-16 max-w-7xl mx-auto">

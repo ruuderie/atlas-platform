@@ -4,11 +4,14 @@ use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
 #[component]
 pub fn LoginModal(
     /// Triggered when authentication succeeds so the parent can refresh state
-    #[prop(into)] on_success: Callback<(), ()>,
+    #[prop(into)]
+    on_success: Callback<(), ()>,
     /// Controls modal visibility
-    #[prop(into)] is_open: Signal<bool>,
+    #[prop(into)]
+    is_open: Signal<bool>,
     /// Callback to close the modal
-    #[prop(into)] on_close: Callback<(), ()>,
+    #[prop(into)]
+    on_close: Callback<(), ()>,
 ) -> impl IntoView {
     let handle_authenticated = Callback::new(move |_: ()| {
         on_success.run(());
@@ -49,4 +52,3 @@ pub fn LoginModal(
         </Show>
     }
 }
-

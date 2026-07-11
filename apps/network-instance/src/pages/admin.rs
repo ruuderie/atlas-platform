@@ -18,15 +18,15 @@
 //! Add a new `AdminModuleType` arm to the `match active_tab.get()` block below.
 //! No changes to the sidebar, theming, or backend are required.
 
+use crate::auth::api_base_url;
 use leptos::prelude::*;
 use shared_ui::components::admin_module_sidebar::{
     AdminModuleConfig, AdminModuleType, SidebarTheme,
 };
 use shared_ui::utils::ResourceState;
-use crate::auth::api_base_url;
 
-pub mod leads;
 pub mod contacts;
+pub mod leads;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Server Functions
@@ -306,8 +306,6 @@ fn ListingsPanel() -> impl IntoView {
     }
 }
 
-
-
 #[component]
 fn SettingsPanel() -> impl IntoView {
     view! {
@@ -368,26 +366,26 @@ trait DisplayName {
 impl DisplayName for AdminModuleType {
     fn to_display_name_dyn(&self) -> Option<&'static str> {
         Some(match self {
-            Self::Dashboard      => "Dashboard",
-            Self::Settings       => "Settings",
-            Self::Security       => "Security",
-            Self::Blog           => "Blog",
+            Self::Dashboard => "Dashboard",
+            Self::Settings => "Settings",
+            Self::Security => "Security",
+            Self::Blog => "Blog",
             Self::ResumeProfiles => "Resume Profiles",
-            Self::ResumeEntries  => "Resume Entries",
-            Self::LandingPages   => "Landing Pages",
-            Self::Webforms       => "Webforms",
-            Self::Navigation     => "Navigation",
-            Self::Footer         => "Footer",
-            Self::PageHeaders    => "Page Headers",
-            Self::Leads          => "Leads",
-            Self::Contacts       => "Contacts",
-            Self::LeadOptions    => "Lead Options",
-            Self::Services       => "Services",
-            Self::CaseStudies    => "Case Studies",
-            Self::Highlights     => "Highlights",
-            Self::Properties     => "Properties",
-            Self::Listings       => "Listings",
-            Self::Custom         => "Custom",
+            Self::ResumeEntries => "Resume Entries",
+            Self::LandingPages => "Landing Pages",
+            Self::Webforms => "Webforms",
+            Self::Navigation => "Navigation",
+            Self::Footer => "Footer",
+            Self::PageHeaders => "Page Headers",
+            Self::Leads => "Leads",
+            Self::Contacts => "Contacts",
+            Self::LeadOptions => "Lead Options",
+            Self::Services => "Services",
+            Self::CaseStudies => "Case Studies",
+            Self::Highlights => "Highlights",
+            Self::Properties => "Properties",
+            Self::Listings => "Listings",
+            Self::Custom => "Custom",
         })
     }
 }

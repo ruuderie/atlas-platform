@@ -1,31 +1,27 @@
+use crate::app::NetworkConfig;
+use crate::auth::AuthContext;
+use crate::components::login_modal::LoginModal;
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
-use crate::auth::AuthContext;
-use crate::app::NetworkConfig;
-use crate::components::login_modal::LoginModal;
 
 #[component]
 pub fn DashboardLayout() -> impl IntoView {
     let auth = use_context::<AuthContext>().expect("AuthContext missing");
     let network = use_context::<NetworkConfig>().expect("NetworkConfig missing");
-    
+
     let (show_login, set_show_login) = signal(false);
 
     // Derived states
-    let user_name = Signal::derive(move || {
-        match auth.user.get() {
-            Some(Ok(Some(u))) => format!("{} {}", u.first_name, u.last_name),
-            _ => "Loading...".to_string()
-        }
+    let user_name = Signal::derive(move || match auth.user.get() {
+        Some(Ok(Some(u))) => format!("{} {}", u.first_name, u.last_name),
+        _ => "Loading...".to_string(),
     });
 
-    let accounts = Signal::derive(move || {
-        match auth.accounts.get() {
-            Some(Ok(accs)) => accs,
-            _ => vec![]
-        }
+    let accounts = Signal::derive(move || match auth.accounts.get() {
+        Some(Ok(accs)) => accs,
+        _ => vec![],
     });
-    
+
     // Local state for active account switcher
     let show_dropdown = RwSignal::new(false);
     let selected_account_id = RwSignal::new(None::<String>); // Default to none, then set first
@@ -57,13 +53,9 @@ pub fn DashboardLayout() -> impl IntoView {
         web_sys::window().unwrap().location().set_href("/").unwrap();
     };
 
-    let is_authorized = Signal::derive(move || {
-        match auth.user.get() {
-            Some(Ok(Some(u))) => {
-                u.app_permissions.contains(&"ListingPoster".to_string())
-            },
-            _ => false
-        }
+    let is_authorized = Signal::derive(move || match auth.user.get() {
+        Some(Ok(Some(u))) => u.app_permissions.contains(&"ListingPoster".to_string()),
+        _ => false,
     });
 
     Effect::new(move |_| {
@@ -74,16 +66,16 @@ pub fn DashboardLayout() -> impl IntoView {
     });
 
     view! {
-        <LoginModal 
-            is_open=show_login 
-            on_close=move || web_sys::window().unwrap().location().set_href("/").unwrap() 
+        <LoginModal
+            is_open=show_login
+            on_close=move || web_sys::window().unwrap().location().set_href("/").unwrap()
             on_success=move || {
                 set_show_login.set(false);
                 web_sys::window().unwrap().location().reload().unwrap();
             }
         />
-        
-        <Show when=move || is_authorized.get() fallback=move || view! { 
+
+        <Show when=move || is_authorized.get() fallback=move || view! {
             <Show when=move || !show_login.get() fallback=move || view! { <div class="min-h-screen bg-slate-50"/> }>
                 <div class="min-h-screen flex items-center justify-center bg-slate-50">
                     <div class="text-center p-8 bg-white rounded-2xl shadow-sm border border-outline-variant/30 max-w-md">
@@ -101,7 +93,7 @@ pub fn DashboardLayout() -> impl IntoView {
                     <div class="p-6 border-b border-outline-variant/30 flex items-center justify-between">
                         <a href="/" class="font-headline font-extrabold text-xl tracking-tight text-[#004289]">{network.name.clone()}</a>
                     </div>
-                
+
                 // Active Account Switcher
                 <div class="p-4 relative">
                     <button class="w-full flex items-center justify-between p-3 rounded-xl border border-outline-variant/50 hover:bg-surface-container-lowest transition-colors text-left"
@@ -117,7 +109,7 @@ pub fn DashboardLayout() -> impl IntoView {
                         </div>
                         <span class="material-symbols-outlined text-on-surface-variant">"unfold_more"</span>
                     </button>
-                    
+
                     {move || match show_dropdown.get() {
                         true => view! {
                             <div class="absolute top-[80px] left-4 right-4 bg-white border border-outline-variant/50 shadow-premium rounded-xl overflow-hidden z-20 py-2">
@@ -153,7 +145,7 @@ pub fn DashboardLayout() -> impl IntoView {
                         false => view! { <span/> }.into_any()
                     }}
                 </div>
-                
+
                 // Main Navigation
                 <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
                     {vec![
@@ -171,7 +163,7 @@ pub fn DashboardLayout() -> impl IntoView {
                         }
                     }).collect_view()}
                 </nav>
-                
+
                 // User Profile Bottom
                 <div class="p-4 border-t border-outline-variant/30">
                     <div class="flex items-center gap-3 mb-4 px-2">
@@ -189,13 +181,13 @@ pub fn DashboardLayout() -> impl IntoView {
                     </button>
                 </div>
             </aside>
-            
+
             // Mobile Header
             <div class="md:hidden fixed top-0 w-full bg-white border-b border-outline-variant/30 p-4 flex items-center justify-between z-30">
                 <a href="/" class="font-headline font-extrabold text-lg text-[#004289]">{network.name.clone()}</a>
                 <button class="material-symbols-outlined text-on-surface">"menu"</button>
             </div>
-            
+
             // Main Content Area
             <main class="flex-1 flex flex-col pt-[72px] md:pt-0 min-h-screen max-w-full overflow-x-hidden">
                 <div class="p-8 md:p-12 max-w-7xl mx-auto w-full flex-1">
@@ -212,7 +204,7 @@ pub fn DashboardOverview() -> impl IntoView {
     view! {
         <div class="space-y-8 animate-fade-scale w-full">
             <h1 class="text-3xl font-headline font-extrabold text-on-surface tracking-tight">"Welcome to your Dashboard"</h1>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-outline-variant/30">
                     <div class="w-12 h-12 rounded-xl bg-[#004289]/10 text-[#004289] flex items-center justify-center mb-4">

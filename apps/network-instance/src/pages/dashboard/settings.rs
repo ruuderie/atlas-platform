@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::auth::AuthContext;
+use leptos::prelude::*;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 
 #[component]
@@ -12,11 +12,11 @@ pub fn DashboardSettings() -> impl IntoView {
             <p class="text-on-surface-variant font-medium mb-10">
                 "Manage your authentication methods and security settings."
             </p>
-            
+
             {move || {
                 // Settings page is gated, so we can render ManagePasskeys
                 view! {
-                    <ManagePasskeys 
+                    <ManagePasskeys
                         api_base_url=Signal::derive(|| format!("{}/api/passkeys", crate::get_api_base_url()))
                         auth_token="".to_string()
                     />

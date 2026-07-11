@@ -1,35 +1,42 @@
+use crate::app::{ListingModel, PaginatedListings};
+use crate::auth::AuthContext;
+use crate::components::login_modal::LoginModal;
+use crate::components::search_ui::{RefinementSidebar, SearchGrid};
+use crate::components::seo::Seo;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use shared_ui::utils::ResourceState;
-use crate::app::{ListingModel, PaginatedListings};
-use crate::components::seo::Seo;
-use crate::components::search_ui::{SearchGrid, RefinementSidebar};
-use crate::components::login_modal::LoginModal;
-use crate::auth::AuthContext;
 
 #[server]
-pub async fn search_listings_from_api(query: String, category: Option<String>, page_str: String) -> Result<PaginatedListings<ListingModel>, ServerFnError> {
+pub async fn search_listings_from_api(
+    query: String,
+    category: Option<String>,
+    page_str: String,
+) -> Result<PaginatedListings<ListingModel>, ServerFnError> {
     let page = page_str.parse::<u64>().unwrap_or(1);
     let limit = 12;
-    
-    let mut url = format!("{}/listings/search?q={}&page={}&limit={}", crate::get_api_base_url(), query, page, limit);
+
+    let mut url = format!(
+        "{}/listings/search?q={}&page={}&limit={}",
+        crate::get_api_base_url(),
+        query,
+        page,
+        limit
+    );
     if let Some(ref c) = category {
         url = format!("{}&category={}", url, c);
     }
-    
+
     let client = reqwest::Client::new();
     let res = client.get(&url).send().await;
-    
+
     match res {
-        Ok(r) if r.status().is_success() => {
-            Ok(r.json::<PaginatedListings<ListingModel>>().await?)
-        },
-        Ok(r) => {
-            Err(ServerFnError::ServerError(format!("API Error: Status {}", r.status())))
-        },
-        Err(e) => {
-            Err(ServerFnError::ServerError(format!("Request Error: {}", e)))
-        }
+        Ok(r) if r.status().is_success() => Ok(r.json::<PaginatedListings<ListingModel>>().await?),
+        Ok(r) => Err(ServerFnError::ServerError(format!(
+            "API Error: Status {}",
+            r.status()
+        ))),
+        Err(e) => Err(ServerFnError::ServerError(format!("Request Error: {}", e))),
     }
 }
 
@@ -44,12 +51,11 @@ pub fn Search() -> impl IntoView {
 
     let search_resource = Resource::new(
         move || (search_term(), category_term(), page_str()),
-        |(q, cat, p)| async move {
-            search_listings_from_api(q, cat, p).await
-        }
+        |(q, cat, p)| async move { search_listings_from_api(q, cat, p).await },
     );
 
-    let config = use_context::<crate::app::NetworkConfig>().expect("NetworkConfig context must be available");
+    let config = use_context::<crate::app::NetworkConfig>()
+        .expect("NetworkConfig context must be available");
     let auth = use_context::<AuthContext>().expect("AuthContext missing");
     let (show_login, set_show_login) = signal(false);
 
@@ -66,8 +72,8 @@ pub fn Search() -> impl IntoView {
     };
 
     view! {
-        <LoginModal 
-            is_open=show_login 
+        <LoginModal
+            is_open=show_login
             on_close=move || set_show_login.set(false)
             on_success=move || {
                 set_show_login.set(false);
@@ -75,9 +81,9 @@ pub fn Search() -> impl IntoView {
                 web_sys::window().unwrap().location().reload().unwrap();
             }
         />
-        
+
         <Seo title=format!("{} - Search Results", config.name) />
-        
+
         <crate::components::layout::MainLayout>
             // Page Header
             <div class="bg-surface py-12 px-8">
@@ -120,14 +126,14 @@ pub fn Search() -> impl IntoView {
                     <Suspense fallback=|| view! { <div class="flex justify-center p-24"><div class="w-8 h-8 border-[3px] border-[#004289] border-t-transparent rounded-full animate-spin"></div></div> }>
                         {move || match search_resource.get() {
                             None => view! { <div/> }.into_any(),
-                            Some(Err(e)) => view! { 
+                            Some(Err(e)) => view! {
                                 <div class="max-w-xl mx-auto p-10 text-center bg-error-container text-on-error-container rounded-lg">
                                     <h3 class="font-bold font-headline text-xl mb-2">"Search Failed"</h3>
                                     <p class="text-sm opacity-80">{e.to_string()}</p>
-                                </div> 
+                                </div>
                             }.into_any(),
                             Some(Ok(paginated_results)) if paginated_results.items.is_empty() => {
-                                view! { 
+                                view! {
                                     <div class="text-center py-24 max-w-lg mx-auto">
                                         <div class="w-16 h-16 bg-surface-container rounded-full flex items-center justify-center mx-auto mb-6">
                                             <span class="material-symbols-outlined text-[32px] text-outline">"travel_explore"</span>
@@ -141,11 +147,11 @@ pub fn Search() -> impl IntoView {
                                 let results = paginated_results.items.clone();
                                 let total_pages = paginated_results.total_pages;
                                 let current_page = paginated_results.page;
-                                
+
                                 view! {
                                     <div class="animate-slide-up">
                                         <SearchGrid results=results set_selected=set_selected_listing />
-                                        
+
                                         // Pagination
                                         <div class="mt-16 flex justify-center pb-12">
                                             {if total_pages > 1 {
@@ -157,14 +163,14 @@ pub fn Search() -> impl IntoView {
                                                         } class=move || format!("w-10 h-10 flex items-center justify-center rounded-lg transition-colors {}", if current_page == 1 { "text-outline-variant cursor-not-allowed pointer-events-none" } else { "text-on-surface hover:bg-surface-container" })>
                                                             <span class="material-symbols-outlined text-[20px]">"chevron_left"</span>
                                                         </a>
-                                                        
+
                                                         {
                                                             let start_p = if current_page > 2 { current_page - 2 } else { 1 };
                                                             let end_p = (start_p + 4).min(total_pages);
                                                             let mut pg_views: Vec<AnyView> = Vec::new();
                                                             for p in start_p..=end_p {
                                                                 pg_views.push(view! {
-                                                                    <a href=format!("?q={}&category={}&page={}", search_term(), category_term().unwrap_or_default(), p) 
+                                                                    <a href=format!("?q={}&category={}&page={}", search_term(), category_term().unwrap_or_default(), p)
                                                                        class=if p == current_page {
                                                                            "w-10 h-10 flex items-center justify-center font-bold text-sm bg-[#004289] text-white rounded-lg"
                                                                        } else {
@@ -183,7 +189,7 @@ pub fn Search() -> impl IntoView {
                                                             }
                                                             pg_views
                                                         }
-                                                        
+
                                                         <a href=move || {
                                                             let next = if current_page < total_pages { current_page + 1 } else { total_pages };
                                                             format!("?q={}&category={}&page={}", search_term(), category_term().unwrap_or_default(), next)

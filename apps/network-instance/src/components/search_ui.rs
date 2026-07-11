@@ -1,10 +1,10 @@
-use leptos::prelude::*;
 use crate::app::ListingModel;
+use leptos::prelude::*;
 
 #[component]
 pub fn SearchGrid(
     results: Vec<ListingModel>,
-    set_selected: WriteSignal<Option<ListingModel>>
+    set_selected: WriteSignal<Option<ListingModel>>,
 ) -> impl IntoView {
     let images = vec![
         "https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",

@@ -26,21 +26,29 @@ pub struct CreateListingInput {
 pub async fn fetch_my_listings_api() -> Result<Vec<DashboardListingModel>, ServerFnError> {
     use axum::http::request::Parts;
     let active_token = if let Some(req_parts) = leptos::prelude::use_context::<Parts>() {
-        req_parts.headers.get("cookie").and_then(|v| v.to_str().ok()).and_then(|cookies| {
-            cookies.split(';').find_map(|part| {
-                let part = part.trim();
-                part.strip_prefix("session=").map(|t| t.to_string())
+        req_parts
+            .headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookies| {
+                cookies.split(';').find_map(|part| {
+                    let part = part.trim();
+                    part.strip_prefix("session=").map(|t| t.to_string())
+                })
             })
-        })
-    } else { None }.unwrap_or_default();
+    } else {
+        None
+    }
+    .unwrap_or_default();
 
     let url = format!("{}/api/listings/my-listings", crate::get_api_base_url());
     let client = reqwest::Client::new();
-    let res = client.get(url)
+    let res = client
+        .get(url)
         .header("Cookie", format!("session={}", active_token))
         .send()
         .await?;
-    
+
     if res.status().is_success() {
         Ok(res.json::<Vec<DashboardListingModel>>().await?)
     } else {
@@ -52,22 +60,30 @@ pub async fn fetch_my_listings_api() -> Result<Vec<DashboardListingModel>, Serve
 pub async fn create_listing_api(payload: CreateListingInput) -> Result<(), ServerFnError> {
     use axum::http::request::Parts;
     let active_token = if let Some(req_parts) = leptos::prelude::use_context::<Parts>() {
-        req_parts.headers.get("cookie").and_then(|v| v.to_str().ok()).and_then(|cookies| {
-            cookies.split(';').find_map(|part| {
-                let part = part.trim();
-                part.strip_prefix("session=").map(|t| t.to_string())
+        req_parts
+            .headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookies| {
+                cookies.split(';').find_map(|part| {
+                    let part = part.trim();
+                    part.strip_prefix("session=").map(|t| t.to_string())
+                })
             })
-        })
-    } else { None }.unwrap_or_default();
+    } else {
+        None
+    }
+    .unwrap_or_default();
 
     let url = format!("{}/api/listings/my-listings", crate::get_api_base_url());
     let client = reqwest::Client::new();
-    let res = client.post(url)
+    let res = client
+        .post(url)
         .header("Cookie", format!("session={}", active_token))
         .json(&payload)
         .send()
         .await?;
-    
+
     if res.status().is_success() {
         Ok(())
     } else {
@@ -80,12 +96,10 @@ pub fn DashboardListings() -> impl IntoView {
     let (show_form, set_show_form) = signal(false);
     let (trigger, set_trigger) = signal(0);
     let dir_config = use_context::<crate::app::NetworkConfig>().expect("NetworkConfig context");
-    
+
     let listings_resource = Resource::new(
         move || trigger.get(),
-        move |_| {
-            async move { fetch_my_listings_api().await }
-        }
+        move |_| async move { fetch_my_listings_api().await },
     );
 
     // Form states
@@ -95,16 +109,18 @@ pub fn DashboardListings() -> impl IntoView {
     let city = RwSignal::new("".to_string());
     let state = RwSignal::new("".to_string());
     let price = RwSignal::new("".to_string());
-    
+
     let is_submitting = RwSignal::new(false);
     let error = RwSignal::new("".to_string());
 
     let handle_submit = Callback::new(move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
-        if is_submitting.get() { return; }
-        
+        if is_submitting.get() {
+            return;
+        }
+
         let p_val = price.get().parse::<f64>().ok();
-        
+
         let payload = CreateListingInput {
             title: title.get(),
             description: description.get(),
@@ -114,10 +130,10 @@ pub fn DashboardListings() -> impl IntoView {
             price: p_val,
             network_id: dir_config.id.clone(),
         };
-        
+
         is_submitting.set(true);
         error.set("".to_string());
-        
+
         // Use standard window.location to redirect just to guarantee full refresh
         // Alternatively to trigger the refresh via leptos task:
         let trigger_refresh = set_trigger.clone(); // Use set_trigger for refresh
@@ -146,14 +162,14 @@ pub fn DashboardListings() -> impl IntoView {
                 <h1 class="text-3xl font-headline font-extrabold text-on-surface tracking-tight">"My Listings"</h1>
                 <button class="bg-[#004289] text-white px-4 py-2 rounded-lg font-bold hover:bg-[#00336b] transition-colors shadow-sm flex items-center gap-2"
                         on:click=move |_| set_show_form.update(|v| *v = !*v)>
-                    {move || if show_form.get() { 
-                        view!{ <span class="material-symbols-outlined text-sm">"close"</span>"Cancel" }.into_any() 
-                    } else { 
-                        view!{ <span class="material-symbols-outlined text-sm">"add"</span>"Create Listing" }.into_any() 
+                    {move || if show_form.get() {
+                        view!{ <span class="material-symbols-outlined text-sm">"close"</span>"Cancel" }.into_any()
+                    } else {
+                        view!{ <span class="material-symbols-outlined text-sm">"add"</span>"Create Listing" }.into_any()
                     }}
                 </button>
             </div>
-            
+
             {move || if show_form.get() {
                 view! {
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-outline-variant/30 mb-8">
@@ -162,17 +178,17 @@ pub fn DashboardListings() -> impl IntoView {
                             {move || if !error.get().is_empty() {
                                 view! { <div class="bg-error/10 text-error p-3 rounded-xl text-sm">{error.get()}</div> }.into_any()
                             } else { view! { <span/> }.into_any() }}
-                            
+
                             <div>
                                 <label class="block text-xs font-bold text-on-surface-variant uppercase mb-2">"Listing Title"</label>
                                 <input type="text" required class="w-full px-4 py-3 border border-outline-variant/50 rounded-xl bg-surface-container-lowest focus:ring-2 focus:ring-[#004289] outline-none" placeholder="e.g. Acme Plumbing Co." prop:value=move || title.get() on:input=move |ev| title.set(event_target_value(&ev)) />
                             </div>
-                            
+
                             <div>
                                 <label class="block text-xs font-bold text-on-surface-variant uppercase mb-2">"Description"</label>
                                 <textarea required rows="4" class="w-full px-4 py-3 border border-outline-variant/50 rounded-xl bg-surface-container-lowest focus:ring-2 focus:ring-[#004289] outline-none" placeholder="Describe your services..." prop:value=move || description.get() on:input=move |ev| description.set(event_target_value(&ev))></textarea>
                             </div>
-                            
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-bold text-on-surface-variant uppercase mb-2">"Service Type / Category"</label>
@@ -183,7 +199,7 @@ pub fn DashboardListings() -> impl IntoView {
                                     <input type="number" step="0.01" class="w-full px-4 py-3 border border-outline-variant/50 rounded-xl bg-surface-container-lowest focus:ring-2 focus:ring-[#004289] outline-none" placeholder="0.00" prop:value=move || price.get() on:input=move |ev| price.set(event_target_value(&ev)) />
                                 </div>
                             </div>
-                            
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-bold text-on-surface-variant uppercase mb-2">"City"</label>
@@ -194,7 +210,7 @@ pub fn DashboardListings() -> impl IntoView {
                                     <input type="text" required class="w-full px-4 py-3 border border-outline-variant/50 rounded-xl bg-surface-container-lowest focus:ring-2 focus:ring-[#004289] outline-none" placeholder="CT" prop:value=move || state.get() on:input=move |ev| state.set(event_target_value(&ev)) />
                                 </div>
                             </div>
-                            
+
                             <div class="pt-4 flex justify-end">
                                 <button type="submit" disabled=move || is_submitting.get() class="bg-[#004289] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#00336b] transition-colors shadow-sm disabled:opacity-50">
                                     {move || if is_submitting.get() { "Saving..." } else { "Save Listing" }}

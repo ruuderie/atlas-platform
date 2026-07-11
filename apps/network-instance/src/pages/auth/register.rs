@@ -1,6 +1,6 @@
+use crate::app::NetworkConfig;
 use leptos::prelude::*;
 use serde_json::json;
-use crate::app::NetworkConfig;
 
 #[component]
 pub fn Register() -> impl IntoView {
@@ -14,16 +14,22 @@ pub fn Register() -> impl IntoView {
     let is_submitting = RwSignal::new(false);
     let success = RwSignal::new(false);
     let auth_token = RwSignal::new("".to_string());
-    
+
     let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
     let network_id = RwSignal::new(config.id.clone());
 
     let handle_submit = Callback::new(move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
-        if is_submitting.get() { return; }
-        
+        if is_submitting.get() {
+            return;
+        }
+
         error.set("".to_string());
-        if email.get().is_empty() || password.get().is_empty() || first_name.get().is_empty() || last_name.get().is_empty() {
+        if email.get().is_empty()
+            || password.get().is_empty()
+            || first_name.get().is_empty()
+            || last_name.get().is_empty()
+        {
             error.set("Please fill out all required fields.".to_string());
             return;
         }
@@ -85,8 +91,8 @@ pub fn Register() -> impl IntoView {
                                 <span class="material-symbols-outlined text-3xl" data-icon="check_circle">"check_circle"</span>
                             </div>
                             <h2 class="text-2xl font-extrabold font-headline text-on-surface">"Account Created!"</h2>
-                            
-                            <shared_ui::components::auth::passkey_manager::ManagePasskeys 
+
+                            <shared_ui::components::auth::passkey_manager::ManagePasskeys
                                 api_base_url=Signal::derive(|| format!("{}/api/auth/passkeys", crate::get_api_base_url()))
                                 auth_token=auth_token.get()
                             />
@@ -110,7 +116,7 @@ pub fn Register() -> impl IntoView {
                                     "Join as a service provider today"
                                 </p>
                             </div>
-                            
+
                             <form class="mt-8 space-y-6" on:submit=move |ev| handle_submit.run(ev)>
                                 {move || if !error.get().is_empty() {
                                     view! {
@@ -177,7 +183,7 @@ pub fn Register() -> impl IntoView {
                                         {move || if is_submitting.get() { "Creating account..." } else { "Create account" }}
                                     </button>
                                 </div>
-                                
+
                                 <div class="text-center mt-6">
                                     <p class="text-sm text-on-surface-variant font-medium">
                                         "Already have an account? "

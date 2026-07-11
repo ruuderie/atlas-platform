@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use leptos_meta::{Title, Meta, Link};
+use leptos_meta::{Link, Meta, Title};
 
 #[component]
 pub fn Seo(
@@ -12,19 +12,19 @@ pub fn Seo(
 ) -> impl IntoView {
     view! {
         <Title text=title.clone() />
-        
+
         {description.clone().map(|desc| view! {
             <Meta name="description" content=desc.clone() />
             <Meta property="og:description" content=desc />
         })}
-        
+
         <Meta property="og:title" content=title />
         <Meta property="og:type" content=og_type.unwrap_or_else(|| "website".to_string()) />
-        
+
         {image.map(|img| view! {
             <Meta property="og:image" content=img />
         })}
-        
+
         {script_json_ld.map(|json_ld| view! {
             <script type="application/ld+json" inner_html=json_ld></script>
         })}
@@ -40,14 +40,14 @@ mod tests {
     use super::*;
     use leptos::prelude::*;
     use wasm_bindgen_test::*;
-    
+
     wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test]
     fn test_seo_metadata_initialization() {
         let _ = leptos::task::spawn_local(async {
             let _el = view! {
-                <Seo 
+                <Seo
                     title="Home Page".to_string()
                     description="Test Description".to_string()
                 />

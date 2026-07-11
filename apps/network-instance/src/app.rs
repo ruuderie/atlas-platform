@@ -1,21 +1,21 @@
-/* 
+/*
  * TODO(next-developer): MIGRATION TO AtlasApp API TRAIT REQUIRED
- * 
+ *
  * This legacy application currently has its routes, migrations, and background jobs
- * hardcoded into the global Atlas platform core. 
- * 
- * We have introduced a strict, standardized Rust API trait: `AtlasApp` 
- * located at `backend/src/traits/atlas_app.rs`. 
- * 
- * Future work requires refactoring this app to implement the `AtlasApp` trait 
- * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
+ * hardcoded into the global Atlas platform core.
+ *
+ * We have introduced a strict, standardized Rust API trait: `AtlasApp`
+ * located at `backend/src/traits/atlas_app.rs`.
+ *
+ * Future work requires refactoring this app to implement the `AtlasApp` trait
+ * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs)
  * instead of manually merging them globally.
- * 
+ *
  * See the full integration protocol at: `docs/atlas_app_integration.md`
  */
 use leptos::prelude::*;
+use leptos_meta::{Stylesheet, Title, provide_meta_context};
 use leptos_router::components::Router;
-use leptos_meta::{provide_meta_context, Title, Stylesheet};
 
 use serde::{Deserialize, Serialize};
 
@@ -31,10 +31,18 @@ pub struct ThemeConfig {
     pub font_heading: String,
 }
 
-fn default_brand_primary() -> String { "#2563eb".to_string() }
-fn default_bg_surface() -> String { "#ffffff".to_string() }
-fn default_radius_ui() -> String { "4px".to_string() }
-fn default_font_heading() -> String { "Inter, system-ui, sans-serif".to_string() }
+fn default_brand_primary() -> String {
+    "#2563eb".to_string()
+}
+fn default_bg_surface() -> String {
+    "#ffffff".to_string()
+}
+fn default_radius_ui() -> String {
+    "4px".to_string()
+}
+fn default_font_heading() -> String {
+    "Inter, system-ui, sans-serif".to_string()
+}
 
 impl Default for ThemeConfig {
     fn default() -> Self {
@@ -167,25 +175,34 @@ pub struct CreateLeadInput {
 // On the server, they execute directly. On the client, they make a POST request to the server.
 #[server]
 pub async fn fetch_network_config_from_api(domain: String) -> Result<NetworkConfig, ServerFnError> {
-
-    let url = format!("{}/networks/lookup?domain={}", crate::get_api_base_url(), domain);
+    let url = format!(
+        "{}/networks/lookup?domain={}",
+        crate::get_api_base_url(),
+        domain
+    );
     let client = reqwest::Client::new();
     let res = client.get(&url).send().await?;
-    
+
     if res.status().is_success() {
         Ok(res.json::<NetworkConfig>().await?)
     } else {
-        Err(ServerFnError::ServerError(format!("Error: {}", res.status())))
+        Err(ServerFnError::ServerError(format!(
+            "Error: {}",
+            res.status()
+        )))
     }
 }
 
 #[server]
 pub async fn fetch_listing_by_slug_from_api(slug: String) -> Result<ListingModel, ServerFnError> {
-
-    let url = format!("{}/api/listings/by-slug/{}", crate::get_api_base_url(), slug);
+    let url = format!(
+        "{}/api/listings/by-slug/{}",
+        crate::get_api_base_url(),
+        slug
+    );
     let client = reqwest::Client::new();
     let res = client.get(&url).send().await?;
-    
+
     if res.status().is_success() {
         Ok(res.json::<ListingModel>().await?)
     } else {
@@ -198,7 +215,7 @@ pub async fn submit_lead_to_api(payload: CreateLeadInput) -> Result<(), ServerFn
     let url = format!("{}/api/leads", crate::get_api_base_url());
     let client = reqwest::Client::new();
     let res = client.post(url).json(&payload).send().await?;
-    
+
     if res.status().is_success() {
         Ok(())
     } else {
@@ -219,7 +236,7 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
     let phone = RwSignal::new("".to_string());
     let intent = RwSignal::new("".to_string());
     let bot_check = RwSignal::new("".to_string());
-    
+
     let is_submitting = RwSignal::new(false);
     let success = RwSignal::new(false);
     let error = RwSignal::new("".to_string());
@@ -242,28 +259,36 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
     };
 
     let handle_submit = move |_| {
-        if is_submitting.get() { return; }
+        if is_submitting.get() {
+            return;
+        }
         error.set("".to_string());
-        
+
         if intent.get().trim().is_empty() {
             error.set("Please provide a brief intent or message.".to_string());
             return;
         }
 
         is_submitting.set(true);
-        
+
         let mut final_message = intent.get();
         let source = utm_source();
         let medium = utm_medium();
         let campaign = utm_campaign();
-        
+
         if !source.is_empty() || !medium.is_empty() || !campaign.is_empty() {
             final_message.push_str("\n\n--- Tracking Info ---");
-            if !source.is_empty() { final_message.push_str(&format!("\nSource: {}", source)); }
-            if !medium.is_empty() { final_message.push_str(&format!("\nMedium: {}", medium)); }
-            if !campaign.is_empty() { final_message.push_str(&format!("\nCampaign: {}", campaign)); }
+            if !source.is_empty() {
+                final_message.push_str(&format!("\nSource: {}", source));
+            }
+            if !medium.is_empty() {
+                final_message.push_str(&format!("\nMedium: {}", medium));
+            }
+            if !campaign.is_empty() {
+                final_message.push_str(&format!("\nCampaign: {}", campaign));
+            }
         }
-        
+
         let p = phone.get();
         let phone_opt = if p.is_empty() { None } else { Some(p) };
 
@@ -275,11 +300,15 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
             listing_id: Some(listing_id_sig.get()),
             _bot_check: Some(bot_check.get()),
         };
-        
+
         leptos::task::spawn_local(async move {
             match submit_lead_to_api(payload).await {
-                Ok(_) => { success.set(true); }
-                Err(e) => { error.set(e.to_string()); }
+                Ok(_) => {
+                    success.set(true);
+                }
+                Err(e) => {
+                    error.set(e.to_string());
+                }
             }
             is_submitting.set(false);
         });
@@ -303,7 +332,7 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
                         {move || if !error.get().is_empty() {
                             view! { <p class="text-error text-sm bg-error-container text-on-error-container p-3 rounded-xl">{error.get()}</p> }.into_any()
                         } else { view!{ <span/> }.into_any() }}
-                        
+
                         // Honeypot Field
                         <div class="hidden" aria-hidden="true">
                             <input type="text" name="_bot_check" prop:value=move || bot_check.get() on:input=move |ev| bot_check.set(event_target_value(&ev)) tabindex="-1" />
@@ -339,7 +368,7 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
                                         <textarea rows="3" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="I'm interested in..." prop:value=move || intent.get() on:input=move |ev| intent.set(event_target_value(&ev))></textarea>
                                     </div>
                                 </div>
-                                
+
                                 <div class="flex gap-2">
                                     <button class="w-1/3 bg-slate-100 text-slate-700 py-4 rounded-xl font-bold hover:bg-slate-200 transition-opacity mb-4" on:click=move |_| { step.set(1); error.set("".to_string()); }>
                                         "Back"
@@ -361,13 +390,16 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
 fn ListingDetail() -> impl IntoView {
     let params = leptos_router::hooks::use_params_map();
     let slug = move || params.with(|p| p.get("slug").unwrap_or_default());
-    
+
     let listing_resource = Resource::new(
         move || slug(),
         |current_slug| async move {
-            if current_slug.is_empty() { Err(ServerFnError::ServerError("No slug provided".to_string())) }
-            else { fetch_listing_by_slug_from_api(current_slug).await }
-        }
+            if current_slug.is_empty() {
+                Err(ServerFnError::ServerError("No slug provided".to_string()))
+            } else {
+                fetch_listing_by_slug_from_api(current_slug).await
+            }
+        },
     );
 
     view! {
@@ -403,16 +435,16 @@ fn ListingDetail() -> impl IntoView {
                         listing.title.replace("\"", "\\\""),
                         hero_headline.replace("\"", "\\\"")
                     );
-                        
+
                     view! {
-                        <crate::components::seo::Seo 
+                        <crate::components::seo::Seo
                             title=listing.title.clone()
                             description=hero_headline.to_string()
                             og_type="website".to_string()
                             script_json_ld=json_ld
                             canonical_url=url_canonical
                         />
-                        
+
                         <crate::components::layout::MainLayout>
                             // Image Gallery
                             <div class="px-8 max-w-7xl mx-auto pt-6 w-full">
@@ -645,7 +677,6 @@ fn ListingDetail() -> impl IntoView {
     }
 }
 
-
 #[component]
 fn HostLanding() -> impl IntoView {
     let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
@@ -851,16 +882,22 @@ pub fn get_host() -> String {
     {
         use axum::http::request::Parts;
         if let Some(req_parts) = use_context::<Parts>() {
-            req_parts.headers.get("host")
+            req_parts
+                .headers
+                .get("host")
                 .and_then(|v| v.to_str().ok())
-                .unwrap_or("localhost").to_string()
+                .unwrap_or("localhost")
+                .to_string()
         } else {
             "localhost".to_string()
         }
     }
     #[cfg(not(feature = "ssr"))]
     {
-        window().location().hostname().unwrap_or_else(|_| "localhost".to_string())
+        window()
+            .location()
+            .hostname()
+            .unwrap_or_else(|_| "localhost".to_string())
     }
 }
 
@@ -1024,12 +1061,12 @@ fn Home() -> impl IntoView {
 fn InnerApp(config: NetworkConfig) -> impl IntoView {
     // 1. Provide Context Globally
     provide_context(config.clone());
-    
+
     view! {
         <Title text=config.name.clone() />
-        
+
         <shared_ui::components::theme_provider::ThemeProvider primary_color=config.theme.brand_primary.clone()>
-        
+
         <crate::auth::AuthProvider>
             <Router>
                 <leptos_router::components::Routes fallback=|| view! { "Not Found" }>
@@ -1057,7 +1094,7 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
-    
+
     // Hydration check for Impersonation Code Exchange
     #[cfg(target_arch = "wasm32")]
     {
@@ -1067,17 +1104,21 @@ pub fn App() -> impl IntoView {
                     let params = web_sys::UrlSearchParams::new_with_str(&search).unwrap();
                     if let Some(code) = params.get("impersonate_code") {
                         leptos::task::spawn_local(async move {
-                            let url = format!("{}/api/auth/impersonate/exchange", crate::get_api_base_url());
+                            let url = format!(
+                                "{}/api/auth/impersonate/exchange",
+                                crate::get_api_base_url()
+                            );
                             let payload = serde_json::json!({ "code": code });
                             let client = reqwest::Client::new();
-                            let req = client.post(&url)
-                                .json(&payload)
-                                .fetch_credentials_include();
-                            
+                            let req = client.post(&url).json(&payload).fetch_credentials_include();
+
                             match req.send().await {
                                 Ok(res) if res.status().is_success() => {
-                                    if let Some(history) = web_sys::window().unwrap().history().ok() {
-                                        if let Ok(pathname) = web_sys::window().unwrap().location().pathname() {
+                                    if let Some(history) = web_sys::window().unwrap().history().ok()
+                                    {
+                                        if let Ok(pathname) =
+                                            web_sys::window().unwrap().location().pathname()
+                                        {
                                             let _ = history.replace_state_with_url(
                                                 &wasm_bindgen::JsValue::NULL,
                                                 "",
@@ -1088,10 +1129,16 @@ pub fn App() -> impl IntoView {
                                     let _ = web_sys::window().unwrap().location().reload();
                                 }
                                 Ok(res) => {
-                                    leptos::logging::error!("Impersonation exchange failed with status: {}", res.status());
+                                    leptos::logging::error!(
+                                        "Impersonation exchange failed with status: {}",
+                                        res.status()
+                                    );
                                 }
                                 Err(e) => {
-                                    leptos::logging::error!("Impersonation exchange request failed: {:?}", e);
+                                    leptos::logging::error!(
+                                        "Impersonation exchange request failed: {:?}",
+                                        e
+                                    );
                                 }
                             }
                         });
@@ -1100,12 +1147,12 @@ pub fn App() -> impl IntoView {
             }
         });
     }
-    
+
     let host = get_host();
-    
+
     view! {
         <Stylesheet id="leptos" href="/pkg/network-v1.css"/>
-        
+
         <Suspense fallback=|| view! { <div class="min-h-screen flex items-center justify-center"><div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div> }>
             {
                 let host_str = host.clone();
