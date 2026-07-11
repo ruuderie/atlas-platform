@@ -253,9 +253,12 @@ impl SourceType {
         matches!(self, Self::TranscriptInferred)
     }
 
-    /// Returns true if this source type is pre-verified by definition (no human gate).
+    /// Returns true if this source type is verified at insert (no human gate).
+    ///
+    /// Everything except `TranscriptInferred` is auto-verified. AI suggestions
+    /// must be confirmed via `verify_entry` before they affect composites.
     pub fn is_auto_verified(&self) -> bool {
-        matches!(self, Self::OfficialData)
+        !self.requires_human_verification()
     }
 }
 
@@ -380,6 +383,91 @@ impl TryFrom<String> for SessionType {
             "monthly_review"    => Ok(Self::MonthlyReview),
             "quarterly_review"  => Ok(Self::QuarterlyReview),
             other => Err(format!("unknown SessionType: '{other}'")),
+        }
+    }
+}
+
+// ── Rating session status ─────────────────────────────────────────────────────
+
+/// Lifecycle status of an `atlas_rating_sessions` row.
+///
+/// Stored as VARCHAR in `atlas_rating_sessions.status`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RatingSessionStatus {
+    Draft,
+    Submitted,
+    Verified,
+    Disputed,
+}
+
+impl fmt::Display for RatingSessionStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Draft     => "draft",
+            Self::Submitted => "submitted",
+            Self::Verified  => "verified",
+            Self::Disputed  => "disputed",
+        })
+    }
+}
+
+impl TryFrom<String> for RatingSessionStatus {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "draft"     => Ok(Self::Draft),
+            "submitted" => Ok(Self::Submitted),
+            "verified"  => Ok(Self::Verified),
+            "disputed"  => Ok(Self::Disputed),
+            other => Err(format!("unknown RatingSessionStatus: '{other}'")),
+        }
+    }
+}
+
+// ── Deployment trigger event ──────────────────────────────────────────────────
+
+/// When an app-instance deployment should open a rating session.
+///
+/// Stored as VARCHAR in `atlas_scorecard_template_deployments.trigger_event`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentTriggerEvent {
+    Manual,
+    PostServiceSession,
+    PostCheckout,
+    DealClose,
+    LeaseEnd,
+    CaseResolved,
+    Scheduled,
+}
+
+impl fmt::Display for DeploymentTriggerEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Manual             => "manual",
+            Self::PostServiceSession => "post_service_session",
+            Self::PostCheckout       => "post_checkout",
+            Self::DealClose          => "deal_close",
+            Self::LeaseEnd           => "lease_end",
+            Self::CaseResolved       => "case_resolved",
+            Self::Scheduled          => "scheduled",
+        })
+    }
+}
+
+impl TryFrom<String> for DeploymentTriggerEvent {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "manual"               => Ok(Self::Manual),
+            "post_service_session" => Ok(Self::PostServiceSession),
+            "post_checkout"        => Ok(Self::PostCheckout),
+            "deal_close"           => Ok(Self::DealClose),
+            "lease_end"            => Ok(Self::LeaseEnd),
+            "case_resolved"        => Ok(Self::CaseResolved),
+            "scheduled"            => Ok(Self::Scheduled),
+            other => Err(format!("unknown DeploymentTriggerEvent: '{other}'")),
         }
     }
 }
@@ -957,6 +1045,8 @@ pub enum ScorecardEntityType {
     AtlasServiceProvider,
     AtlasContact,
     AtlasPortfolio,
+    /// G-23 reservation used as rating-session context (e.g. post_checkout).
+    AtlasReservation,
     /// Platform-admin pilot: rate a customer tenant as a subject.
     Tenant,
     /// Platform-admin pilot: rate an app instance as a subject.
@@ -989,6 +1079,7 @@ impl fmt::Display for ScorecardEntityType {
             Self::AtlasServiceProvider => "atlas_service_provider",
             Self::AtlasContact         => "atlas_contact",
             Self::AtlasPortfolio       => "atlas_portfolio",
+            Self::AtlasReservation     => "atlas_reservation",
             Self::Tenant               => "tenant",
             Self::AppInstance          => "app_instance",
             Self::Listing              => "listing",
@@ -1020,6 +1111,7 @@ impl TryFrom<String> for ScorecardEntityType {
             "atlas_service_provider" => Ok(Self::AtlasServiceProvider),
             "atlas_contact"         => Ok(Self::AtlasContact),
             "atlas_portfolio"       => Ok(Self::AtlasPortfolio),
+            "atlas_reservation"     => Ok(Self::AtlasReservation),
             "tenant"                => Ok(Self::Tenant),
             "app_instance"          => Ok(Self::AppInstance),
             "listing"               => Ok(Self::Listing),

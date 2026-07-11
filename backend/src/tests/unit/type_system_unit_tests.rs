@@ -398,6 +398,7 @@ mod tests {
             (ScorecardEntityType::AtlasAsset, "atlas_asset"),
             (ScorecardEntityType::AtlasContact, "atlas_contact"),
             (ScorecardEntityType::AtlasPortfolio, "atlas_portfolio"),
+            (ScorecardEntityType::AtlasReservation, "atlas_reservation"),
             (ScorecardEntityType::AtlasCatalogEntry, "atlas_catalog_entry"),
             (ScorecardEntityType::AtlasServiceProvider, "atlas_service_provider"),
             (ScorecardEntityType::Tenant, "tenant"),
@@ -424,6 +425,49 @@ mod tests {
     #[test]
     fn scorecard_entity_type_unknown_returns_err() {
         assert!(ScorecardEntityType::try_from("custom_entity".to_string()).is_err());
+    }
+
+    #[test]
+    fn rating_session_status_roundtrip() {
+        use crate::types::scorecard::RatingSessionStatus;
+        for (variant, slug) in [
+            (RatingSessionStatus::Draft, "draft"),
+            (RatingSessionStatus::Submitted, "submitted"),
+            (RatingSessionStatus::Verified, "verified"),
+            (RatingSessionStatus::Disputed, "disputed"),
+        ] {
+            assert_eq!(variant.to_string(), slug);
+            assert_eq!(RatingSessionStatus::try_from(slug.to_string()).unwrap(), variant);
+        }
+        assert!(RatingSessionStatus::try_from("bogus".to_string()).is_err());
+    }
+
+    #[test]
+    fn deployment_trigger_event_roundtrip() {
+        use crate::types::scorecard::DeploymentTriggerEvent;
+        for (variant, slug) in [
+            (DeploymentTriggerEvent::Manual, "manual"),
+            (DeploymentTriggerEvent::PostServiceSession, "post_service_session"),
+            (DeploymentTriggerEvent::PostCheckout, "post_checkout"),
+            (DeploymentTriggerEvent::DealClose, "deal_close"),
+            (DeploymentTriggerEvent::LeaseEnd, "lease_end"),
+            (DeploymentTriggerEvent::CaseResolved, "case_resolved"),
+            (DeploymentTriggerEvent::Scheduled, "scheduled"),
+        ] {
+            assert_eq!(variant.to_string(), slug);
+            assert_eq!(DeploymentTriggerEvent::try_from(slug.to_string()).unwrap(), variant);
+        }
+        assert!(DeploymentTriggerEvent::try_from("bogus".to_string()).is_err());
+    }
+
+    #[test]
+    fn source_type_manual_is_auto_verified_transcript_is_not() {
+        use crate::types::scorecard::SourceType;
+        assert!(SourceType::Manual.is_auto_verified());
+        assert!(SourceType::CommunityRating.is_auto_verified());
+        assert!(SourceType::OfficialData.is_auto_verified());
+        assert!(!SourceType::TranscriptInferred.is_auto_verified());
+        assert!(SourceType::TranscriptInferred.requires_human_verification());
     }
 
     // ── MailingAddress ────────────────────────────────────────────────────────

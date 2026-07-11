@@ -83,6 +83,8 @@ use crate::entities::{
     atlas_scorecard_time_series::ActiveModel as TimeSeriesActiveModel,
     atlas_rating_session::{self as sessions, ActiveModel as SessionActiveModel},
     atlas_scorecard_display_rule::{self as display_rules, Model as DisplayRuleModel},
+    atlas_scorecard_template::{self as templates, Model as TemplateModel},
+    atlas_scorecard_template_deployment as deployments,
 };
 
 
@@ -384,6 +386,15 @@ impl ScorecardService {
             );
         }
 
+        // Only the session's rater may submit entries (tenant-scoped sessions
+        // must not accept cross-user writes from another authenticated user).
+        if session.rater_user_id != contributor_user_id {
+            bail!(
+                "session {} rater mismatch: expected {}, got {}",
+                session_id, session.rater_user_id, contributor_user_id
+            );
+        }
+
         // Parse source_type into the typed enum at the service boundary.
         // This is the only place in the service where source_type is a &str.
         // After this point, business logic uses the typed enum exclusively.
@@ -407,7 +418,8 @@ impl ScorecardService {
         // Only a call to verify_entry(confirmed: true) will set is_verified = true,
         // which gates their inclusion in composite recomputation.
         //
-        // official_data entries are pre-verified by definition — no human gate.
+        // All other source types (manual, community_rating, official_data, …)
+        // are verified at insert and counted by recompute_aggregates.
         let is_verified = typed_source.is_auto_verified();
 
         let model = EntryActiveModel {
@@ -429,6 +441,27 @@ impl ScorecardService {
 
         let inserted = model.insert(db).await
             .map_err(|e| anyhow!("submit_entry failed (duplicate?): {e}"))?;
+
+        // Queue recompute when the entry is already verified (direct ratings).
+        // transcript_inferred waits for verify_entry to enqueue.
+        if is_verified {
+            use crate::entities::outbox_job;
+            let job = outbox_job::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(tenant_id),
+                job_type: Set("recompute_scorecard_aggregates".to_owned()),
+                payload: Set(json!({ "scorecard_id": scorecard_id })),
+                status: Set("pending".to_owned()),
+                attempts: Set(0),
+                error_message: Set(None),
+                locked_by: Set(None),
+                locked_at: Set(None),
+                run_at: Set(Utc::now()),
+                created_at: Set(Utc::now()),
+            };
+            job.insert(db).await
+                .map_err(|e| anyhow!("failed to queue recompute job after submit_entry: {e}"))?;
+        }
 
         Ok(inserted.id)
     }
@@ -2024,5 +2057,50 @@ impl ScorecardService {
         );
 
         Ok(upserted)
+    }
+
+    // ── App-instance deployment helpers (G-27 runtime) ────────────────────────
+
+    /// Templates deployed and enabled for an app instance, scoped to `tenant_id`.
+    ///
+    /// Returns only rows where:
+    /// - deployment `(app_instance_id, is_enabled=true)` exists
+    /// - deployment `tenant_id` matches
+    /// - template `tenant_id` matches (defense in depth)
+    ///
+    /// Wrong-tenant / wrong-instance combinations yield an empty list (not an error).
+    /// Optional `published_only`: when `Some(true)`, also requires `is_published`.
+    pub async fn templates_enabled_for_instance(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        app_instance_id: Uuid,
+        published_only: Option<bool>,
+    ) -> Result<Vec<TemplateModel>> {
+        let enabled = deployments::Entity::find()
+            .filter(deployments::Column::AppInstanceId.eq(app_instance_id))
+            .filter(deployments::Column::TenantId.eq(tenant_id))
+            .filter(deployments::Column::IsEnabled.eq(true))
+            .all(db)
+            .await?;
+
+        if enabled.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let template_ids: Vec<Uuid> = enabled.iter().map(|d| d.template_id).collect();
+        let mut query = templates::Entity::find()
+            .filter(templates::Column::Id.is_in(template_ids))
+            .filter(templates::Column::TenantId.eq(tenant_id));
+
+        if published_only == Some(true) {
+            query = query.filter(templates::Column::IsPublished.eq(true));
+        }
+
+        let rows = query
+            .order_by_asc(templates::Column::Name)
+            .all(db)
+            .await?;
+
+        Ok(rows)
     }
 }

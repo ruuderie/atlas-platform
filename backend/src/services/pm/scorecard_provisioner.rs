@@ -16,7 +16,7 @@ use uuid::Uuid;
 use chrono::Utc;
 
 use crate::types::pm::{ScorecardEntityType, TemplateScope};
-use crate::types::scorecard::ScoringMethod;
+use crate::types::scorecard::{DeploymentTriggerEvent, ScoringMethod};
 
 struct PmTemplateSpec {
     name: &'static str,
@@ -24,6 +24,7 @@ struct PmTemplateSpec {
     scope: TemplateScope,
     description: &'static str,
     scoring_method: ScoringMethod,
+    default_trigger_event: DeploymentTriggerEvent,
 }
 
 const PM_TEMPLATES: &[PmTemplateSpec] = &[
@@ -33,6 +34,7 @@ const PM_TEMPLATES: &[PmTemplateSpec] = &[
         scope: TemplateScope::Platform,
         description: "Rates a short-term rental property across cleanliness, amenities, location, communication, and STR compliance readiness.",
         scoring_method: ScoringMethod::WeightedMean,
+        default_trigger_event: DeploymentTriggerEvent::PostCheckout,
     },
     PmTemplateSpec {
         name: "Rental Unit Quality",
@@ -40,6 +42,7 @@ const PM_TEMPLATES: &[PmTemplateSpec] = &[
         scope: TemplateScope::Platform,
         description: "Rates a long-term rental unit across condition, responsiveness, lease clarity, and condomínio transparency.",
         scoring_method: ScoringMethod::WeightedMean,
+        default_trigger_event: DeploymentTriggerEvent::Manual,
     },
     PmTemplateSpec {
         name: "Contractor Performance",
@@ -47,6 +50,7 @@ const PM_TEMPLATES: &[PmTemplateSpec] = &[
         scope: TemplateScope::Platform,
         description: "Rates a maintenance vendor across timeliness, workmanship quality, communication, and professionalism.",
         scoring_method: ScoringMethod::WeightedMean,
+        default_trigger_event: DeploymentTriggerEvent::CaseResolved,
     },
     PmTemplateSpec {
         name: "Lead Quality Assessment",
@@ -54,6 +58,7 @@ const PM_TEMPLATES: &[PmTemplateSpec] = &[
         scope: TemplateScope::Tenant, // Private per operator — excluded from cross-tenant pool
         description: "Rates a wholesale acquisition lead across motivation strength, ARV confidence, repair estimate accuracy, and negotiation leverage.",
         scoring_method: ScoringMethod::WeightedMean,
+        default_trigger_event: DeploymentTriggerEvent::Manual,
     },
 ];
 
@@ -120,6 +125,115 @@ pub async fn seed_pm_templates(
     }
 
     tracing::info!(%tenant_id, "scorecard_provisioner: 4 PM templates seeded");
+    Ok(())
+}
+
+/// Upsert deployment rows for every PM template belonging to `tenant_id` onto
+/// `app_instance_id`, with `is_enabled=true` and product-default `trigger_event`
+/// (e.g. STR → `post_checkout`, Contractor → `case_resolved`, else `manual`).
+///
+/// Idempotent on unique `(template_id, app_instance_id)`. Re-running updates
+/// `is_enabled=true` and refreshes `trigger_event` to the product default so
+/// existing tenants pick up new trigger wiring on reprovision.
+pub async fn deploy_templates_for_instance(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+    app_instance_id: Uuid,
+) -> Result<u32> {
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+    use crate::entities::atlas_scorecard_template as templates;
+    use crate::entities::atlas_scorecard_template_deployment as deployments;
+
+    let names: Vec<&str> = PM_TEMPLATES.iter().map(|s| s.name).collect();
+    let seeded = templates::Entity::find()
+        .filter(templates::Column::TenantId.eq(tenant_id))
+        .filter(templates::Column::Name.is_in(names))
+        .all(db)
+        .await?;
+
+    let mut touched = 0u32;
+    for t in seeded {
+        let trigger = PM_TEMPLATES
+            .iter()
+            .find(|s| s.name == t.name)
+            .map(|s| s.default_trigger_event)
+            .unwrap_or(DeploymentTriggerEvent::Manual);
+
+        let existing = deployments::Entity::find()
+            .filter(deployments::Column::TemplateId.eq(t.id))
+            .filter(deployments::Column::AppInstanceId.eq(app_instance_id))
+            .one(db)
+            .await?;
+
+        if let Some(row) = existing {
+            let mut am: deployments::ActiveModel = row.into();
+            am.is_enabled = Set(true);
+            am.trigger_event = Set(trigger.to_string());
+            am.update(db)
+                .await
+                .map_err(|e| anyhow::anyhow!(
+                    "deploy_templates_for_instance: update failed for template {} on instance {}: {e}",
+                    t.id, app_instance_id
+                ))?;
+            touched += 1;
+            continue;
+        }
+
+        deployments::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            template_id: Set(t.id),
+            app_instance_id: Set(app_instance_id),
+            tenant_id: Set(tenant_id),
+            is_enabled: Set(true),
+            trigger_event: Set(trigger.to_string()),
+            trigger_context_entity_type: Set(None),
+            created_at: Set(Utc::now()),
+        }
+        .insert(db)
+        .await
+        .map_err(|e| anyhow::anyhow!(
+            "deploy_templates_for_instance: insert failed for template {} on instance {}: {e}",
+            t.id, app_instance_id
+        ))?;
+        touched += 1;
+    }
+
+    tracing::info!(
+        %tenant_id,
+        %app_instance_id,
+        touched,
+        "scorecard_provisioner: deployments upserted for PM templates"
+    );
+    Ok(touched)
+}
+
+/// Seed PM templates and auto-deploy them onto the Folio app instance.
+///
+/// Looks up the tenant's `property_management` app_instance. If none exists yet,
+/// templates are still seeded (deployments can be created later).
+pub async fn seed_and_deploy_for_folio(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+) -> Result<()> {
+    seed_pm_templates(db, tenant_id).await?;
+
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+    let instance = crate::entities::app_instance::Entity::find()
+        .filter(crate::entities::app_instance::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::app_instance::Column::AppType.eq("property_management"))
+        .order_by_asc(crate::entities::app_instance::Column::CreatedAt)
+        .one(db)
+        .await?;
+
+    if let Some(inst) = instance {
+        deploy_templates_for_instance(db, tenant_id, inst.id).await?;
+    } else {
+        tracing::warn!(
+            %tenant_id,
+            "scorecard_provisioner: no property_management app_instance — templates seeded without deployments"
+        );
+    }
+
     Ok(())
 }
 

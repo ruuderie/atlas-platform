@@ -1060,32 +1060,21 @@ async fn list_template_deployments(
 }
 
 /// Templates enabled for an app instance (helper for Configurator / app list filters).
-#[allow(dead_code)]
+///
+/// Prefer `ScorecardService::templates_enabled_for_instance` for new call sites.
+/// This wrapper keeps the admin module's historical signature and requires
+/// `tenant_id` for isolation.
 pub async fn templates_enabled_for_instance(
     db: &DatabaseConnection,
+    tenant_id: Uuid,
     app_instance_id: Uuid,
 ) -> Result<Vec<templates::Model>, StatusCode> {
-    let enabled = deployments::Entity::find()
-        .filter(deployments::Column::AppInstanceId.eq(app_instance_id))
-        .filter(deployments::Column::IsEnabled.eq(true))
-        .all(db)
+    ScorecardService::templates_enabled_for_instance(db, tenant_id, app_instance_id, None)
         .await
         .map_err(|e| {
-            tracing::error!(%app_instance_id, "templates_enabled_for_instance error: {e:#}");
+            tracing::error!(%tenant_id, %app_instance_id, "templates_enabled_for_instance error: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    let mut out = Vec::with_capacity(enabled.len());
-    for dep in enabled {
-        if let Some(t) = templates::Entity::find_by_id(dep.template_id)
-            .one(db)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        {
-            out.push(t);
-        }
-    }
-    Ok(out)
+        })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

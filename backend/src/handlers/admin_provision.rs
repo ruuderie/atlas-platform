@@ -415,6 +415,14 @@ pub async fn provision_tenant(
         }
     }
 
+    // 5b2. Folio PM templates + scorecard deployments (when property_management provisioned)
+    if folio_instance_id.is_some() {
+        use crate::atlas_apps::folio::FolioApp;
+        FolioApp.provision(&db, tenant_id)
+            .await
+            .map_err(|e| internal(format!("Folio scorecard provision failed: {e}")))?;
+    }
+
     // 5c. Seed WebAuthn registry (live, no pod restart needed)
     //     Done after commit so only successfully provisioned tenants are cached.
     let origin_url = format!("https://{}", payload.domain);

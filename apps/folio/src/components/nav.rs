@@ -190,6 +190,7 @@ pub enum FolioRoute {
     TenantMaintenanceNew,
     TenantMaintenanceDetail,  // /t/maintenance/:id
     TenantReservations,
+    TenantRatings,
     TenantInbox,
     TenantDocuments,
     TenantHousehold,
@@ -306,6 +307,7 @@ impl FolioRoute {
             Self::TenantMaintenanceNew   => "/t/maintenance/new",
             Self::TenantMaintenanceDetail=> "/t/maintenance/:id",
             Self::TenantReservations     => "/t/reservations",
+            Self::TenantRatings          => "/t/ratings",
             Self::TenantInbox            => "/t/inbox",
             Self::TenantDocuments        => "/t/docs",
             Self::TenantHousehold        => "/t/household",
@@ -657,6 +659,7 @@ pub(crate) static TENANT_NAV: NavConfig = NavConfig {
             NavItem::new(FolioRoute::TenantPayments,     "Payments",     NavIcon::CreditCard),
             NavItem::new(FolioRoute::TenantMaintenance,  "Maintenance",  NavIcon::Build),
             NavItem::new(FolioRoute::TenantReservations, "Reservations", NavIcon::EventAvailable),
+            NavItem::new(FolioRoute::TenantRatings,      "Ratings",      NavIcon::BarChart),
             NavItem::new(FolioRoute::TenantInbox,        "Inbox",        NavIcon::Inbox),
             NavItem::new(FolioRoute::TenantDocuments,    "Documents",    NavIcon::Folder),
             NavItem::new(FolioRoute::TenantHousehold,    "Household",    NavIcon::Group),

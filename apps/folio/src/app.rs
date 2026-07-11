@@ -64,6 +64,7 @@ use crate::pages::tenant::{
     maintenance_detail::TenantMaintenanceDetail,
     application_status::TenantApplicationStatus,
     reports::TenantReports,
+    ratings::TenantRatings,
 };
 
 // Vendor pages
@@ -277,6 +278,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/maintenance/new")      view=TenantMaintenanceTriage/>
                     <Route path=path!("/maintenance/:id")      view=TenantMaintenanceDetail/>
                     <Route path=path!("/reservations")         view=TenantReservations/>
+                    <Route path=path!("/ratings")              view=TenantRatings/>
                     <Route path=path!("/inbox")                view=TenantInbox/>
                     <Route path=path!("/household")            view=TenantHousehold/>
                     <Route path=path!("/docs")                 view=TenantDocuments/>

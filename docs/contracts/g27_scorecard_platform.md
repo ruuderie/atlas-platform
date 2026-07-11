@@ -173,10 +173,17 @@ Stitch filters and Configurator selects must only offer values that can exist in
 - Display-rules: `GET /api/admin/scorecard-templates/{id}/display-rules`, `POST/PATCH/DELETE /api/admin/scorecard-display-rules[/{id}]`
 - Tenant-facing analytics: `GET/POST /api/scorecard-templates/{id}/analytics|leaderboard|anomalies|refresh`
 - `PATCH /api/scorecard-entries/{entry_id}/verify`
+- Tenant write path (app-instance runtime): `POST /api/scorecards/get-or-create`, `POST /api/scorecards/{id}/sessions`, `POST /api/scorecard-sessions/{sid}/entries`, `GET /api/scorecard-sessions/pending`, `GET /api/scorecard-templates/{id}/dimensions`
+
+Runtime event map: [`docs/architecture/g27/g27_app_instance_runtime.md`](../architecture/g27/g27_app_instance_runtime.md).
 
 ### App-instance list (additive)
 
 Tenant/app Configurator lists **only templates deployed + enabled** for the current `app_instance_id` (header/domain resolution).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/scorecard-templates?app_instance_id=&is_published=` | Deployed+enabled templates for the instance. Resolves instance from query → `x-app-instance-id` → tenant's first `property_management` instance. Foreign instance → 403. |
 
 **Auth:** `/api/admin/*` = platform operator session. Every handler verifies resource `tenant_id` matches path (or catalog rules). Foreign tenant → 403/404.
 

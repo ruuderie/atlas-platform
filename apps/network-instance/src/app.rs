@@ -1044,6 +1044,7 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
                         <leptos_router::components::Route path=leptos_router::path!("") view=crate::pages::dashboard::layout::DashboardOverview />
                         <leptos_router::components::Route path=leptos_router::path!("settings") view=crate::pages::dashboard::settings::DashboardSettings />
                         <leptos_router::components::Route path=leptos_router::path!("listings") view=crate::pages::dashboard::listings::DashboardListings />
+                        <leptos_router::components::Route path=leptos_router::path!("scorecards") view=crate::pages::scorecard_mount::ScorecardMountStub />
                     </leptos_router::components::ParentRoute>
                     <leptos_router::components::Route path=leptos_router::path!(":slug") view=ListingDetail />
                 </leptos_router::components::Routes>

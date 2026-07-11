@@ -311,6 +311,22 @@ async fn check_out_reservation(
         .await
         .map_err(|e| reservation_err_to_status(e, reservation_id, tenant_id))?;
 
+    // G-27: open post_checkout rating sessions (best-effort — never fail check-out).
+    if let Err(e) = trigger_post_checkout_sessions(
+        &db,
+        tenant_id,
+        reservation_id,
+        current_user.id,
+    )
+    .await
+    {
+        tracing::warn!(
+            %tenant_id,
+            %reservation_id,
+            "check_out: scorecard post_checkout trigger failed (non-fatal): {e:#}"
+        );
+    }
+
     Ok(axum::response::Json(ReservationResponse {
         id: summary.id,
         status: summary.status,
@@ -383,4 +399,59 @@ async fn resolve_tenant_id(
         .ok_or(StatusCode::FORBIDDEN)?;
 
     Ok(profile.tenant_id)
+}
+
+/// Best-effort G-27 post_checkout session open after STR check-out.
+async fn trigger_post_checkout_sessions(
+    db: &DatabaseConnection,
+    tenant_id: Uuid,
+    reservation_id: Uuid,
+    rater_user_id: Uuid,
+) -> anyhow::Result<()> {
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+
+    let reservation = crate::entities::atlas_reservation::Entity::find_by_id(reservation_id)
+        .filter(crate::entities::atlas_reservation::Column::TenantId.eq(tenant_id))
+        .one(db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("reservation not found after check-out"))?;
+
+    let asset_id = match reservation.reserved_asset_id {
+        Some(id) => id,
+        None => {
+            tracing::debug!(%reservation_id, "post_checkout: no reserved_asset_id — skip");
+            return Ok(());
+        }
+    };
+
+    let app_instance_id = crate::entities::app_instance::Entity::find()
+        .filter(crate::entities::app_instance::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::app_instance::Column::AppType.eq("property_management"))
+        .order_by_asc(crate::entities::app_instance::Column::CreatedAt)
+        .one(db)
+        .await?
+        .map(|i| i.id);
+
+    let Some(app_instance_id) = app_instance_id else {
+        tracing::debug!(%tenant_id, "post_checkout: no Folio app_instance — skip");
+        return Ok(());
+    };
+
+    let opened = crate::services::scorecard_triggers::on_str_checkout(
+        db,
+        tenant_id,
+        app_instance_id,
+        reservation_id,
+        asset_id,
+        rater_user_id,
+    )
+    .await?;
+
+    tracing::info!(
+        %tenant_id,
+        %reservation_id,
+        sessions = opened.len(),
+        "post_checkout: rating sessions opened"
+    );
+    Ok(())
 }

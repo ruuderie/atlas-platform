@@ -639,3 +639,321 @@ async fn test_get_nudge_dimensions_for_activity() {
         "must return [] for an activity type not in any rule's value_list"
     );
 }
+
+// ── Phase A/B: deployments + auto-deploy ──────────────────────────────────────
+
+async fn create_test_app_instance(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: Uuid,
+    app_type: &str,
+) -> Uuid {
+    use sea_orm::{ActiveModelTrait, Set};
+    use crate::entities::app_instance::ActiveModel as InstanceAM;
+    use chrono::Utc;
+
+    let id = Uuid::new_v4();
+    InstanceAM {
+        id: Set(id),
+        tenant_id: Set(tenant_id),
+        app_type: Set(app_type.to_owned()),
+        database_url: Set(None),
+        data_seed_name: Set(None),
+        settings: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .expect("app_instance insert failed");
+    id
+}
+
+async fn insert_deployment(
+    db: &sea_orm::DatabaseConnection,
+    tenant_id: Uuid,
+    template_id: Uuid,
+    app_instance_id: Uuid,
+    is_enabled: bool,
+) {
+    use sea_orm::{ActiveModelTrait, Set};
+    use crate::entities::atlas_scorecard_template_deployment::ActiveModel as DepAM;
+    use chrono::Utc;
+
+    DepAM {
+        id: Set(Uuid::new_v4()),
+        template_id: Set(template_id),
+        app_instance_id: Set(app_instance_id),
+        tenant_id: Set(tenant_id),
+        is_enabled: Set(is_enabled),
+        trigger_event: Set("manual".to_owned()),
+        trigger_context_entity_type: Set(None),
+        created_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .expect("deployment insert failed");
+}
+
+#[tokio::test]
+async fn test_templates_enabled_for_instance_filters_disabled() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let (template_id, _) = create_test_template_and_dimension(&db, tenant.id).await;
+    let instance_id = create_test_app_instance(&db, tenant.id, "property_management").await;
+
+    insert_deployment(&db, tenant.id, template_id, instance_id, false).await;
+
+    let enabled = ScorecardService::templates_enabled_for_instance(
+        &db, tenant.id, instance_id, None,
+    )
+    .await
+    .expect("query must succeed");
+
+    assert!(
+        enabled.is_empty(),
+        "disabled deployment must not appear in enabled list"
+    );
+
+    // Enable and re-query
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+    use crate::entities::atlas_scorecard_template_deployment as deployments;
+    let row = deployments::Entity::find()
+        .filter(deployments::Column::TemplateId.eq(template_id))
+        .filter(deployments::Column::AppInstanceId.eq(instance_id))
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut am: deployments::ActiveModel = row.into();
+    am.is_enabled = Set(true);
+    am.update(&db).await.unwrap();
+
+    let enabled = ScorecardService::templates_enabled_for_instance(
+        &db, tenant.id, instance_id, None,
+    )
+    .await
+    .expect("query must succeed");
+
+    assert_eq!(enabled.len(), 1);
+    assert_eq!(enabled[0].id, template_id);
+}
+
+#[tokio::test]
+async fn test_templates_enabled_for_instance_wrong_tenant_empty() {
+    let (_, db) = setup_test_app().await;
+    let tenant_a = test_utils::create_test_tenant(&db).await;
+    let tenant_b = test_utils::create_test_tenant(&db).await;
+    let (template_id, _) = create_test_template_and_dimension(&db, tenant_a.id).await;
+    let instance_a = create_test_app_instance(&db, tenant_a.id, "property_management").await;
+
+    insert_deployment(&db, tenant_a.id, template_id, instance_a, true).await;
+
+    // Query with tenant_b's id against tenant_a's instance → empty (tenant filter)
+    let enabled = ScorecardService::templates_enabled_for_instance(
+        &db, tenant_b.id, instance_a, None,
+    )
+    .await
+    .expect("query must succeed");
+
+    assert!(
+        enabled.is_empty(),
+        "wrong tenant must not see another tenant's deployments"
+    );
+}
+
+#[tokio::test]
+async fn test_templates_enabled_for_instance_wrong_instance_empty() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let (template_id, _) = create_test_template_and_dimension(&db, tenant.id).await;
+    let instance_a = create_test_app_instance(&db, tenant.id, "property_management").await;
+    let instance_b = create_test_app_instance(&db, tenant.id, "property_management").await;
+
+    insert_deployment(&db, tenant.id, template_id, instance_a, true).await;
+
+    let enabled = ScorecardService::templates_enabled_for_instance(
+        &db, tenant.id, instance_b, None,
+    )
+    .await
+    .expect("query must succeed");
+
+    assert!(
+        enabled.is_empty(),
+        "wrong instance must not see deployments for another instance"
+    );
+}
+
+#[tokio::test]
+async fn test_auto_deploy_on_seed_and_deploy_for_folio() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let instance_id = create_test_app_instance(&db, tenant.id, "property_management").await;
+
+    crate::services::pm::scorecard_provisioner::seed_and_deploy_for_folio(&db, tenant.id)
+        .await
+        .expect("seed_and_deploy must succeed");
+
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use crate::entities::atlas_scorecard_template_deployment as deployments;
+
+    let deps = deployments::Entity::find()
+        .filter(deployments::Column::TenantId.eq(tenant.id))
+        .filter(deployments::Column::AppInstanceId.eq(instance_id))
+        .filter(deployments::Column::IsEnabled.eq(true))
+        .all(&db)
+        .await
+        .expect("list deployments");
+
+    assert_eq!(
+        deps.len(), 4,
+        "auto-deploy must create 4 enabled deployments for seeded PM templates"
+    );
+
+    // Idempotent: second call must not duplicate
+    crate::services::pm::scorecard_provisioner::seed_and_deploy_for_folio(&db, tenant.id)
+        .await
+        .expect("second seed_and_deploy must succeed");
+
+    let deps2 = deployments::Entity::find()
+        .filter(deployments::Column::TenantId.eq(tenant.id))
+        .filter(deployments::Column::AppInstanceId.eq(instance_id))
+        .all(&db)
+        .await
+        .expect("list deployments after re-seed");
+
+    assert_eq!(deps2.len(), 4, "re-seed must remain idempotent");
+
+    let enabled = ScorecardService::templates_enabled_for_instance(
+        &db, tenant.id, instance_id, None,
+    )
+    .await
+    .expect("list enabled");
+    assert_eq!(enabled.len(), 4);
+}
+
+#[tokio::test]
+async fn test_post_checkout_trigger_opens_session_and_submit_updates_aggregates() {
+    let (_, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let instance_id = create_test_app_instance(&db, tenant.id, "property_management").await;
+
+    // Seed STR template + deploy with post_checkout (via provisioner defaults)
+    crate::services::pm::scorecard_provisioner::seed_and_deploy_for_folio(&db, tenant.id)
+        .await
+        .expect("seed_and_deploy");
+
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+    use crate::entities::atlas_scorecard_template as templates;
+    use crate::entities::atlas_scorecard_dimension::ActiveModel as DimAM;
+    use rust_decimal::Decimal;
+
+    let str_template = templates::Entity::find()
+        .filter(templates::Column::TenantId.eq(tenant.id))
+        .filter(templates::Column::Name.eq("STR Property Assessment"))
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("STR template");
+
+    // Add a dimension so submit_entry + recompute have work to do
+    let dim_id = Uuid::new_v4();
+    DimAM {
+        id: Set(dim_id),
+        template_id: Set(str_template.id),
+        tenant_id: Set(tenant.id),
+        slug: Set("cleanliness".to_owned()),
+        name: Set("Cleanliness".to_owned()),
+        description: Set(None),
+        category: Set(None),
+        scale_type: Set("rating".to_owned()),
+        scale_min: Set(Decimal::ZERO),
+        scale_max: Set(Decimal::from(10)),
+        weight: Set(Decimal::from(1)),
+        unit_label: Set(None),
+        benchmark_tiers: Set(json!([])),
+        global_reference_value: Set(None),
+        global_reference_label: Set(None),
+        min_entries_to_show: Set(1),
+        is_community_ratable: Set(true),
+        is_active: Set(true),
+        sort_order: Set(0),
+        ..Default::default()
+    }
+    .insert(&db)
+    .await
+    .expect("dim insert");
+
+    let asset_id = Uuid::new_v4();
+    let reservation_id = Uuid::new_v4();
+    let rater_id = Uuid::new_v4();
+
+    let opened = crate::services::scorecard_triggers::on_str_checkout(
+        &db,
+        tenant.id,
+        instance_id,
+        reservation_id,
+        asset_id,
+        rater_id,
+    )
+    .await
+    .expect("on_str_checkout");
+
+    assert_eq!(
+        opened.len(), 1,
+        "STR Property Assessment deployment should open one post_checkout session"
+    );
+    assert_eq!(opened[0].template_id, str_template.id);
+
+    use crate::entities::atlas_rating_session as sessions;
+    let session = sessions::Entity::find_by_id(opened[0].session_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("session row");
+    assert_eq!(session.context_entity_type.as_deref(), Some("atlas_reservation"));
+    assert_eq!(session.context_entity_id, Some(reservation_id));
+    assert_eq!(session.session_type, "stay");
+
+    // Submit entry (manual is auto-verified) + recompute → aggregates update
+    ScorecardService::submit_entry(
+        &db,
+        opened[0].session_id,
+        opened[0].scorecard_id,
+        dim_id,
+        tenant.id,
+        rater_id,
+        Some(8.0),
+        None,
+        "manual",
+        None,
+        None,
+    )
+    .await
+    .expect("submit_entry");
+
+    ScorecardService::recompute_aggregates(&db, opened[0].scorecard_id)
+        .await
+        .expect("recompute");
+
+    use crate::entities::atlas_scorecard as scorecards;
+    use crate::entities::atlas_scorecard_entry as entries;
+    let entry = entries::Entity::find()
+        .filter(entries::Column::SessionId.eq(opened[0].session_id))
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("entry");
+    assert!(entry.is_verified, "manual entries must be auto-verified");
+
+    let sc = scorecards::Entity::find_by_id(opened[0].scorecard_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .expect("scorecard");
+    assert!(
+        sc.total_entries >= 1,
+        "aggregates should reflect verified entry (entries={} sessions={})",
+        sc.total_entries,
+        sc.total_sessions
+    );
+}

@@ -13,6 +13,7 @@ pub mod contact_service;
 pub mod lead_service;                      // GENERIC-31
 pub mod scorecard_service;                 // GENERIC-27
 pub mod scorecard_analytics_service;      // GENERIC-27 Phase 3 — portfolio analytics
+pub mod scorecard_triggers;               // GENERIC-27 app-instance trigger → session
 
 // === Complete Platform Generics Service Layer (v2) ===
 pub mod portfolio_service;                 // GENERIC-09

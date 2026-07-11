@@ -517,13 +517,13 @@ impl AtlasApp for FolioApp {
         .await
         .map_err(|e| format!("folio provision: scorecard_display_rules_enabled seed failed: {e}"))?;
 
-        // ── 3. Seed 4 canonical PM scorecard templates ────────────────────────
-        crate::services::pm::scorecard_provisioner::seed_pm_templates(db, tenant_id)
+        // ── 3. Seed 4 canonical PM scorecard templates + auto-deploy ──────────
+        crate::services::pm::scorecard_provisioner::seed_and_deploy_for_folio(db, tenant_id)
             .await
-            .map_err(|e| format!("folio provision: template seed failed: {e}"))?;
+            .map_err(|e| format!("folio provision: template seed/deploy failed: {e}"))?;
 
         tracing::info!(
-            "folio provision: bootstrapped tenant {} with jurisdiction, display rules, and PM scorecard templates",
+            "folio provision: bootstrapped tenant {} with jurisdiction, display rules, PM scorecard templates, and deployments",
             tenant_id
         );
 
