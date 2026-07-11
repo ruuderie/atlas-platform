@@ -53,13 +53,18 @@ pub fn format_plan_price(plan: &MarketingPlan) -> (String, Option<&'static str>)
     match plan.billing_interval {
         PlanBillingInterval::Custom if plan.price_cents <= 0 => ("Custom".to_string(), None),
         PlanBillingInterval::Forever if plan.price_cents <= 0 => {
-            if plan.name.eq_ignore_ascii_case("free") || plan.slug.contains("free") || plan.slug.contains("basic") {
+            if plan.name.eq_ignore_ascii_case("free")
+                || plan.slug.contains("free")
+                || plan.slug.contains("basic")
+            {
                 ("Free".to_string(), None)
             } else {
                 ("$0".to_string(), None)
             }
         }
-        _ if plan.price_cents <= 0 && matches!(plan.billing_interval, PlanBillingInterval::Forever) => {
+        _ if plan.price_cents <= 0
+            && matches!(plan.billing_interval, PlanBillingInterval::Forever) =>
+        {
             ("$0".to_string(), None)
         }
         _ if plan.price_cents <= 0 => ("$0".to_string(), None),

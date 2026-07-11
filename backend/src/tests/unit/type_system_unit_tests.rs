@@ -9,14 +9,14 @@
 mod tests {
     // ── LeadStatus ────────────────────────────────────────────────────────────
 
-    use crate::types::lead::{
-        CompanyType, DataSource, LeadStatus, LocationType, OpportunityStatus, OpportunityType,
-    };
+    use crate::types::account::{AccountStatus, AccountType, TaxIdType};
     use crate::types::activity::{
         ActivityCategory, ActivityDirection, ActivityOutcome, ActivityStatus, ActivityType,
     };
+    use crate::types::lead::{
+        CompanyType, DataSource, LeadStatus, LocationType, OpportunityStatus, OpportunityType,
+    };
     use crate::types::note::{NoteType, NoteVisibility};
-    use crate::types::account::{AccountStatus, AccountType, TaxIdType};
     use crate::types::outbox::{OutboxJobStatus, OutboxJobType};
     use crate::types::scorecard::ScorecardEntityType;
     use crate::types::shared::MailingAddress;
@@ -34,7 +34,12 @@ mod tests {
             (LeadStatus::Converted, "converted"),
         ];
         for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
+            assert_eq!(
+                variant.to_string(),
+                *slug,
+                "Display mismatch for {:?}",
+                variant
+            );
             let parsed = LeadStatus::try_from(slug.to_string()).expect("TryFrom should succeed");
             assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
         }
@@ -44,7 +49,10 @@ mod tests {
     fn lead_status_unknown_slug_returns_err() {
         assert!(LeadStatus::try_from("pending".to_string()).is_err());
         assert!(LeadStatus::try_from("".to_string()).is_err());
-        assert!(LeadStatus::try_from("CONVERTED".to_string()).is_err(), "must be lowercase");
+        assert!(
+            LeadStatus::try_from("CONVERTED".to_string()).is_err(),
+            "must be lowercase"
+        );
     }
 
     #[test]
@@ -75,7 +83,12 @@ mod tests {
         for (slug, expected) in &cases {
             let parsed = DataSource::from(*slug);
             assert_eq!(&parsed, expected, "DataSource::from failed for '{}'", slug);
-            assert_eq!(parsed.to_string(), *slug, "Display mismatch for {:?}", expected);
+            assert_eq!(
+                parsed.to_string(),
+                *slug,
+                "Display mismatch for {:?}",
+                expected
+            );
         }
     }
 
@@ -145,7 +158,10 @@ mod tests {
         ];
         for (variant, slug) in &cases {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&OpportunityType::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &OpportunityType::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -191,7 +207,10 @@ mod tests {
         ];
         for (variant, slug) in &cases {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&ActivityCategory::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &ActivityCategory::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -220,7 +239,10 @@ mod tests {
         ];
         for (variant, slug) in &cases {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&ActivityOutcome::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &ActivityOutcome::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -253,7 +275,10 @@ mod tests {
             (ActivityDirection::Na, "n_a"),
         ] {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&ActivityDirection::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &ActivityDirection::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -267,7 +292,10 @@ mod tests {
             (NoteVisibility::Private, "private"),
         ] {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&NoteVisibility::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &NoteVisibility::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -353,15 +381,38 @@ mod tests {
     fn outbox_job_type_all_variants_roundtrip() {
         let cases = [
             (OutboxJobType::SendMagicLinkEmail, "send_magic_link_email"),
-            (OutboxJobType::RecomputeScorecardAggregates, "recompute_scorecard_aggregates"),
-            (OutboxJobType::RefreshScorecardTimeSeries, "refresh_scorecard_time_series"),
-            (OutboxJobType::RefreshScorecardPortfolio, "refresh_scorecard_portfolio"),
-            (OutboxJobType::CalibrateScorecardContributors, "calibrate_scorecard_contributors"),
-            (OutboxJobType::EvaluateScorecardNudge, "evaluate_scorecard_nudge"),
-            (OutboxJobType::ReleaseExpiredReservationHolds, "release_expired_reservation_holds"),
+            (
+                OutboxJobType::RecomputeScorecardAggregates,
+                "recompute_scorecard_aggregates",
+            ),
+            (
+                OutboxJobType::RefreshScorecardTimeSeries,
+                "refresh_scorecard_time_series",
+            ),
+            (
+                OutboxJobType::RefreshScorecardPortfolio,
+                "refresh_scorecard_portfolio",
+            ),
+            (
+                OutboxJobType::CalibrateScorecardContributors,
+                "calibrate_scorecard_contributors",
+            ),
+            (
+                OutboxJobType::EvaluateScorecardNudge,
+                "evaluate_scorecard_nudge",
+            ),
+            (
+                OutboxJobType::ReleaseExpiredReservationHolds,
+                "release_expired_reservation_holds",
+            ),
         ];
         for (variant, slug) in &cases {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
+            assert_eq!(
+                variant.to_string(),
+                *slug,
+                "Display mismatch for {:?}",
+                variant
+            );
             let parsed = OutboxJobType::try_from(slug.to_string())
                 .unwrap_or_else(|_| panic!("TryFrom failed for '{}'", slug));
             assert_eq!(&parsed, variant);
@@ -383,7 +434,10 @@ mod tests {
             (OutboxJobStatus::Failed, "failed"),
         ] {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&OutboxJobStatus::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &OutboxJobStatus::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -400,14 +454,23 @@ mod tests {
             (ScorecardEntityType::AtlasPortfolio, "atlas_portfolio"),
             (ScorecardEntityType::AtlasReservation, "atlas_reservation"),
             (ScorecardEntityType::AtlasCase, "atlas_case"),
-            (ScorecardEntityType::AtlasCatalogEntry, "atlas_catalog_entry"),
-            (ScorecardEntityType::AtlasServiceProvider, "atlas_service_provider"),
+            (
+                ScorecardEntityType::AtlasCatalogEntry,
+                "atlas_catalog_entry",
+            ),
+            (
+                ScorecardEntityType::AtlasServiceProvider,
+                "atlas_service_provider",
+            ),
             (ScorecardEntityType::Tenant, "tenant"),
             (ScorecardEntityType::AppInstance, "app_instance"),
         ];
         for (variant, slug) in &cases {
             assert_eq!(variant.to_string(), *slug);
-            assert_eq!(&ScorecardEntityType::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                &ScorecardEntityType::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
     }
 
@@ -438,7 +501,10 @@ mod tests {
             (RatingSessionStatus::Disputed, "disputed"),
         ] {
             assert_eq!(variant.to_string(), slug);
-            assert_eq!(RatingSessionStatus::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                RatingSessionStatus::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
         assert!(RatingSessionStatus::try_from("bogus".to_string()).is_err());
     }
@@ -448,7 +514,10 @@ mod tests {
         use crate::types::scorecard::DeploymentTriggerEvent;
         for (variant, slug) in [
             (DeploymentTriggerEvent::Manual, "manual"),
-            (DeploymentTriggerEvent::PostServiceSession, "post_service_session"),
+            (
+                DeploymentTriggerEvent::PostServiceSession,
+                "post_service_session",
+            ),
             (DeploymentTriggerEvent::PostCheckout, "post_checkout"),
             (DeploymentTriggerEvent::DealClose, "deal_close"),
             (DeploymentTriggerEvent::LeaseEnd, "lease_end"),
@@ -456,7 +525,10 @@ mod tests {
             (DeploymentTriggerEvent::Scheduled, "scheduled"),
         ] {
             assert_eq!(variant.to_string(), slug);
-            assert_eq!(DeploymentTriggerEvent::try_from(slug.to_string()).unwrap(), variant);
+            assert_eq!(
+                DeploymentTriggerEvent::try_from(slug.to_string()).unwrap(),
+                variant
+            );
         }
         assert!(DeploymentTriggerEvent::try_from("bogus".to_string()).is_err());
     }
@@ -483,7 +555,10 @@ mod tests {
             country: Some("US".to_string()),
             street2: None,
         };
-        assert_eq!(addr.one_line().unwrap(), "123 Main St, Austin, TX, 78701, US");
+        assert_eq!(
+            addr.one_line().unwrap(),
+            "123 Main St, Austin, TX, 78701, US"
+        );
     }
 
     #[test]
@@ -505,7 +580,8 @@ mod tests {
         };
 
         let json = serde_json::to_value(&addr).expect("should serialize");
-        let deserialized: MailingAddress = serde_json::from_value(json).expect("should deserialize");
+        let deserialized: MailingAddress =
+            serde_json::from_value(json).expect("should deserialize");
 
         assert_eq!(deserialized.street, addr.street);
         assert_eq!(deserialized.city, addr.city);
@@ -754,7 +830,10 @@ mod tests {
         let raw = json!({"delta": {"ops": [{"insert": "Hello\n"}]}});
         let meta: NoteMetadata = serde_json::from_value(raw).unwrap();
 
-        assert!(matches!(meta, NoteMetadata::RichText(_)), "Expected RichText variant");
+        assert!(
+            matches!(meta, NoteMetadata::RichText(_)),
+            "Expected RichText variant"
+        );
     }
 
     // ── ActivityMetadata typed union ──────────────────────────────────────────
@@ -764,10 +843,14 @@ mod tests {
         use crate::types::activity::ActivityMetadata;
         use serde_json::json;
 
-        let raw = json!({"subject": "Follow up", "body_preview": "Hi there", "message_id": "abc123"});
+        let raw =
+            json!({"subject": "Follow up", "body_preview": "Hi there", "message_id": "abc123"});
         let meta: ActivityMetadata = serde_json::from_value(raw).unwrap();
 
-        assert!(matches!(meta, ActivityMetadata::Email(_)), "Expected Email variant");
+        assert!(
+            matches!(meta, ActivityMetadata::Email(_)),
+            "Expected Email variant"
+        );
     }
 
     #[test]
@@ -778,221 +861,331 @@ mod tests {
         let raw = json!({"recording_url": "https://storage.example.com/call.mp3", "phone_number": "+1-555-1234"});
         let meta: ActivityMetadata = serde_json::from_value(raw).unwrap();
 
-        assert!(matches!(meta, ActivityMetadata::Call(_)), "Expected Call variant");
+        assert!(
+            matches!(meta, ActivityMetadata::Call(_)),
+            "Expected Call variant"
+        );
     }
 }
 
-    // ── GTM types ─────────────────────────────────────────────────────────────
+// ── GTM types ─────────────────────────────────────────────────────────────
 
-    use crate::types::gtm::{
-        CopyStrategy, InjectAt, LaunchMode, LocalizationStatus, PixelType, PlanTier,
-        ResolutionType,
-    };
+use crate::types::gtm::{
+    BetaApplicantRole, CopyStrategy, CtaAction, FolioMarketingSlug, FoundingSpotTier, InjectAt,
+    LaunchMode, LocalizationStatus, MarketingSectionBlockType, PixelType, PlanTier, ResolutionType,
+    VendorTradeKey,
+};
 
-    #[test]
-    fn launch_mode_display_roundtrip() {
-        let variants = [
-            (LaunchMode::Active,    "active"),
-            (LaunchMode::Waitlist,  "waitlist"),
-            (LaunchMode::PreOrder,  "pre_order"),
-            (LaunchMode::PreLaunch, "pre_launch"),
-            (LaunchMode::Draft,     "draft"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = LaunchMode::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
+#[test]
+fn launch_mode_display_roundtrip() {
+    let variants = [
+        (LaunchMode::Active, "active"),
+        (LaunchMode::Waitlist, "waitlist"),
+        (LaunchMode::PreOrder, "pre_order"),
+        (LaunchMode::PreLaunch, "pre_launch"),
+        (LaunchMode::Draft, "draft"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = LaunchMode::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn launch_mode_unknown_slug_returns_err() {
-        assert!(LaunchMode::try_from("live".to_string()).is_err());
-        assert!(LaunchMode::try_from("ACTIVE".to_string()).is_err(), "must be lowercase");
-        assert!(LaunchMode::try_from("".to_string()).is_err());
+#[test]
+fn launch_mode_unknown_slug_returns_err() {
+    assert!(LaunchMode::try_from("live".to_string()).is_err());
+    assert!(
+        LaunchMode::try_from("ACTIVE".to_string()).is_err(),
+        "must be lowercase"
+    );
+    assert!(LaunchMode::try_from("".to_string()).is_err());
+}
+
+#[test]
+fn launch_mode_allows_conversion() {
+    assert!(LaunchMode::Active.allows_conversion());
+    assert!(LaunchMode::Waitlist.allows_conversion());
+    assert!(LaunchMode::PreOrder.allows_conversion());
+    assert!(!LaunchMode::PreLaunch.allows_conversion());
+    assert!(!LaunchMode::Draft.allows_conversion());
+}
+
+#[test]
+fn launch_mode_is_indexable() {
+    assert!(LaunchMode::Active.is_indexable());
+    assert!(LaunchMode::Waitlist.is_indexable());
+    assert!(!LaunchMode::Draft.is_indexable());
+    assert!(!LaunchMode::PreLaunch.is_indexable());
+}
+
+#[test]
+fn localization_status_display_roundtrip() {
+    let variants = [
+        (LocalizationStatus::Base, "base"),
+        (LocalizationStatus::AiLocalized, "ai_localized"),
+        (LocalizationStatus::Manual, "manual"),
+        (LocalizationStatus::Pending, "pending"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed =
+            LocalizationStatus::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn launch_mode_allows_conversion() {
-        assert!(LaunchMode::Active.allows_conversion());
-        assert!(LaunchMode::Waitlist.allows_conversion());
-        assert!(LaunchMode::PreOrder.allows_conversion());
-        assert!(!LaunchMode::PreLaunch.allows_conversion());
-        assert!(!LaunchMode::Draft.allows_conversion());
+#[test]
+fn localization_status_unknown_slug_returns_err() {
+    assert!(LocalizationStatus::try_from("ai".to_string()).is_err());
+    assert!(LocalizationStatus::try_from("AI_LOCALIZED".to_string()).is_err());
+}
+
+#[test]
+fn copy_strategy_display_roundtrip() {
+    let variants = [
+        (CopyStrategy::Localized, "localized"),
+        (CopyStrategy::BaseCopy, "base_copy"),
+        (CopyStrategy::AiGenerated, "ai_generated"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = CopyStrategy::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn launch_mode_is_indexable() {
-        assert!(LaunchMode::Active.is_indexable());
-        assert!(LaunchMode::Waitlist.is_indexable());
-        assert!(!LaunchMode::Draft.is_indexable());
-        assert!(!LaunchMode::PreLaunch.is_indexable());
+#[test]
+fn pixel_type_display_roundtrip() {
+    let variants = [
+        (PixelType::Gtm, "gtm"),
+        (PixelType::Ga4, "ga4"),
+        (PixelType::Meta, "meta"),
+        (PixelType::Linkedin, "linkedin"),
+        (PixelType::Tiktok, "tiktok"),
+        (PixelType::Custom, "custom"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = PixelType::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn localization_status_display_roundtrip() {
-        let variants = [
-            (LocalizationStatus::Base,        "base"),
-            (LocalizationStatus::AiLocalized, "ai_localized"),
-            (LocalizationStatus::Manual,      "manual"),
-            (LocalizationStatus::Pending,     "pending"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = LocalizationStatus::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
+#[test]
+fn pixel_type_needs_noscript_fallback() {
+    assert!(PixelType::Meta.needs_noscript_fallback());
+    assert!(PixelType::Linkedin.needs_noscript_fallback());
+    assert!(!PixelType::Ga4.needs_noscript_fallback());
+    assert!(!PixelType::Gtm.needs_noscript_fallback());
+    assert!(!PixelType::Tiktok.needs_noscript_fallback());
+    assert!(!PixelType::Custom.needs_noscript_fallback());
+}
+
+#[test]
+fn inject_at_display_roundtrip() {
+    let variants = [
+        (InjectAt::Head, "head"),
+        (InjectAt::BodyStart, "body_start"),
+        (InjectAt::BodyEnd, "body_end"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = InjectAt::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn localization_status_unknown_slug_returns_err() {
-        assert!(LocalizationStatus::try_from("ai".to_string()).is_err());
-        assert!(LocalizationStatus::try_from("AI_LOCALIZED".to_string()).is_err());
+#[test]
+fn plan_tier_display_roundtrip() {
+    let variants = [
+        (PlanTier::Starter, "starter"),
+        (PlanTier::Professional, "professional"),
+        (PlanTier::Portfolio, "portfolio"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = PlanTier::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn copy_strategy_display_roundtrip() {
-        let variants = [
-            (CopyStrategy::Localized,   "localized"),
-            (CopyStrategy::BaseCopy,    "base_copy"),
-            (CopyStrategy::AiGenerated, "ai_generated"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = CopyStrategy::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
+#[test]
+fn plan_tier_is_high_value() {
+    assert!(PlanTier::Professional.is_high_value());
+    assert!(PlanTier::Portfolio.is_high_value());
+    assert!(!PlanTier::Starter.is_high_value());
+}
+
+#[test]
+fn resolution_type_display_roundtrip() {
+    let variants = [
+        (ResolutionType::Product, "product"),
+        (ResolutionType::Variant, "variant"),
+        (ResolutionType::TenantApp, "tenant_app"),
+        (ResolutionType::NotFound, "not_found"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = ResolutionType::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn pixel_type_display_roundtrip() {
-        let variants = [
-            (PixelType::Gtm,      "gtm"),
-            (PixelType::Ga4,      "ga4"),
-            (PixelType::Meta,     "meta"),
-            (PixelType::Linkedin, "linkedin"),
-            (PixelType::Tiktok,   "tiktok"),
-            (PixelType::Custom,   "custom"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = PixelType::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
+#[test]
+fn pixel_type_unknown_slug_returns_err() {
+    assert!(PixelType::try_from("facebook".to_string()).is_err());
+    assert!(
+        PixelType::try_from("GTM".to_string()).is_err(),
+        "must be lowercase"
+    );
+}
+
+// ── AppId ──────────────────────────────────────────────────────────────────
+
+use crate::types::gtm::AppId;
+
+#[test]
+fn app_id_display_roundtrip() {
+    let variants = [
+        (AppId::PropertyManagement, "property_management"),
+        (AppId::Anchor, "anchor"),
+        (AppId::NetworkInstance, "network_instance"),
+        (AppId::Meridian, "meridian"),
+        (AppId::CorePlatform, "core_platform"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(
+            variant.to_string(),
+            *slug,
+            "Display mismatch for {:?}",
+            variant
+        );
+        let parsed = AppId::try_from(slug.to_string()).expect("TryFrom should succeed");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
     }
+}
 
-    #[test]
-    fn pixel_type_needs_noscript_fallback() {
-        assert!(PixelType::Meta.needs_noscript_fallback());
-        assert!(PixelType::Linkedin.needs_noscript_fallback());
-        assert!(!PixelType::Ga4.needs_noscript_fallback());
-        assert!(!PixelType::Gtm.needs_noscript_fallback());
-        assert!(!PixelType::Tiktok.needs_noscript_fallback());
-        assert!(!PixelType::Custom.needs_noscript_fallback());
+#[test]
+fn app_id_unknown_slug_returns_err() {
+    assert!(
+        AppId::try_from("folio".to_string()).is_err(),
+        "'folio' is a product slug, not an app_id"
+    );
+    assert!(
+        AppId::try_from("ANCHOR".to_string()).is_err(),
+        "must be lowercase"
+    );
+    assert!(AppId::try_from("".to_string()).is_err());
+}
+
+#[test]
+fn app_id_product_slug_mapping() {
+    // Verifies the marketing slug → app_id relationship is correct.
+    // If this mapping changes, update the migration backfill SQL too.
+    assert_eq!(AppId::PropertyManagement.product_slug(), "folio");
+    assert_eq!(AppId::Anchor.product_slug(), "anchor");
+    assert_eq!(AppId::NetworkInstance.product_slug(), "network_instance");
+    assert_eq!(AppId::Meridian.product_slug(), "meridian");
+}
+
+#[test]
+fn app_id_all_db_values_matches_variants() {
+    // Every variant must appear in all_db_values() — catch future drift.
+    let all = AppId::all_db_values();
+    for slug in all {
+        assert!(
+            AppId::try_from(*slug).is_ok(),
+            "all_db_values() contains '{}' but TryFrom doesn't recognise it",
+            slug
+        );
     }
+    assert_eq!(all.len(), 5, "Expected 5 AppId variants");
+}
 
-    #[test]
-    fn inject_at_display_roundtrip() {
-        let variants = [
-            (InjectAt::Head,      "head"),
-            (InjectAt::BodyStart, "body_start"),
-            (InjectAt::BodyEnd,   "body_end"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = InjectAt::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
+#[test]
+fn folio_marketing_slug_paths_and_sources() {
+    assert_eq!(FolioMarketingSlug::Folio.public_path(), "/");
+    assert_eq!(FolioMarketingSlug::FolioBroker.public_path(), "/brokers");
+    assert_eq!(FolioMarketingSlug::FolioFounding.as_str(), "folio-founding");
+    assert_eq!(
+        FolioMarketingSlug::FolioBeta.waitlist_lead_source(),
+        "waitlist:folio-beta"
+    );
+    assert!(FolioMarketingSlug::try_from("folio-pm").is_ok());
+    assert!(FolioMarketingSlug::try_from("unknown").is_err());
+}
+
+#[test]
+fn marketing_section_block_type_roundtrip() {
+    for slug in [
+        "stats",
+        "feature_grid",
+        "trade_categories",
+        "full_page",
+        "cta",
+    ] {
+        let parsed = MarketingSectionBlockType::try_from(slug).unwrap();
+        assert_eq!(parsed.as_str(), slug);
     }
+    assert!(MarketingSectionBlockType::try_from("nope").is_err());
+}
 
-    #[test]
-    fn plan_tier_display_roundtrip() {
-        let variants = [
-            (PlanTier::Starter,      "starter"),
-            (PlanTier::Professional, "professional"),
-            (PlanTier::Portfolio,    "portfolio"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = PlanTier::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
-    }
+#[test]
+fn founding_spot_tier_keys() {
+    assert_eq!(FoundingSpotTier::ALL.len(), 9);
+    assert_eq!(FoundingSpotTier::LlGrow.as_str(), "ll-grow");
+    assert!(FoundingSpotTier::try_from("vd-pro").is_ok());
+    assert!(FoundingSpotTier::try_from("ll_grow").is_err());
+}
 
-    #[test]
-    fn plan_tier_is_high_value() {
-        assert!(PlanTier::Professional.is_high_value());
-        assert!(PlanTier::Portfolio.is_high_value());
-        assert!(!PlanTier::Starter.is_high_value());
-    }
+#[test]
+fn cta_action_accepts_legacy_signup_path() {
+    assert_eq!(CtaAction::try_from("waitlist").unwrap(), CtaAction::Waitlist);
+    assert_eq!(CtaAction::try_from("/signup").unwrap(), CtaAction::Signup);
+    assert_eq!(CtaAction::try_from("pre_order").unwrap(), CtaAction::PreOrder);
+    assert!(CtaAction::try_from("launch").is_err());
+}
 
-    #[test]
-    fn resolution_type_display_roundtrip() {
-        let variants = [
-            (ResolutionType::Product,   "product"),
-            (ResolutionType::Variant,   "variant"),
-            (ResolutionType::TenantApp, "tenant_app"),
-            (ResolutionType::NotFound,  "not_found"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = ResolutionType::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
-    }
-
-    #[test]
-    fn pixel_type_unknown_slug_returns_err() {
-        assert!(PixelType::try_from("facebook".to_string()).is_err());
-        assert!(PixelType::try_from("GTM".to_string()).is_err(), "must be lowercase");
-    }
-
-    // ── AppId ──────────────────────────────────────────────────────────────────
-
-    use crate::types::gtm::AppId;
-
-    #[test]
-    fn app_id_display_roundtrip() {
-        let variants = [
-            (AppId::PropertyManagement, "property_management"),
-            (AppId::Anchor,             "anchor"),
-            (AppId::NetworkInstance,    "network_instance"),
-            (AppId::Meridian,           "meridian"),
-            (AppId::CorePlatform,       "core_platform"),
-        ];
-        for (variant, slug) in &variants {
-            assert_eq!(variant.to_string(), *slug, "Display mismatch for {:?}", variant);
-            let parsed = AppId::try_from(slug.to_string()).expect("TryFrom should succeed");
-            assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{}'", slug);
-        }
-    }
-
-    #[test]
-    fn app_id_unknown_slug_returns_err() {
-        assert!(AppId::try_from("folio".to_string()).is_err(), "'folio' is a product slug, not an app_id");
-        assert!(AppId::try_from("ANCHOR".to_string()).is_err(), "must be lowercase");
-        assert!(AppId::try_from("".to_string()).is_err());
-    }
-
-    #[test]
-    fn app_id_product_slug_mapping() {
-        // Verifies the marketing slug → app_id relationship is correct.
-        // If this mapping changes, update the migration backfill SQL too.
-        assert_eq!(AppId::PropertyManagement.product_slug(), "folio");
-        assert_eq!(AppId::Anchor.product_slug(),             "anchor");
-        assert_eq!(AppId::NetworkInstance.product_slug(),    "network_instance");
-        assert_eq!(AppId::Meridian.product_slug(),           "meridian");
-    }
-
-    #[test]
-    fn app_id_all_db_values_matches_variants() {
-        // Every variant must appear in all_db_values() — catch future drift.
-        let all = AppId::all_db_values();
-        for slug in all {
-            assert!(
-                AppId::try_from(*slug).is_ok(),
-                "all_db_values() contains '{}' but TryFrom doesn't recognise it", slug
-            );
-        }
-        assert_eq!(all.len(), 5, "Expected 5 AppId variants");
-    }
+#[test]
+fn vendor_trade_and_beta_role_keys() {
+    assert_eq!(VendorTradeKey::try_from("pest-control").unwrap().as_str(), "pest-control");
+    assert_eq!(BetaApplicantRole::try_from("str-host").unwrap().as_str(), "str-host");
+    assert!(VendorTradeKey::try_from("carpentry").is_err());
+    assert!(BetaApplicantRole::try_from("tenant").is_err());
+}

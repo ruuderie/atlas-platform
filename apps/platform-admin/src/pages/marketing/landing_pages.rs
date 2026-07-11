@@ -13,13 +13,17 @@
 //! 5. **Funnel Analytics** — conversion funnel; source breakdown
 
 use leptos::prelude::*;
+use serde_json::{Map, Value};
+use shared_ui::marketing::{
+    MarketingSectionBlockType, VendorTradeKey, folio_public_path_hint,
+};
 
 use crate::api::landing_pages::{
     CreateLandingPagePayload, CreateUtmPresetPayload, CreateVariantPayload, LandingPageSummary,
     PageAnalytics, PagePixelConfig, PageVariant, UpdateLandingPagePayload, UtmPreset,
-    create_landing_page, create_utm_preset, create_variant, delete_utm_preset, get_page_analytics,
-    get_page_pixels, list_landing_pages, list_utm_presets, list_variants, promote_variant,
-    set_pixel, toggle_publish, update_landing_page,
+    create_landing_page, create_utm_preset, create_variant, delete_utm_preset, get_landing_page,
+    get_page_analytics, get_page_pixels, list_landing_pages, list_utm_presets, list_variants,
+    promote_variant, set_pixel, toggle_publish, update_landing_page,
 };
 use crate::app::GlobalToast;
 use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
@@ -260,7 +264,7 @@ fn AllPagesTab(
                             description: Some("Draft acquisition page.".to_string()),
                             page_type: Some("landing".to_string()),
                             locale: Some("en".to_string()),
-                            hero_payload: None,
+                            hero_payload: Some(empty_hero_payload()),
                             blocks_payload: None,
                             is_published: Some(false),
                         }).await {
@@ -356,7 +360,7 @@ fn AllPagesTab(
                                                         {format!("Product: {}", app_label(&page.app_id))}
                                                     </a>
                                                     <span>" · public path: "</span>
-                                                    <span>{public_path_hint(&page.app_id)}</span>
+                                                    <span>{folio_public_path_hint(&page.app_id)}</span>
                                                 </div>
                                             </td>
                                             <td>
@@ -433,9 +437,31 @@ fn EditorTab(
     let edit_title = RwSignal::new(String::new());
     let edit_meta_desc = RwSignal::new(String::new());
     let edit_locale = RwSignal::new("en".to_string()); // "en" | "pt" | "es" | "fr"
+    let hero_eyebrow = RwSignal::new(String::new());
+    let hero_headline = RwSignal::new(String::new());
+    let hero_headline_accent = RwSignal::new(String::new());
+    let hero_subhead = RwSignal::new(String::new());
+    let hero_proof_items = RwSignal::new(String::new());
+    let hero_pricing_eyebrow = RwSignal::new(String::new());
+    let hero_pricing_heading = RwSignal::new(String::new());
+    let hero_pricing_subtitle = RwSignal::new(String::new());
+    let hero_cta_label = RwSignal::new(String::new());
+    let section_blocks = RwSignal::new(Vec::<Value>::new());
+    let selected_block_index = RwSignal::new(None::<usize>);
+    let add_block_type = RwSignal::new("stats".to_string());
     let saving = RwSignal::new(false);
     let save_msg = RwSignal::new(None::<(bool, String)>); // (is_ok, msg)
     let publishing = RwSignal::new(false);
+
+    let page_detail_res = LocalResource::new(move || {
+        let pid = selected_page.get().map(|p| p.id);
+        async move {
+            match pid {
+                Some(id) => get_landing_page(id).await.ok(),
+                None => None,
+            }
+        }
+    });
 
     // Sync edit fields whenever the user selects a different page
     Effect::new(move |_| {
@@ -451,6 +477,40 @@ fn EditorTab(
         }
     });
 
+    Effect::new(move |_| {
+        if let Some(page_opt) = page_detail_res.get() {
+            if let Some(page) = page_opt {
+                edit_meta_desc.set(page.description.clone());
+                let hero = page.hero_payload.unwrap_or_else(empty_hero_payload);
+                hero_eyebrow.set(hero_string(&hero, "eyebrow"));
+                hero_headline.set(hero_string(&hero, "headline"));
+                hero_headline_accent.set(hero_string(&hero, "headline_accent"));
+                hero_subhead.set(hero_string(&hero, "subhead"));
+                hero_proof_items.set(hero_string_array(&hero, "proof_items").join("\n"));
+                hero_pricing_eyebrow.set(hero_string(&hero, "pricing_eyebrow"));
+                hero_pricing_heading.set(hero_string(&hero, "pricing_heading"));
+                hero_pricing_subtitle.set(hero_string(&hero, "pricing_subtitle"));
+                hero_cta_label.set(hero_string(&hero, "cta_label"));
+                let blocks = blocks_from_payload(page.blocks_payload.as_ref());
+                selected_block_index.set(if blocks.is_empty() { None } else { Some(0) });
+                section_blocks.set(blocks);
+            } else {
+                edit_meta_desc.set(String::new());
+                hero_eyebrow.set(String::new());
+                hero_headline.set(String::new());
+                hero_headline_accent.set(String::new());
+                hero_subhead.set(String::new());
+                hero_proof_items.set(String::new());
+                hero_pricing_eyebrow.set(String::new());
+                hero_pricing_heading.set(String::new());
+                hero_pricing_subtitle.set(String::new());
+                hero_cta_label.set(String::new());
+                section_blocks.set(Vec::new());
+                selected_block_index.set(None);
+            }
+        }
+    });
+
     let handle_save = move |_| {
         let Some(page) = selected_page.get() else {
             return;
@@ -461,6 +521,18 @@ fn EditorTab(
         let title = edit_title.get();
         let desc = edit_meta_desc.get();
         let locale = edit_locale.get();
+        let hero_payload = build_hero_payload(
+            hero_eyebrow.get(),
+            hero_headline.get(),
+            hero_headline_accent.get(),
+            hero_subhead.get(),
+            hero_proof_items.get(),
+            hero_pricing_eyebrow.get(),
+            hero_pricing_heading.get(),
+            hero_pricing_subtitle.get(),
+            Some(hero_cta_label.get()),
+        );
+        let blocks_payload = Value::Array(section_blocks.get());
         let pid = page.id;
         leptos::task::spawn_local(async move {
             let payload = UpdateLandingPagePayload {
@@ -468,12 +540,16 @@ fn EditorTab(
                 title: if title.is_empty() { None } else { Some(title) },
                 description: if desc.is_empty() { None } else { Some(desc) },
                 locale: if locale == "en" { None } else { Some(locale) },
-                hero_payload: Some(serde_json::json!({})),
-                blocks_payload: Some(serde_json::json!({ "blocks": [] })),
+                hero_payload: Some(hero_payload),
+                blocks_payload: Some(blocks_payload),
                 ..Default::default()
             };
             match update_landing_page(pid, payload).await {
-                Ok(_) => save_msg.set(Some((true, "Saved!".to_string()))),
+                Ok(_) => {
+                    pages_version.update(|n| *n += 1);
+                    page_detail_res.refetch();
+                    save_msg.set(Some((true, "Saved!".to_string())));
+                }
                 Err(e) => save_msg.set(Some((false, format!("Save failed: {e}")))),
             }
             saving.set(false);
@@ -529,7 +605,12 @@ fn EditorTab(
                 } else {
                     view! {
                         <div class="ep-panel active">
-                            <BlockPalette />
+                            <BlockPalette
+                                selected_page=selected_page
+                                section_blocks=section_blocks
+                                selected_block_index=selected_block_index
+                                add_block_type=add_block_type
+                            />
                         </div>
                     }.into_any()
                 }}
@@ -642,7 +723,16 @@ fn EditorTab(
                                     <div class="preview-title">"→ Go to All Pages tab to select a page"</div>
                                 </div>
                             }.into_any())}
-                            <div class="preview-blocks-hint">"Block canvas renders here — drag blocks from the left palette to compose your page."</div>
+                            <div class="preview-blocks-hint">
+                                {move || {
+                                    let count = section_blocks.get().len();
+                                    if count == 0 {
+                                        "No section blocks yet. Add blocks from the left panel, then save the draft.".to_string()
+                                    } else {
+                                        format!("{count} section block{} ready to overlay Folio's designed layout.", if count == 1 { "" } else { "s" })
+                                    }
+                                }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -656,6 +746,15 @@ fn EditorTab(
                     edit_title=edit_title
                     edit_meta_desc=edit_meta_desc
                     edit_locale=edit_locale
+                    hero_eyebrow=hero_eyebrow
+                    hero_headline=hero_headline
+                    hero_headline_accent=hero_headline_accent
+                    hero_subhead=hero_subhead
+                    hero_proof_items=hero_proof_items
+                    hero_pricing_eyebrow=hero_pricing_eyebrow
+                    hero_pricing_heading=hero_pricing_heading
+                    hero_pricing_subtitle=hero_pricing_subtitle
+                    hero_cta_label=hero_cta_label
                 />
             </div>
         </div>
@@ -697,31 +796,301 @@ fn FieldsPanel(selected_page: ReadSignal<Option<LandingPageSummary>>) -> impl In
 }
 
 #[component]
-fn BlockPalette() -> impl IntoView {
-    let blocks = [
-        ("⬛", "Hero Banner", false),
-        ("📝", "Rich Text", false),
-        ("🖼️", "Image + Caption", false),
-        ("📊", "Feature Grid", false),
-        ("💬", "Testimonials", false),
-        ("📋", "Lead Form", false),
-        ("💰", "Pricing Table", false),
-        ("🎬", "Video Embed", false),
-        ("📣", "CTA Banner", false),
-        ("📚", "FAQ Accordion", false),
-    ];
+fn BlockPalette(
+    selected_page: ReadSignal<Option<LandingPageSummary>>,
+    section_blocks: RwSignal<Vec<Value>>,
+    selected_block_index: RwSignal<Option<usize>>,
+    add_block_type: RwSignal<String>,
+) -> impl IntoView {
+    // Section blocks are overlays for Folio's designed marketing layout. A full page
+    // replacement should stay an explicit future block type, not the default path.
+    let add_block = move |_| {
+        let block_type = add_block_type.get();
+        let block = default_section_block(&block_type);
+        section_blocks.update(|blocks| {
+            blocks.push(block);
+            selected_block_index.set(Some(blocks.len().saturating_sub(1)));
+        });
+    };
+
     view! {
         <div class="block-palette">
-            {blocks.iter().map(|(icon, label, placed)| {
-                let placed = *placed;
-                view! {
-                    <div class=if placed { "block-item placed" } else { "block-item" }>
-                        <span style="font-size:14px">{*icon}</span>
-                        <span>{*label}</span>
-                        {placed.then(|| view! { <span class="block-badge">"✓"</span> })}
+            {move || selected_page.get().map(|_| view! {
+                <div class="prop-section">
+                    <div style="font-size:11px;color:rgba(255,255,255,0.72);line-height:1.45;background:rgba(79,99,235,0.10);border:1px solid rgba(79,99,235,0.18);border-radius:8px;padding:8px">
+                        "Section blocks overlay Folio’s designed layout. They do not replace the whole page unless you use a full_page block."
                     </div>
+                </div>
+
+                <div class="prop-section">
+                    <label class="form-label">"+ Add section"</label>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+                        <select
+                            class="form-input"
+                            prop:value=move || add_block_type.get()
+                            on:change=move |e| add_block_type.set(event_target_value(&e))
+                        >
+                            {MarketingSectionBlockType::palette().iter().map(|block_type| {
+                                let value = block_type.as_str();
+                                let label = block_type.label();
+                                view! {
+                                    <option value=value selected=move || add_block_type.get() == value>{label}</option>
+                                }
+                            }).collect_view()}
+                        </select>
+                        <button class="btn-cobalt" style="font-size:11px;padding:4px 10px" on:click=add_block>
+                            "Add"
+                        </button>
+                    </div>
+                </div>
+
+                <div class="prop-section">
+                    <label class="form-label">"Current Blocks"</label>
+                    {move || {
+                        let blocks = section_blocks.get();
+                        if blocks.is_empty() {
+                            view! {
+                                <div class="lp-empty" style="padding:10px;font-size:11px">
+                                    "No section blocks yet."
+                                </div>
+                            }.into_any()
+                        } else {
+                            blocks.into_iter().enumerate().map(|(idx, block)| {
+                                let block_type = block_type(&block);
+                                let label = section_block_label(&block_type).to_string();
+                                let title = first_block_string(&block, &["title", "headline", "heading"]);
+                                let selected = selected_block_index.get() == Some(idx);
+                                view! {
+                                    <div
+                                        class=if selected { "block-item placed" } else { "block-item" }
+                                        style="align-items:flex-start;cursor:pointer"
+                                        on:click=move |_| selected_block_index.set(Some(idx))
+                                    >
+                                        <span style="font-size:14px">"▦"</span>
+                                        <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
+                                            <span>{label}</span>
+                                            {(!title.is_empty()).then(|| view! {
+                                                <span style="font-size:10px;color:rgba(255,255,255,0.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                                    {title}
+                                                </span>
+                                            })}
+                                        </span>
+                                        <span style="display:flex;gap:4px">
+                                            <button
+                                                class="pv-btn"
+                                                title="Move up"
+                                                disabled=idx == 0
+                                                on:click=move |_| {
+                                                    move_block(section_blocks, selected_block_index, idx, -1);
+                                                }
+                                            >"↑"</button>
+                                            <button
+                                                class="pv-btn"
+                                                title="Move down"
+                                                disabled=move || idx + 1 >= section_blocks.get().len()
+                                                on:click=move |_| {
+                                                    move_block(section_blocks, selected_block_index, idx, 1);
+                                                }
+                                            >"↓"</button>
+                                            <button
+                                                class="pv-btn"
+                                                title="Remove"
+                                                on:click=move |_| {
+                                                    remove_block(section_blocks, selected_block_index, idx);
+                                                }
+                                            >"×"</button>
+                                        </span>
+                                    </div>
+                                }
+                            }).collect_view().into_any()
+                        }
+                    }}
+                </div>
+
+                {move || selected_block_index.get()
+                    .and_then(|idx| section_blocks.get().get(idx).cloned().map(|block| (idx, block)))
+                    .map(|(idx, block)| view! {
+                        <BlockEditor index=idx block=block section_blocks=section_blocks />
+                    }.into_any())
+                    .unwrap_or_else(|| view! {
+                        <div class="lp-empty" style="padding:10px;font-size:11px">
+                            "Select a section block to edit its fields."
+                        </div>
+                    }.into_any())
                 }
-            }).collect_view()}
+            }.into_any()).unwrap_or_else(|| view! {
+                <div class="lp-empty">"Select or create a page to configure section blocks."</div>
+            }.into_any())}
+        </div>
+    }
+}
+
+#[component]
+fn BlockEditor(index: usize, block: Value, section_blocks: RwSignal<Vec<Value>>) -> impl IntoView {
+    let block_type = block_type(&block);
+    let label = section_block_label(&block_type).to_string();
+    let block_type_for_reset = block_type.clone();
+
+    view! {
+        <div class="prop-section">
+            <label class="form-label">"Selected Section"</label>
+            <div class="domain-chip">{label}" · "{block_type.clone()}</div>
+        </div>
+
+        <BlockTextField label="Internal Name" placeholder="Optional operator note" field="name" index=index section_blocks=section_blocks />
+
+        {match block_type.as_str() {
+            "stats" => view! {
+                <BlockTextField label="Heading" placeholder="Why these numbers matter" field="title" index=index section_blocks=section_blocks />
+                <BlockTextArea label="Subtitle" placeholder="Short supporting copy" field="subtitle" rows=2 index=index section_blocks=section_blocks />
+                <div class="prop-section">
+                    <label class="form-label">"Stats Items"</label>
+                    <StatsItemEditor index=index item_index=0 section_blocks=section_blocks />
+                    <StatsItemEditor index=index item_index=1 section_blocks=section_blocks />
+                    <StatsItemEditor index=index item_index=2 section_blocks=section_blocks />
+                </div>
+            }.into_any(),
+            "cta" => view! {
+                <BlockTextField label="Heading" placeholder="Ready to launch?" field="title" index=index section_blocks=section_blocks />
+                <BlockTextArea label="Body" placeholder="Short persuasive CTA copy" field="body" rows=3 index=index section_blocks=section_blocks />
+                <BlockTextField label="Button Label" placeholder="Join the Waitlist" field="cta_label" index=index section_blocks=section_blocks />
+                <BlockTextField label="Button URL" placeholder="#waitlist-wrap" field="cta_href" index=index section_blocks=section_blocks />
+            }.into_any(),
+            "hero" => view! {
+                <BlockTextField label="Eyebrow" placeholder="Short label above the headline" field="eyebrow" index=index section_blocks=section_blocks />
+                <BlockTextField label="Headline" placeholder="Main hero headline" field="title" index=index section_blocks=section_blocks />
+                <BlockTextArea label="Subtitle" placeholder="Supporting hero paragraph" field="subtitle" rows=3 index=index section_blocks=section_blocks />
+                <BlockTextField label="CTA Label" placeholder="Join the Waitlist" field="cta_label" index=index section_blocks=section_blocks />
+                <BlockTextField label="CTA URL" placeholder="#waitlist-wrap" field="cta_href" index=index section_blocks=section_blocks />
+            }.into_any(),
+            "rich_text" => view! {
+                <BlockTextField label="Heading" placeholder="Section heading" field="title" index=index section_blocks=section_blocks />
+                <BlockTextArea label="Body" placeholder="Rich text body" field="body" rows=5 index=index section_blocks=section_blocks />
+            }.into_any(),
+            _ => view! {
+                <BlockTextField label="Heading" placeholder="Section heading" field="title" index=index section_blocks=section_blocks />
+                <BlockTextArea label="Subtitle" placeholder="Short supporting copy" field="subtitle" rows=2 index=index section_blocks=section_blocks />
+                <BlockItemsJsonEditor index=index section_blocks=section_blocks />
+            }.into_any(),
+        }}
+
+        <div class="prop-section">
+            <button
+                class="btn-warning"
+                style="font-size:11px;padding:4px 10px"
+                on:click=move |_| {
+                    let fresh = default_section_block(&block_type_for_reset);
+                    section_blocks.update(|blocks| {
+                        if let Some(block) = blocks.get_mut(index) {
+                            *block = fresh;
+                        }
+                    });
+                }
+            >
+                "Reset section"
+            </button>
+        </div>
+    }
+}
+
+#[component]
+fn BlockTextField(
+    label: &'static str,
+    placeholder: &'static str,
+    field: &'static str,
+    index: usize,
+    section_blocks: RwSignal<Vec<Value>>,
+) -> impl IntoView {
+    view! {
+        <div class="prop-section">
+            <label class="form-label">{label}</label>
+            <input
+                class="form-input"
+                placeholder=placeholder
+                prop:value=move || section_blocks.get()
+                    .get(index)
+                    .map(|block| block_string(block, field))
+                    .unwrap_or_default()
+                on:input=move |e| set_block_string(section_blocks, index, field, event_target_value(&e))
+            />
+        </div>
+    }
+}
+
+#[component]
+fn BlockTextArea(
+    label: &'static str,
+    placeholder: &'static str,
+    field: &'static str,
+    rows: usize,
+    index: usize,
+    section_blocks: RwSignal<Vec<Value>>,
+) -> impl IntoView {
+    view! {
+        <div class="prop-section">
+            <label class="form-label">{label}</label>
+            <textarea
+                class="form-input"
+                rows=rows
+                placeholder=placeholder
+                prop:value=move || section_blocks.get()
+                    .get(index)
+                    .map(|block| block_string(block, field))
+                    .unwrap_or_default()
+                on:input=move |e| set_block_string(section_blocks, index, field, event_target_value(&e))
+            ></textarea>
+        </div>
+    }
+}
+
+#[component]
+fn StatsItemEditor(
+    index: usize,
+    item_index: usize,
+    section_blocks: RwSignal<Vec<Value>>,
+) -> impl IntoView {
+    view! {
+        <div style="display:grid;grid-template-columns:.75fr 1fr;gap:8px;margin-bottom:8px">
+            <input
+                class="form-input"
+                placeholder="Value"
+                prop:value=move || section_blocks.get()
+                    .get(index)
+                    .map(|block| stats_item_string(block, item_index, "value"))
+                    .unwrap_or_default()
+                on:input=move |e| set_stats_item_string(section_blocks, index, item_index, "value", event_target_value(&e))
+            />
+            <input
+                class="form-input"
+                placeholder="Label"
+                prop:value=move || section_blocks.get()
+                    .get(index)
+                    .map(|block| stats_item_string(block, item_index, "label"))
+                    .unwrap_or_default()
+                on:input=move |e| set_stats_item_string(section_blocks, index, item_index, "label", event_target_value(&e))
+            />
+        </div>
+    }
+}
+
+#[component]
+fn BlockItemsJsonEditor(index: usize, section_blocks: RwSignal<Vec<Value>>) -> impl IntoView {
+    view! {
+        <div class="prop-section">
+            <label class="form-label">"Items JSON"</label>
+            <textarea
+                class="form-input"
+                rows="6"
+                placeholder=r#"[{"title":"Fast setup","body":"Launch in minutes"}]"#
+                prop:value=move || section_blocks.get()
+                    .get(index)
+                    .map(items_json_text)
+                    .unwrap_or_else(|| "[]".to_string())
+                on:input=move |e| set_block_items_json(section_blocks, index, event_target_value(&e))
+            ></textarea>
+            <p style="font-size:10px;color:rgba(255,255,255,0.45);line-height:1.4;margin-top:6px">
+                "Paste a JSON array for richer item structures. Invalid JSON is ignored until corrected."
+            </p>
         </div>
     }
 }
@@ -733,6 +1102,15 @@ fn PropertyInspector(
     edit_title: RwSignal<String>,
     edit_meta_desc: RwSignal<String>,
     edit_locale: RwSignal<String>,
+    hero_eyebrow: RwSignal<String>,
+    hero_headline: RwSignal<String>,
+    hero_headline_accent: RwSignal<String>,
+    hero_subhead: RwSignal<String>,
+    hero_proof_items: RwSignal<String>,
+    hero_pricing_eyebrow: RwSignal<String>,
+    hero_pricing_heading: RwSignal<String>,
+    hero_pricing_subtitle: RwSignal<String>,
+    hero_cta_label: RwSignal<String>,
 ) -> impl IntoView {
     // Pixel config resource — refetches whenever the selected page changes
     let pixel_res: LocalResource<PagePixelConfig> = LocalResource::new(move || {
@@ -804,6 +1182,81 @@ fn PropertyInspector(
                     prop:value=move || edit_meta_desc.get()
                     on:input=move |e| edit_meta_desc.set(event_target_value(&e))
                 ></textarea>
+            </div>
+
+            <div class="prop-title" style="margin-top:14px">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="10" height="10">
+                    <path d="M2 12 L8 3 L14 12 Z"/>
+                </svg>
+                "Hero Overlay"
+            </div>
+            <div class="prop-section">
+                <div style="font-size:11px;color:rgba(255,255,255,0.55);line-height:1.45;background:rgba(79,99,235,0.10);border:1px solid rgba(79,99,235,0.18);border-radius:8px;padding:8px">
+                    "Full BlockRenderer pages render only when blocks are published. Hero fields apply as an overlay even without blocks."
+                </div>
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Eyebrow"</label>
+                <input class="form-input" placeholder="Short label above the headline"
+                    prop:value=move || hero_eyebrow.get()
+                    on:input=move |e| hero_eyebrow.set(event_target_value(&e))
+                />
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Headline"</label>
+                <input class="form-input" placeholder="Main hero headline"
+                    prop:value=move || hero_headline.get()
+                    on:input=move |e| hero_headline.set(event_target_value(&e))
+                />
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Headline Accent"</label>
+                <input class="form-input" placeholder="Highlighted headline phrase"
+                    prop:value=move || hero_headline_accent.get()
+                    on:input=move |e| hero_headline_accent.set(event_target_value(&e))
+                />
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Subhead"</label>
+                <textarea class="form-input" rows="3" placeholder="Supporting hero paragraph"
+                    prop:value=move || hero_subhead.get()
+                    on:input=move |e| hero_subhead.set(event_target_value(&e))
+                ></textarea>
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Proof Items"</label>
+                <textarea class="form-input" rows="3" placeholder="One proof item per line"
+                    prop:value=move || hero_proof_items.get()
+                    on:input=move |e| hero_proof_items.set(event_target_value(&e))
+                ></textarea>
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Pricing Eyebrow"</label>
+                <input class="form-input" placeholder="Short pricing label"
+                    prop:value=move || hero_pricing_eyebrow.get()
+                    on:input=move |e| hero_pricing_eyebrow.set(event_target_value(&e))
+                />
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Pricing Heading"</label>
+                <input class="form-input" placeholder="Pricing section heading"
+                    prop:value=move || hero_pricing_heading.get()
+                    on:input=move |e| hero_pricing_heading.set(event_target_value(&e))
+                />
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"Pricing Subtitle"</label>
+                <input class="form-input" placeholder="Pricing supporting copy"
+                    prop:value=move || hero_pricing_subtitle.get()
+                    on:input=move |e| hero_pricing_subtitle.set(event_target_value(&e))
+                />
+            </div>
+            <div class="prop-section">
+                <label class="form-label">"CTA Label"</label>
+                <input class="form-input" placeholder="Join the Waitlist"
+                    prop:value=move || hero_cta_label.get()
+                    on:input=move |e| hero_cta_label.set(event_target_value(&e))
+                />
             </div>
 
             <div class="prop-title" style="margin-top:14px">
@@ -917,7 +1370,7 @@ fn AbTestingTab(
                                         name: "Variant B".to_string(),
                                         traffic_pct: Some(50),
                                         blocks_payload: Some(serde_json::json!({ "blocks": [] })),
-                                        hero_payload: Some(serde_json::json!({})),
+                                        hero_payload: Some(empty_hero_payload()),
                                         is_control: Some(false),
                                     }).await.is_ok() {
                                         res.refetch();
@@ -949,7 +1402,7 @@ fn AbTestingTab(
                                                         name: "Variant B".to_string(),
                                                         traffic_pct: Some(50),
                                                         blocks_payload: Some(serde_json::json!({ "blocks": [] })),
-                                                        hero_payload: Some(serde_json::json!({})),
+                                                        hero_payload: Some(empty_hero_payload()),
                                                         is_control: Some(false),
                                                     }).await.is_ok() {
                                                         res.refetch();
@@ -1439,14 +1892,333 @@ fn app_label(app_id: &str) -> &'static str {
     }
 }
 
-fn public_path_hint(app_id: &str) -> &'static str {
-    match app_id {
-        "folio" => "/",
-        "folio-broker" => "/brokers",
-        "folio-pm" => "/property-managers",
-        "folio-vendor" => "/vendors",
-        "network" => "/network",
-        "anchor" => "/anchor",
-        _ => "/lp/{slug}",
+fn section_block_label(block_type: &str) -> &'static str {
+    MarketingSectionBlockType::try_from(block_type)
+        .map(MarketingSectionBlockType::label)
+        .unwrap_or("Section block")
+}
+
+fn blocks_from_payload(payload: Option<&Value>) -> Vec<Value> {
+    match payload {
+        Some(Value::Array(items)) => items.clone(),
+        Some(Value::Object(map)) => map
+            .get("blocks")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default(),
+        _ => Vec::new(),
     }
+}
+
+fn block_type(block: &Value) -> String {
+    let raw = block
+        .get("type")
+        .or_else(|| block.get("kind"))
+        .and_then(Value::as_str)
+        .unwrap_or("section");
+    MarketingSectionBlockType::try_from(raw)
+        .map(|block_type| block_type.as_str().to_string())
+        .unwrap_or_else(|_| raw.to_string())
+}
+
+fn block_string(block: &Value, field: &str) -> String {
+    block
+        .get(field)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn first_block_string(block: &Value, fields: &[&str]) -> String {
+    fields
+        .iter()
+        .find_map(|field| {
+            let value = block_string(block, field);
+            (!value.is_empty()).then_some(value)
+        })
+        .unwrap_or_default()
+}
+
+fn default_section_block(block_type: &str) -> Value {
+    match MarketingSectionBlockType::try_from(block_type) {
+        Ok(MarketingSectionBlockType::Stats) => serde_json::json!({
+            "type": "stats",
+            "title": "",
+            "subtitle": "",
+            "items": [
+                { "value": "", "label": "" },
+                { "value": "", "label": "" },
+                { "value": "", "label": "" }
+            ]
+        }),
+        Ok(MarketingSectionBlockType::Cta) => serde_json::json!({
+            "type": "cta",
+            "title": "",
+            "body": "",
+            "cta_label": "Join the Waitlist",
+            "cta_href": "#waitlist-wrap"
+        }),
+        Ok(MarketingSectionBlockType::Hero) => serde_json::json!({
+            "type": "hero",
+            "eyebrow": "",
+            "title": "",
+            "subtitle": "",
+            "cta_label": "Join the Waitlist",
+            "cta_href": "#waitlist-wrap"
+        }),
+        Ok(MarketingSectionBlockType::RichText) => serde_json::json!({
+            "type": "rich_text",
+            "title": "",
+            "body": ""
+        }),
+        Ok(MarketingSectionBlockType::Footer) => serde_json::json!({
+            "type": "footer",
+            "title": "",
+            "subtitle": "",
+            "items": []
+        }),
+        Ok(MarketingSectionBlockType::NavSections) => serde_json::json!({
+            "type": "nav_sections",
+            "title": "",
+            "subtitle": "",
+            "items": [
+                { "label": "Overview", "href": "#overview" }
+            ]
+        }),
+        Ok(MarketingSectionBlockType::PricingIntro) => serde_json::json!({
+            "type": "pricing_intro",
+            "title": "",
+            "subtitle": "",
+            "items": []
+        }),
+        Ok(MarketingSectionBlockType::TradeCategories) => serde_json::json!({
+            "type": "trade_categories",
+            "items": VendorTradeKey::ALL
+                .iter()
+                .take(6)
+                .map(|trade| serde_json::json!({
+                    "key": trade.as_str(),
+                    "label": trade.default_label()
+                }))
+                .collect::<Vec<_>>()
+        }),
+        Ok(MarketingSectionBlockType::FullPage) => serde_json::json!({
+            "type": "full_page"
+        }),
+        Ok(block_type) => serde_json::json!({
+            "type": block_type.as_str(),
+            "title": "",
+            "subtitle": "",
+            "items": []
+        }),
+        Err(_) => serde_json::json!({
+            "type": block_type,
+            "title": "",
+            "subtitle": "",
+            "items": []
+        }),
+    }
+}
+
+fn set_block_string(
+    section_blocks: RwSignal<Vec<Value>>,
+    index: usize,
+    field: &'static str,
+    value: String,
+) {
+    section_blocks.update(|blocks| {
+        let Some(block) = blocks.get_mut(index) else {
+            return;
+        };
+        let obj = ensure_block_object(block);
+        obj.insert(field.to_string(), Value::String(value));
+    });
+}
+
+fn items_json_text(block: &Value) -> String {
+    block
+        .get("items")
+        .and_then(Value::as_array)
+        .map(|_| serde_json::to_string_pretty(&block["items"]).unwrap_or_else(|_| "[]".to_string()))
+        .unwrap_or_else(|| "[]".to_string())
+}
+
+fn set_block_items_json(section_blocks: RwSignal<Vec<Value>>, index: usize, value: String) {
+    let Ok(parsed) = serde_json::from_str::<Value>(&value) else {
+        return;
+    };
+    if !parsed.is_array() {
+        return;
+    }
+    section_blocks.update(|blocks| {
+        let Some(block) = blocks.get_mut(index) else {
+            return;
+        };
+        let obj = ensure_block_object(block);
+        obj.insert("items".to_string(), parsed);
+    });
+}
+
+fn stats_item_string(block: &Value, item_index: usize, field: &str) -> String {
+    block
+        .get("items")
+        .and_then(Value::as_array)
+        .and_then(|items| items.get(item_index))
+        .and_then(|item| item.get(field))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn set_stats_item_string(
+    section_blocks: RwSignal<Vec<Value>>,
+    block_index: usize,
+    item_index: usize,
+    field: &'static str,
+    value: String,
+) {
+    section_blocks.update(|blocks| {
+        let Some(block) = blocks.get_mut(block_index) else {
+            return;
+        };
+        let obj = ensure_block_object(block);
+        let items = obj
+            .entry("items".to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if !items.is_array() {
+            *items = Value::Array(Vec::new());
+        }
+        let items = items
+            .as_array_mut()
+            .expect("items was normalized to an array");
+        while items.len() <= item_index {
+            items.push(Value::Object(Map::new()));
+        }
+        if !items[item_index].is_object() {
+            items[item_index] = Value::Object(Map::new());
+        }
+        if let Some(item) = items[item_index].as_object_mut() {
+            item.insert(field.to_string(), Value::String(value));
+        }
+    });
+}
+
+fn move_block(
+    section_blocks: RwSignal<Vec<Value>>,
+    selected_block_index: RwSignal<Option<usize>>,
+    index: usize,
+    direction: isize,
+) {
+    section_blocks.update(|blocks| {
+        let new_index = if direction < 0 {
+            index.checked_sub(1)
+        } else if index + 1 < blocks.len() {
+            Some(index + 1)
+        } else {
+            None
+        };
+        if let Some(new_index) = new_index {
+            blocks.swap(index, new_index);
+            selected_block_index.set(Some(new_index));
+        }
+    });
+}
+
+fn remove_block(
+    section_blocks: RwSignal<Vec<Value>>,
+    selected_block_index: RwSignal<Option<usize>>,
+    index: usize,
+) {
+    section_blocks.update(|blocks| {
+        if index >= blocks.len() {
+            return;
+        }
+        blocks.remove(index);
+        selected_block_index.set(if blocks.is_empty() {
+            None
+        } else {
+            Some(index.min(blocks.len() - 1))
+        });
+    });
+}
+
+fn ensure_block_object(block: &mut Value) -> &mut Map<String, Value> {
+    if !block.is_object() {
+        *block = Value::Object(Map::new());
+    }
+    block
+        .as_object_mut()
+        .expect("block was normalized to an object")
+}
+
+fn hero_string(payload: &serde_json::Value, key: &str) -> String {
+    payload
+        .get(key)
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn hero_string_array(payload: &serde_json::Value, key: &str) -> Vec<String> {
+    payload
+        .get(key)
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn build_hero_payload(
+    eyebrow: String,
+    headline: String,
+    headline_accent: String,
+    subhead: String,
+    proof_items: String,
+    pricing_eyebrow: String,
+    pricing_heading: String,
+    pricing_subtitle: String,
+    cta_label: Option<String>,
+) -> serde_json::Value {
+    let proof_items = proof_items
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    let mut payload = serde_json::json!({
+        "eyebrow": eyebrow,
+        "headline": headline,
+        "headline_accent": headline_accent,
+        "subhead": subhead,
+        "proof_items": proof_items,
+        "pricing_eyebrow": pricing_eyebrow,
+        "pricing_heading": pricing_heading,
+        "pricing_subtitle": pricing_subtitle,
+    });
+
+    if let Some(cta_label) = cta_label {
+        payload["cta_label"] = serde_json::Value::String(cta_label);
+    }
+
+    payload
+}
+
+fn empty_hero_payload() -> serde_json::Value {
+    build_hero_payload(
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        Some(String::new()),
+    )
 }

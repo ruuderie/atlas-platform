@@ -1,13 +1,15 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
+use shared_ui::marketing::{FoundingSpotTier, folio_public_path_hint};
 use uuid::Uuid;
 
 use crate::api::crm::get_leads;
 use crate::api::models::UpdateProductBody;
 use crate::api::products::{
-    ProductPlanBillingInterval, ProductPlanInput, ProductPlanModel, create_product_plan,
-    delete_product_plan, get_product_detail, get_variants, list_product_plans, publish_marketing,
-    update_product_detail, update_product_plan,
+    ProductPlanBillingInterval, ProductPlanInput, ProductPlanModel, UpsertProductTemplateBody,
+    create_product_plan, delete_product_plan, get_product_detail, get_template, get_variants,
+    list_product_plans, publish_marketing, update_product_detail, update_product_plan,
+    upsert_template,
 };
 use crate::app::GlobalToast;
 
@@ -35,6 +37,16 @@ pub fn ProductDetail() -> impl IntoView {
     let product_slug = RwSignal::new(String::new());
     let waitlist_count = RwSignal::new(0i32);
     let pre_order_enabled = RwSignal::new(false);
+    let hero_eyebrow = RwSignal::new(String::new());
+    let hero_headline = RwSignal::new(String::new());
+    let hero_headline_accent = RwSignal::new(String::new());
+    let hero_subhead = RwSignal::new(String::new());
+    let hero_proof_items = RwSignal::new(String::new());
+    let hero_pricing_eyebrow = RwSignal::new(String::new());
+    let hero_pricing_heading = RwSignal::new(String::new());
+    let hero_pricing_subtitle = RwSignal::new(String::new());
+    let hero_cta_label = RwSignal::new(String::new());
+    let hero_spot_inventory = RwSignal::new(String::new());
 
     // Populate signals when product loads
     Effect::new(move |_| {
@@ -46,6 +58,43 @@ pub fn ProductDetail() -> impl IntoView {
             product_slug.set(p.slug.clone());
             waitlist_count.set(p.waitlist_count);
             pre_order_enabled.set(p.pre_order_enabled);
+        }
+    });
+
+    // Product marketing template — optional; Folio falls back when absent.
+    let template_res = LocalResource::new(move || async move {
+        match product_uuid() {
+            Some(id) => get_template(id).await.ok(),
+            None => None,
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(template_opt) = template_res.get() {
+            if let Some(template) = template_opt {
+                hero_eyebrow.set(hero_string(&template.hero_payload, "eyebrow"));
+                hero_headline.set(hero_string(&template.hero_payload, "headline"));
+                hero_headline_accent.set(hero_string(&template.hero_payload, "headline_accent"));
+                hero_subhead.set(hero_string(&template.hero_payload, "subhead"));
+                hero_proof_items
+                    .set(hero_string_array(&template.hero_payload, "proof_items").join("\n"));
+                hero_pricing_eyebrow.set(hero_string(&template.hero_payload, "pricing_eyebrow"));
+                hero_pricing_heading.set(hero_string(&template.hero_payload, "pricing_heading"));
+                hero_pricing_subtitle.set(hero_string(&template.hero_payload, "pricing_subtitle"));
+                hero_spot_inventory.set(hero_spot_inventory_json(&template.hero_payload));
+                hero_cta_label.set(template.cta_label);
+            } else {
+                hero_eyebrow.set(String::new());
+                hero_headline.set(String::new());
+                hero_headline_accent.set(String::new());
+                hero_subhead.set(String::new());
+                hero_proof_items.set(String::new());
+                hero_pricing_eyebrow.set(String::new());
+                hero_pricing_heading.set(String::new());
+                hero_pricing_subtitle.set(String::new());
+                hero_spot_inventory.set(String::new());
+                hero_cta_label.set(String::new());
+            }
         }
     });
 
@@ -272,6 +321,7 @@ pub fn ProductDetail() -> impl IntoView {
 
     // ── Save handler → PATCH /api/admin/platform/products/:id ─────────────
     let saving = RwSignal::new(false);
+    let saving_hero = RwSignal::new(false);
     let handle_save = move |_| {
         let Some(id) = product_uuid() else {
             toast.show_toast("Error", "Invalid product ID", "error");
@@ -302,6 +352,55 @@ pub fn ProductDetail() -> impl IntoView {
                 }
             }
             saving.set(false);
+        });
+    };
+
+    let toast_hero = toast.clone();
+    let handle_save_hero = move |_| {
+        let Some(id) = product_uuid() else {
+            toast_hero.show_toast("Error", "Invalid product ID", "error");
+            return;
+        };
+        saving_hero.set(true);
+        let hero_payload = match build_hero_payload(
+            hero_eyebrow.get(),
+            hero_headline.get(),
+            hero_headline_accent.get(),
+            hero_subhead.get(),
+            hero_proof_items.get(),
+            hero_pricing_eyebrow.get(),
+            hero_pricing_heading.get(),
+            hero_pricing_subtitle.get(),
+            hero_spot_inventory.get(),
+        ) {
+            Ok(payload) => payload,
+            Err(msg) => {
+                toast_hero.show_toast("Invalid Spot Inventory", &msg, "error");
+                saving_hero.set(false);
+                return;
+            }
+        };
+        let cta_label = hero_cta_label.get();
+        let toast_c = toast_hero.clone();
+        leptos::task::spawn_local(async move {
+            match upsert_template(
+                id,
+                UpsertProductTemplateBody {
+                    hero_payload: Some(hero_payload),
+                    cta_label: Some(cta_label),
+                    ..Default::default()
+                },
+            )
+            .await
+            {
+                Ok(template) => {
+                    hero_cta_label.set(template.cta_label);
+                    template_res.refetch();
+                    toast_c.show_toast("Saved", "Marketing hero updated.", "success");
+                }
+                Err(e) => toast_c.show_toast("Save Failed", &e, "error"),
+            }
+            saving_hero.set(false);
         });
     };
 
@@ -431,6 +530,7 @@ pub fn ProductDetail() -> impl IntoView {
                         };
                         view! {
                             {tab_btn("general", "General Info")}
+                            {tab_btn("marketing", "Marketing Hero")}
                             {tab_btn("pricing", "Pricing & Plans")}
                             {tab_btn("variants", "Market & SEO")}
                             {tab_btn("pixels", "Pixels")}
@@ -526,6 +626,119 @@ pub fn ProductDetail() -> impl IntoView {
                                         <span class="font-bold text-on-surface uppercase tracking-wider text-[10px]">{move || product_status.get()}</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </Show>
+
+                // ── TAB CONTENT: Marketing Hero ──
+                <Show when=move || active_tab.get() == "marketing">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-primary/10 border border-primary/20 rounded-xl p-4 text-xs text-primary">
+                                "These fields appear on the Folio public page for this product. Empty fields fall back to Folio defaults."
+                            </div>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm space-y-5">
+                                <div class="flex items-center justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Marketing Hero"</h3>
+                                        <p class="text-xs text-on-surface-variant/70 mt-1">
+                                            "Controls product-level copy above the fold and the pricing intro on the public page."
+                                        </p>
+                                    </div>
+                                    <button
+                                        class=move || format!(
+                                            "btn btn-primary {}",
+                                            if saving_hero.get() { "opacity-40 cursor-not-allowed" } else { "" }
+                                        )
+                                        disabled=move || saving_hero.get()
+                                        on:click=handle_save_hero
+                                    >
+                                        {move || if saving_hero.get() { "Saving…" } else { "Save Hero" }}
+                                    </button>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Eyebrow"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_eyebrow on:input=move |ev| hero_eyebrow.set(event_target_value(&ev)) placeholder="e.g. Rental operations, simplified" />
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"CTA Label"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_cta_label on:input=move |ev| hero_cta_label.set(event_target_value(&ev)) placeholder="Join the Waitlist" />
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Headline"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_headline on:input=move |ev| hero_headline.set(event_target_value(&ev)) placeholder="Run your rental business" />
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Headline Accent"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_headline_accent on:input=move |ev| hero_headline_accent.set(event_target_value(&ev)) placeholder="without the busywork" />
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-on-surface-variant">"Subhead"</label>
+                                    <textarea class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 h-24 resize-none" prop:value=hero_subhead on:input=move |ev| hero_subhead.set(event_target_value(&ev)) placeholder="Short supporting paragraph for the public hero."></textarea>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="text-xs font-semibold text-on-surface-variant">"Proof Items"</label>
+                                    <textarea class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 h-28 resize-none" prop:value=hero_proof_items on:input=move |ev| hero_proof_items.set(event_target_value(&ev)) placeholder="One proof point per line"></textarea>
+                                    <p class="text-[10px] text-on-surface-variant/50">"One proof point per line. Empty lines are ignored."</p>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Pricing Eyebrow"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_pricing_eyebrow on:input=move |ev| hero_pricing_eyebrow.set(event_target_value(&ev)) placeholder="Simple pricing" />
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Pricing Heading"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_pricing_heading on:input=move |ev| hero_pricing_heading.set(event_target_value(&ev)) placeholder="Choose your plan" />
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Pricing Subtitle"</label>
+                                        <input type="text" class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5" prop:value=hero_pricing_subtitle on:input=move |ev| hero_pricing_subtitle.set(event_target_value(&ev)) placeholder="Start small and grow." />
+                                    </div>
+                                </div>
+
+                                <Show when=move || product_slug.get() == "folio-founding">
+                                    <div class="space-y-1 border-t border-outline-variant/20 pt-5">
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Founding Spot Inventory (JSON)"</label>
+                                        <textarea
+                                            class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 h-48 font-mono resize-y"
+                                            prop:value=hero_spot_inventory
+                                            on:input=move |ev| hero_spot_inventory.set(event_target_value(&ev))
+                                            placeholder=r#"{ "ll-grow": { "total": 500, "taken": 47 } }"#
+                                        ></textarea>
+                                        <p class="text-[10px] text-on-surface-variant/50">
+                                            {format!(
+                                                "Keys: {}. Each value needs total and taken integers.",
+                                                founding_spot_tier_keys()
+                                            )}
+                                        </p>
+                                    </div>
+                                </Show>
+                            </div>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm space-y-3">
+                                <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Public Path"</h3>
+                                <p class="text-xs text-on-surface-variant/70">
+                                    "Slug "
+                                    <code class="text-primary">{move || product_slug.get()}</code>
+                                    " maps to "
+                                    <code class="text-primary">{move || folio_public_path_hint(&product_slug.get()).to_string()}</code>
+                                    "."
+                                </p>
+                                <p class="text-[10px] text-on-surface-variant/50">
+                                    "Known Folio paths: folio → /, folio-broker → /brokers, folio-pm → /property-managers, folio-vendor → /vendors, folio-founding → /founding, folio-beta → /beta."
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1255,4 +1468,110 @@ pub fn ProductDetail() -> impl IntoView {
             </Show>
         </div>
     }
+}
+
+fn hero_string(payload: &serde_json::Value, key: &str) -> String {
+    payload
+        .get(key)
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn hero_string_array(payload: &serde_json::Value, key: &str) -> Vec<String> {
+    payload
+        .get(key)
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn build_hero_payload(
+    eyebrow: String,
+    headline: String,
+    headline_accent: String,
+    subhead: String,
+    proof_items: String,
+    pricing_eyebrow: String,
+    pricing_heading: String,
+    pricing_subtitle: String,
+    spot_inventory_raw: String,
+) -> Result<serde_json::Value, String> {
+    let proof_items = proof_items
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+
+    let mut payload = serde_json::json!({
+        "eyebrow": eyebrow,
+        "headline": headline,
+        "headline_accent": headline_accent,
+        "subhead": subhead,
+        "proof_items": proof_items,
+        "pricing_eyebrow": pricing_eyebrow,
+        "pricing_heading": pricing_heading,
+        "pricing_subtitle": pricing_subtitle,
+    });
+
+    let spot_raw = spot_inventory_raw.trim();
+    if !spot_raw.is_empty() {
+        let spot_inventory: serde_json::Value = serde_json::from_str(spot_raw)
+            .map_err(|e| format!("spot_inventory must be valid JSON: {e}"))?;
+        if !spot_inventory.is_object() {
+            return Err("spot_inventory must be a JSON object of tier keys".into());
+        }
+        validate_spot_inventory(&spot_inventory)?;
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("spot_inventory".into(), spot_inventory);
+        }
+    }
+
+    Ok(payload)
+}
+
+fn hero_spot_inventory_json(hero: &serde_json::Value) -> String {
+    hero.get("spot_inventory")
+        .and_then(|v| serde_json::to_string_pretty(v).ok())
+        .unwrap_or_default()
+}
+
+fn founding_spot_tier_keys() -> String {
+    FoundingSpotTier::ALL
+        .iter()
+        .map(|tier| tier.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn validate_spot_inventory(spot_inventory: &serde_json::Value) -> Result<(), String> {
+    let tiers = spot_inventory
+        .as_object()
+        .ok_or_else(|| "spot_inventory must be a JSON object of tier keys".to_string())?;
+
+    for (tier_key, value) in tiers {
+        FoundingSpotTier::try_from(tier_key.as_str())
+            .map_err(|_| format!("unknown founding spot tier '{tier_key}'"))?;
+
+        let Some(entry) = value.as_object() else {
+            return Err(format!("spot_inventory.{tier_key} must be an object"));
+        };
+        for field in ["total", "taken"] {
+            let Some(amount) = entry.get(field) else {
+                return Err(format!("spot_inventory.{tier_key}.{field} is required"));
+            };
+            if amount.as_i64().is_none() {
+                return Err(format!("spot_inventory.{tier_key}.{field} must be an integer"));
+            }
+        }
+    }
+
+    Ok(())
 }

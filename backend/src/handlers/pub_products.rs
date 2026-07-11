@@ -55,6 +55,7 @@ use crate::types::gtm::PlanTier;
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/pub/products", get(list_products))
+        .route("/api/pub/beta-applications", post(join_beta_application))
         .route("/api/pub/products/{slug}", get(get_product_master))
         .route(
             "/api/pub/products/{slug}/sitemap.xml",
@@ -189,6 +190,20 @@ pub struct WaitlistBody {
     /// `None` means the visitor did not select a plan during signup.
     pub plan: Option<PlanTier>, // Starter | Professional | Portfolio
     pub unit_count: Option<i32>, // self-reported portfolio size as integer
+
+    // Extended capture fields used by Folio beta/founding campaign surfaces.
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub trade: Option<String>,
+    pub biz_name: Option<String>,
+    pub service_area: Option<String>,
+    pub current_tool: Option<String>,
+    pub pain_point: Option<String>,
+    pub is_active: Option<String>,
+    pub feedback_call: Option<String>,
+    pub why_beta: Option<String>,
+    /// Optional source override hint for campaign-specific capture flows.
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -509,6 +524,14 @@ async fn get_product_master(
             };
         let hreflang = load_hreflang(&db, pg.id, &slug).await;
         let plans = load_public_plans_by_slug(&db, &slug).await;
+        let product_waitlist_count = platform_product::Entity::find()
+            .filter(platform_product::Column::Slug.eq(&slug))
+            .one(&db)
+            .await
+            .ok()
+            .flatten()
+            .map(|product| product.waitlist_count)
+            .unwrap_or_default();
         let base = base_url();
         let canonical = format!("{base}/products/{slug}");
         let page = ProductPageResponse {
@@ -534,7 +557,7 @@ async fn get_product_master(
             pre_order_price_cents: None,
             pre_order_currency: "usd".to_string(),
             pre_order_available: None,
-            waitlist_count: 0,
+            waitlist_count: product_waitlist_count,
             lead_count: 0,
             page_id: Some(pg.id),
             variant_id,
@@ -664,6 +687,14 @@ async fn get_product_variant(
 
         let base = base_url();
         let plans = load_public_plans_by_slug(&db, &slug).await;
+        let product_waitlist_count = platform_product::Entity::find()
+            .filter(platform_product::Column::Slug.eq(&slug))
+            .one(&db)
+            .await
+            .ok()
+            .flatten()
+            .map(|product| product.waitlist_count)
+            .unwrap_or_default();
         let canonical = format!("{base}/products/{slug}/{variant_slug}");
         let page = ProductPageResponse {
             product_id: pg.id,
@@ -688,7 +719,7 @@ async fn get_product_variant(
             pre_order_price_cents: None,
             pre_order_currency: "usd".to_string(),
             pre_order_available: None,
-            waitlist_count: 0,
+            waitlist_count: product_waitlist_count,
             lead_count: 0,
             page_id: Some(pg.id),
             variant_id: ab_variant_id,
@@ -880,6 +911,19 @@ async fn join_waitlist_variant(
     join_waitlist_inner(&db, &slug, Some(&variant_slug.clone()), body).await
 }
 
+async fn join_beta_application(
+    Extension(db): Extension<DatabaseConnection>,
+    Json(body): Json<WaitlistBody>,
+) -> impl IntoResponse {
+    join_waitlist_inner(
+        &db,
+        crate::types::gtm::FolioMarketingSlug::FolioBeta.as_str(),
+        None,
+        body,
+    )
+    .await
+}
+
 async fn join_waitlist_inner(
     db: &DatabaseConnection,
     product_slug: &str,
@@ -932,6 +976,14 @@ async fn join_waitlist_inner(
         "waitlist lead captured"
     );
 
+    let lead_source = body
+        .source
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("waitlist:{}", product_slug));
+
     // Increment variant lead_count if applicable
     if let Some(v) = variant_info {
         let mut active: variant::ActiveModel = v.into();
@@ -943,7 +995,7 @@ async fn join_waitlist_inner(
     // Dedup: skip insert if a lead with the same email already exists for this product
     let existing_lead = atlas_lead::Entity::find()
         .filter(atlas_lead::Column::Email.eq(&body.email))
-        .filter(atlas_lead::Column::Source.eq(format!("waitlist:{}", product_slug)))
+        .filter(atlas_lead::Column::Source.eq(&lead_source))
         .one(db)
         .await
         .ok()
@@ -951,10 +1003,22 @@ async fn join_waitlist_inner(
 
     if existing_lead.is_none() {
         // Compute display name per entity rule: first+last ?? company ?? email
+        let composed_name = [body.first_name.as_deref(), body.last_name.as_deref()]
+            .into_iter()
+            .flatten()
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
         let display_name = body
             .name
-            .clone()
+            .as_deref()
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+            .or_else(|| (!composed_name.is_empty()).then_some(composed_name))
             .or_else(|| body.company.clone())
+            .or_else(|| body.biz_name.clone())
             .unwrap_or_else(|| body.email.clone());
         // Capture sentinel_tenant_id before product is moved into the ActiveModel
         let sentinel_tenant_id = product.sentinel_tenant_id.unwrap_or_else(Uuid::nil);
@@ -966,7 +1030,7 @@ async fn join_waitlist_inner(
             email: Set(Some(body.email.clone())),
             phone: Set(body.phone.clone()),
             company: Set(body.company.clone()),
-            source: Set(Some(format!("waitlist:{}", product_slug))),
+            source: Set(Some(lead_source.clone())),
             lead_status: Set("new".to_string()),
             email_verified: Set(false),
             phone_verified: Set(false),
@@ -987,6 +1051,17 @@ async fn join_waitlist_inner(
                 "landing_url":   body.landing_url,
                 "plan":          body.plan,
                 "unit_count":    body.unit_count,
+                "first_name":    body.first_name,
+                "last_name":     body.last_name,
+                "trade":         body.trade,
+                "biz_name":      body.biz_name,
+                "service_area":  body.service_area,
+                "current_tool":  body.current_tool,
+                "pain_point":    body.pain_point,
+                "is_active":     body.is_active,
+                "feedback_call": body.feedback_call,
+                "why_beta":      body.why_beta,
+                "source_hint":   body.source,
                 "captured_at":   Utc::now().to_rfc3339(),
             }))),
             created_at: Set(Utc::now()),

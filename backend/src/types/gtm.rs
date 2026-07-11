@@ -12,8 +12,8 @@
 //!   - `impl Display` mapping each variant to its DB string
 //!   - `impl TryFrom<String>` returning `Err(String)` on unknown discriminants
 
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ── LaunchMode ────────────────────────────────────────────────────────────────
 
@@ -51,11 +51,11 @@ impl LaunchMode {
 impl fmt::Display for LaunchMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Active    => "active",
-            Self::Waitlist  => "waitlist",
-            Self::PreOrder  => "pre_order",
+            Self::Active => "active",
+            Self::Waitlist => "waitlist",
+            Self::PreOrder => "pre_order",
             Self::PreLaunch => "pre_launch",
-            Self::Draft     => "draft",
+            Self::Draft => "draft",
         })
     }
 }
@@ -64,12 +64,12 @@ impl TryFrom<String> for LaunchMode {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "active"     => Ok(Self::Active),
-            "waitlist"   => Ok(Self::Waitlist),
-            "pre_order"  => Ok(Self::PreOrder),
+            "active" => Ok(Self::Active),
+            "waitlist" => Ok(Self::Waitlist),
+            "pre_order" => Ok(Self::PreOrder),
             "pre_launch" => Ok(Self::PreLaunch),
-            "draft"      => Ok(Self::Draft),
-            other        => Err(format!("unknown LaunchMode: '{other}'")),
+            "draft" => Ok(Self::Draft),
+            other => Err(format!("unknown LaunchMode: '{other}'")),
         }
     }
 }
@@ -109,10 +109,10 @@ impl LocalizationStatus {
 impl fmt::Display for LocalizationStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Base        => "base",
+            Self::Base => "base",
             Self::AiLocalized => "ai_localized",
-            Self::Manual      => "manual",
-            Self::Pending     => "pending",
+            Self::Manual => "manual",
+            Self::Pending => "pending",
         })
     }
 }
@@ -121,11 +121,11 @@ impl TryFrom<String> for LocalizationStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "base"         => Ok(Self::Base),
+            "base" => Ok(Self::Base),
             "ai_localized" => Ok(Self::AiLocalized),
-            "manual"       => Ok(Self::Manual),
-            "pending"      => Ok(Self::Pending),
-            other          => Err(format!("unknown LocalizationStatus: '{other}'")),
+            "manual" => Ok(Self::Manual),
+            "pending" => Ok(Self::Pending),
+            other => Err(format!("unknown LocalizationStatus: '{other}'")),
         }
     }
 }
@@ -156,8 +156,8 @@ pub enum CopyStrategy {
 impl fmt::Display for CopyStrategy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Localized   => "localized",
-            Self::BaseCopy    => "base_copy",
+            Self::Localized => "localized",
+            Self::BaseCopy => "base_copy",
             Self::AiGenerated => "ai_generated",
         })
     }
@@ -167,10 +167,10 @@ impl TryFrom<String> for CopyStrategy {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "localized"    => Ok(Self::Localized),
-            "base_copy"    => Ok(Self::BaseCopy),
+            "localized" => Ok(Self::Localized),
+            "base_copy" => Ok(Self::BaseCopy),
             "ai_generated" => Ok(Self::AiGenerated),
-            other          => Err(format!("unknown CopyStrategy: '{other}'")),
+            other => Err(format!("unknown CopyStrategy: '{other}'")),
         }
     }
 }
@@ -215,12 +215,12 @@ impl PixelType {
 impl fmt::Display for PixelType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Gtm      => "gtm",
-            Self::Ga4      => "ga4",
-            Self::Meta     => "meta",
+            Self::Gtm => "gtm",
+            Self::Ga4 => "ga4",
+            Self::Meta => "meta",
             Self::Linkedin => "linkedin",
-            Self::Tiktok   => "tiktok",
-            Self::Custom   => "custom",
+            Self::Tiktok => "tiktok",
+            Self::Custom => "custom",
         })
     }
 }
@@ -229,13 +229,13 @@ impl TryFrom<String> for PixelType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "gtm"      => Ok(Self::Gtm),
-            "ga4"      => Ok(Self::Ga4),
-            "meta"     => Ok(Self::Meta),
+            "gtm" => Ok(Self::Gtm),
+            "ga4" => Ok(Self::Ga4),
+            "meta" => Ok(Self::Meta),
             "linkedin" => Ok(Self::Linkedin),
-            "tiktok"   => Ok(Self::Tiktok),
-            "custom"   => Ok(Self::Custom),
-            other      => Err(format!("unknown PixelType: '{other}'")),
+            "tiktok" => Ok(Self::Tiktok),
+            "custom" => Ok(Self::Custom),
+            other => Err(format!("unknown PixelType: '{other}'")),
         }
     }
 }
@@ -267,9 +267,9 @@ pub enum InjectAt {
 impl fmt::Display for InjectAt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Head      => "head",
+            Self::Head => "head",
             Self::BodyStart => "body_start",
-            Self::BodyEnd   => "body_end",
+            Self::BodyEnd => "body_end",
         })
     }
 }
@@ -278,10 +278,10 @@ impl TryFrom<String> for InjectAt {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "head"       => Ok(Self::Head),
+            "head" => Ok(Self::Head),
             "body_start" => Ok(Self::BodyStart),
-            "body_end"   => Ok(Self::BodyEnd),
-            other        => Err(format!("unknown InjectAt: '{other}'")),
+            "body_end" => Ok(Self::BodyEnd),
+            other => Err(format!("unknown InjectAt: '{other}'")),
         }
     }
 }
@@ -319,9 +319,9 @@ impl PlanTier {
 impl fmt::Display for PlanTier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Starter      => "starter",
+            Self::Starter => "starter",
             Self::Professional => "professional",
-            Self::Portfolio    => "portfolio",
+            Self::Portfolio => "portfolio",
         })
     }
 }
@@ -330,10 +330,10 @@ impl TryFrom<String> for PlanTier {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "starter"      => Ok(Self::Starter),
+            "starter" => Ok(Self::Starter),
             "professional" => Ok(Self::Professional),
-            "portfolio"    => Ok(Self::Portfolio),
-            other          => Err(format!("unknown PlanTier: '{other}'")),
+            "portfolio" => Ok(Self::Portfolio),
+            other => Err(format!("unknown PlanTier: '{other}'")),
         }
     }
 }
@@ -367,10 +367,10 @@ pub enum ResolutionType {
 impl fmt::Display for ResolutionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Product   => "product",
-            Self::Variant   => "variant",
+            Self::Product => "product",
+            Self::Variant => "variant",
             Self::TenantApp => "tenant_app",
-            Self::NotFound  => "not_found",
+            Self::NotFound => "not_found",
         })
     }
 }
@@ -379,11 +379,11 @@ impl TryFrom<String> for ResolutionType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "product"    => Ok(Self::Product),
-            "variant"    => Ok(Self::Variant),
+            "product" => Ok(Self::Product),
+            "variant" => Ok(Self::Variant),
             "tenant_app" => Ok(Self::TenantApp),
-            "not_found"  => Ok(Self::NotFound),
-            other        => Err(format!("unknown ResolutionType: '{other}'")),
+            "not_found" => Ok(Self::NotFound),
+            other => Err(format!("unknown ResolutionType: '{other}'")),
         }
     }
 }
@@ -429,10 +429,10 @@ impl AppId {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::PropertyManagement => "property_management",
-            Self::Anchor             => "anchor",
-            Self::NetworkInstance    => "network_instance",
-            Self::Meridian           => "meridian",
-            Self::CorePlatform       => "core_platform",
+            Self::Anchor => "anchor",
+            Self::NetworkInstance => "network_instance",
+            Self::Meridian => "meridian",
+            Self::CorePlatform => "core_platform",
         }
     }
 
@@ -452,10 +452,10 @@ impl AppId {
     pub fn product_slug(&self) -> &'static str {
         match self {
             Self::PropertyManagement => "folio",
-            Self::Anchor             => "anchor",
-            Self::NetworkInstance    => "network_instance",
-            Self::Meridian           => "meridian",
-            Self::CorePlatform       => "core",
+            Self::Anchor => "anchor",
+            Self::NetworkInstance => "network_instance",
+            Self::Meridian => "meridian",
+            Self::CorePlatform => "core",
         }
     }
 }
@@ -471,11 +471,11 @@ impl TryFrom<String> for AppId {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "property_management" => Ok(Self::PropertyManagement),
-            "anchor"              => Ok(Self::Anchor),
-            "network_instance"    => Ok(Self::NetworkInstance),
-            "meridian"            => Ok(Self::Meridian),
-            "core_platform"       => Ok(Self::CorePlatform),
-            other                 => Err(format!("unknown AppId: '{other}'")),
+            "anchor" => Ok(Self::Anchor),
+            "network_instance" => Ok(Self::NetworkInstance),
+            "meridian" => Ok(Self::Meridian),
+            "core_platform" => Ok(Self::CorePlatform),
+            other => Err(format!("unknown AppId: '{other}'")),
         }
     }
 }
@@ -487,3 +487,424 @@ impl TryFrom<&str> for AppId {
     }
 }
 
+// ── MarketingSectionBlockType ─────────────────────────────────────────────────
+// Keep variants/strings aligned with `shared_ui::marketing::MarketingSectionBlockType`.
+
+/// CMS section block `type` values accepted in `blocks_payload`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MarketingSectionBlockType {
+    Stats,
+    FeatureGrid,
+    Personas,
+    Cta,
+    BetaStrip,
+    Markets,
+    PaymentRails,
+    StrSection,
+    TenantPortal,
+    OwnerPortal,
+    Footer,
+    NavSections,
+    PricingIntro,
+    TradeCategories,
+    RichText,
+    Hero,
+    FullPage,
+}
+
+impl MarketingSectionBlockType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Stats => "stats",
+            Self::FeatureGrid => "feature_grid",
+            Self::Personas => "personas",
+            Self::Cta => "cta",
+            Self::BetaStrip => "beta_strip",
+            Self::Markets => "markets",
+            Self::PaymentRails => "payment_rails",
+            Self::StrSection => "str_section",
+            Self::TenantPortal => "tenant_portal",
+            Self::OwnerPortal => "owner_portal",
+            Self::Footer => "footer",
+            Self::NavSections => "nav_sections",
+            Self::PricingIntro => "pricing_intro",
+            Self::TradeCategories => "trade_categories",
+            Self::RichText => "rich_text",
+            Self::Hero => "hero",
+            Self::FullPage => "full_page",
+        }
+    }
+}
+
+impl fmt::Display for MarketingSectionBlockType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for MarketingSectionBlockType {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "stats" => Ok(Self::Stats),
+            "feature_grid" => Ok(Self::FeatureGrid),
+            "personas" => Ok(Self::Personas),
+            "cta" => Ok(Self::Cta),
+            "beta_strip" => Ok(Self::BetaStrip),
+            "markets" => Ok(Self::Markets),
+            "payment_rails" => Ok(Self::PaymentRails),
+            "str_section" => Ok(Self::StrSection),
+            "tenant_portal" => Ok(Self::TenantPortal),
+            "owner_portal" => Ok(Self::OwnerPortal),
+            "footer" => Ok(Self::Footer),
+            "nav_sections" => Ok(Self::NavSections),
+            "pricing_intro" => Ok(Self::PricingIntro),
+            "trade_categories" => Ok(Self::TradeCategories),
+            "rich_text" => Ok(Self::RichText),
+            "hero" => Ok(Self::Hero),
+            "full_page" => Ok(Self::FullPage),
+            other => Err(format!("unknown MarketingSectionBlockType: '{other}'")),
+        }
+    }
+}
+
+// ── FolioMarketingSlug ────────────────────────────────────────────────────────
+// Keep aligned with `shared_ui::marketing::FolioMarketingSlug`.
+
+/// Folio public marketing product / landing slugs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FolioMarketingSlug {
+    #[serde(rename = "folio")]
+    Folio,
+    #[serde(rename = "folio-broker")]
+    FolioBroker,
+    #[serde(rename = "folio-pm")]
+    FolioPm,
+    #[serde(rename = "folio-vendor")]
+    FolioVendor,
+    #[serde(rename = "folio-founding")]
+    FolioFounding,
+    #[serde(rename = "folio-beta")]
+    FolioBeta,
+    #[serde(rename = "folio-cohost-market")]
+    FolioCohostMarket,
+}
+
+impl FolioMarketingSlug {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Folio => "folio",
+            Self::FolioBroker => "folio-broker",
+            Self::FolioPm => "folio-pm",
+            Self::FolioVendor => "folio-vendor",
+            Self::FolioFounding => "folio-founding",
+            Self::FolioBeta => "folio-beta",
+            Self::FolioCohostMarket => "folio-cohost-market",
+        }
+    }
+
+    pub fn public_path(self) -> &'static str {
+        match self {
+            Self::Folio => "/",
+            Self::FolioBroker => "/brokers",
+            Self::FolioPm => "/property-managers",
+            Self::FolioVendor => "/vendors",
+            Self::FolioFounding => "/founding",
+            Self::FolioBeta => "/beta",
+            Self::FolioCohostMarket => "/cohost-market",
+        }
+    }
+
+    pub fn waitlist_lead_source(self) -> String {
+        format!("waitlist:{}", self.as_str())
+    }
+}
+
+impl fmt::Display for FolioMarketingSlug {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for FolioMarketingSlug {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "folio" => Ok(Self::Folio),
+            "folio-broker" => Ok(Self::FolioBroker),
+            "folio-pm" => Ok(Self::FolioPm),
+            "folio-vendor" => Ok(Self::FolioVendor),
+            "folio-founding" => Ok(Self::FolioFounding),
+            "folio-beta" => Ok(Self::FolioBeta),
+            "folio-cohost-market" => Ok(Self::FolioCohostMarket),
+            other => Err(format!("unknown FolioMarketingSlug: '{other}'")),
+        }
+    }
+}
+
+// ── FoundingSpotTier ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FoundingSpotTier {
+    #[serde(rename = "ll-grow")]
+    LlGrow,
+    #[serde(rename = "ll-pro")]
+    LlPro,
+    #[serde(rename = "ll-investor")]
+    LlInvestor,
+    #[serde(rename = "br-solo")]
+    BrSolo,
+    #[serde(rename = "br-team")]
+    BrTeam,
+    #[serde(rename = "br-firm")]
+    BrFirm,
+    #[serde(rename = "pm-starter")]
+    PmStarter,
+    #[serde(rename = "pm-growth")]
+    PmGrowth,
+    #[serde(rename = "vd-pro")]
+    VdPro,
+}
+
+impl FoundingSpotTier {
+    pub const ALL: &'static [Self] = &[
+        Self::LlGrow,
+        Self::LlPro,
+        Self::LlInvestor,
+        Self::BrSolo,
+        Self::BrTeam,
+        Self::BrFirm,
+        Self::PmStarter,
+        Self::PmGrowth,
+        Self::VdPro,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LlGrow => "ll-grow",
+            Self::LlPro => "ll-pro",
+            Self::LlInvestor => "ll-investor",
+            Self::BrSolo => "br-solo",
+            Self::BrTeam => "br-team",
+            Self::BrFirm => "br-firm",
+            Self::PmStarter => "pm-starter",
+            Self::PmGrowth => "pm-growth",
+            Self::VdPro => "vd-pro",
+        }
+    }
+}
+
+impl fmt::Display for FoundingSpotTier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for FoundingSpotTier {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|v| v.as_str() == s)
+            .ok_or_else(|| format!("unknown FoundingSpotTier: '{s}'"))
+    }
+}
+
+// ── CtaAction ─────────────────────────────────────────────────────────────────
+
+/// Product template `cta_action` discriminant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CtaAction {
+    Waitlist,
+    Signup,
+    PreOrder,
+    External,
+    Anchor,
+}
+
+impl CtaAction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Waitlist => "waitlist",
+            Self::Signup => "signup",
+            Self::PreOrder => "pre_order",
+            Self::External => "external",
+            Self::Anchor => "anchor",
+        }
+    }
+}
+
+impl fmt::Display for CtaAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for CtaAction {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "waitlist" => Ok(Self::Waitlist),
+            "signup" | "/signup" => Ok(Self::Signup),
+            "pre_order" | "pre-order" => Ok(Self::PreOrder),
+            "external" => Ok(Self::External),
+            "anchor" => Ok(Self::Anchor),
+            other => Err(format!("unknown CtaAction: '{other}'")),
+        }
+    }
+}
+
+// ── VendorTradeKey ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum VendorTradeKey {
+    #[serde(rename = "cleaning")]
+    Cleaning,
+    #[serde(rename = "handyman")]
+    Handyman,
+    #[serde(rename = "plumbing")]
+    Plumbing,
+    #[serde(rename = "electrical")]
+    Electrical,
+    #[serde(rename = "hvac")]
+    Hvac,
+    #[serde(rename = "painting")]
+    Painting,
+    #[serde(rename = "landscaping")]
+    Landscaping,
+    #[serde(rename = "roofing")]
+    Roofing,
+    #[serde(rename = "flooring")]
+    Flooring,
+    #[serde(rename = "pest-control")]
+    PestControl,
+    #[serde(rename = "appliance")]
+    Appliance,
+    #[serde(rename = "locksmith")]
+    Locksmith,
+    #[serde(rename = "inspection")]
+    Inspection,
+    #[serde(rename = "movers")]
+    Movers,
+    #[serde(rename = "junk-removal")]
+    JunkRemoval,
+    #[serde(rename = "pool-spa")]
+    PoolSpa,
+    #[serde(rename = "security")]
+    Security,
+    #[serde(rename = "solar")]
+    Solar,
+    #[serde(rename = "general")]
+    General,
+}
+
+impl VendorTradeKey {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Cleaning => "cleaning",
+            Self::Handyman => "handyman",
+            Self::Plumbing => "plumbing",
+            Self::Electrical => "electrical",
+            Self::Hvac => "hvac",
+            Self::Painting => "painting",
+            Self::Landscaping => "landscaping",
+            Self::Roofing => "roofing",
+            Self::Flooring => "flooring",
+            Self::PestControl => "pest-control",
+            Self::Appliance => "appliance",
+            Self::Locksmith => "locksmith",
+            Self::Inspection => "inspection",
+            Self::Movers => "movers",
+            Self::JunkRemoval => "junk-removal",
+            Self::PoolSpa => "pool-spa",
+            Self::Security => "security",
+            Self::Solar => "solar",
+            Self::General => "general",
+        }
+    }
+}
+
+impl fmt::Display for VendorTradeKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for VendorTradeKey {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "cleaning" => Ok(Self::Cleaning),
+            "handyman" => Ok(Self::Handyman),
+            "plumbing" => Ok(Self::Plumbing),
+            "electrical" => Ok(Self::Electrical),
+            "hvac" => Ok(Self::Hvac),
+            "painting" => Ok(Self::Painting),
+            "landscaping" => Ok(Self::Landscaping),
+            "roofing" => Ok(Self::Roofing),
+            "flooring" => Ok(Self::Flooring),
+            "pest-control" => Ok(Self::PestControl),
+            "appliance" => Ok(Self::Appliance),
+            "locksmith" => Ok(Self::Locksmith),
+            "inspection" => Ok(Self::Inspection),
+            "movers" => Ok(Self::Movers),
+            "junk-removal" => Ok(Self::JunkRemoval),
+            "pool-spa" => Ok(Self::PoolSpa),
+            "security" => Ok(Self::Security),
+            "solar" => Ok(Self::Solar),
+            "general" => Ok(Self::General),
+            other => Err(format!("unknown VendorTradeKey: '{other}'")),
+        }
+    }
+}
+
+// ── BetaApplicantRole ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BetaApplicantRole {
+    #[serde(rename = "landlord")]
+    Landlord,
+    #[serde(rename = "str-host")]
+    StrHost,
+    #[serde(rename = "broker")]
+    Broker,
+    #[serde(rename = "property-manager")]
+    PropertyManager,
+    #[serde(rename = "vendor")]
+    Vendor,
+}
+
+impl BetaApplicantRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Landlord => "landlord",
+            Self::StrHost => "str-host",
+            Self::Broker => "broker",
+            Self::PropertyManager => "property-manager",
+            Self::Vendor => "vendor",
+        }
+    }
+}
+
+impl fmt::Display for BetaApplicantRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<&str> for BetaApplicantRole {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "landlord" => Ok(Self::Landlord),
+            "str-host" => Ok(Self::StrHost),
+            "broker" => Ok(Self::Broker),
+            "property-manager" => Ok(Self::PropertyManager),
+            "vendor" => Ok(Self::Vendor),
+            other => Err(format!("unknown BetaApplicantRole: '{other}'")),
+        }
+    }
+}

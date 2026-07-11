@@ -340,6 +340,10 @@ pub mod m20261019_g36_network_invite_reward_rules; // G-36: seed NetworkInvite r
 pub mod m20261020_g36_subscription_credit_ledger; // G-36: apply subscription_credit_days to ledger
 pub mod m20261021_g36_program_instance_enablements; // G-36: per-app-instance program enablement overrides
 pub mod m20261022_platform_product_plans; // Product-scoped marketing pricing plans
+pub mod m20261023_folio_marketing_hero_seeds; // Folio marketing CMS hero overlay seed payloads
+pub mod m20261024_folio_marketing_section_blocks; // Folio marketing CMS section overlay seed payloads
+pub mod m20261025_folio_founding_beta_products; // Folio founding + beta campaign product seeds
+pub mod m20261026_folio_vendor_trade_categories; // Folio vendor trade category CMS overlay seed
 
 pub struct Migrator;
 
@@ -648,6 +652,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20261016_atlas_scorecard_template_deployments::Migration),
             Box::new(m20261017_rating_sessions_app_instance_id::Migration),
             // G-36 atlas_programs is registered via CorePlatformApp::migrations()
+            Box::new(m20261023_folio_marketing_hero_seeds::Migration),
+            Box::new(m20261024_folio_marketing_section_blocks::Migration),
+            Box::new(m20261025_folio_founding_beta_products::Migration),
+            Box::new(m20261026_folio_vendor_trade_categories::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

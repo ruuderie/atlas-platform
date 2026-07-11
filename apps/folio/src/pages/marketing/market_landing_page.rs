@@ -33,19 +33,26 @@ use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
 use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
+use shared_ui::marketing::{CtaAction, FolioMarketingSlug};
 use uuid::Uuid;
 
 use crate::components::marketing_nav::{
     MarketingNav, MarketingNavRole, HOME_MARKETING_SECTION_LINKS,
 };
 use crate::geo::{get_visitor_geo, VisitorGeo};
-use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::block_renderer::{
+    has_full_page_block, parse_section_blocks, BetaStripBlock, BlockRenderer, CardSectionBlock,
+    CtaBlock, FeatureGridBlock, FooterBlock, MarketsBlock, PaymentRailsBlock, PersonasBlock,
+    PricingIntroBlock, StatsBlock,
+};
+use crate::pages::marketing::hero_content::HeroContent;
 use crate::pages::not_found::NotFound;
 
 // ── Page data types ───────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+// Keep aligned with `atlas_backend::types::gtm::LaunchMode`.
 pub enum LaunchMode {
     Active,
     Waitlist,
@@ -108,6 +115,8 @@ pub struct LandingPageData {
     pub structured_data: Option<serde_json::Value>,
     pub cta_label: String,
     pub cta_action: String,
+    #[serde(default)]
+    pub waitlist_count: i32,
     #[serde(rename = "hero")]
     pub hero_payload: serde_json::Value,
     #[serde(rename = "blocks")]
@@ -125,6 +134,12 @@ pub struct LandingPageData {
     /// Marketing pricing cards from `platform_product_plans` (empty → Folio hardcoded fallback).
     #[serde(default)]
     pub plans: Vec<crate::pages::marketing::marketing_pricing::MarketingPlan>,
+}
+
+impl LandingPageData {
+    pub fn parsed_cta_action(&self) -> Option<CtaAction> {
+        CtaAction::try_from(self.cta_action.as_str()).ok()
+    }
 }
 
 fn default_locale() -> String {
@@ -181,10 +196,10 @@ pub fn fire_lp_view_event(page_id: Option<Uuid>, variant_id: Option<Uuid>) {
 pub async fn load_landing_page(
     variant_slug: Option<String>,
 ) -> Result<LandingPageData, server_fn::error::ServerFnError> {
-    const PRODUCT_SLUG: &str = "folio";
+    const PRODUCT_SLUG: FolioMarketingSlug = FolioMarketingSlug::Folio;
     let path = match &variant_slug {
-        Some(v) if !v.is_empty() => format!("/api/pub/products/{PRODUCT_SLUG}/{v}"),
-        _ => format!("/api/pub/products/{PRODUCT_SLUG}"),
+        Some(v) if !v.is_empty() => format!("{}/{v}", PRODUCT_SLUG.pub_product_path()),
+        _ => PRODUCT_SLUG.pub_product_path(),
     };
     crate::atlas_client::fetch::<LandingPageData>(&path)
         .await
@@ -254,10 +269,21 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
     let country_code = geo.country_code.clone();
     let product_slug = data.product_slug.clone();
     let launch_mode = data.launch_mode.clone();
-    let render_cms = has_cms_blocks(&data.blocks_payload);
+    let render_cms = has_full_page_block(&data.blocks_payload);
+    let section_blocks = parse_section_blocks(&data.blocks_payload);
+    let hero = HeroContent::from_value(&data.hero_payload);
     let hero_payload = data.hero_payload.clone();
     let blocks_payload = data.blocks_payload.clone();
     let plans = data.plans.clone();
+    let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
+        block
+            .items
+            .iter()
+            .map(|item| (item.label.clone(), item.href.clone()))
+            .collect::<Vec<_>>()
+    });
+    let waitlist_count = data.waitlist_count;
+    let cta_label = data.cta_label.clone();
     fire_lp_view_event(data.page_id, data.variant_id);
 
     view! {
@@ -285,6 +311,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
             <MarketingNav
                 active=MarketingNavRole::Landlords
                 section_links=HOME_MARKETING_SECTION_LINKS
+                section_link_overrides=nav_links
                 cta_href="#waitlist-wrap"
             />
             {if render_cms {
@@ -294,30 +321,38 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
                         <crate::pages::marketing::marketing_pricing::MarketingPricingGrid
                             plans=plans.clone()
                             section_id="pricing".to_string()
-                            eyebrow="For landlords · your own properties".to_string()
-                            heading="Simple. Transparent. No surprises.".to_string()
-                            subtitle="Start free. Pay as you grow. Built for landlords managing their own portfolio — no owner-client billing, no trust accounting.".to_string()
+                            eyebrow=hero.pricing_eyebrow.clone().unwrap_or_else(|| "For landlords · your own properties".to_string())
+                            heading=hero.pricing_heading.clone().unwrap_or_else(|| "Simple. Transparent. No surprises.".to_string())
+                            subtitle=hero.pricing_subtitle.clone().unwrap_or_else(|| "Start free. Pay as you grow. Built for landlords managing their own portfolio — no owner-client billing, no trust accounting.".to_string())
                             default_cta_href="#waitlist-wrap".to_string()
                         />
                     })}
                 }.into_any()
             } else {
                 view! {
-                    <MktgHero launch_mode=launch_mode product_slug=product_slug variant_slug=variant_slug country_code=country_code/>
-                    <MktgStats/>
-                    <MktgPersonas/>
-                    <MktgFeatures/>
-                    <MktgTenantPortal/>
-                    <MktgStr/>
+                    <MktgHero
+                        launch_mode=launch_mode
+                        product_slug=product_slug
+                        variant_slug=variant_slug
+                        country_code=country_code
+                        hero=hero.clone()
+                        waitlist_count=waitlist_count
+                        cta_label=cta_label
+                    />
+                    <MktgStats override_block=section_blocks.stats.clone()/>
+                    <MktgPersonas override_block=section_blocks.personas.clone()/>
+                    <MktgFeatures override_block=section_blocks.feature_grid.clone()/>
+                    <MktgTenantPortal override_block=section_blocks.tenant_portal.clone()/>
+                    <MktgStr override_block=section_blocks.str_section.clone()/>
                     <MktgAppPreview/>
-                    <MktgInternational/>
-                    <MktgPayments/>
-                    <MktgPricing plans=plans/>
-                    <MktgCta/>
-                    <BetaCalloutStrip/>
+                    <MktgInternational override_block=section_blocks.markets.clone()/>
+                    <MktgPayments override_block=section_blocks.payment_rails.clone()/>
+                    <MktgPricing plans=plans hero=hero pricing_intro=section_blocks.pricing_intro.clone()/>
+                    <MktgCta override_block=section_blocks.cta.clone()/>
+                    <BetaCalloutStrip override_block=section_blocks.beta_strip.clone()/>
                 }.into_any()
             }}
-            <MktgFooter/>
+            <MktgFooter override_block=section_blocks.footer.clone()/>
             <MktgScripts/>
         </div>
     }
@@ -332,9 +367,48 @@ fn MktgHero(
     product_slug: String,
     variant_slug: String,
     country_code: String,
+    hero: HeroContent,
+    waitlist_count: i32,
+    cta_label: String,
 ) -> impl IntoView {
     let _ = launch_mode; // Future: gate CTA on Active/PreLaunch modes
-    let waitlist_url = format!("/api/pub/products/{}/waitlist", product_slug);
+    let _ = product_slug;
+    let waitlist_url = FolioMarketingSlug::Folio.waitlist_path();
+    let eyebrow = hero
+        .eyebrow
+        .clone()
+        .unwrap_or_else(|| "Beta Access Open · US · Canada · Brazil".to_string());
+    let headline = hero
+        .headline
+        .clone()
+        .unwrap_or_else(|| "The operating system".to_string());
+    let headline_accent = hero
+        .headline_accent
+        .clone()
+        .unwrap_or_else(|| " for the modern real estate investor.".to_string());
+    let subhead = hero.subhead.clone().unwrap_or_else(|| {
+        "Your rental business runs on gut feel, spreadsheets, and three apps that don’t talk to each other. Folio is the purpose-built platform that handles rent, leases, maintenance, vacation rentals, and compliance — so you can run your properties like the business they actually are.".to_string()
+    });
+    let proof_items = if hero.proof_items.is_empty() {
+        vec![
+            "Beta — be one of the first".to_string(),
+            "Built by a landlord".to_string(),
+            "No setup fee".to_string(),
+            "Long-term + vacation rentals".to_string(),
+            "US · Canada · Brazil".to_string(),
+        ]
+    } else {
+        hero.proof_items
+            .iter()
+            .filter(|item| !item.trim().is_empty())
+            .cloned()
+            .collect()
+    };
+    let primary_cta = if cta_label.trim().is_empty() {
+        "Get early access →".to_string()
+    } else {
+        cta_label
+    };
 
     // Form step: 0 = email, 1 = details, 2 = success
     let step = RwSignal::new(0u8);
@@ -343,7 +417,7 @@ fn MktgHero(
     let size = RwSignal::new(String::new());
     let source = RwSignal::new(String::new());
     let phone = RwSignal::new(String::new());
-    let position = RwSignal::new(247u32);
+    let position = RwSignal::new(waitlist_count.max(0) as u32);
     let err_msg = RwSignal::new(String::new());
     let loading = RwSignal::new(false);
 
@@ -436,16 +510,15 @@ fn MktgHero(
             <div class="mktg-hero-inner">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"science"</span>
-                    " Beta Access Open · US · Canada · Brazil"
+                    " "
+                    {eyebrow}
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "The operating system"
-                    <span class="mktg-h1-accent"> " for the modern real estate investor."</span>
+                    {headline}
+                    <span class="mktg-h1-accent"> {headline_accent}</span>
                 </h1>
                 <p class="mktg-hero-sub">
-                    "Your rental business runs on gut feel, spreadsheets, and three apps that don’t talk to each other. \
-                     Folio is the purpose-built platform that handles rent, leases, maintenance, vacation rentals, \
-                     and compliance — so you can run your properties like the business they actually are."
+                    {subhead}
                 </p>
 
                 // Waitlist form — 3-step reactive form
@@ -471,7 +544,7 @@ fn MktgHero(
                                 <button class="mktg-btn-accent mktg-btn-lg"
                                     on:click=move |_| validate_and_next()
                                 >
-                                    "Get early access →"
+                                    {primary_cta.clone()}
                                 </button>
                             </div>
                             <Show when=move || !err_msg.get().is_empty() fallback=|| ()>
@@ -610,30 +683,16 @@ fn MktgHero(
                 // Proof strip (visible only on step 0)
                 <Show when=move || step.get() == 0 fallback=|| ()>
                     <div class="mktg-proof-strip">
-                        <span class="mktg-proof-item">
-                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"science"</span>
-                            "Beta — be one of the first"
-                        </span>
-                        <span class="mktg-proof-sep"></span>
-                        <span class="mktg-proof-item">
-                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"verified"</span>
-                            "Built by a landlord"
-                        </span>
-                        <span class="mktg-proof-sep"></span>
-                        <span class="mktg-proof-item">
-                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                            "No setup fee"
-                        </span>
-                        <span class="mktg-proof-sep"></span>
-                        <span class="mktg-proof-item">
-                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                            "Long-term + vacation rentals"
-                        </span>
-                        <span class="mktg-proof-sep"></span>
-                        <span class="mktg-proof-item">
-                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                            "US · Canada · Brazil"
-                        </span>
+                        {proof_items.iter().enumerate().map(|(idx, item)| {
+                            let icon = if idx == 0 { "science" } else if idx == 1 { "verified" } else { "check_circle" };
+                            view! {
+                                {(idx > 0).then(|| view! { <span class="mktg-proof-sep"></span> })}
+                                <span class="mktg-proof-item">
+                                    <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">{icon}</span>
+                                    {item.clone()}
+                                </span>
+                            }
+                        }).collect_view()}
                     </div>
                 </Show>
             </div>
@@ -644,18 +703,33 @@ fn MktgHero(
 // ── Stats band ────────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgStats() -> impl IntoView {
+fn MktgStats(#[prop(default = None)] override_block: Option<StatsBlock>) -> impl IntoView {
+    let items: Vec<(String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.value, item.label))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                ("5 min".to_string(), "Average setup time".to_string()),
+                (
+                    "1 login".to_string(),
+                    "For your whole portfolio".to_string(),
+                ),
+                ("3".to_string(), "Countries at launch".to_string()),
+                ("$0".to_string(), "Setup fee · no contracts".to_string()),
+            ]
+        });
+
     view! {
         <section class="mktg-stats">
-            {[
-                ("5 min", "Average setup time"),
-                ("1 login", "For your whole portfolio"),
-                ("3",      "Countries at launch"),
-                ("$0",     "Setup fee · no contracts"),
-            ].iter().map(|(val, label)| view! {
+            {items.into_iter().map(|(val, label)| view! {
                 <div class="mktg-stat">
-                    <span class="mktg-stat-val">{*val}</span>
-                    <span class="mktg-stat-label">{*label}</span>
+                    <span class="mktg-stat-val">{val}</span>
+                    <span class="mktg-stat-label">{label}</span>
                 </div>
             }).collect_view()}
         </section>
@@ -665,76 +739,115 @@ fn MktgStats() -> impl IntoView {
 // ── Personas ──────────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgPersonas() -> impl IntoView {
-    let personas = vec![
+fn MktgPersonas(#[prop(default = None)] override_block: Option<PersonasBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Built for every role".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "One platform. Every person in the deal.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| "Folio issues role-based portals so landlords, tenants, vendors, owners, and managers each see exactly what they need — nothing more.".to_string());
+    let default_personas: Vec<(String, String, String, String, Vec<String>)> = vec![
         (
-            "🏠",
-            "Independent Landlord",
-            "coral",
-            "1–20 units",
+            "🏠".to_string(),
+            "Independent Landlord".to_string(),
+            "coral".to_string(),
+            "1–20 units".to_string(),
             vec![
-                "Portfolio overview & analytics",
-                "Automated rent reminders",
-                "Lease templates & e-sign",
-                "Maintenance dispatch",
+                "Portfolio overview & analytics".to_string(),
+                "Automated rent reminders".to_string(),
+                "Lease templates & e-sign".to_string(),
+                "Maintenance dispatch".to_string(),
             ],
         ),
         (
-            "💼",
-            "Property Manager",
-            "teal",
-            "Any size",
+            "💼".to_string(),
+            "Property Manager".to_string(),
+            "teal".to_string(),
+            "Any size".to_string(),
             vec![
-                "Multi-client portfolio",
-                "Owner statements & reports",
-                "Branded tenant portal",
-                "Owner disbursement & fees",
+                "Multi-client portfolio".to_string(),
+                "Owner statements & reports".to_string(),
+                "Branded tenant portal".to_string(),
+                "Owner disbursement & fees".to_string(),
             ],
         ),
         (
-            "🏨",
-            "Vacation Rental Host",
-            "gold",
-            "Airbnb + direct",
+            "🏨".to_string(),
+            "Vacation Rental Host".to_string(),
+            "gold".to_string(),
+            "Airbnb + direct".to_string(),
             vec![
-                "Unified booking calendar",
-                "Channel sync",
-                "Guest messaging",
-                "Vacation rental licensing & compliance",
+                "Unified booking calendar".to_string(),
+                "Channel sync".to_string(),
+                "Guest messaging".to_string(),
+                "Vacation rental licensing & compliance".to_string(),
             ],
         ),
         (
-            "🏡",
-            "Tenant",
-            "green",
-            "Renter portal",
+            "🏡".to_string(),
+            "Tenant".to_string(),
+            "green".to_string(),
+            "Renter portal".to_string(),
             vec![
-                "Pay rent online",
-                "Submit maintenance requests",
-                "View & sign lease",
-                "Track move-in docs",
+                "Pay rent online".to_string(),
+                "Submit maintenance requests".to_string(),
+                "View & sign lease".to_string(),
+                "Track move-in docs".to_string(),
             ],
         ),
         (
-            "🔧",
-            "Vendor / Contractor",
-            "orange",
-            "Work order portal",
+            "🔧".to_string(),
+            "Vendor / Contractor".to_string(),
+            "orange".to_string(),
+            "Work order portal".to_string(),
             vec![
-                "Receive job dispatches",
-                "Submit invoices",
-                "Schedule management",
-                "Marketplace profile",
+                "Receive job dispatches".to_string(),
+                "Submit invoices".to_string(),
+                "Schedule management".to_string(),
+                "Marketplace profile".to_string(),
             ],
         ),
     ];
+    let personas: Vec<(String, String, String, String, Vec<String>)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .enumerate()
+                .map(|(idx, item)| {
+                    let fallback = default_personas[idx.min(default_personas.len() - 1)].clone();
+                    (
+                        item.icon.unwrap_or(fallback.0),
+                        if item.title.is_empty() {
+                            fallback.1
+                        } else {
+                            item.title
+                        },
+                        item.accent.unwrap_or(fallback.2),
+                        item.subhead.unwrap_or(fallback.3),
+                        if item.bullets.is_empty() {
+                            fallback.4
+                        } else {
+                            item.bullets
+                        },
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or(default_personas);
 
     view! {
         <section id="personas" class="mktg-section mktg-personas">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Built for every role"</p>
-                <h2 class="mktg-section-h2">"One platform. Every person in the deal."</h2>
-                <p class="mktg-section-sub">"Folio issues role-based portals so landlords, tenants, vendors, owners, and managers each see exactly what they need — nothing more."</p>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
+                <p class="mktg-section-sub">{subhead}</p>
                 <div class="mktg-personas-scroll">
                     {personas.into_iter().map(|(icon, name, accent, sub, bullets)| view! {
                         <div class=format!("mktg-persona-card mktg-accent--{}", accent)>
@@ -760,8 +873,17 @@ fn MktgPersonas() -> impl IntoView {
 // ── Feature grid ──────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgFeatures() -> impl IntoView {
-    let cells = vec![
+fn MktgFeatures(#[prop(default = None)] override_block: Option<FeatureGridBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "What's included".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "From first lease to tax season — covered.".to_string());
+    // CMS section blocks overlay these defaults when seeded.
+    let default_cells = vec![
         ("payments", "Rent collection", "Bank transfer, card, and international payment methods. Automatically records every payment. No separate accounting tool needed."),
         ("description", "Lease management", "Create, send, e-sign, renew, and store leases. Templates cover the required disclosures for your state or country."),
         ("build", "Maintenance tracking", "Tenants report issues, you approve the work, contractors receive the job and send invoices — all in one place."),
@@ -772,12 +894,26 @@ fn MktgFeatures() -> impl IntoView {
         ("groups", "Contractor marketplace", "Find vetted contractors, send them work orders, receive invoices, and leave reviews — all inside Folio."),
         ("language", "Multi-country", "United States · Canada · Brazil — with more countries on the way."),
     ];
+    let cells: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.title, item.description))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_cells
+                .into_iter()
+                .map(|(icon, title, desc)| (icon.to_string(), title.to_string(), desc.to_string()))
+                .collect()
+        });
 
     view! {
         <section id="features" class="mktg-section mktg-features">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"What's included"</p>
-                <h2 class="mktg-section-h2">"From first lease to tax season — covered."</h2>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
                 <div class="mktg-feature-grid">
                     {cells.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-feature-cell">
@@ -795,28 +931,58 @@ fn MktgFeatures() -> impl IntoView {
 // ── Tenant portal highlight ───────────────────────────────────────────────────
 
 #[component]
-fn MktgTenantPortal() -> impl IntoView {
+fn MktgTenantPortal(
+    #[prop(default = None)] override_block: Option<CardSectionBlock>,
+) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Tenant experience".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| {
+            "Happy tenants pay on time. Give them a portal worth logging into.".to_string()
+        });
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| {
+            "When your tenant logs in, they see their own dashboard — not yours. They can pay rent, report a problem, sign their lease, and track move-in documents without calling you. Less back-and-forth for you. Better experience for them.".to_string()
+        });
+    let default_items = vec![
+        ("payments", "Pay rent online", "Bank transfer, card, or local payment method. Rent hits your account automatically."),
+        ("build", "Maintenance requests", "Tenants describe the issue, upload a photo, and you get notified instantly. No more texts."),
+        ("description", "Lease & documents", "Tenants can read, sign, and download their lease anytime. No printing. No scanning."),
+        ("notifications", "Move-in checklist", "Guide tenants through move-in day: what to submit, what to expect, how to reach you."),
+    ];
+    let items: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.title, item.desc))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_items
+                .into_iter()
+                .map(|(icon, title, desc)| (icon.to_string(), title.to_string(), desc.to_string()))
+                .collect()
+        });
+
     view! {
         <section id="tenant-portal" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Tenant experience"</p>
-                <h2 class="mktg-section-h2">"Happy tenants pay on time. Give them a portal worth logging into."</h2>
-                <p class="mktg-section-sub">
-                    "When your tenant logs in, they see their own dashboard — not yours. \
-                     They can pay rent, report a problem, sign their lease, and track move-in \
-                     documents without calling you. Less back-and-forth for you. Better experience for them."
-                </p>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
+                <p class="mktg-section-sub">{subhead}</p>
                 <div class="mktg-str-grid">
-                    {[
-                        ("payments",      "Pay rent online",           "Bank transfer, card, or local payment method. Rent hits your account automatically."),
-                        ("build",         "Maintenance requests",      "Tenants describe the issue, upload a photo, and you get notified instantly. No more texts."),
-                        ("description",   "Lease & documents",         "Tenants can read, sign, and download their lease anytime. No printing. No scanning."),
-                        ("notifications", "Move-in checklist",         "Guide tenants through move-in day: what to submit, what to expect, how to reach you."),
-                    ].iter().map(|(icon, title, desc)| view! {
+                    {items.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-str-card">
-                            <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>
-                            <h3 class="mktg-str-title">{*title}</h3>
-                            <p class="mktg-str-desc">{*desc}</p>
+                            <span class="material-symbols-outlined mktg-str-icon">{icon}</span>
+                            <h3 class="mktg-str-title">{title}</h3>
+                            <p class="mktg-str-desc">{desc}</p>
                         </div>
                     }).collect_view()}
                 </div>
@@ -828,29 +994,53 @@ fn MktgTenantPortal() -> impl IntoView {
 // ── Vacation rental section ───────────────────────────────────────────────────
 
 #[component]
-fn MktgStr() -> impl IntoView {
+fn MktgStr(#[prop(default = None)] override_block: Option<CardSectionBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Vacation rentals".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Your vacation rental, fully under control.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| {
+            "Most landlord software treats vacation rentals as an afterthought. Folio treats them as a first-class product — one calendar, one inbox, one platform.".to_string()
+        });
+    let default_items = vec![
+        ("calendar_month", "Unified booking calendar", "Airbnb, VRBO, Booking.com and your own direct bookings in one drag-and-drop calendar. Block dates, set minimums, sync instantly."),
+        ("verified_user", "Permits & compliance", "Vacation rental permit tracking, renewal reminders, and local registration filings — so you never get caught operating without a license."),
+        ("payments", "Collect directly from guests", "Take deposits, damage holds, and nightly rates from guests without paying a middleman's fee stack."),
+    ];
+    let items: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.title, item.desc))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_items
+                .into_iter()
+                .map(|(icon, title, desc)| (icon.to_string(), title.to_string(), desc.to_string()))
+                .collect()
+        });
+
     view! {
         <section id="str" class="mktg-section mktg-str-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Vacation rentals"</p>
-                <h2 class="mktg-section-h2 mktg-h2-light">"Your vacation rental, fully under control."</h2>
-                <p class="mktg-section-sub mktg-sub-light">
-                    "Most landlord software treats vacation rentals as an afterthought. \
-                     Folio treats them as a first-class product — one calendar, one inbox, one platform."
-                </p>
+                <p class="mktg-section-eyebrow mktg-eyebrow-light">{eyebrow}</p>
+                <h2 class="mktg-section-h2 mktg-h2-light">{heading}</h2>
+                <p class="mktg-section-sub mktg-sub-light">{subhead}</p>
                 <div class="mktg-str-grid">
-                    {[
-                        ("calendar_month", "Unified booking calendar",
-                         "Airbnb, VRBO, Booking.com and your own direct bookings in one drag-and-drop calendar. Block dates, set minimums, sync instantly."),
-                        ("verified_user",  "Permits & compliance",
-                         "Vacation rental permit tracking, renewal reminders, and local registration filings — so you never get caught operating without a license."),
-                        ("payments",       "Collect directly from guests",
-                         "Take deposits, damage holds, and nightly rates from guests without paying a middleman's fee stack."),
-                    ].iter().map(|(icon, title, desc)| view! {
+                    {items.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-str-card">
-                            <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>
-                            <h3 class="mktg-str-title">{*title}</h3>
-                            <p class="mktg-str-desc">{*desc}</p>
+                            <span class="material-symbols-outlined mktg-str-icon">{icon}</span>
+                            <h3 class="mktg-str-title">{title}</h3>
+                            <p class="mktg-str-desc">{desc}</p>
                         </div>
                     }).collect_view()}
                     // Cohost Network — live page
@@ -878,8 +1068,22 @@ fn MktgStr() -> impl IntoView {
 // ── International ────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgInternational() -> impl IntoView {
-    let markets = vec![
+fn MktgInternational(
+    #[prop(default = None)] override_block: Option<MarketsBlock>,
+) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Global reach".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Built for the Americas. Ready for the world.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| "Folio handles multi-currency ledgers, local compliance rules, and payment rails specific to each country — so you don't have to.".to_string());
+    let default_markets = vec![
         (
             "🇺🇸",
             "United States",
@@ -901,13 +1105,27 @@ fn MktgInternational() -> impl IntoView {
             "Latin America expansion Q3 2026 · EU planned",
         ),
     ];
+    let markets: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.flag, item.name, item.desc))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_markets
+                .into_iter()
+                .map(|(flag, name, desc)| (flag.to_string(), name.to_string(), desc.to_string()))
+                .collect()
+        });
 
     view! {
         <section id="international" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Global reach"</p>
-                <h2 class="mktg-section-h2">"Built for the Americas. Ready for the world."</h2>
-                <p class="mktg-section-sub">"Folio handles multi-currency ledgers, local compliance rules, and payment rails specific to each country — so you don't have to."</p>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
+                <p class="mktg-section-sub">{subhead}</p>
                 <div class="mktg-market-grid">
                     {markets.into_iter().map(|(flag, name, desc)| view! {
                         <div class="mktg-market-card">
@@ -927,8 +1145,22 @@ fn MktgInternational() -> impl IntoView {
 // ── Payments ─────────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgPayments() -> impl IntoView {
-    let rails = vec![
+fn MktgPayments(
+    #[prop(default = None)] override_block: Option<PaymentRailsBlock>,
+) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Rent collection".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Rent collected. Split. Reported.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| "The unified ledger handles every rail — ACH, card, PIX — and automatically splits payments between principal, fees, and reserves.".to_string());
+    let default_rails = vec![
         (
             "💳",
             "ACH / EFT",
@@ -950,13 +1182,27 @@ fn MktgPayments() -> impl IntoView {
             "Every transaction split by category. Export-ready for your accountant.",
         ),
     ];
+    let rails: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.name, item.desc))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_rails
+                .into_iter()
+                .map(|(icon, name, desc)| (icon.to_string(), name.to_string(), desc.to_string()))
+                .collect()
+        });
 
     view! {
         <section class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Rent collection"</p>
-                <h2 class="mktg-section-h2">"Rent collected. Split. Reported."</h2>
-                <p class="mktg-section-sub">"The unified ledger handles every rail — ACH, card, PIX — and automatically splits payments between principal, fees, and reserves."</p>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
+                <p class="mktg-section-sub">{subhead}</p>
                 <div class="mktg-rail-grid">
                     {rails.into_iter().map(|(icon, name, desc)| view! {
                         <div class="mktg-rail-card">
@@ -974,7 +1220,11 @@ fn MktgPayments() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgPricing(plans: Vec<crate::pages::marketing::marketing_pricing::MarketingPlan>) -> impl IntoView {
+fn MktgPricing(
+    plans: Vec<crate::pages::marketing::marketing_pricing::MarketingPlan>,
+    hero: HeroContent,
+    #[prop(default = None)] pricing_intro: Option<PricingIntroBlock>,
+) -> impl IntoView {
     let plans = if plans.is_empty() {
         folio_landlord_fallback_plans()
     } else {
@@ -985,9 +1235,9 @@ fn MktgPricing(plans: Vec<crate::pages::marketing::marketing_pricing::MarketingP
         <crate::pages::marketing::marketing_pricing::MarketingPricingGrid
             plans=plans
             section_id="pricing".to_string()
-            eyebrow="For landlords · your own properties".to_string()
-            heading="Simple. Transparent. No surprises.".to_string()
-            subtitle="Start free. Pay as you grow. Built for landlords managing their own portfolio — no owner-client billing, no trust accounting.".to_string()
+            eyebrow=pricing_intro.as_ref().and_then(|block| block.eyebrow.clone()).or_else(|| hero.pricing_eyebrow.clone()).unwrap_or_else(|| "For landlords · your own properties".to_string())
+            heading=pricing_intro.as_ref().and_then(|block| block.heading.clone()).or_else(|| hero.pricing_heading.clone()).unwrap_or_else(|| "Simple. Transparent. No surprises.".to_string())
+            subtitle=pricing_intro.as_ref().and_then(|block| block.subtitle.clone()).or_else(|| hero.pricing_subtitle.clone()).unwrap_or_else(|| "Start free. Pay as you grow. Built for landlords managing their own portfolio — no owner-client billing, no trust accounting.".to_string())
             default_cta_href="#waitlist-wrap".to_string()
         />
         <div class="mktg-section" style="padding-top:0;">
@@ -1003,8 +1253,10 @@ fn MktgPricing(plans: Vec<crate::pages::marketing::marketing_pricing::MarketingP
     }
 }
 
-fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pricing::MarketingPlan> {
+fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pricing::MarketingPlan>
+{
     use crate::pages::marketing::marketing_pricing::{MarketingPlan, PlanBillingInterval};
+    // CMS/product pricing overlays this fallback once plans are seeded.
     vec![
         MarketingPlan {
             slug: "free".into(),
@@ -1088,18 +1340,37 @@ fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pri
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgCta() -> impl IntoView {
+fn MktgCta(#[prop(default = None)] override_block: Option<CtaBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Limited beta spots available".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Be one of the first landlords inside.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| {
+            "Join the waitlist now and get exclusive early access to Folio and the Cohost Network before we open to the public. Beta members help shape the product and lock in founder pricing.".to_string()
+        });
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Reserve my beta spot →".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "#waitlist-wrap".to_string());
+
     view! {
         <section class="mktg-cta-section">
             <div class="mktg-section-inner mktg-cta-inner">
-                <p class="mktg-section-eyebrow" style="color:#ff6b35;">"Limited beta spots available"</p>
-                <h2 class="mktg-cta-h2">"Be one of the first landlords inside."</h2>
-                <p class="mktg-cta-sub">
-                    "Join the waitlist now and get exclusive early access to Folio \
-                     and the Cohost Network before we open to the public. \
-                     Beta members help shape the product and lock in founder pricing."
-                </p>
-                <a href="#waitlist-wrap" class="mktg-btn-accent mktg-btn-lg">"Reserve my beta spot →"</a>
+                <p class="mktg-section-eyebrow" style="color:#ff6b35;">{eyebrow}</p>
+                <h2 class="mktg-cta-h2">{heading}</h2>
+                <p class="mktg-cta-sub">{subhead}</p>
+                <a href=button_href class="mktg-btn-accent mktg-btn-lg">{button_label}</a>
                 <p style="margin-top:16px;font-size:12px;color:#9ca3af;">"No credit card. No contracts. Cancel anytime."</p>
             </div>
         </section>
@@ -1109,18 +1380,37 @@ fn MktgCta() -> impl IntoView {
 // ── Beta program callout strip ────────────────────────────────────────────────
 
 #[component]
-fn BetaCalloutStrip() -> impl IntoView {
+fn BetaCalloutStrip(
+    #[prop(default = None)] override_block: Option<BetaStripBlock>,
+) -> impl IntoView {
+    let title = override_block
+        .as_ref()
+        .and_then(|block| block.title.clone())
+        .unwrap_or_else(|| "Apply for the Folio Beta Program".to_string());
+    let body = override_block
+        .as_ref()
+        .and_then(|block| block.body.clone())
+        .unwrap_or_else(|| "Get free access during beta in exchange for real feedback. We review every application — accepted members shape the product roadmap.".to_string());
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Apply now".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "/beta".to_string());
+
     view! {
         <div class="mktg-section-inner">
             <div class="beta-callout-strip">
                 <span class="material-symbols-outlined beta-callout-strip-icon"
                       style="font-variation-settings:'FILL' 1">"science"</span>
                 <div class="beta-callout-text">
-                    <strong>"Apply for the Folio Beta Program"</strong>
-                    <p>"Get free access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
+                    <strong>{title}</strong>
+                    <p>{body}</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta" rel="external">
-                    "Apply now"
+                <a href=button_href class="beta-callout-cta" id="beta-strip-cta" rel="external">
+                    {button_label}
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
                 </a>
             </div>
@@ -1131,18 +1421,38 @@ fn BetaCalloutStrip() -> impl IntoView {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 #[component]
-fn MktgFooter() -> impl IntoView {
+fn MktgFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    let tagline = override_block
+        .as_ref()
+        .and_then(|block| block.tagline.clone())
+        .unwrap_or_else(|| "Modern Landlord OS".to_string());
+    let links: Vec<(String, String)> = override_block
+        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
+        .map(|links| {
+            links
+                .into_iter()
+                .map(|link| (link.label, link.href))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                ("Sign in".to_string(), "/login".to_string()),
+                ("Pricing".to_string(), "#pricing".to_string()),
+                ("Features".to_string(), "#features".to_string()),
+            ]
+        });
+
     view! {
         <footer class="mktg-footer">
             <div class="mktg-footer-inner">
                 <div>
                     <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"Modern Landlord OS"</div>
+                    <div class="mktg-footer-tagline">{tagline}</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/login" rel="external">"Sign in"</a>
-                    <a href="#pricing">"Pricing"</a>
-                    <a href="#features">"Features"</a>
+                    {links.into_iter().map(|(label, href)| view! {
+                        <a href=href rel="external">{label}</a>
+                    }).collect_view()}
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

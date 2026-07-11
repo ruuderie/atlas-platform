@@ -146,9 +146,12 @@ pub fn MarketingNav(
     /// Desktop / mobile section links. Defaults to [`DEFAULT_MARKETING_SECTION_LINKS`].
     #[prop(optional)]
     section_links: Option<&'static [MarketingNavSectionLink]>,
+    /// Runtime CMS section links. When present, these replace `section_links`.
+    #[prop(default = None)]
+    section_link_overrides: Option<Vec<(String, String)>>,
     /// Primary CTA label. Defaults to `"Join waitlist"`.
-    #[prop(default = "Join waitlist")]
-    cta_label: &'static str,
+    #[prop(default = "Join waitlist".to_string(), into)]
+    cta_label: String,
     /// Primary CTA href. Defaults to `"/#waitlist-wrap"`.
     #[prop(default = "/#waitlist-wrap")]
     cta_href: &'static str,
@@ -156,6 +159,14 @@ pub fn MarketingNav(
     let menu_open = RwSignal::new(false);
     let lang_res = Resource::new(|| (), |_| get_current_lang());
     let links = section_links.unwrap_or(DEFAULT_MARKETING_SECTION_LINKS);
+    let nav_links = section_link_overrides
+        .filter(|items| !items.is_empty())
+        .unwrap_or_else(|| {
+            links
+                .iter()
+                .map(|link| (link.label.to_string(), link.href.to_string()))
+                .collect()
+        });
 
     view! {
         <nav id="mktg-nav" class="mktg-nav">
@@ -165,13 +176,11 @@ pub fn MarketingNav(
                     "Folio"
                 </a>
                 <div class="mktg-nav-links">
-                    {links
+                    {nav_links
                         .iter()
-                        .copied()
-                        .map(|link| {
-                            view! {
-                                <a href=link.href>{link.label}</a>
-                            }
+                        .cloned()
+                        .map(|(label, href)| view! {
+                            <a href=href>{label}</a>
                         })
                         .collect_view()}
                     <details class="mktg-nav-role-dropdown">
@@ -227,7 +236,7 @@ pub fn MarketingNav(
                         "Founders ✦"
                     </a>
                     <a href=cta_href class="mktg-btn-accent" id="nav-waitlist-btn">
-                        {cta_label}
+                        {cta_label.clone()}
                     </a>
                     <button
                         class="mktg-nav-hamburger"
@@ -248,15 +257,13 @@ pub fn MarketingNav(
                 "mktg-mobile-nav"
             }
         }>
-            {links
+            {nav_links
                 .iter()
-                .copied()
-                .map(|link| {
-                    view! {
-                        <a href=link.href on:click=move |_| menu_open.set(false)>
-                            {link.label}
-                        </a>
-                    }
+                .cloned()
+                .map(|(label, href)| view! {
+                    <a href=href on:click=move |_| menu_open.set(false)>
+                        {label}
+                    </a>
                 })
                 .collect_view()}
             {MarketingNavRole::ALL
@@ -280,7 +287,7 @@ pub fn MarketingNav(
                 "Founders ✦"
             </a>
             <a href=cta_href on:click=move |_| menu_open.set(false)>
-                {cta_label}
+                {cta_label.clone()}
             </a>
         </div>
     }

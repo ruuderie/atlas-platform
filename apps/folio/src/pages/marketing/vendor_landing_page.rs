@@ -14,13 +14,18 @@
 //! paid tiers unlock priority placement, auto-invoicing, and 0% platform fee.
 
 use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
-use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::block_renderer::{
+    has_full_page_block, parse_section_blocks, BlockRenderer, CtaBlock, FeatureGridBlock, FooterBlock,
+    SectionBlocks, TradeCategoriesBlock,
+};
+use crate::pages::marketing::hero_content::HeroContent;
 use crate::pages::marketing::market_landing_page::fire_lp_view_event;
 use crate::pages::marketing::marketing_pricing::{
     MarketingPlan, MarketingPricingGrid, PlanBillingInterval,
 };
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
+use shared_ui::marketing::{FolioMarketingSlug, VendorTradeKey};
 
 const VENDOR_SECTION_LINKS: &[MarketingNavSectionLink] = &[
     MarketingNavSectionLink {
@@ -45,7 +50,7 @@ pub async fn load_vendor_page() -> Result<
     server_fn::error::ServerFnError,
 > {
     crate::atlas_client::fetch::<crate::pages::marketing::market_landing_page::LandingPageData>(
-        "/api/pub/products/folio-vendor",
+        &FolioMarketingSlug::FolioVendor.pub_product_path(),
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Vendor page load failed: {e}")))
@@ -58,13 +63,26 @@ pub fn VendorLandingPage() -> impl IntoView {
     let page = Resource::new(|| (), |_| load_vendor_page());
 
     view! {
-        <Suspense fallback=|| view! { <VendorDefault plans=Vec::new()/> }>
+        <Suspense fallback=|| view! {
+            <VendorDefault
+                plans=Vec::new()
+                hero=HeroContent::default()
+                cta_label="Join marketplace".to_string()
+                section_blocks=SectionBlocks::default()
+            />
+        }>
             {move || page.get().map(|result| {
                 match result {
-                    Ok(data) if has_cms_blocks(&data.blocks_payload) => {
+                    Ok(data) if has_full_page_block(&data.blocks_payload) => {
                         let title = data.meta_title.clone().unwrap_or_else(|| data.product_name.clone());
                         let description = data.meta_description.clone().unwrap_or_default();
                         let plans = data.plans.clone();
+                        let hero = HeroContent::from_value(&data.hero_payload);
+                        let cta_label = if data.cta_label.trim().is_empty() {
+                            "Join marketplace".to_string()
+                        } else {
+                            data.cta_label.clone()
+                        };
                         fire_lp_view_event(data.page_id, data.variant_id);
                         view! {
                             <Title text=title.clone()/>
@@ -76,17 +94,35 @@ pub fn VendorLandingPage() -> impl IntoView {
                                 <MarketingNav
                                     active=MarketingNavRole::Vendors
                                     section_links=VENDOR_SECTION_LINKS
-                                    cta_label="Join marketplace"
+                                    cta_label=cta_label
                                     cta_href="#vendor-signup"
                                 />
                                 <BlockRenderer hero=data.hero_payload blocks=data.blocks_payload/>
-                                <VendorPricing plans=plans/>
+                                <VendorPricing plans=plans hero=hero/>
                                 <VendorFooter/>
                             </div>
                         }.into_any()
                     }
-                    Ok(data) => view! { <VendorDefault plans=data.plans/> }.into_any(),
-                    Err(_) => view! { <VendorDefault plans=Vec::new()/> }.into_any(),
+                    Ok(data) => {
+                        let hero = HeroContent::from_value(&data.hero_payload);
+                        let section_blocks = parse_section_blocks(&data.blocks_payload);
+                        view! {
+                            <VendorDefault
+                                plans=data.plans
+                                hero=hero
+                                cta_label=data.cta_label
+                                section_blocks=section_blocks
+                            />
+                        }.into_any()
+                    }
+                    Err(_) => view! {
+                        <VendorDefault
+                            plans=Vec::new()
+                            hero=HeroContent::default()
+                            cta_label="Join marketplace".to_string()
+                            section_blocks=SectionBlocks::default()
+                        />
+                    }.into_any(),
                 }
             })}
         </Suspense>
@@ -94,7 +130,25 @@ pub fn VendorLandingPage() -> impl IntoView {
 }
 
 #[component]
-fn VendorDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
+fn VendorDefault(
+    plans: Vec<MarketingPlan>,
+    hero: HeroContent,
+    cta_label: String,
+    section_blocks: SectionBlocks,
+) -> impl IntoView {
+    let nav_cta_label = if cta_label.trim().is_empty() {
+        "Join marketplace".to_string()
+    } else {
+        cta_label.clone()
+    };
+    let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
+        block
+            .items
+            .iter()
+            .map(|item| (item.label.clone(), item.href.clone()))
+            .collect::<Vec<_>>()
+    });
+
     view! {
         <Title text="Folio for Vendors – Get Jobs, Get Paid, No Chasing"/>
         <Meta name="description" content="Folio connects vendors and contractors to property managers and landlords. Get dispatched jobs, send invoices, collect payment, and grow your service business."/>
@@ -103,25 +157,55 @@ fn VendorDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
         <MarketingNav
             active=MarketingNavRole::Vendors
             section_links=VENDOR_SECTION_LINKS
-            cta_label="Join marketplace"
+            section_link_overrides=nav_links
+            cta_label=nav_cta_label
             cta_href="#vendor-signup"
         />
-        <VendorHero/>
+        <VendorHero
+            hero=hero.clone()
+            cta_label=cta_label
+            trade_categories=section_blocks.trade_categories.clone()
+        />
         <VendorProblem/>
         <VendorHow/>
-        <VendorTrades/>
-        <VendorFeatures/>
+        <VendorTrades override_block=section_blocks.trade_categories.clone()/>
+        <VendorFeatures override_block=section_blocks.feature_grid.clone()/>
         <VendorProfilePreviews/>
-        <VendorPricing plans=plans/>
-        <VendorCta/>
-        <VendorFooter/>
+        <VendorPricing plans=plans hero=hero/>
+        <VendorCta override_block=section_blocks.cta.clone()/>
+        <VendorFooter override_block=section_blocks.footer.clone()/>
     }
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 #[component]
-fn VendorHero() -> impl IntoView {
+fn VendorHero(
+    hero: HeroContent,
+    cta_label: String,
+    #[prop(default = None)] trade_categories: Option<TradeCategoriesBlock>,
+) -> impl IntoView {
+    let eyebrow = hero
+        .eyebrow
+        .clone()
+        .unwrap_or_else(|| "Free to join · 19 trade categories · US · Canada · Brazil".to_string());
+    let headline = hero
+        .headline
+        .clone()
+        .unwrap_or_else(|| "The trade network".to_string());
+    let headline_accent = hero
+        .headline_accent
+        .clone()
+        .unwrap_or_else(|| " that finds you work.".to_string());
+    let subhead = hero.subhead.clone().unwrap_or_else(|| {
+        "Property managers and landlords on Folio dispatch jobs directly to verified tradespeople in their area. You get the job details, accept with one tap, invoice in the app, and get paid in 24 hours. No cold calls. No chasing checks.".to_string()
+    });
+    let primary_cta = if cta_label.trim().is_empty() {
+        "Join the marketplace".to_string()
+    } else {
+        cta_label
+    };
+    let primary_cta = RwSignal::new(primary_cta);
     let step = RwSignal::new(0u8); // 0=trade, 1=details, 2=success
     let trade = RwSignal::new(String::new());
     let trade_label = RwSignal::new(String::new());
@@ -129,51 +213,54 @@ fn VendorHero() -> impl IntoView {
     let biz_name = RwSignal::new(String::new());
     let service_area = RwSignal::new(String::new());
     let loading = RwSignal::new(false);
+    let err_msg = RwSignal::new(String::new());
 
-    let trades: &[(&str, &str)] = &[
-        ("cleaning", "🧹 Cleaning"),
-        ("handyman", "🔧 Handyman"),
-        ("plumbing", "🚿 Plumbing"),
-        ("electrical", "⚡ Electrical"),
-        ("hvac", "❄️ HVAC"),
-        ("painting", "🖌️ Painting"),
-        ("landscaping", "🌿 Landscaping"),
-        ("roofing", "🏠 Roofing"),
-        ("flooring", "🪵 Flooring"),
-        ("pest-control", "🐛 Pest Control"),
-        ("appliance", "🛠️ Appliances"),
-        ("locksmith", "🔐 Locksmith"),
-        ("inspection", "🔍 Inspection"),
-        ("movers", "📦 Movers"),
-        ("junk-removal", "🗑️ Junk Removal"),
-        ("pool-spa", "🏊 Pool & Spa"),
-        ("security", "📷 Security"),
-        ("solar", "☀️ Solar"),
-        ("general", "🏗️ General Contractor"),
-    ];
+    // CMS `trade_categories` overlays this fallback when seeded.
+    let trades = trade_categories
+        .as_ref()
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items.clone()))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.key, item.label))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(default_vendor_trade_options);
 
     let submit = move |_| {
         if email.get().is_empty() || service_area.get().is_empty() {
             return;
         }
         loading.set(true);
-        let payload = format!(
-            r#"{{"email":"{}","trade":"{}","biz_name":"{}","service_area":"{}","source":"vendor-page"}}"#,
-            email.get(),
-            trade.get(),
-            biz_name.get(),
-            service_area.get()
-        );
+        err_msg.set(String::new());
+        let e = email.get();
+        let business = biz_name.get();
+        let trade_name = trade_label.get();
+        let area = service_area.get();
+        let company = if business.trim().is_empty() {
+            format!("{trade_name} · {area}")
+        } else {
+            format!("{business} · {trade_name} · {area}")
+        };
         leptos::task::spawn_local(async move {
-            let resp = gloo_net::http::Request::post("/api/waitlist-signup")
+            let body = serde_json::json!({
+                "email": e,
+                "company": company,
+                "role": "Vendor"
+            });
+            let resp = gloo_net::http::Request::post(&FolioMarketingSlug::FolioVendor.waitlist_path())
                 .header("Content-Type", "application/json")
-                .body(payload)
+                .body(body.to_string())
                 .unwrap()
                 .send()
                 .await;
-            let _ = resp;
             loading.set(false);
-            step.set(2);
+            match resp {
+                Ok(r) if r.ok() => step.set(2),
+                Ok(_) => err_msg
+                    .set("We couldn't join the vendor waitlist. Please try again.".to_string()),
+                Err(_) => err_msg.set("Network issue. Please try again in a moment.".to_string()),
+            }
         });
     };
 
@@ -183,16 +270,15 @@ fn VendorHero() -> impl IntoView {
             <div class="mktg-hero-inner" style="text-align:center;max-width:860px;">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"handyman"</span>
-                    " Free to join · 19 trade categories · US · Canada · Brazil"
+                    " "
+                    {eyebrow}
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "The trade network"
-                    <span class="mktg-h1-accent"> " that finds you work."</span>
+                    {headline}
+                    <span class="mktg-h1-accent"> {headline_accent}</span>
                 </h1>
                 <p class="mktg-hero-sub" style="max-width:580px;margin:1.5rem auto 0;">
-                    "Property managers and landlords on Folio dispatch jobs directly to verified \
-                     tradespeople in their area. You get the job details, accept with one tap, \
-                     invoice in the app, and get paid in 24 hours. No cold calls. No chasing checks."
+                    {subhead}
                 </p>
 
                 // ── Multi-step vendor signup ──────────────────────────────
@@ -285,8 +371,11 @@ fn VendorHero() -> impl IntoView {
                                     on:click=submit.clone()
                                 >
                                     <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1">"check_circle"</span>
-                                    {move || if loading.get() { "Submitting…" } else { "Join the marketplace" }}
+                                    {move || if loading.get() { "Submitting…".to_string() } else { primary_cta.get() }}
                                 </button>
+                                <Show when=move || !err_msg.get().is_empty() fallback=|| ()>
+                                    <p style="font-size:.78rem;color:#f87171;margin-top:.75rem;">{move || err_msg.get()}</p>
+                                </Show>
                                 <button
                                     style="background:none;border:none;color:var(--mk-muted);font-size:.8rem;cursor:pointer;margin-top:.5rem;"
                                     on:click=move |_| step.set(0)
@@ -428,8 +517,68 @@ fn VendorHow() -> impl IntoView {
 // ── Trade Categories ──────────────────────────────────────────────────────────
 
 #[component]
-fn VendorTrades() -> impl IntoView {
-    let categories: Vec<(&str, &str, &str)> = vec![
+fn VendorTrades(
+    #[prop(default = None)] override_block: Option<TradeCategoriesBlock>,
+) -> impl IntoView {
+    // CMS `trade_categories` overlays these hardcoded launch categories when seeded.
+    let categories: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| {
+                    let (icon, name) = split_trade_label(&item.label);
+                    (icon, name, item.description.unwrap_or_default())
+                })
+                .collect()
+        })
+        .unwrap_or_else(default_vendor_trade_cards);
+
+    view! {
+        <section id="vendor-trades" class="mktg-section"
+            style="background:rgba(6,214,160,.02);border-top:1px solid rgba(6,214,160,.08);">
+            <div class="mktg-section-inner">
+                <p class="mktg-section-eyebrow">"Open to all trades"</p>
+                <h2 class="mktg-section-h2">"Every trade. One marketplace."</h2>
+                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">
+                    "We're signing up vendors across all 19 categories before launch. \
+                     Early vendors get priority placement and the Founding Vendor rate."
+                </p>
+                <div class="vnd-trades-grid">
+                    {categories.into_iter().map(|(icon, name, desc)| view! {
+                        // div, not anchor — avoids browser blue link color bleed-through
+                        <div class="vnd-trade-card"
+                             onclick="document.getElementById('vendor-signup').scrollIntoView({behavior:'smooth'})">
+                            <div class="vnd-trade-icon">{icon}</div>
+                            <div>
+                                <div class="vnd-trade-name">{name}</div>
+                                {(!desc.is_empty()).then(|| view! {
+                                    <div class="vnd-trade-desc">{desc}</div>
+                                })}
+                            </div>
+                        </div>
+                    }).collect_view()}
+                </div>
+                <div style="text-align:center;margin-top:2.5rem;">
+                    <a href="#vendor-signup" class="mktg-btn-accent mktg-btn-lg" id="vendor-trades-cta">
+                        "Register your trade →"
+                    </a>
+                    <p style="margin-top:.75rem;font-size:.78rem;color:var(--mk-muted);">"Free to join. No subscription required."</p>
+                </div>
+            </div>
+        </section>
+    }
+}
+
+fn default_vendor_trade_options() -> Vec<(String, String)> {
+    VendorTradeKey::ALL
+        .iter()
+        .map(|trade| (trade.as_str().to_string(), trade.default_label().to_string()))
+        .collect()
+}
+
+fn default_vendor_trade_cards() -> Vec<(String, String, String)> {
+    [
         (
             "🧹",
             "Cleaning & Turnover",
@@ -525,47 +674,35 @@ fn VendorTrades() -> impl IntoView {
             "General Contractor",
             "Renovations, additions, unit upgrades, larger project management",
         ),
-    ];
+    ]
+    .into_iter()
+    .map(|(icon, name, desc)| (icon.to_string(), name.to_string(), desc.to_string()))
+    .collect()
+}
 
-    view! {
-        <section id="vendor-trades" class="mktg-section"
-            style="background:rgba(6,214,160,.02);border-top:1px solid rgba(6,214,160,.08);">
-            <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Open to all trades"</p>
-                <h2 class="mktg-section-h2">"Every trade. One marketplace."</h2>
-                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">
-                    "We're signing up vendors across all 19 categories before launch. \
-                     Early vendors get priority placement and the Founding Vendor rate."
-                </p>
-                <div class="vnd-trades-grid">
-                    {categories.into_iter().map(|(icon, name, desc)| view! {
-                        // div, not anchor — avoids browser blue link color bleed-through
-                        <div class="vnd-trade-card"
-                             onclick="document.getElementById('vendor-signup').scrollIntoView({behavior:'smooth'})">
-                            <div class="vnd-trade-icon">{icon}</div>
-                            <div>
-                                <div class="vnd-trade-name">{name}</div>
-                                <div class="vnd-trade-desc">{desc}</div>
-                            </div>
-                        </div>
-                    }).collect_view()}
-                </div>
-                <div style="text-align:center;margin-top:2.5rem;">
-                    <a href="#vendor-signup" class="mktg-btn-accent mktg-btn-lg" id="vendor-trades-cta">
-                        "Register your trade →"
-                    </a>
-                    <p style="margin-top:.75rem;font-size:.78rem;color:var(--mk-muted);">"Free to join. No subscription required."</p>
-                </div>
-            </div>
-        </section>
-    }
+fn split_trade_label(label: &str) -> (String, String) {
+    label
+        .split_once(' ')
+        .map(|(icon, name)| (icon.to_string(), name.to_string()))
+        .unwrap_or_else(|| ("🔧".to_string(), label.to_string()))
 }
 
 // ── Features ──────────────────────────────────────────────────────────────────
 
 #[component]
-fn VendorFeatures() -> impl IntoView {
-    let features: Vec<(&str, &str, &str)> = vec![
+fn VendorFeatures(
+    #[prop(default = None)] override_block: Option<FeatureGridBlock>,
+) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Platform features".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Built for tradespeople, not accountants.".to_string());
+    // CMS section blocks overlay these defaults when seeded.
+    let default_features = vec![
         ("search",         "Marketplace listing",    "Your profile surfaces to every landlord and PM on Folio — searchable by trade, location, availability, and Atlas Score. Free, forever."),
         ("assignment",     "Instant job dispatch",   "Receive jobs with photos, descriptions, and full property context. No phone tag, no back-and-forth — just the info you need to say yes or no."),
         ("receipt_long",   "One-tap invoicing",      "Build an invoice from a job template in 60 seconds. Send it directly to the property manager. No spreadsheets. No email chains."),
@@ -575,13 +712,27 @@ fn VendorFeatures() -> impl IntoView {
         ("groups",         "Multi-tech accounts",    "Running a crew? Business plan lets you add technicians under your company profile. Each gets their own login and job queue."),
         ("local_shipping", "Branded company profile","Customize your Folio profile with your business name, logo, trade specialties, and service area to stand out in every search."),
     ];
+    let features: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.title, item.description))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_features
+                .into_iter()
+                .map(|(icon, title, desc)| (icon.to_string(), title.to_string(), desc.to_string()))
+                .collect()
+        });
 
     view! {
         <section id="vendor-features" class="mktg-section"
             style="background:rgba(6,214,160,.03);border-top:1px solid rgba(6,214,160,.1);border-bottom:1px solid rgba(6,214,160,.1);">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Platform features"</p>
-                <h2 class="mktg-section-h2">"Built for tradespeople, not accountants."</h2>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
                 <div class="mktg-feature-grid">
                     {features.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-feature-card">
@@ -827,7 +978,7 @@ fn VendorProfilePreviews() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn VendorPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
+fn VendorPricing(plans: Vec<MarketingPlan>, hero: HeroContent) -> impl IntoView {
     let plans = if plans.is_empty() {
         vendor_fallback_plans()
     } else {
@@ -838,15 +989,16 @@ fn VendorPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
         <MarketingPricingGrid
             plans=plans
             section_id="vendor-pricing".to_string()
-            eyebrow="Pricing".to_string()
-            heading="Start free. Upgrade when you're ready.".to_string()
-            subtitle="Every vendor gets a marketplace profile and can accept jobs at no cost. Paid plans unlock the tools that help you win more work.".to_string()
+            eyebrow=hero.pricing_eyebrow.clone().unwrap_or_else(|| "Pricing".to_string())
+            heading=hero.pricing_heading.clone().unwrap_or_else(|| "Start free. Upgrade when you're ready.".to_string())
+            subtitle=hero.pricing_subtitle.clone().unwrap_or_else(|| "Every vendor gets a marketplace profile and can accept jobs at no cost. Paid plans unlock the tools that help you win more work.".to_string())
             default_cta_href="#vendor-signup".to_string()
         />
     }
 }
 
 fn vendor_fallback_plans() -> Vec<MarketingPlan> {
+    // CMS/product pricing overlays this fallback once plans are seeded.
     vec![
         MarketingPlan {
             slug: "basic".into(),
@@ -910,17 +1062,35 @@ fn vendor_fallback_plans() -> Vec<MarketingPlan> {
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
 
 #[component]
-fn VendorCta() -> impl IntoView {
+fn VendorCta(#[prop(default = None)] override_block: Option<CtaBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Open to all trades".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Stop waiting for referrals. Start getting jobs.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| "Join the Folio vendor marketplace and get connected to property managers and landlords who need your services — starting today.".to_string());
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Join the marketplace →".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "#vendor-signup".to_string());
+
     view! {
         <section class="mktg-cta-section">
             <div class="mktg-section-inner mktg-cta-inner">
-                <p class="mktg-section-eyebrow" style="color:#f59e0b;">"Open to all trades"</p>
-                <h2 class="mktg-cta-h2">"Stop waiting for referrals. Start getting jobs."</h2>
-                <p class="mktg-cta-sub">
-                    "Join the Folio vendor marketplace and get connected to property managers \
-                     and landlords who need your services — starting today."
-                </p>
-                <a href="#vendor-signup" class="mktg-btn-accent mktg-btn-lg" id="vendor-cta-btn">"Join the marketplace →"</a>
+                <p class="mktg-section-eyebrow" style="color:#f59e0b;">{eyebrow}</p>
+                <h2 class="mktg-cta-h2">{heading}</h2>
+                <p class="mktg-cta-sub">{subhead}</p>
+                <a href=button_href class="mktg-btn-accent mktg-btn-lg" id="vendor-cta-btn">{button_label}</a>
                 <p style="margin-top:16px;font-size:12px;color:var(--mk-muted);">"Free to join. No credit card required."</p>
             </div>
         </section>
@@ -930,20 +1100,43 @@ fn VendorCta() -> impl IntoView {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 #[component]
-fn VendorFooter() -> impl IntoView {
+fn VendorFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    let tagline = override_block
+        .as_ref()
+        .and_then(|block| block.tagline.clone())
+        .unwrap_or_else(|| "The Landlord OS · Vendor Marketplace".to_string());
+    let links: Vec<(String, String)> = override_block
+        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
+        .map(|links| {
+            links
+                .into_iter()
+                .map(|link| (link.label, link.href))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                ("For Landlords".to_string(), "/".to_string()),
+                (
+                    "For Property Managers".to_string(),
+                    "/property-managers".to_string(),
+                ),
+                ("For Brokers".to_string(), "/brokers".to_string()),
+                ("Cohost Network".to_string(), "/cohost-market".to_string()),
+                ("Sign in".to_string(), "/login".to_string()),
+            ]
+        });
+
     view! {
         <footer class="mktg-footer">
             <div class="mktg-footer-inner">
                 <div>
                     <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"The Landlord OS · Vendor Marketplace"</div>
+                    <div class="mktg-footer-tagline">{tagline}</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/" rel="external">"For Landlords"</a>
-                    <a href="/property-managers" rel="external">"For Property Managers"</a>
-                    <a href="/brokers" rel="external">"For Brokers"</a>
-                    <a href="/cohost-market" rel="external">"Cohost Network"</a>
-                    <a href="/login" rel="external">"Sign in"</a>
+                    {links.into_iter().map(|(label, href)| view! {
+                        <a href=href rel="external">{label}</a>
+                    }).collect_view()}
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

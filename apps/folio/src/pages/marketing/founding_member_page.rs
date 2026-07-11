@@ -13,65 +13,211 @@
 //!   Vendor slots:    300 × $199      = ~$60,000
 //!   Total potential: ~$615,000 committed upfront from the user base.
 
+use crate::components::marketing_nav::{MarketingNav, MarketingNavSectionLink};
+use crate::pages::marketing::hero_content::HeroContent;
+use crate::pages::marketing::market_landing_page::LandingPageData;
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use crate::components::marketing_nav::{
-    MarketingNav, MarketingNavSectionLink,
-};
+use shared_ui::marketing::{FolioMarketingSlug, FoundingSpotTier};
 
 const FOUNDING_SECTION_LINKS: &[MarketingNavSectionLink] = &[
-    MarketingNavSectionLink { label: "Landlords", href: "#founding-landlord" },
-    MarketingNavSectionLink { label: "Brokers", href: "#founding-broker" },
-    MarketingNavSectionLink { label: "PMs", href: "#founding-pm" },
-    MarketingNavSectionLink { label: "Vendors", href: "#founding-vendor" },
-    MarketingNavSectionLink { label: "FAQ", href: "#founding-faq" },
+    MarketingNavSectionLink {
+        label: "Landlords",
+        href: "#founding-landlord",
+    },
+    MarketingNavSectionLink {
+        label: "Brokers",
+        href: "#founding-broker",
+    },
+    MarketingNavSectionLink {
+        label: "PMs",
+        href: "#founding-pm",
+    },
+    MarketingNavSectionLink {
+        label: "Vendors",
+        href: "#founding-vendor",
+    },
+    MarketingNavSectionLink {
+        label: "FAQ",
+        href: "#founding-faq",
+    },
 ];
 
-// ── Spot availability (server-rendered; update + redeploy to reflect sales) ──
+// ── Spot availability (CMS-overridable via hero_payload.spot_inventory) ───────
 
-struct Spots { total: u32, taken: u32 }
+#[derive(Clone, Copy, Debug)]
+struct Spots {
+    total: u32,
+    taken: u32,
+}
 impl Spots {
-    fn left(&self) -> u32 { self.total.saturating_sub(self.taken) }
-    fn pct(&self) -> u32 { (self.taken * 100) / self.total.max(1) }
+    fn left(&self) -> u32 {
+        self.total.saturating_sub(self.taken)
+    }
+    fn pct(&self) -> u32 {
+        (self.taken * 100) / self.total.max(1)
+    }
 }
 
-// Landlord
-const LL_GROW:     Spots = Spots { total: 500, taken: 47  };
-const LL_PRO:      Spots = Spots { total: 250, taken: 31  };
-const LL_INVESTOR: Spots = Spots { total: 100, taken: 12  };
+#[derive(Clone, Copy, Debug)]
+struct SpotInventory {
+    ll_grow: Spots,
+    ll_pro: Spots,
+    ll_investor: Spots,
+    br_solo: Spots,
+    br_team: Spots,
+    br_firm: Spots,
+    pm_starter: Spots,
+    pm_growth: Spots,
+    vd_pro: Spots,
+}
 
-// Broker
-const BR_SOLO:   Spots = Spots { total: 200, taken: 8  };
-const BR_TEAM:   Spots = Spots { total: 100, taken: 4  };
-const BR_FIRM:   Spots = Spots { total:  50, taken: 1  };
+impl Default for SpotInventory {
+    fn default() -> Self {
+        Self {
+            ll_grow: default_spot(FoundingSpotTier::LlGrow),
+            ll_pro: default_spot(FoundingSpotTier::LlPro),
+            ll_investor: default_spot(FoundingSpotTier::LlInvestor),
+            br_solo: default_spot(FoundingSpotTier::BrSolo),
+            br_team: default_spot(FoundingSpotTier::BrTeam),
+            br_firm: default_spot(FoundingSpotTier::BrFirm),
+            pm_starter: default_spot(FoundingSpotTier::PmStarter),
+            pm_growth: default_spot(FoundingSpotTier::PmGrowth),
+            vd_pro: default_spot(FoundingSpotTier::VdPro),
+        }
+    }
+}
 
-// Property Manager
-const PM_STARTER: Spots = Spots { total: 150, taken: 7  };
-const PM_GROWTH:  Spots = Spots { total:  75, taken: 3  };
+impl SpotInventory {
+    fn set(&mut self, tier: FoundingSpotTier, spots: Spots) {
+        match tier {
+            FoundingSpotTier::LlGrow => self.ll_grow = spots,
+            FoundingSpotTier::LlPro => self.ll_pro = spots,
+            FoundingSpotTier::LlInvestor => self.ll_investor = spots,
+            FoundingSpotTier::BrSolo => self.br_solo = spots,
+            FoundingSpotTier::BrTeam => self.br_team = spots,
+            FoundingSpotTier::BrFirm => self.br_firm = spots,
+            FoundingSpotTier::PmStarter => self.pm_starter = spots,
+            FoundingSpotTier::PmGrowth => self.pm_growth = spots,
+            FoundingSpotTier::VdPro => self.vd_pro = spots,
+        }
+    }
+}
 
-// Vendor
-const VD_PRO: Spots = Spots { total: 300, taken: 19 };
+fn default_spot(tier: FoundingSpotTier) -> Spots {
+    let (total, taken) = tier.default_spots();
+    Spots { total, taken }
+}
+
+fn spot(inventory: Option<&serde_json::Value>, tier: FoundingSpotTier) -> Spots {
+    let fallback = default_spot(tier);
+    let Some(raw) = inventory.and_then(|v| v.get(tier.as_str())) else {
+        return fallback;
+    };
+
+    let total = raw
+        .get("total")
+        .and_then(|v| v.as_u64())
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(fallback.total);
+    let taken = raw
+        .get("taken")
+        .and_then(|v| v.as_u64())
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(fallback.taken);
+
+    Spots { total, taken }
+}
+
+fn spots_from_hero(hero_payload: &serde_json::Value) -> SpotInventory {
+    let inventory = hero_payload.get("spot_inventory");
+    let mut spots = SpotInventory::default();
+    for tier in FoundingSpotTier::ALL {
+        spots.set(*tier, spot(inventory, *tier));
+    }
+    spots
+}
+
+fn text_or(value: Option<String>, fallback: &str) -> String {
+    value
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| fallback.to_string())
+}
 
 // ── Root component ────────────────────────────────────────────────────────────
 
+#[server(LoadFoundingPage, "/api")]
+pub async fn load_founding_page() -> Result<LandingPageData, server_fn::error::ServerFnError> {
+    crate::atlas_client::fetch::<LandingPageData>(
+        &FolioMarketingSlug::FolioFounding.pub_product_path(),
+    )
+        .await
+        .map_err(|e| {
+            server_fn::error::ServerFnError::new(format!("Founding page load failed: {e}"))
+        })
+}
+
 #[component]
 pub fn FoundingMemberPage() -> impl IntoView {
+    let page = Resource::new(|| (), |_| load_founding_page());
+
     view! {
-        <Title text="Folio Founding Member — Lifetime Access, No Monthly Fees"/>
-        <Meta name="description" content="Lock in lifetime access to Folio for a one-time payment. Choose the license for your role — landlord, broker, property manager, or vendor. Limited spots. No monthly fees, ever."/>
+        <Suspense fallback=|| view! { <FoundingDefault data=None/> }>
+            {move || {
+                page.get().map(|result| {
+                    let data = result.ok();
+                    view! { <FoundingDefault data=data/> }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+#[component]
+fn FoundingDefault(data: Option<LandingPageData>) -> impl IntoView {
+    let hero = data
+        .as_ref()
+        .map(|data| HeroContent::from_value(&data.hero_payload))
+        .unwrap_or_default();
+    let spots = data
+        .as_ref()
+        .map(|data| spots_from_hero(&data.hero_payload))
+        .unwrap_or_default();
+    let title = data
+        .as_ref()
+        .and_then(|data| data.meta_title.clone())
+        .unwrap_or_else(|| "Folio Founding Member — Lifetime Access, No Monthly Fees".to_string());
+    let description = data
+        .as_ref()
+        .and_then(|data| data.meta_description.clone())
+        .unwrap_or_else(|| "Lock in lifetime access to Folio for a one-time payment. Choose the license for your role — landlord, broker, property manager, or vendor. Limited spots. No monthly fees, ever.".to_string());
+    let cta_label = text_or(
+        hero.cta_label
+            .clone()
+            .or_else(|| data.as_ref().map(|d| d.cta_label.clone())),
+        "See founding tiers",
+    );
+    let cta_href = text_or(hero.cta_href.clone(), "#founding-landlord");
+
+    view! {
+        <Title text=title.clone()/>
+        <Meta name="description" content=description.clone()/>
+        <Meta property="og:title" content=title/>
+        <Meta property="og:description" content=description/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/founding"/>
 
         <MarketingNav
             section_links=FOUNDING_SECTION_LINKS
-            cta_label="See founding tiers"
+            cta_label=cta_label.clone()
             cta_href="#founding-landlord"
         />
-        <FoundingHero/>
+        <FoundingHero hero=hero cta_label=cta_label cta_href=cta_href/>
         <FoundingWhy/>
-        <FoundingLandlord/>
-        <FoundingBroker/>
-        <FoundingPM/>
-        <FoundingVendor/>
+        <FoundingLandlord spots=spots/>
+        <FoundingBroker spots=spots/>
+        <FoundingPM spots=spots/>
+        <FoundingVendor spots=spots/>
         <FoundingGuarantee/>
         <FoundingFaq/>
         <FoundingCta/>
@@ -83,27 +229,37 @@ pub fn FoundingMemberPage() -> impl IntoView {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 #[component]
-fn FoundingHero() -> impl IntoView {
+fn FoundingHero(hero: HeroContent, cta_label: String, cta_href: String) -> impl IntoView {
+    let eyebrow = text_or(hero.eyebrow, "Founding Member Program · Limited Spots");
+    let headline = text_or(hero.headline, "Pay once.");
+    let headline_accent = text_or(hero.headline_accent, " Use Folio forever.");
+    let subhead = text_or(
+        hero.subhead,
+        "Lock in lifetime access at a price that will never go up. Pick the license that matches what you do — landlord, broker, property manager, or vendor. No subscription. No renewal. No surprises.",
+    );
+
     view! {
         <section id="founding-hero" class="mktg-hero founding-hero">
             <div class="mktg-hero-grid-overlay"></div>
             <div class="mktg-hero-inner" style="text-align:center;max-width:820px;">
                 <div class="mktg-eyebrow" style="color:#f59e0b;">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"workspace_premium"</span>
-                    " Founding Member Program · Limited Spots"
+                    {format!(" {eyebrow}")}
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Pay once."
-                    <span class="mktg-h1-accent"> " Use Folio forever."</span>
+                    {headline}
+                    <span class="mktg-h1-accent">{headline_accent}</span>
                 </h1>
                 <p class="mktg-hero-sub" style="max-width:580px;margin:1.5rem auto 0;">
-                    "Lock in lifetime access at a price that will never go up. \
-                     Pick the license that matches what you do — landlord, broker, \
-                     property manager, or vendor. No subscription. No renewal. No surprises."
+                    {subhead}
                 </p>
 
                 // ── Role jump links ────────────────────────────────────────
                 <div class="founding-jump-links">
+                    <a href=cta_href class="founding-jump-btn" id="jump-cta">
+                        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">"workspace_premium"</span>
+                        {cta_label}
+                    </a>
                     <a href="#founding-landlord" class="founding-jump-btn" id="jump-landlord">
                         <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">"home"</span>
                         "Landlord"
@@ -178,8 +334,8 @@ fn FoundingWhy() -> impl IntoView {
 // ── Shared: Spot Bar ──────────────────────────────────────────────────────────
 
 #[component]
-fn SpotBar(spots: &'static Spots, accent: &'static str) -> impl IntoView {
-    let pct  = spots.pct();
+fn SpotBar(spots: Spots, accent: &'static str) -> impl IntoView {
+    let pct = spots.pct();
     let left = spots.left();
     view! {
         <div class="founding-spot-bar-wrap">
@@ -206,7 +362,7 @@ fn FoundingSignup(
     #[prop(into)] tier_key: String,
     is_featured: bool,
 ) -> impl IntoView {
-    let email     = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
     let submitted = RwSignal::new(false);
     let btn_class = if is_featured {
         "founding-claim-btn founding-claim-btn--featured"
@@ -256,7 +412,7 @@ fn FoundingSignup(
 // ── Landlord Lifetime Section ─────────────────────────────────────────────────
 
 #[component]
-fn FoundingLandlord() -> impl IntoView {
+fn FoundingLandlord(spots: SpotInventory) -> impl IntoView {
     view! {
         <section id="founding-landlord" class="founding-role-section founding-role-landlord">
             <div class="mktg-section-inner">
@@ -274,7 +430,7 @@ fn FoundingLandlord() -> impl IntoView {
                     // Grow Lifetime
                     <div class="founding-tier-card">
                         <div class="founding-tier-name">"Grow Lifetime"</div>
-                        <SpotBar spots=&LL_GROW accent="#06d6a0"/>
+                        <SpotBar spots=spots.ll_grow accent="#06d6a0"/>
                         <div class="founding-price">"$299"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $29/mo · breaks even in 10 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -291,7 +447,7 @@ fn FoundingLandlord() -> impl IntoView {
                     <div class="founding-tier-card founding-tier-featured">
                         <div class="founding-popular-badge">"Most popular"</div>
                         <div class="founding-tier-name">"Pro Lifetime"</div>
-                        <SpotBar spots=&LL_PRO accent="#ff6b35"/>
+                        <SpotBar spots=spots.ll_pro accent="#ff6b35"/>
                         <div class="founding-price">"$799"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $99/mo · breaks even in 8 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -308,7 +464,7 @@ fn FoundingLandlord() -> impl IntoView {
                     // Investor Lifetime
                     <div class="founding-tier-card">
                         <div class="founding-tier-name">"Investor Lifetime"</div>
-                        <SpotBar spots=&LL_INVESTOR accent="#f59e0b"/>
+                        <SpotBar spots=spots.ll_investor accent="#f59e0b"/>
                         <div class="founding-price">"$1,499"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $249/mo · breaks even in 6 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -330,7 +486,7 @@ fn FoundingLandlord() -> impl IntoView {
 // ── Broker Lifetime Section ───────────────────────────────────────────────────
 
 #[component]
-fn FoundingBroker() -> impl IntoView {
+fn FoundingBroker(spots: SpotInventory) -> impl IntoView {
     view! {
         <section id="founding-broker" class="founding-role-section founding-role-alt">
             <div class="mktg-section-inner">
@@ -348,7 +504,7 @@ fn FoundingBroker() -> impl IntoView {
                     // Solo Lifetime
                     <div class="founding-tier-card">
                         <div class="founding-tier-name">"Solo Lifetime"</div>
-                        <SpotBar spots=&BR_SOLO accent="#3b82f6"/>
+                        <SpotBar spots=spots.br_solo accent="#3b82f6"/>
                         <div class="founding-price">"$499"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $99/mo · breaks even in 5 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -365,7 +521,7 @@ fn FoundingBroker() -> impl IntoView {
                     <div class="founding-tier-card founding-tier-featured">
                         <div class="founding-popular-badge">"Most popular"</div>
                         <div class="founding-tier-name">"Team Lifetime"</div>
-                        <SpotBar spots=&BR_TEAM accent="#ff6b35"/>
+                        <SpotBar spots=spots.br_team accent="#ff6b35"/>
                         <div class="founding-price">"$1,499"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $299/mo · 5 seats · breaks even in 5 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -382,7 +538,7 @@ fn FoundingBroker() -> impl IntoView {
                     // Firm Lifetime
                     <div class="founding-tier-card">
                         <div class="founding-tier-name">"Firm Lifetime"</div>
-                        <SpotBar spots=&BR_FIRM accent="#f59e0b"/>
+                        <SpotBar spots=spots.br_firm accent="#f59e0b"/>
                         <div class="founding-price">"$2,999"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $599/mo · 25 seats · breaks even in 5 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -404,7 +560,7 @@ fn FoundingBroker() -> impl IntoView {
 // ── Property Manager Lifetime Section ────────────────────────────────────────
 
 #[component]
-fn FoundingPM() -> impl IntoView {
+fn FoundingPM(spots: SpotInventory) -> impl IntoView {
     view! {
         <section id="founding-pm" class="founding-role-section founding-role-pm">
             <div class="mktg-section-inner">
@@ -422,7 +578,7 @@ fn FoundingPM() -> impl IntoView {
                     // Starter PM Lifetime
                     <div class="founding-tier-card">
                         <div class="founding-tier-name">"Starter PM Lifetime"</div>
-                        <SpotBar spots=&PM_STARTER accent="#a855f7"/>
+                        <SpotBar spots=spots.pm_starter accent="#a855f7"/>
                         <div class="founding-price">"$699"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $149/mo · up to 20 units · breaks even in 5 months"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -439,7 +595,7 @@ fn FoundingPM() -> impl IntoView {
                     <div class="founding-tier-card founding-tier-featured">
                         <div class="founding-popular-badge">"Best value"</div>
                         <div class="founding-tier-name">"Growth PM Lifetime"</div>
-                        <SpotBar spots=&PM_GROWTH accent="#ff6b35"/>
+                        <SpotBar spots=spots.pm_growth accent="#ff6b35"/>
                         <div class="founding-price">"$1,499"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $299/mo · up to 100 units · AppFolio would charge $149+/mo"</div>
                         <ul class="mktg-pricing-features founding-features">
@@ -461,7 +617,7 @@ fn FoundingPM() -> impl IntoView {
 // ── Vendor Lifetime Section ───────────────────────────────────────────────────
 
 #[component]
-fn FoundingVendor() -> impl IntoView {
+fn FoundingVendor(spots: SpotInventory) -> impl IntoView {
     view! {
         <section id="founding-vendor" class="founding-role-section founding-role-alt">
             <div class="mktg-section-inner">
@@ -477,7 +633,7 @@ fn FoundingVendor() -> impl IntoView {
                 <div style="display:grid;grid-template-columns:1fr;gap:2rem;margin-top:2.5rem;max-width:480px;margin-inline:auto;">
                     <div class="founding-tier-card founding-tier-featured" style="text-align:center;">
                         <div class="founding-tier-name">"Vendor Pro Lifetime"</div>
-                        <SpotBar spots=&VD_PRO accent="#06d6a0"/>
+                        <SpotBar spots=spots.vd_pro accent="#06d6a0"/>
                         <div class="founding-price" style="justify-content:center;">"$199"<span class="founding-price-once">" one-time"</span></div>
                         <div class="founding-saves">"Saves $29/mo · 0% platform fee · priority placement forever"</div>
                         <ul class="mktg-pricing-features founding-features" style="text-align:left;max-width:380px;margin-inline:auto;">

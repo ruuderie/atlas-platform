@@ -14,33 +14,95 @@
 //!   - Willing to commit to monthly feedback
 //!   - Role + portfolio size matches what we want to test
 
+use crate::components::marketing_nav::{MarketingNav, MarketingNavSectionLink};
+use crate::pages::marketing::hero_content::HeroContent;
+use crate::pages::marketing::market_landing_page::LandingPageData;
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use crate::components::marketing_nav::{
-    MarketingNav, MarketingNavSectionLink,
-};
+use shared_ui::marketing::{BetaApplicantRole, FolioMarketingSlug};
 
 const BETA_SECTION_LINKS: &[MarketingNavSectionLink] = &[
-    MarketingNavSectionLink { label: "What you get", href: "#beta-what-you-get" },
-    MarketingNavSectionLink { label: "Who we accept", href: "#beta-what-we-look-for" },
-    MarketingNavSectionLink { label: "Apply", href: "#beta-apply" },
+    MarketingNavSectionLink {
+        label: "What you get",
+        href: "#beta-what-you-get",
+    },
+    MarketingNavSectionLink {
+        label: "Who we accept",
+        href: "#beta-what-we-look-for",
+    },
+    MarketingNavSectionLink {
+        label: "Apply",
+        href: "#beta-apply",
+    },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+fn text_or(value: Option<String>, fallback: &str) -> String {
+    value
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+#[server(LoadBetaPage, "/api")]
+pub async fn load_beta_page() -> Result<LandingPageData, server_fn::error::ServerFnError> {
+    crate::atlas_client::fetch::<LandingPageData>(&FolioMarketingSlug::FolioBeta.pub_product_path())
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Beta page load failed: {e}")))
+}
+
 #[component]
 pub fn BetaProgramPage() -> impl IntoView {
+    let page = Resource::new(|| (), |_| load_beta_page());
+
     view! {
-        <Title text="Folio Beta Program — Apply for Discounted Early Access"/>
-        <Meta name="description" content="Apply to join the Folio beta program. Get discounted access during beta in exchange for real usage and feedback. Limited spots. We review every application."/>
+        <Suspense fallback=|| view! { <BetaDefault data=None/> }>
+            {move || {
+                page.get().map(|result| {
+                    let data = result.ok();
+                    view! { <BetaDefault data=data/> }
+                })
+            }}
+        </Suspense>
+    }
+}
+
+#[component]
+fn BetaDefault(data: Option<LandingPageData>) -> impl IntoView {
+    let hero = data
+        .as_ref()
+        .map(|data| HeroContent::from_value(&data.hero_payload))
+        .unwrap_or_default();
+    let title = data
+        .as_ref()
+        .and_then(|data| data.meta_title.clone())
+        .unwrap_or_else(|| "Folio Beta Program — Apply for Discounted Early Access".to_string());
+    let description = data
+        .as_ref()
+        .and_then(|data| data.meta_description.clone())
+        .unwrap_or_else(|| "Apply to join the Folio beta program. Get discounted access during beta in exchange for real usage and feedback. Limited spots. We review every application.".to_string());
+    let cta_label = text_or(
+        hero.cta_label
+            .clone()
+            .or_else(|| data.as_ref().map(|d| d.cta_label.clone())),
+        "Apply now",
+    );
+    let cta_href = text_or(hero.cta_href.clone(), "#beta-apply");
+
+    view! {
+        <Title text=title.clone()/>
+        <Meta name="description" content=description.clone()/>
+        <Meta property="og:title" content=title/>
+        <Meta property="og:description" content=description/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/beta"/>
 
         <MarketingNav
             section_links=BETA_SECTION_LINKS
-            cta_label="Apply now"
+            cta_label=cta_label.clone()
             cta_href="#beta-apply"
         />
-        <BetaHero/>
+        <BetaHero hero=hero cta_label=cta_label cta_href=cta_href/>
         <BetaWhatYouGet/>
         <BetaWhatWeLookFor/>
         <BetaApplication/>
@@ -51,27 +113,36 @@ pub fn BetaProgramPage() -> impl IntoView {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 #[component]
-fn BetaHero() -> impl IntoView {
+fn BetaHero(hero: HeroContent, cta_label: String, cta_href: String) -> impl IntoView {
+    let eyebrow = text_or(
+        hero.eyebrow,
+        "Beta Program · Application Required · Limited Spots",
+    );
+    let headline = text_or(hero.headline, "Discounted access.");
+    let headline_accent = text_or(hero.headline_accent, " Real feedback.");
+    let subhead = text_or(
+        hero.subhead,
+        "We're opening a curated beta program for active landlords, brokers, property managers, and vendors. If accepted, you get full access to Folio at a discounted rate during the beta period — in exchange for real usage and honest feedback.",
+    );
+
     view! {
         <section class="mktg-hero" style="background:linear-gradient(160deg,#0a1628 0%,#0c1a30 50%,#070d18 100%);">
             <div class="mktg-hero-grid-overlay"></div>
             <div class="mktg-hero-inner" style="text-align:center;max-width:760px;">
                 <div class="mktg-eyebrow" style="color:#06d6a0;">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"science"</span>
-                    " Beta Program · Application Required · Limited Spots"
+                    {format!(" {eyebrow}")}
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Discounted access."
-                    <span class="mktg-h1-accent"> " Real feedback."</span>
+                    {headline}
+                    <span class="mktg-h1-accent">{headline_accent}</span>
                 </h1>
                 <p class="mktg-hero-sub" style="max-width:580px;margin:1.5rem auto 0;">
-                    "We're opening a curated beta program for active landlords, brokers, \
-                     property managers, and vendors. If accepted, you get full access to Folio \
-                     at a discounted rate during the beta period — in exchange for real usage and honest feedback."
+                    {subhead}
                 </p>
 
                 <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:2rem;">
-                    <a href="#beta-apply" class="mktg-btn-accent mktg-btn-lg" id="beta-hero-cta">"Apply for beta →"</a>
+                    <a href=cta_href class="mktg-btn-accent mktg-btn-lg" id="beta-hero-cta">{format!("{cta_label} →")}</a>
                     <a href="/founding" class="mktg-btn-ghost-sm" rel="external">"See founding member pricing"</a>
                 </div>
 
@@ -193,22 +264,30 @@ fn BetaWhatWeLookFor() -> impl IntoView {
 #[component]
 fn BetaApplication() -> impl IntoView {
     // Form state
-    let first_name    = RwSignal::new(String::new());
-    let last_name     = RwSignal::new(String::new());
-    let email         = RwSignal::new(String::new());
-    let role          = RwSignal::new(String::new());
+    let first_name = RwSignal::new(String::new());
+    let last_name = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
+    let role = RwSignal::new(String::new());
     let portfolio_size = RwSignal::new(String::new());
-    let current_tool  = RwSignal::new(String::new());
-    let pain_point    = RwSignal::new(String::new());
-    let is_active     = RwSignal::new(String::new());
+    let current_tool = RwSignal::new(String::new());
+    let pain_point = RwSignal::new(String::new());
+    let is_active = RwSignal::new(String::new());
     let feedback_call = RwSignal::new(String::new());
-    let why_beta      = RwSignal::new(String::new());
-    let submitted     = RwSignal::new(false);
-    let error_msg     = RwSignal::new(String::new());
+    let why_beta = RwSignal::new(String::new());
+    let submitted = RwSignal::new(false);
+    let is_submitting = RwSignal::new(false);
+    let error_msg = RwSignal::new(String::new());
 
     let on_submit = move |_| {
         // Client-side validation
-        if email.get().is_empty() || role.get().is_empty() || why_beta.get().len() < 20 {
+        if first_name.get().trim().is_empty()
+            || last_name.get().trim().is_empty()
+            || email.get().trim().is_empty()
+            || role.get().trim().is_empty()
+            || portfolio_size.get().trim().is_empty()
+            || feedback_call.get().trim().is_empty()
+            || why_beta.get().trim().len() < 20
+        {
             error_msg.set("Please fill in all required fields.".to_string());
             return;
         }
@@ -216,10 +295,68 @@ fn BetaApplication() -> impl IntoView {
             error_msg.set("The beta program is for operators with an active portfolio or client base. Apply again when you're ready to go.".to_string());
             return;
         }
+        if is_submitting.get() {
+            return;
+        }
         error_msg.set(String::new());
-        submitted.set(true);
-        // TODO: POST to /api/pub/beta-applications with all fields
-        // Uses atlas_lead source="beta_application" + raw_data JSONB for extended fields
+        is_submitting.set(true);
+
+        let first_name_value = first_name.get();
+        let last_name_value = last_name.get();
+        let email_value = email.get();
+        let role_value = match BetaApplicantRole::try_from(role.get().as_str()) {
+            Ok(role) => role.as_str().to_string(),
+            Err(_) => {
+                error_msg.set("Please select a valid role.".to_string());
+                return;
+            }
+        };
+        let portfolio_size_value = portfolio_size.get();
+        let current_tool_value = current_tool.get();
+        let pain_point_value = pain_point.get();
+        let is_active_value = is_active.get();
+        let feedback_call_value = feedback_call.get();
+        let why_beta_value = why_beta.get();
+
+        leptos::task::spawn_local(async move {
+            let body = serde_json::json!({
+                "first_name": first_name_value,
+                "last_name": last_name_value,
+                "email": email_value,
+                "role": role_value,
+                "portfolio_size_label": portfolio_size_value,
+                "current_tool": current_tool_value,
+                "pain_point": pain_point_value,
+                "is_active": is_active_value,
+                "feedback_call": feedback_call_value,
+                "why_beta": why_beta_value,
+                "source": "beta_application"
+            });
+
+            let result = gloo_net::http::Request::post("/api/pub/beta-applications")
+                .header("Content-Type", "application/json")
+                .body(body.to_string())
+                .unwrap()
+                .send()
+                .await;
+
+            is_submitting.set(false);
+            match result {
+                Ok(resp) if resp.ok() => submitted.set(true),
+                Ok(resp) => {
+                    error_msg.set(format!(
+                        "We couldn't submit your application yet ({}). Please try again.",
+                        resp.status()
+                    ));
+                }
+                Err(_) => {
+                    error_msg.set(
+                        "We couldn't submit your application yet. Check your connection and try again."
+                            .to_string(),
+                    );
+                }
+            }
+        });
     };
 
     view! {
@@ -288,11 +425,9 @@ fn BetaApplication() -> impl IntoView {
                                     on:change=move |e| role.set(event_target_value(&e))
                                 >
                                     <option value="">"Select your role"</option>
-                                    <option value="landlord">"Landlord / Real estate investor"</option>
-                                    <option value="str-host">"Short-term rental (STR) host"</option>
-                                    <option value="broker">"Licensed broker / Real estate agent"</option>
-                                    <option value="property-manager">"Property manager / Management company"</option>
-                                    <option value="vendor">"Vendor / Contractor / Service provider"</option>
+                                    {BetaApplicantRole::ALL.iter().map(|role| view! {
+                                        <option value=role.as_str()>{role.label()}</option>
+                                    }).collect_view()}
                                 </select>
                             </div>
 
@@ -410,9 +545,16 @@ fn BetaApplication() -> impl IntoView {
                                 type="button"
                                 class="beta-submit-btn"
                                 id="beta-submit"
+                                disabled=move || is_submitting.get()
                                 on:click=on_submit
                             >
-                                "Submit application"
+                                {move || {
+                                    if is_submitting.get() {
+                                        "Submitting..."
+                                    } else {
+                                        "Submit application"
+                                    }
+                                }}
                                 <span class="material-symbols-outlined" style="font-size:18px">"send"</span>
                             </button>
 

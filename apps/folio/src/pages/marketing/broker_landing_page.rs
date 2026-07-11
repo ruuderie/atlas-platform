@@ -18,9 +18,14 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
+use shared_ui::marketing::FolioMarketingSlug;
 
 use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
-use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::block_renderer::{
+    has_full_page_block, parse_section_blocks, BetaStripBlock, BlockRenderer, CtaBlock,
+    FeatureGridBlock, FooterBlock, SectionBlocks,
+};
+use crate::pages::marketing::hero_content::HeroContent;
 use crate::pages::marketing::market_landing_page::fire_lp_view_event;
 use crate::pages::marketing::marketing_pricing::{
     MarketingPlan, MarketingPricingGrid, PlanBillingInterval,
@@ -51,7 +56,7 @@ pub async fn load_broker_page() -> Result<
     server_fn::error::ServerFnError,
 > {
     crate::atlas_client::fetch::<crate::pages::marketing::market_landing_page::LandingPageData>(
-        "/api/pub/products/folio-broker",
+        &FolioMarketingSlug::FolioBroker.pub_product_path(),
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Broker page load failed: {e}")))
@@ -67,10 +72,16 @@ pub fn BrokerLandingPage() -> impl IntoView {
         <Suspense fallback=|| view! { <BrokerSkeleton/> }>
             {move || page.get().map(|result| {
                 match result {
-                    Ok(data) if has_cms_blocks(&data.blocks_payload) => {
+                    Ok(data) if has_full_page_block(&data.blocks_payload) => {
                         let title = data.meta_title.clone().unwrap_or_else(|| data.product_name.clone());
                         let description = data.meta_description.clone().unwrap_or_default();
                         let plans = data.plans.clone();
+                        let hero = HeroContent::from_value(&data.hero_payload);
+                        let cta_label = if data.cta_label.trim().is_empty() {
+                            "Get early access".to_string()
+                        } else {
+                            data.cta_label.clone()
+                        };
                         fire_lp_view_event(data.page_id, data.variant_id);
                         view! {
                             <Title text=title.clone()/>
@@ -82,17 +93,35 @@ pub fn BrokerLandingPage() -> impl IntoView {
                                 <MarketingNav
                                     active=MarketingNavRole::Brokers
                                     section_links=BROKER_SECTION_LINKS
-                                    cta_label="Get early access"
+                                    cta_label=cta_label
                                     cta_href="/#waitlist-wrap"
                                 />
                                 <BlockRenderer hero=data.hero_payload blocks=data.blocks_payload/>
-                                <BrokerPricing plans=plans/>
+                                <BrokerPricing plans=plans hero=hero/>
                                 <BrokerFooter/>
                             </div>
                         }.into_any()
                     }
-                    Ok(data) => view! { <BrokerDefault plans=data.plans/> }.into_any(),
-                    Err(_) => view! { <BrokerDefault plans=Vec::new()/> }.into_any(),
+                    Ok(data) => {
+                        let hero = HeroContent::from_value(&data.hero_payload);
+                        let section_blocks = parse_section_blocks(&data.blocks_payload);
+                        view! {
+                            <BrokerDefault
+                                plans=data.plans
+                                hero=hero
+                                cta_label=data.cta_label
+                                section_blocks=section_blocks
+                            />
+                        }.into_any()
+                    }
+                    Err(_) => view! {
+                        <BrokerDefault
+                            plans=Vec::new()
+                            hero=HeroContent::default()
+                            cta_label="Get early access".to_string()
+                            section_blocks=SectionBlocks::default()
+                        />
+                    }.into_any(),
                 }
             })}
         </Suspense>
@@ -102,9 +131,26 @@ pub fn BrokerLandingPage() -> impl IntoView {
 // ── Default hardcoded content (used until DB record is published) ─────────────
 
 #[component]
-fn BrokerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
+fn BrokerDefault(
+    plans: Vec<MarketingPlan>,
+    hero: HeroContent,
+    cta_label: String,
+    section_blocks: SectionBlocks,
+) -> impl IntoView {
     let title = "Folio for Brokers & Real Estate Agents — Run Your Whole Brokerage";
     let description = "Listing management, buyer & seller CRM, commission tracking, and agent accounts — built for licensed brokers and real estate teams.";
+    let nav_cta_label = if cta_label.trim().is_empty() {
+        "Get early access".to_string()
+    } else {
+        cta_label.clone()
+    };
+    let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
+        block
+            .items
+            .iter()
+            .map(|item| (item.label.clone(), item.href.clone()))
+            .collect::<Vec<_>>()
+    });
 
     view! {
         <Title text=title/>
@@ -119,18 +165,19 @@ fn BrokerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
             <MarketingNav
                 active=MarketingNavRole::Brokers
                 section_links=BROKER_SECTION_LINKS
-                cta_label="Get early access"
+                section_link_overrides=nav_links
+                cta_label=nav_cta_label
                 cta_href="/#waitlist-wrap"
             />
-            <BrokerHero/>
-            <BrokerFeatures/>
+            <BrokerHero hero=hero.clone() cta_label=cta_label/>
+            <BrokerFeatures override_block=section_blocks.feature_grid.clone()/>
             <BrokerPortals/>
             <BrokerAgents/>
             <BrokerAppPreview/>
-            <BrokerPricing plans=plans/>
-            <BrokerCta/>
-            <BetaCalloutStrip/>
-        <BrokerFooter/>
+            <BrokerPricing plans=plans hero=hero/>
+            <BrokerCta override_block=section_blocks.cta.clone()/>
+            <BetaCalloutStrip override_block=section_blocks.beta_strip.clone()/>
+            <BrokerFooter override_block=section_blocks.footer.clone()/>
         </div>
     }
 }
@@ -138,49 +185,71 @@ fn BrokerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
 // ── Hero ─────────────────────────────────────────────────────────────────────
 
 #[component]
-fn BrokerHero() -> impl IntoView {
+fn BrokerHero(hero: HeroContent, cta_label: String) -> impl IntoView {
+    let eyebrow = hero.eyebrow.clone().unwrap_or_else(|| {
+        "Beta Access Open · Built for licensed brokers & real estate teams".to_string()
+    });
+    let headline = hero
+        .headline
+        .clone()
+        .unwrap_or_else(|| "Close more deals.".to_string());
+    let headline_accent = hero
+        .headline_accent
+        .clone()
+        .unwrap_or_else(|| " Keep your commission straight.".to_string());
+    let subhead = hero.subhead.clone().unwrap_or_else(|| {
+        "Folio is the brokerage platform that connects your listing pipeline, client portals, agent accounts, and commission ledger — under your brand, without the enterprise price tag.".to_string()
+    });
+    let proof_items = if hero.proof_items.is_empty() {
+        vec![
+            "Multi-client portfolio".to_string(),
+            "Branded owner portals".to_string(),
+            "Agent accounts".to_string(),
+            "Commission tracking".to_string(),
+        ]
+    } else {
+        hero.proof_items
+            .iter()
+            .filter(|item| !item.trim().is_empty())
+            .cloned()
+            .collect()
+    };
+    let primary_cta = if cta_label.trim().is_empty() {
+        "Reserve beta access →".to_string()
+    } else {
+        cta_label
+    };
+
     view! {
         <section id="broker-hero" class="mktg-hero">
             <div class="mktg-hero-grid-overlay"></div>
             <div class="mktg-hero-inner">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"science"</span>
-                    " Beta Access Open · Built for licensed brokers & real estate teams"
+                    " "
+                    {eyebrow}
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Close more deals."
-                    <span class="mktg-h1-accent"> " Keep your commission straight."</span>
+                    {headline}
+                    <span class="mktg-h1-accent"> {headline_accent}</span>
                 </h1>
                 <p class="mktg-hero-sub">
-                    "Folio is the brokerage platform that connects your listing pipeline, client portals, \
-                     agent accounts, and commission ledger — under your brand, without the enterprise price tag."
+                    {subhead}
                 </p>
 
                 <div class="mktg-proof-strip" style="margin-top:32px">
-                    <span class="mktg-proof-item">
-                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                        "Multi-client portfolio"
-                    </span>
-                    <span class="mktg-proof-sep"></span>
-                    <span class="mktg-proof-item">
-                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                        "Branded owner portals"
-                    </span>
-                    <span class="mktg-proof-sep"></span>
-                    <span class="mktg-proof-item">
-                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                        "Agent accounts"
-                    </span>
-                    <span class="mktg-proof-sep"></span>
-                    <span class="mktg-proof-item">
-                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                        "Commission tracking"
-                    </span>
+                    {proof_items.iter().enumerate().map(|(idx, item)| view! {
+                        {(idx > 0).then(|| view! { <span class="mktg-proof-sep"></span> })}
+                        <span class="mktg-proof-item">
+                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
+                            {item.clone()}
+                        </span>
+                    }).collect_view()}
                 </div>
 
                 <div style="margin-top:40px;display:flex;gap:16px;flex-wrap:wrap">
                     <a href="/#waitlist-wrap" class="mktg-btn-accent mktg-btn-lg" id="broker-hero-cta">
-                        "Reserve beta access →"
+                        {primary_cta}
                     </a>
                     <a href="/login" class="mktg-btn-signin" style="padding:14px 24px;font-size:15px" id="broker-hero-signin" rel="external">
                         "Sign in"
@@ -194,8 +263,19 @@ fn BrokerHero() -> impl IntoView {
 // ── Feature grid ──────────────────────────────────────────────────────────────
 
 #[component]
-fn BrokerFeatures() -> impl IntoView {
-    let features = vec![
+fn BrokerFeatures(
+    #[prop(default = None)] override_block: Option<FeatureGridBlock>,
+) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "The platform".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Built for the way brokerages actually run.".to_string());
+    // CMS section blocks overlay these defaults when seeded.
+    let default_features = vec![
         ("home_work",    "Listing management",           "Manage all your active, pending, and closed listings in one place. Track price changes, days on market, and showing history per property."),
         ("group",        "Buyer & seller CRM",           "Every buyer and seller has a profile with their timeline, preferences, offers, and communication history. Never lose track of a deal."),
         ("payments",     "Commission tracking",          "Define commission splits per deal or per agent. Folio calculates what you're owed at close and keeps a running ledger."),
@@ -205,12 +285,26 @@ fn BrokerFeatures() -> impl IntoView {
         ("calendar_month", "Showing & appointment scheduler", "Coordinate showings across your team. Buyers, sellers, and agents see the same calendar with no double bookings."),
         ("language",     "US · Canada · Brazil",          "Operate across borders. Folio handles local compliance, licensing rules, and currency so you don't have to."),
     ];
+    let features: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.title, item.description))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_features
+                .into_iter()
+                .map(|(icon, title, desc)| (icon.to_string(), title.to_string(), desc.to_string()))
+                .collect()
+        });
 
     view! {
         <section id="broker-features" class="mktg-section mktg-features">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"The platform"</p>
-                <h2 class="mktg-section-h2">"Built for the way brokerages actually run."</h2>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
                 <div class="mktg-feature-grid">
                     {features.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-feature-cell">
@@ -301,7 +395,7 @@ fn BrokerAgents() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn BrokerPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
+fn BrokerPricing(plans: Vec<MarketingPlan>, hero: HeroContent) -> impl IntoView {
     let plans = if plans.is_empty() {
         broker_fallback_plans()
     } else {
@@ -312,15 +406,16 @@ fn BrokerPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
         <MarketingPricingGrid
             plans=plans
             section_id="broker-pricing".to_string()
-            eyebrow="Pricing".to_string()
-            heading="Priced for your team, not per listing.".to_string()
-            subtitle="Every seat includes the full platform. Pick the plan that fits your team size — upgrade as you grow.".to_string()
+            eyebrow=hero.pricing_eyebrow.clone().unwrap_or_else(|| "Pricing".to_string())
+            heading=hero.pricing_heading.clone().unwrap_or_else(|| "Priced for your team, not per listing.".to_string())
+            subtitle=hero.pricing_subtitle.clone().unwrap_or_else(|| "Every seat includes the full platform. Pick the plan that fits your team size — upgrade as you grow.".to_string())
             default_cta_href="/#waitlist-wrap".to_string()
         />
     }
 }
 
 fn broker_fallback_plans() -> Vec<MarketingPlan> {
+    // CMS/product pricing overlays this fallback once plans are seeded.
     vec![
         MarketingPlan {
             slug: "solo".into(),
@@ -403,18 +498,36 @@ fn broker_fallback_plans() -> Vec<MarketingPlan> {
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
 
 #[component]
-fn BrokerCta() -> impl IntoView {
+fn BrokerCta(#[prop(default = None)] override_block: Option<CtaBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Limited beta spots available".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Be one of the first brokerages inside.".to_string());
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| "Join the waitlist for exclusive early access. Beta members help shape the brokerage features and lock in founder pricing before we open to the public.".to_string());
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Reserve my beta spot →".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "/#waitlist-wrap".to_string());
+
     view! {
         <section class="mktg-cta-section">
             <div class="mktg-section-inner mktg-cta-inner">
-                <p class="mktg-section-eyebrow" style="color:#f59e0b;">"Limited beta spots available"</p>
-                <h2 class="mktg-cta-h2">"Be one of the first brokerages inside."</h2>
-                <p class="mktg-cta-sub">
-                    "Join the waitlist for exclusive early access. Beta members help shape \
-                     the brokerage features and lock in founder pricing before we open to the public."
-                </p>
-                <a href="/#waitlist-wrap" class="mktg-btn-accent mktg-btn-lg" id="broker-cta-btn">
-                    "Reserve my beta spot →"
+                <p class="mktg-section-eyebrow" style="color:#f59e0b;">{eyebrow}</p>
+                <h2 class="mktg-cta-h2">{heading}</h2>
+                <p class="mktg-cta-sub">{subhead}</p>
+                <a href=button_href class="mktg-btn-accent mktg-btn-lg" id="broker-cta-btn">
+                    {button_label}
                 </a>
                 <p style="margin-top:16px;font-size:12px;color:#9ca3af;">"No credit card. No contracts. Cancel anytime."</p>
             </div>
@@ -425,18 +538,37 @@ fn BrokerCta() -> impl IntoView {
 // ── Beta program callout strip ────────────────────────────────────────────────
 
 #[component]
-fn BetaCalloutStrip() -> impl IntoView {
+fn BetaCalloutStrip(
+    #[prop(default = None)] override_block: Option<BetaStripBlock>,
+) -> impl IntoView {
+    let title = override_block
+        .as_ref()
+        .and_then(|block| block.title.clone())
+        .unwrap_or_else(|| "Apply for the Folio Beta Program".to_string());
+    let body = override_block
+        .as_ref()
+        .and_then(|block| block.body.clone())
+        .unwrap_or_else(|| "Get discounted access during beta in exchange for real feedback. We review every application — accepted members shape the product roadmap.".to_string());
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Apply now".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "/beta".to_string());
+
     view! {
         <div class="mktg-section-inner">
             <div class="beta-callout-strip">
                 <span class="material-symbols-outlined beta-callout-strip-icon"
                       style="font-variation-settings:'FILL' 1">"science"</span>
                 <div class="beta-callout-text">
-                    <strong>"Apply for the Folio Beta Program"</strong>
-                    <p>"Get discounted access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
+                    <strong>{title}</strong>
+                    <p>{body}</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta" rel="external">
-                    "Apply now"
+                <a href=button_href class="beta-callout-cta" id="beta-strip-cta" rel="external">
+                    {button_label}
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
                 </a>
             </div>
@@ -447,19 +579,39 @@ fn BetaCalloutStrip() -> impl IntoView {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 #[component]
-fn BrokerFooter() -> impl IntoView {
+fn BrokerFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    let tagline = override_block
+        .as_ref()
+        .and_then(|block| block.tagline.clone())
+        .unwrap_or_else(|| "Modern Landlord OS · Broker Edition".to_string());
+    let links: Vec<(String, String)> = override_block
+        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
+        .map(|links| {
+            links
+                .into_iter()
+                .map(|link| (link.label, link.href))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                ("← Main page".to_string(), "/".to_string()),
+                ("Sign in".to_string(), "/login".to_string()),
+                ("Pricing".to_string(), "#broker-pricing".to_string()),
+                ("Features".to_string(), "#broker-features".to_string()),
+            ]
+        });
+
     view! {
         <footer class="mktg-footer">
             <div class="mktg-footer-inner">
                 <div>
                     <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"Modern Landlord OS · Broker Edition"</div>
+                    <div class="mktg-footer-tagline">{tagline}</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/" rel="external">"← Main page"</a>
-                    <a href="/login" rel="external">"Sign in"</a>
-                    <a href="#broker-pricing">"Pricing"</a>
-                    <a href="#broker-features">"Features"</a>
+                    {links.into_iter().map(|(label, href)| view! {
+                        <a href=href rel="external">{label}</a>
+                    }).collect_view()}
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

@@ -14,13 +14,18 @@
 //! this page independently.
 
 use crate::components::marketing_nav::{MarketingNav, MarketingNavRole, MarketingNavSectionLink};
-use crate::pages::marketing::block_renderer::{has_cms_blocks, BlockRenderer};
+use crate::pages::marketing::block_renderer::{
+    has_full_page_block, parse_section_blocks, BetaStripBlock, BlockRenderer, CtaBlock,
+    FeatureGridBlock, FooterBlock, SectionBlocks,
+};
+use crate::pages::marketing::hero_content::HeroContent;
 use crate::pages::marketing::market_landing_page::fire_lp_view_event;
 use crate::pages::marketing::marketing_pricing::{
     MarketingPlan, MarketingPricingGrid, PlanBillingInterval,
 };
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
+use shared_ui::marketing::FolioMarketingSlug;
 
 const PM_SECTION_LINKS: &[MarketingNavSectionLink] = &[
     MarketingNavSectionLink {
@@ -45,7 +50,7 @@ pub async fn load_property_manager_page() -> Result<
     server_fn::error::ServerFnError,
 > {
     crate::atlas_client::fetch::<crate::pages::marketing::market_landing_page::LandingPageData>(
-        "/api/pub/products/folio-pm",
+        &FolioMarketingSlug::FolioPm.pub_product_path(),
     )
     .await
     .map_err(|e| {
@@ -60,13 +65,26 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
     let page = Resource::new(|| (), |_| load_property_manager_page());
 
     view! {
-        <Suspense fallback=|| view! { <PropertyManagerDefault plans=Vec::new()/> }>
+        <Suspense fallback=|| view! {
+            <PropertyManagerDefault
+                plans=Vec::new()
+                hero=HeroContent::default()
+                cta_label="Get early access".to_string()
+                section_blocks=SectionBlocks::default()
+            />
+        }>
             {move || page.get().map(|result| {
                 match result {
-                    Ok(data) if has_cms_blocks(&data.blocks_payload) => {
+                    Ok(data) if has_full_page_block(&data.blocks_payload) => {
                         let title = data.meta_title.clone().unwrap_or_else(|| data.product_name.clone());
                         let description = data.meta_description.clone().unwrap_or_default();
                         let plans = data.plans.clone();
+                        let hero = HeroContent::from_value(&data.hero_payload);
+                        let cta_label = if data.cta_label.trim().is_empty() {
+                            "Get early access".to_string()
+                        } else {
+                            data.cta_label.clone()
+                        };
                         fire_lp_view_event(data.page_id, data.variant_id);
                         view! {
                             <Title text=title.clone()/>
@@ -78,17 +96,35 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
                                 <MarketingNav
                                     active=MarketingNavRole::PropertyManagers
                                     section_links=PM_SECTION_LINKS
-                                    cta_label="Get early access"
+                                    cta_label=cta_label
                                     cta_href="#pm-waitlist"
                                 />
                                 <BlockRenderer hero=data.hero_payload blocks=data.blocks_payload/>
-                                <PmPricing plans=plans/>
+                                <PmPricing plans=plans hero=hero/>
                                 <PmFooter/>
                             </div>
                         }.into_any()
                     }
-                    Ok(data) => view! { <PropertyManagerDefault plans=data.plans/> }.into_any(),
-                    Err(_) => view! { <PropertyManagerDefault plans=Vec::new()/> }.into_any(),
+                    Ok(data) => {
+                        let hero = HeroContent::from_value(&data.hero_payload);
+                        let section_blocks = parse_section_blocks(&data.blocks_payload);
+                        view! {
+                            <PropertyManagerDefault
+                                plans=data.plans
+                                hero=hero
+                                cta_label=data.cta_label
+                                section_blocks=section_blocks
+                            />
+                        }.into_any()
+                    }
+                    Err(_) => view! {
+                        <PropertyManagerDefault
+                            plans=Vec::new()
+                            hero=HeroContent::default()
+                            cta_label="Get early access".to_string()
+                            section_blocks=SectionBlocks::default()
+                        />
+                    }.into_any(),
                 }
             })}
         </Suspense>
@@ -96,7 +132,25 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
 }
 
 #[component]
-fn PropertyManagerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
+fn PropertyManagerDefault(
+    plans: Vec<MarketingPlan>,
+    hero: HeroContent,
+    cta_label: String,
+    section_blocks: SectionBlocks,
+) -> impl IntoView {
+    let nav_cta_label = if cta_label.trim().is_empty() {
+        "Get early access".to_string()
+    } else {
+        cta_label.clone()
+    };
+    let nav_links = section_blocks.nav_sections.as_ref().map(|block| {
+        block
+            .items
+            .iter()
+            .map(|item| (item.label.clone(), item.href.clone()))
+            .collect::<Vec<_>>()
+    });
+
     view! {
         <Title text="Folio for Property Managers – Run Every Portfolio, Bill Every Owner"/>
         <Meta name="description" content="Folio gives property managers owner portals, trust accounting, maintenance dispatch, and multi-portfolio billing in one platform. Start free, scale to hundreds of units."/>
@@ -105,27 +159,78 @@ fn PropertyManagerDefault(plans: Vec<MarketingPlan>) -> impl IntoView {
         <MarketingNav
             active=MarketingNavRole::PropertyManagers
             section_links=PM_SECTION_LINKS
-            cta_label="Get early access"
+            section_link_overrides=nav_links
+            cta_label=nav_cta_label
             cta_href="#pm-waitlist"
         />
-        <PmHero/>
+        <PmHero hero=hero.clone() cta_label=cta_label/>
         <PmProblem/>
-        <PmFeatures/>
+        <PmFeatures override_block=section_blocks.feature_grid.clone()/>
         <PmOwnerPortal/>
         <PmAppPreview/>
-        <PmPricing plans=plans/>
-        <PmCta/>
-        <BetaCalloutStrip/>
-        <PmFooter/>
+        <PmPricing plans=plans hero=hero/>
+        <PmCta override_block=section_blocks.cta.clone()/>
+        <BetaCalloutStrip override_block=section_blocks.beta_strip.clone()/>
+        <PmFooter override_block=section_blocks.footer.clone()/>
     }
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 #[component]
-fn PmHero() -> impl IntoView {
+fn PmHero(hero: HeroContent, cta_label: String) -> impl IntoView {
+    let eyebrow = hero.eyebrow.clone().unwrap_or_else(|| {
+        "Built for property managers & PMCs · Multi-portfolio edition".to_string()
+    });
+    let headline = hero
+        .headline
+        .clone()
+        .unwrap_or_else(|| "Manage every portfolio.".to_string());
+    let headline_accent = hero
+        .headline_accent
+        .clone()
+        .unwrap_or_else(|| " Impress every owner.".to_string());
+    let subhead = hero.subhead.clone().unwrap_or_else(|| {
+        "Professional property management runs on owner trust. Folio gives you branded portals, automated statements, trust accounting, and maintenance dispatch — so you run like a firm of 50, even when you're a team of three.".to_string()
+    });
+    let primary_cta = if cta_label.trim().is_empty() {
+        "Get early access".to_string()
+    } else {
+        cta_label
+    };
+    let primary_cta = RwSignal::new(primary_cta);
     let email = RwSignal::new(String::new());
     let submitted = RwSignal::new(false);
+    let loading = RwSignal::new(false);
+    let err_msg = RwSignal::new(String::new());
+    let submit = move |_| {
+        if loading.get() || email.get().trim().is_empty() {
+            return;
+        }
+        loading.set(true);
+        err_msg.set(String::new());
+        let e = email.get();
+        leptos::task::spawn_local(async move {
+            let body = serde_json::json!({
+                "email": e,
+                "role": "Property Manager"
+            });
+            let resp = gloo_net::http::Request::post(&FolioMarketingSlug::FolioPm.waitlist_path())
+                .header("Content-Type", "application/json")
+                .body(body.to_string())
+                .unwrap()
+                .send()
+                .await;
+            loading.set(false);
+            match resp {
+                Ok(r) if r.ok() => submitted.set(true),
+                Ok(_) => {
+                    err_msg.set("We couldn't join the waitlist. Please try again.".to_string())
+                }
+                Err(_) => err_msg.set("Network issue. Please try again in a moment.".to_string()),
+            }
+        });
+    };
 
     view! {
         <section id="pm-hero" class="mktg-hero">
@@ -133,16 +238,15 @@ fn PmHero() -> impl IntoView {
             <div class="mktg-hero-inner" style="text-align:center;max-width:800px;">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"business_center"</span>
-                    " Built for property managers & PMCs · Multi-portfolio edition"
+                    " "
+                    {eyebrow}
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Manage every portfolio."
-                    <span class="mktg-h1-accent"> " Impress every owner."</span>
+                    {headline}
+                    <span class="mktg-h1-accent"> {headline_accent}</span>
                 </h1>
                 <p class="mktg-hero-sub" style="max-width:580px;margin:1.5rem auto 0;">
-                    "Professional property management runs on owner trust. Folio gives you \
-                     branded portals, automated statements, trust accounting, and maintenance dispatch \
-                     — so you run like a firm of 50, even when you're a team of three."
+                    {subhead}
                 </p>
 
                 // ── Inline lead capture ────────────────────────────────────
@@ -158,6 +262,7 @@ fn PmHero() -> impl IntoView {
                             </div>
                         }.into_any()
                     } else {
+                        let primary_cta_label = primary_cta.get();
                         view! {
                             <div class="mktg-wl-row">
                                 <input
@@ -171,13 +276,15 @@ fn PmHero() -> impl IntoView {
                                 <button
                                     class="mktg-btn-accent"
                                     id="pm-hero-cta"
-                                    on:click=move |_| {
-                                        if !email.get().is_empty() { submitted.set(true); }
-                                    }
+                                    disabled=move || loading.get()
+                                    on:click=submit.clone()
                                 >
-                                    "Get early access"
+                                    {move || if loading.get() { "Submitting…".to_string() } else { primary_cta_label.clone() }}
                                 </button>
                             </div>
+                            <Show when=move || !err_msg.get().is_empty() fallback=|| ()>
+                                <p style="font-size:.78rem;color:#f87171;margin-top:.75rem;">{move || err_msg.get()}</p>
+                            </Show>
                             <p style="font-size:.75rem;color:#6b7280;margin-top:.75rem;">"No credit card. No contracts. Cancel anytime."</p>
                         }.into_any()
                     }}
@@ -242,53 +349,54 @@ fn PmProblem() -> impl IntoView {
 // ── Features ─────────────────────────────────────────────────────────────────
 
 #[component]
-fn PmFeatures() -> impl IntoView {
+fn PmFeatures(#[prop(default = None)] override_block: Option<FeatureGridBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Platform capabilities".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| "Built for PMCs. Not adapted from something else.".to_string());
+    // CMS section blocks overlay these defaults when seeded.
+    let default_features = vec![
+        ("account_tree", "Multi-portfolio management", "Manage dozens of client portfolios from a single dashboard. Each owner sees only their properties."),
+        ("receipt_long", "Owner portals & statements", "Branded portals per owner. Monthly statements generated automatically. No more PDF emails."),
+        ("account_balance", "Trust accounting", "Security deposit ledgers, reserve funds, disbursements, and reconciliation — built-in and auditable."),
+        ("build", "Maintenance dispatch", "Tenants submit requests. You assign to vendors. Track status, photos, and invoices in one place."),
+        ("payments", "Rent collection & disbursement", "Collect via ACH or card. Automatically split management fees and disburse to owner accounts."),
+        ("description", "Lease & compliance", "Digital lease signing, renewal reminders, and jurisdiction-specific compliance checklists."),
+        ("person", "Tenant portal", "Tenants pay rent, submit requests, and view their lease — reducing inbound calls by 60%."),
+        ("analytics", "Portfolio analytics", "Occupancy rates, rent collection trends, maintenance costs, and NOI across all your clients."),
+    ];
+    let features: Vec<(String, String, String)> = override_block
+        .and_then(|block| (!block.items.is_empty()).then_some(block.items))
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| (item.icon, item.title, item.description))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            default_features
+                .into_iter()
+                .map(|(icon, title, desc)| (icon.to_string(), title.to_string(), desc.to_string()))
+                .collect()
+        });
+
     view! {
         <section id="pm-features" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Platform capabilities"</p>
-                <h2 class="mktg-section-h2">"Built for PMCs. Not adapted from something else."</h2>
+                <p class="mktg-section-eyebrow">{eyebrow}</p>
+                <h2 class="mktg-section-h2">{heading}</h2>
                 <div class="mktg-feature-grid">
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"account_tree"</span>
-                        <h3>"Multi-portfolio management"</h3>
-                        <p>"Manage dozens of client portfolios from a single dashboard. Each owner sees only their properties."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"receipt_long"</span>
-                        <h3>"Owner portals & statements"</h3>
-                        <p>"Branded portals per owner. Monthly statements generated automatically. No more PDF emails."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"account_balance"</span>
-                        <h3>"Trust accounting"</h3>
-                        <p>"Security deposit ledgers, reserve funds, disbursements, and reconciliation — built-in and auditable."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"build"</span>
-                        <h3>"Maintenance dispatch"</h3>
-                        <p>"Tenants submit requests. You assign to vendors. Track status, photos, and invoices in one place."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"payments"</span>
-                        <h3>"Rent collection & disbursement"</h3>
-                        <p>"Collect via ACH or card. Automatically split management fees and disburse to owner accounts."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"description"</span>
-                        <h3>"Lease & compliance"</h3>
-                        <p>"Digital lease signing, renewal reminders, and jurisdiction-specific compliance checklists."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"person"</span>
-                        <h3>"Tenant portal"</h3>
-                        <p>"Tenants pay rent, submit requests, and view their lease — reducing inbound calls by 60%."</p>
-                    </div>
-                    <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"analytics"</span>
-                        <h3>"Portfolio analytics"</h3>
-                        <p>"Occupancy rates, rent collection trends, maintenance costs, and NOI across all your clients."</p>
-                    </div>
+                    {features.into_iter().map(|(icon, title, desc)| view! {
+                        <div class="mktg-feature-card">
+                            <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">{icon}</span>
+                            <h3>{title}</h3>
+                            <p>{desc}</p>
+                        </div>
+                    }).collect_view()}
                 </div>
             </div>
         </section>
@@ -349,7 +457,7 @@ fn PmOwnerPortal() -> impl IntoView {
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
 #[component]
-fn PmPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
+fn PmPricing(plans: Vec<MarketingPlan>, hero: HeroContent) -> impl IntoView {
     let plans = if plans.is_empty() {
         pm_fallback_plans()
     } else {
@@ -378,9 +486,9 @@ fn PmPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
         <MarketingPricingGrid
             plans=plans
             section_id="pm-pricing".to_string()
-            eyebrow="Pricing".to_string()
-            heading="Pay per portfolio, not per feature.".to_string()
-            subtitle="Every plan includes trust accounting, owner portals, and maintenance dispatch. No surprise add-ons.".to_string()
+            eyebrow=hero.pricing_eyebrow.clone().unwrap_or_else(|| "Pricing".to_string())
+            heading=hero.pricing_heading.clone().unwrap_or_else(|| "Pay per portfolio, not per feature.".to_string())
+            subtitle=hero.pricing_subtitle.clone().unwrap_or_else(|| "Every plan includes trust accounting, owner portals, and maintenance dispatch. No surprise add-ons.".to_string())
             default_cta_href="#pm-waitlist".to_string()
         />
         <div class="mktg-section" style="padding-top:0;">
@@ -400,6 +508,7 @@ fn PmPricing(plans: Vec<MarketingPlan>) -> impl IntoView {
 }
 
 fn pm_fallback_plans() -> Vec<MarketingPlan> {
+    // CMS/product pricing overlays this fallback once plans are seeded.
     vec![
         MarketingPlan {
             slug: "starter".into(),
@@ -483,17 +592,37 @@ fn pm_fallback_plans() -> Vec<MarketingPlan> {
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
 
 #[component]
-fn PmCta() -> impl IntoView {
+fn PmCta(#[prop(default = None)] override_block: Option<CtaBlock>) -> impl IntoView {
+    let eyebrow = override_block
+        .as_ref()
+        .and_then(|block| block.eyebrow.clone())
+        .unwrap_or_else(|| "Limited beta spots available".to_string());
+    let heading = override_block
+        .as_ref()
+        .and_then(|block| block.heading.clone())
+        .unwrap_or_else(|| {
+            "Stop managing with spreadsheets. Start running a real business.".to_string()
+        });
+    let subhead = override_block
+        .as_ref()
+        .and_then(|block| block.subhead.clone())
+        .unwrap_or_else(|| "Join the waitlist for exclusive early access. Beta members lock in founder pricing and help shape the property management features before we open to the public.".to_string());
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Reserve my beta spot →".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "#pm-waitlist".to_string());
+
     view! {
         <section class="mktg-cta-section">
             <div class="mktg-section-inner mktg-cta-inner">
-                <p class="mktg-section-eyebrow" style="color:#06d6a0;">"Limited beta spots available"</p>
-                <h2 class="mktg-cta-h2">"Stop managing with spreadsheets. Start running a real business."</h2>
-                <p class="mktg-cta-sub">
-                    "Join the waitlist for exclusive early access. Beta members lock in founder pricing \
-                     and help shape the property management features before we open to the public."
-                </p>
-                <a href="#pm-waitlist" class="mktg-btn-accent mktg-btn-lg" id="pm-cta-btn">"Reserve my beta spot →"</a>
+                <p class="mktg-section-eyebrow" style="color:#06d6a0;">{eyebrow}</p>
+                <h2 class="mktg-cta-h2">{heading}</h2>
+                <p class="mktg-cta-sub">{subhead}</p>
+                <a href=button_href class="mktg-btn-accent mktg-btn-lg" id="pm-cta-btn">{button_label}</a>
                 <p style="margin-top:16px;font-size:12px;color:#9ca3af;">"No credit card. No contracts. Cancel anytime."</p>
             </div>
         </section>
@@ -503,19 +632,37 @@ fn PmCta() -> impl IntoView {
 // ── Beta program callout strip ────────────────────────────────────────────────
 
 #[component]
-fn BetaCalloutStrip() -> impl IntoView {
+fn BetaCalloutStrip(
+    #[prop(default = None)] override_block: Option<BetaStripBlock>,
+) -> impl IntoView {
+    let title = override_block
+        .as_ref()
+        .and_then(|block| block.title.clone())
+        .unwrap_or_else(|| "Apply for the Folio Beta Program".to_string());
+    let body = override_block
+        .as_ref()
+        .and_then(|block| block.body.clone())
+        .unwrap_or_else(|| "Get discounted access during beta in exchange for real feedback. We review every application — accepted members shape the product roadmap.".to_string());
+    let button_label = override_block
+        .as_ref()
+        .and_then(|block| block.button_label.clone())
+        .unwrap_or_else(|| "Apply now".to_string());
+    let button_href = override_block
+        .as_ref()
+        .and_then(|block| block.button_href.clone())
+        .unwrap_or_else(|| "/beta".to_string());
+
     view! {
         <div class="mktg-section-inner">
             <div class="beta-callout-strip">
                 <span class="material-symbols-outlined beta-callout-strip-icon"
                       style="font-variation-settings:'FILL' 1">"science"</span>
                 <div class="beta-callout-text">
-                    <strong>"Apply for the Folio Beta Program"</strong>
-                    <p>"Get discounted access during beta in exchange for real feedback. We review every \
-                       application — accepted members shape the product roadmap."</p>
+                    <strong>{title}</strong>
+                    <p>{body}</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta-pm" rel="external">
-                    "Apply now"
+                <a href=button_href class="beta-callout-cta" id="beta-strip-cta-pm" rel="external">
+                    {button_label}
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
                 </a>
             </div>
@@ -526,20 +673,40 @@ fn BetaCalloutStrip() -> impl IntoView {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 #[component]
-fn PmFooter() -> impl IntoView {
+fn PmFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    let tagline = override_block
+        .as_ref()
+        .and_then(|block| block.tagline.clone())
+        .unwrap_or_else(|| "Modern Landlord OS · Property Manager Edition".to_string());
+    let links: Vec<(String, String)> = override_block
+        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
+        .map(|links| {
+            links
+                .into_iter()
+                .map(|link| (link.label, link.href))
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                ("For Landlords".to_string(), "/".to_string()),
+                ("For Brokers".to_string(), "/brokers".to_string()),
+                ("For Vendors".to_string(), "/vendors".to_string()),
+                ("Cohost Network".to_string(), "/cohost-market".to_string()),
+                ("Sign in".to_string(), "/login".to_string()),
+            ]
+        });
+
     view! {
         <footer class="mktg-footer">
             <div class="mktg-footer-inner">
                 <div>
                     <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"Modern Landlord OS · Property Manager Edition"</div>
+                    <div class="mktg-footer-tagline">{tagline}</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/" rel="external">"For Landlords"</a>
-                    <a href="/brokers" rel="external">"For Brokers"</a>
-                    <a href="/vendors" rel="external">"For Vendors"</a>
-                    <a href="/cohost-market" rel="external">"Cohost Network"</a>
-                    <a href="/login" rel="external">"Sign in"</a>
+                    {links.into_iter().map(|(label, href)| view! {
+                        <a href=href rel="external">{label}</a>
+                    }).collect_view()}
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "
