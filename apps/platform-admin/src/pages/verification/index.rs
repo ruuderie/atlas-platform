@@ -4,9 +4,9 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct ChecklistItem {
-    pub id: usize,
     pub label: &'static str,
     pub note: &'static str,
+    pub note_class: &'static str,
     pub checked: RwSignal<bool>,
 }
 
@@ -15,6 +15,35 @@ pub struct NoteHistoryRecord {
     pub author: &'static str,
     pub text: String,
     pub timestamp: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum QueueFilter {
+    All,
+    Pending,
+    Review,
+    Approved,
+    Rejected,
+}
+
+impl QueueFilter {
+    fn api_status(self) -> Option<String> {
+        match self {
+            Self::All => None,
+            Self::Pending => Some("pending".to_string()),
+            Self::Review => Some("review".to_string()),
+            Self::Approved => Some("approved".to_string()),
+            Self::Rejected => Some("rejected".to_string()),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReviewTab {
+    Documents,
+    Checklist,
+    Entity,
+    Notes,
 }
 
 fn compute_age_days(created_at_str: &str) -> u32 {
@@ -29,31 +58,96 @@ fn compute_age_days(created_at_str: &str) -> u32 {
         let duration = now.signed_duration_since(dt);
         duration.num_days().max(0) as u32
     } else {
-        3 // fallback default
+        3
     }
 }
 
 fn get_priority_color(age_days: u32, status: &str) -> &'static str {
-    if status == "approved" {
-        "bg-green"
-    } else if status == "rejected" {
-        "bg-text-muted"
-    } else if age_days >= 7 {
-        "bg-error"
-    } else if age_days >= 4 {
-        "bg-amber-400"
-    } else if status == "review" {
-        "bg-purple-400"
-    } else {
-        "bg-primary"
+    match status {
+        "approved" => "var(--green)",
+        "rejected" => "var(--text-muted)",
+        _ if age_days >= 7 => "var(--red)",
+        _ if age_days >= 4 => "var(--amber)",
+        "review" => "var(--violet)",
+        _ => "var(--cobalt)",
     }
 }
 
 fn get_badge_style(req_type: &str) -> &'static str {
     match req_type.to_lowercase().as_str() {
         "business" => "color:var(--red);border-color:var(--red);background:var(--red-dim)",
-        "identity" => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
+        "identity" => {
+            "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)"
+        }
         _ => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
+    }
+}
+
+fn get_status_badge_style(status: &str, req_type: &str) -> &'static str {
+    match status {
+        "approved" => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
+        "rejected" => {
+            "color:var(--text-muted);border-color:var(--border-default);background:var(--bg-elevated)"
+        }
+        "review" => {
+            "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)"
+        }
+        _ => get_badge_style(req_type),
+    }
+}
+
+fn get_icon_style(status: &str, req_type: &str) -> &'static str {
+    match status {
+        "approved" => "background:var(--green-dim)",
+        "rejected" => "background:var(--bg-elevated)",
+        "review" => "background:var(--violet-dim)",
+        _ => match req_type.to_lowercase().as_str() {
+            "business" => "background:var(--red-dim)",
+            "identity" => "background:var(--amber-dim)",
+            _ => "background:var(--cobalt-dim)",
+        },
+    }
+}
+
+fn age_class(age_days: u32, status: &str) -> &'static str {
+    match status {
+        "approved" | "rejected" => "qi-age age-ok",
+        _ if age_days >= 7 => "qi-age age-critical",
+        _ if age_days >= 4 => "qi-age age-warn",
+        _ => "qi-age age-ok",
+    }
+}
+
+fn age_text(age_days: u32, status: &str) -> String {
+    match status {
+        "approved" => "Done".to_string(),
+        "rejected" => "Rejected".to_string(),
+        "review" => "Review".to_string(),
+        _ if age_days >= 7 => format!("{}d overdue", age_days),
+        _ => format!("{}d pending", age_days),
+    }
+}
+
+fn document_name(req_type: &str, entity_name: &str, index: u32) -> String {
+    let entity_slug = entity_name.replace(' ', "_");
+    match (req_type.to_lowercase().as_str(), index) {
+        ("identity", 0) => format!("Government_ID_{}.pdf", entity_slug),
+        ("identity", 1) => "Selfie_Verification_Scan.png".to_string(),
+        (_, 0) => format!("Business_Registration_{}.pdf", entity_slug),
+        (_, 1) => "EIN_Confirmation_SS4.pdf".to_string(),
+        (_, 2) => "Operating_Agreement_Signed.png".to_string(),
+        _ => format!("Supporting_Document_{}.pdf", index + 1),
+    }
+}
+
+fn doc_status(index: u32) -> (&'static str, &'static str) {
+    match index {
+        0 => ("⚠ Review", "color:var(--amber);border-color:var(--amber)"),
+        1 => ("✓ Verified", "color:var(--green);border-color:var(--green)"),
+        _ => (
+            "○ Pending",
+            "color:var(--text-muted);border-color:var(--border-default)",
+        ),
     }
 }
 
@@ -61,24 +155,19 @@ fn get_badge_style(req_type: &str) -> &'static str {
 pub fn Verification() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    // UI state signals
     let selected_id = RwSignal::new(None::<Uuid>);
-    let active_filter = RwSignal::new("all".to_string());
-    let active_rev_tab = RwSignal::new("rv-documents".to_string());
+    let active_filter = RwSignal::new(QueueFilter::All);
+    let active_rev_tab = RwSignal::new(ReviewTab::Documents);
     let trigger_fetch = RwSignal::new(0);
-
-    // Resource for database verification requests
     let ver_error: RwSignal<Option<String>> = RwSignal::new(None);
+
     let db_requests = LocalResource::new(move || {
         trigger_fetch.get();
-        let filter_val = active_filter.get();
+        let filter = active_filter.get();
         async move {
-            let filter = if filter_val == "all" {
-                None
-            } else {
-                Some(filter_val)
-            };
-            let res = crate::api::verification::get_verification_requests(None, filter).await;
+            let res =
+                crate::api::verification::get_verification_requests(None, filter.api_status())
+                    .await;
             match res {
                 Ok(v) => {
                     ver_error.set(None);
@@ -101,7 +190,6 @@ pub fn Verification() -> impl IntoView {
             .find(|r| Some(r.id) == sid)
     });
 
-    // Set first request as default selection when data loads
     Effect::new(move |_| {
         let list = db_requests.get().unwrap_or_default();
         if !list.is_empty() && selected_id.get().is_none() {
@@ -109,56 +197,58 @@ pub fn Verification() -> impl IntoView {
         }
     });
 
-    // Checklist items state, dynamically configured per selected request
     let checklist_items = RwSignal::new(vec![]);
     Effect::new(move |_| {
         if let Some(req) = selected_request.get() {
             let items = match req.req_type.to_lowercase().as_str() {
                 "business" => vec![
-                    ("EIN / Tax ID confirmed", "Verified via IRS SS-4", true),
+                    ("EIN / Tax ID confirmed", "Verified via IRS SS-4", "", true),
                     (
                         "Business name matches submitted entity name",
                         "✓ Match",
+                        "",
                         true,
                     ),
                     (
                         "Operating agreement / LLC articles present",
                         "Signed PDF attached",
+                        "",
                         true,
                     ),
                     (
                         "State registration document current (within 2 years)",
-                        "Pending review",
+                        "⚠ 2019 — review",
+                        "critical",
                         false,
                     ),
                     (
                         "Primary contact identity verified (ID check)",
                         "Pending",
+                        "warn",
                         false,
                     ),
                     (
                         "No active regulatory flags (FMCSA / DOT cross-check)",
                         "Auto-check available",
+                        "",
                         false,
                     ),
                     (
                         "Billing address matches registered business address",
                         "✓ Match",
+                        "",
                         true,
                     ),
                 ],
                 "identity" => vec![
-                    ("Government ID matches name", "Passport scanned", true),
-                    (
-                        "Facial recognition matches ID photo",
-                        "98% confidence",
-                        true,
-                    ),
-                    ("PEP list cross-reference check", "✓ Clear", true),
-                    ("Sanction registry check", "✓ Clear", true),
+                    ("Government ID matches name", "Passport scanned", "", true),
+                    ("Facial recognition matches ID photo", "98% confidence", "", true),
+                    ("PEP list cross-reference check", "✓ Clear", "", true),
+                    ("Sanction registry check", "✓ Clear", "", true),
                     (
                         "Proof of residency document verified",
-                        "Awaiting review",
+                        "Pending",
+                        "warn",
                         false,
                     ),
                 ],
@@ -166,24 +256,26 @@ pub fn Verification() -> impl IntoView {
                     (
                         "Document signature validation",
                         "Standard SHA-256 hash verified",
+                        "",
                         true,
                     ),
                     (
                         "Issuer authenticity confirmation",
                         "Self-signed certificate match",
+                        "",
                         true,
                     ),
-                    ("Expiration boundary validation", "Valid until 2029", true),
+                    ("Expiration boundary validation", "Valid until 2029", "", true),
                 ],
             };
+
             checklist_items.set(
                 items
                     .into_iter()
-                    .enumerate()
-                    .map(|(id, (label, note, checked))| ChecklistItem {
-                        id,
+                    .map(|(label, note, note_class, checked)| ChecklistItem {
                         label,
                         note,
+                        note_class,
                         checked: RwSignal::new(checked),
                     })
                     .collect::<Vec<_>>(),
@@ -191,22 +283,20 @@ pub fn Verification() -> impl IntoView {
         }
     });
 
-    // Notes history state
     let reviewer_notes = RwSignal::new(String::new());
     let note_history = RwSignal::new(Vec::<NoteHistoryRecord>::new());
 
-    // Dialog modals
     let show_approve_modal = RwSignal::new(false);
     let show_reject_modal = RwSignal::new(false);
-    let temp_rejection_reason = RwSignal::new(String::new());
     let show_info_request_modal = RwSignal::new(false);
+    let temp_rejection_reason = RwSignal::new(String::new());
 
-    // Handle adding note
     let add_reviewer_note = move |_| {
         let text = reviewer_notes.get();
         if text.trim().is_empty() {
             return;
         }
+
         note_history.update(|h| {
             h.insert(
                 0,
@@ -245,6 +335,7 @@ pub fn Verification() -> impl IntoView {
                 toast.show_toast("Error", "Rejection reason is required.", "error");
                 return;
             }
+
             leptos::task::spawn_local(async move {
                 match crate::api::verification::reject_verification_request(req_id, reason).await {
                     Ok(_) => {
@@ -258,510 +349,446 @@ pub fn Verification() -> impl IntoView {
         show_reject_modal.set(false);
     };
 
+    let filter_pill = move |filter: QueueFilter, label: &'static str| {
+        view! {
+            <button
+                class=move || if active_filter.get() == filter { "pill active" } else { "pill" }
+                on:click=move |_| {
+                    active_filter.set(filter);
+                    selected_id.set(None);
+                    active_rev_tab.set(ReviewTab::Documents);
+                }
+            >
+                {label}
+            </button>
+        }
+    };
+
+    let rev_tab = move |tab: ReviewTab, label: &'static str| {
+        view! {
+            <button
+                class=move || if active_rev_tab.get() == tab { "rev-tab active" } else { "rev-tab" }
+                on:click=move |_| active_rev_tab.set(tab)
+            >
+                {label}
+            </button>
+        }
+    };
+
     view! {
-        <div class="main-area">
-            <GtmProcessStrip
-                active=GtmStage::Verification
-                subtitle="Trust gate — triage entity verification before go-live.".to_string()
-            />
-
-            // ── Page Header ──
-            <div class="page-header">
-                <div>
-                    <div class="page-title">"Verification Queue"</div>
-                    <div class="page-subtitle">"KYB / KYC identity and business verification requests · Review, approve, or reject submissions"</div>
+        <div class="main-area no-pad">
+            <Suspense fallback=|| view! {
+                <div class="empty-state">
+                    <div class="empty-state-title">"Loading verification queue..."</div>
+                    <div class="empty-state-body">"Fetching submitted identity and business documents."</div>
                 </div>
-                <div class="page-actions">
-                    <button
-                        class="btn btn-ghost btn-sm"
-                        title="Reload queue from backend"
-                        on:click=move |_| trigger_fetch.set(trigger_fetch.get() + 1)
-                    >
-                        <svg class="w-3 h-3 inline-block mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
-                        </svg>
-                        "Refresh"
-                    </button>
-                    <button
-                        class="btn btn-ghost btn-sm"
-                        disabled=true
-                        title="Export is not wired yet"
-                        on:click=move |_| toast.show_toast("Not wired", "Verification export is not available yet.", "info")
-                    >"↓ Export"</button>
-                </div>
-            </div>
-
-            // ── Error banner ──
-            {move || ver_error.get().map(|e| crate::utils::inline_error(&e))}
-
-            // ── KPI Row ──
-            <div class="kpi-row">
-                <div class="kpi-card">
-                    <span class="kpi-label">"Pending Review"</span>
-                    <span class="kpi-value" style="color:var(--amber)">
-                        {move || {
-                            let list = db_requests.get().unwrap_or_default();
-                            list.iter().filter(|r| r.status == "pending" || r.status == "review").count().to_string()
-                        }}
-                    </span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">"Approved"</span>
-                    <span class="kpi-value" style="color:var(--green)">
-                        {move || db_requests.get().unwrap_or_default().iter().filter(|r| r.status == "approved").count().to_string()}
-                    </span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">"Rejected"</span>
-                    <span class="kpi-value" style="color:var(--red)">
-                        {move || db_requests.get().unwrap_or_default().iter().filter(|r| r.status == "rejected").count().to_string()}
-                    </span>
-                </div>
-                <div class="kpi-card">
-                    <span class="kpi-label">"Total Requests"</span>
-                    <span class="kpi-value">
-                        {move || db_requests.get().unwrap_or_default().len().to_string()}
-                    </span>
-                </div>
-            </div>
-
-            // ── 2-Panel Workspace ──
-        <Suspense fallback=|| view! {
-            <div style="padding:48px;text-align:center;color:var(--text-muted);">"Loading verification queue..."</div>
-        }>
-            <div class="main">
-                // ── LEFT PANE: Queue ──
-                <div class="queue-pane">
-                    <div class="queue-hdr">
-                        <div class="queue-title-row">
-                            <div class="queue-title">
-                                "Verification Queue"
-                                <span class="queue-badge">
-                                    {move || {
-                                        let count = db_requests.get().unwrap_or_default().iter().filter(|r| r.status == "pending" || r.status == "review").count();
-                                        format!("{} Active", count)
-                                    }}
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-2">
+            }>
+                <div class="main">
+                    <div class="queue-pane">
+                        <div class="queue-hdr">
+                            <div class="queue-title-row">
+                                <div class="queue-title">
+                                    "Verification Queue"
+                                    <span class="queue-badge">
+                                        {move || {
+                                            let count = db_requests
+                                                .get()
+                                                .unwrap_or_default()
+                                                .iter()
+                                                .filter(|r| r.status == "pending" || r.status == "review")
+                                                .count();
+                                            format!("{} Active", count)
+                                        }}
+                                    </span>
+                                </div>
                                 <button
-                                    class="pill"
-                                    style="font-size:10px;padding:2px 6px;"
+                                    class="btn btn-ghost btn-sm"
                                     title="Reload queue from backend"
                                     on:click=move |_| trigger_fetch.set(trigger_fetch.get() + 1)
-                                >"Refresh"</button>
-                                <button class="pill" style="font-size:10px;padding:2px 6px;" on:click=move |_| toast.show_toast("Info", "Verification logs compiled.", "info")>"Export"</button>
+                                >
+                                    "Refresh"
+                                </button>
+                            </div>
+                            <div class="queue-title-row">
+                                {filter_pill(QueueFilter::All, "All")}
+                                {filter_pill(QueueFilter::Pending, "Pending")}
+                                {filter_pill(QueueFilter::Review, "In Review")}
+                                {filter_pill(QueueFilter::Approved, "Approved")}
+                                {filter_pill(QueueFilter::Rejected, "Rejected")}
                             </div>
                         </div>
-                        <div class="filter-row">
-                            {
-                                let filter_pill = move |id: &'static str, label: &'static str| {
+
+                        <div class="queue-scroll">
+                            {move || {
+                                let list = db_requests.get().unwrap_or_default();
+                                if list.is_empty() {
                                     view! {
-                                        <button
-                                            class=move || if active_filter.get() == id { "pill active" } else { "pill" }
-                                            on:click=move |_| {
-                                                active_filter.set(id.to_string());
-                                                selected_id.set(None);
-                                            }
-                                        >
-                                            {label}
-                                        </button>
-                                    }
-                                };
-                                view! {
-                                    {filter_pill("all", "All")}
-                                    {filter_pill("pending", "Pending")}
-                                    {filter_pill("review", "In Review")}
-                                    {filter_pill("approved", "Approved")}
-                                    {filter_pill("rejected", "Rejected")}
-                                }
-                            }
-                        </div>
-                    </div>
-
-                    <div class="queue-scroll">
-                        {move || {
-                            let list = db_requests.get().unwrap_or_default();
-                            if list.is_empty() {
-                                view! {
-                                    <div class="p-6 text-center text-xs text-on-surface-variant/50">"No requests in queue."</div>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    {list.into_iter().map(|item| {
-                                    let is_selected = selected_id.get() == Some(item.id);
-                                    let age = compute_age_days(&item.created_at);
-                                    let priority_bg = get_priority_color(age, &item.status);
-                                    let badge_style = get_badge_style(&item.req_type);
-                                    let r_id = item.id;
-                                    let name = item.entity_name.clone();
-                                    let t_slug = format!("tenant_{}", item.tenant_id.to_string().chars().take(8).collect::<String>());
-
-                                    let icon_svg = match item.req_type.to_lowercase().as_str() {
-                                        "business" => view! {
-                                            <svg viewBox="0 0 16 16" fill="none" stroke="var(--red)" stroke-width="1.5"><rect x="2" y="4" width="12" height="10" rx="0.5"/><path d="M5 4V3a3 3 0 0 1 6 0v1"/><path d="M8 8v2"/><circle cx="8" cy="11.5" r="0.5" fill="var(--red)" stroke="none"/></svg>
-                                        }.into_any(),
-                                        "identity" => view! {
-                                            <svg viewBox="0 0 16 16" fill="none" stroke="var(--amber)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2"/></svg>
-                                        }.into_any(),
-                                        _ => view! {
-                                            <svg viewBox="0 0 16 16" fill="none" stroke="var(--cobalt)" stroke-width="1.5"><rect x="2" y="2" width="12" height="14" rx="0.5"/><path d="M5 6h6M5 9h6M5 12h4"/></svg>
-                                        }.into_any(),
-                                    };
-
-                                    let age_text = match item.status.as_str() {
-                                        "approved" => "Done".to_string(),
-                                        "rejected" => "Rejected".to_string(),
-                                        "review" => "Review".to_string(),
-                                        _ => format!("{}d pending", age),
-                                    };
-
-                                    let age_class = if item.status == "approved" {
-                                        "age-ok"
-                                    } else if item.status == "rejected" {
-                                        "age-critical"
-                                    } else if age >= 7 {
-                                        "age-critical"
-                                    } else if age >= 4 {
-                                        "age-warn"
-                                    } else {
-                                        "age-ok"
-                                    };
-
+                                        <div class="empty-state">
+                                            <div class="empty-state-title">"No requests in queue."</div>
+                                            <div class="empty-state-body">"Try a different filter or refresh the queue."</div>
+                                        </div>
+                                    }.into_any()
+                                } else {
                                     view! {
-                                        <div
-                                            class=move || if is_selected { "queue-item selected" } else { "queue-item" }
-                                            on:click=move |_| selected_id.set(Some(r_id))
-                                        >
-                                            <div class=format!("qi-priority-bar {}", priority_bg)></div>
-                                            <div class="qi-icon">{icon_svg}</div>
-                                            <div class="qi-info">
-                                                <div class="qi-entity">{name}</div>
-                                                <div class="qi-type">{format!("{} · {} · {} docs", item.req_type, t_slug, item.document_count)}</div>
-                                            </div>
-                                            <div class="qi-right">
-                                                <span class=format!("qi-age {}", age_class)>{age_text}</span>
-                                                <span class="type-badge" style=badge_style>{item.req_type.clone()}</span>
-                                            </div>
-                                        </div>
-                                    }
-                                }).collect_view()}
-                                }.into_any()
-                            }
-                        }}
-                    </div>
-                </div>
+                                        {list.into_iter().map(|item| {
+                                            let is_selected = selected_id.get() == Some(item.id);
+                                            let age = compute_age_days(&item.created_at);
+                                            let priority = get_priority_color(age, &item.status);
+                                            let badge_style = get_status_badge_style(&item.status, &item.req_type);
+                                            let icon_style = get_icon_style(&item.status, &item.req_type);
+                                            let item_id = item.id;
+                                            let done_class = if item.status == "approved" || item.status == "rejected" {
+                                                " is-done"
+                                            } else {
+                                                ""
+                                            };
+                                            let selected_class = if is_selected { " selected" } else { "" };
+                                            let t_slug = format!(
+                                                "tenant_{}",
+                                                item.tenant_id.to_string().chars().take(8).collect::<String>()
+                                            );
+                                            let icon_svg = match item.status.as_str() {
+                                                "review" => view! {
+                                                    <svg viewBox="0 0 16 16" fill="none" stroke="var(--violet)" stroke-width="1.5"><path d="M12 4H4l-2 4 2 4h8l2-4-2-4z"/><circle cx="8" cy="8" r="1.5"/></svg>
+                                                }.into_any(),
+                                                "approved" => view! {
+                                                    <svg viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5"><rect x="2" y="7" width="12" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
+                                                }.into_any(),
+                                                "rejected" => view! {
+                                                    <svg viewBox="0 0 16 16" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M4 13c0-2.2 1.8-4 4-4s4 1.8 4 4"/></svg>
+                                                }.into_any(),
+                                                _ => match item.req_type.to_lowercase().as_str() {
+                                                    "business" => view! {
+                                                        <svg viewBox="0 0 16 16" fill="none" stroke="var(--red)" stroke-width="1.5"><rect x="2" y="4" width="12" height="10" rx="0.5"/><path d="M5 4V3a3 3 0 0 1 6 0v1"/><path d="M8 8v2"/><circle cx="8" cy="11.5" r="0.5" fill="var(--red)" stroke="none"/></svg>
+                                                    }.into_any(),
+                                                    "identity" => view! {
+                                                        <svg viewBox="0 0 16 16" fill="none" stroke="var(--amber)" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2"/></svg>
+                                                    }.into_any(),
+                                                    _ => view! {
+                                                        <svg viewBox="0 0 16 16" fill="none" stroke="var(--cobalt)" stroke-width="1.5"><rect x="2" y="2" width="12" height="14" rx="0.5"/><path d="M5 6h6M5 9h6M5 12h4"/></svg>
+                                                    }.into_any(),
+                                                },
+                                            };
 
-                // ── RIGHT PANE: Details Workspace ──
-                {move || {
-                    let current_req = selected_request.get();
-                    if current_req.is_none() {
-                        return view! {
-                            <div class="review-pane">
-                                <div class="flex-1 flex flex-col items-center justify-center text-on-surface-variant p-8 bg-surface-container-low/30">
-                                    <span class="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-3">"folder_shared"</span>
-                                    <div class="text-sm font-semibold">"No Request Selected"</div>
-                                    <div class="text-xs text-on-surface-variant/60 mt-1">"Select a pending registration from the left queue."</div>
-                                </div>
-                            </div>
-                        }.into_any();
-                    }
-                    let request = current_req.unwrap();
-                    let req_id = request.id;
-                    let entity_title = request.entity_name.clone();
-                    let type_label = request.req_type.clone();
-                    let status_str = request.status.clone();
-                    let age = compute_age_days(&request.created_at);
-                    let badge_style = get_badge_style(&type_label);
-
-                    let sub_header_text = match status_str.as_str() {
-                        "approved" => "Verification Approved".to_string(),
-                        "rejected" => "Verification Rejected".to_string(),
-                        "review" => "Under active review".to_string(),
-                        _ => format!("{} days pending — Action Required", age),
-                    };
-
-                    let status_str_show1 = status_str.clone();
-                    let status_str_show2 = status_str.clone();
-                    let status_str_show3 = status_str.clone();
-
-                    view! {
-                        <div class="review-pane">
-                            // Detail Header
-                            <div class="review-hdr">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                                    <div>
-                                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:6px">
-                                            <span class="type-badge" style=badge_style>{format!("{} Verification", type_label)}</span>
-                                            <span>"·"</span>
-                                            <span style=format!("font-weight:600; {}", if status_str == "approved" { "color:var(--green)" } else if status_str == "rejected" || age >= 7 { "color:var(--red)" } else { "color:var(--amber)" })>
-                                                {sub_header_text}
-                                            </span>
-                                        </div>
-                                        <div class="rev-entity">{entity_title.clone()}</div>
-                                        <div class="rev-meta">{format!("tenant_id: {} · Submitted {} · {} documents attached", req_id, request.created_at, request.document_count)}</div>
-                                    </div>
-                                    <div class="rev-actions">
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| show_info_request_modal.set(true)>"Request More Info"</button>
-                                        <Show when=move || status_str_show1 != "rejected">
-                                            <button class="btn btn-reject btn-sm" on:click=move |_| {
-                                                temp_rejection_reason.set(String::new());
-                                                show_reject_modal.set(true);
-                                            }>"Reject"</button>
-                                        </Show>
-                                        <Show when=move || status_str_show2 != "approved">
-                                            <button class="btn btn-approve btn-sm" on:click=move |_| show_approve_modal.set(true)>"Approve →"</button>
-                                        </Show>
-                                    </div>
-                                </div>
-                            </div>
-
-                            // Detail Tabs
-                            <div class="tab-bar">
-                                <button class=move || if active_rev_tab.get() == "rv-documents" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-documents".into())>"Documents"</button>
-                                <button class=move || if active_rev_tab.get() == "rv-checklist" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-checklist".into())>"Review Checklist"</button>
-                                <button class=move || if active_rev_tab.get() == "rv-entity" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-entity".into())>"Entity Summary"</button>
-                                <button class=move || if active_rev_tab.get() == "rv-notes" { "tab active" } else { "tab" } on:click=move |_| active_rev_tab.set("rv-notes".into())>"Reviewer Notes"</button>
-                            </div>
-
-                            // Detail Content
-                            <div class="rev-content">
-                                // TAB: Documents
-                                <div class=move || format!("tab-pane {}", if active_rev_tab.get() == "rv-documents" { "active" } else { "" })>
-                                    <div style="margin-bottom:14px">
-                                        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:10px">"Submitted Documents · G-02 Vault"</div>
-
-                                        {
-                                            let count = request.document_count.max(1);
-                                            let r_type = type_label.clone();
-                                            let entity_name_cleaned = entity_title.clone().replace(" ", "_");
-
-                                            (0..count).map(move |i| {
-                                                let doc_name = match i {
-                                                    0 if r_type.to_lowercase() == "identity" => format!("Government_ID_{}.pdf", entity_name_cleaned),
-                                                    0 => format!("Business_Registration_{}.pdf", entity_name_cleaned),
-                                                    1 if r_type.to_lowercase() == "identity" => "Selfie_Verification_Scan.png".to_string(),
-                                                    1 => "EIN_Confirmation_SS4.pdf".to_string(),
-                                                    2 => "Operating_Agreement_Signed.pdf".to_string(),
-                                                    _ => format!("Supporting_Document_{}.pdf", i),
-                                                };
-                                                let format_type = if doc_name.ends_with(".png") { "PNG" } else { "PDF" };
-                                                let size_mb = (3.2 - (i as f32 * 0.9)).max(0.5);
-
-                                                view! {
-                                                    <div class="doc-card">
-                                                        <div class="doc-icon">{format_type}</div>
-                                                        <div class="doc-info">
-                                                            <div class="doc-name">{doc_name}</div>
-                                                            <div class="doc-meta">{format!("{:.1} MB · Uploaded · SHA-256 Checksum Verified", size_mb)}</div>
-                                                        </div>
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="px-2 py-0.5 rounded border border-[#069669]/20 text-[#069669] text-[9px] font-bold uppercase tracking-wider bg-[#069669]/5">"Verified"</span>
-                                                            <button class="pill" style="font-size:10px;" on:click=move |_| toast.show_toast("Document Viewer", "Loading document preview in secure sandbox...", "info")>"View ↗"</button>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            }).collect_view()
-                                        }
-
-                                        <Show when=move || status_str_show3 == "rejected">
-                                            <div class="disq-panel" style="margin-top:16px;">
-                                                <div class="disq-panel-label">"⚠ Rejection Reason"</div>
-                                                <p class="text-xs text-on-surface-variant/90 leading-relaxed">{request.rejection_reason.clone().unwrap_or_else(|| "Documents insufficient.".to_string())}</p>
-                                            </div>
-                                        </Show>
-                                    </div>
-                                </div>
-
-                                // TAB: Checklist
-                                <div class=move || format!("tab-pane {}", if active_rev_tab.get() == "rv-checklist" { "active" } else { "" })>
-                                    <div class="checklist">
-                                        {move || checklist_items.get().into_iter().map(|item| {
-                                            let state = item.checked;
-                                            let label = item.label;
                                             view! {
-                                                <div class="check-item">
-                                                    <div
-                                                        class=move || if state.get() { "check-box checked" } else { "check-box" }
-                                                        on:click=move |_| state.update(|v| *v = !*v)
-                                                    ></div>
-                                                    <span class=move || if state.get() { "check-label checked-label" } else { "check-label" }>{label}</span>
-                                                    <span class="check-note">{item.note}</span>
+                                                <div
+                                                    class=format!("queue-item{}{}", selected_class, done_class)
+                                                    on:click=move |_| selected_id.set(Some(item_id))
+                                                >
+                                                    <div class="qi-priority-bar" style=format!("background:{}", priority)></div>
+                                                    <div class="qi-icon" style=icon_style>{icon_svg}</div>
+                                                    <div class="qi-info">
+                                                        <div class="qi-entity">{item.entity_name.clone()}</div>
+                                                        <div class="qi-type">{format!("{} · {} · {} docs", item.req_type, t_slug, item.document_count)}</div>
+                                                    </div>
+                                                    <div class="qi-right">
+                                                        <span class=age_class(age, &item.status)>{age_text(age, &item.status)}</span>
+                                                        <span class="type-badge" style=badge_style>{item.req_type.clone()}</span>
+                                                    </div>
                                                 </div>
                                             }
                                         }).collect_view()}
+                                    }.into_any()
+                                }
+                            }}
+                        </div>
+                    </div>
+
+                    <div class="review-pane">
+                        <div class="verif-gtm-wrap">
+                            <GtmProcessStrip
+                                active=GtmStage::Verification
+                                subtitle="Verification closes the GTM loop by approving identities, documents, and trust gates.".to_string()
+                            />
+                        </div>
+
+                        {move || {
+                            let current_req = selected_request.get();
+                            if current_req.is_none() {
+                                return view! {
+                                    <div class="verif-empty">
+                                        <div class="verif-empty-icon">"◎"</div>
+                                        <div class="empty-state-title">"No Request Selected"</div>
+                                        <div class="empty-state-body">"Select a pending registration from the queue to review documents, checklist signals, and reviewer notes."</div>
+                                    </div>
+                                }.into_any();
+                            }
+
+                            let request = current_req.unwrap();
+                            let req_id = request.id;
+                            let entity_title = request.entity_name.clone();
+                            let type_label = request.req_type.clone();
+                            let status_str = request.status.clone();
+                            let age = compute_age_days(&request.created_at);
+                            let badge_style = get_status_badge_style(&status_str, &type_label);
+                            let header_state = match status_str.as_str() {
+                                "approved" => "Verification Approved".to_string(),
+                                "rejected" => "Verification Rejected".to_string(),
+                                "review" => "Under active review".to_string(),
+                                _ if age >= 7 => format!("{} days — Critical", age),
+                                _ => format!("{} days pending — Action Required", age),
+                            };
+                            let header_state_style = match status_str.as_str() {
+                                "approved" => "color:var(--green);font-weight:600",
+                                "rejected" => "color:var(--red);font-weight:600",
+                                "review" => "color:var(--violet);font-weight:600",
+                                _ if age >= 7 => "color:var(--red);font-weight:600",
+                                _ => "color:var(--amber);font-weight:600",
+                            };
+                            let show_reject_button = status_str != "rejected";
+                            let show_approve_button = status_str != "approved";
+
+                            view! {
+                                <div class="review-hdr">
+                                    <div class="queue-title-row">
+                                        <div>
+                                            <div class="rev-meta">
+                                                <span class="type-badge" style=badge_style>{format!("{} Verification", type_label.clone())}</span>
+                                                <span>" · "</span>
+                                                <span style=header_state_style>{header_state}</span>
+                                            </div>
+                                            <div class="rev-entity">{entity_title.clone()}</div>
+                                            <div class="rev-meta">{format!("tenant_id: {} · Submitted {} · {} documents attached", req_id, request.created_at, request.document_count)}</div>
+                                        </div>
+                                        <div class="rev-actions">
+                                            <button class="btn btn-ghost btn-sm" on:click=move |_| show_info_request_modal.set(true)>"Request More Info"</button>
+                                            <Show when=move || show_reject_button>
+                                                <button class="btn btn-reject btn-sm" on:click=move |_| {
+                                                    temp_rejection_reason.set(String::new());
+                                                    show_reject_modal.set(true);
+                                                }>"Reject"</button>
+                                            </Show>
+                                            <Show when=move || show_approve_button>
+                                                <button class="btn btn-approve" on:click=move |_| show_approve_modal.set(true)>"Approve →"</button>
+                                            </Show>
+                                        </div>
                                     </div>
                                 </div>
 
-                                // TAB: Entity Summary
-                                <div class=move || format!("tab-pane {}", if active_rev_tab.get() == "rv-entity" { "active" } else { "" })>
-                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" style="margin-top:4px;">
-                                        <div class="card">
-                                            <div class="card-hdr">
-                                                <h3 class="card-title">"Entity Profile"</h3>
-                                            </div>
-                                            <div class="divide-y divide-outline-variant/10 text-xs">
-                                                <div class="stat-row">
-                                                    <span class="s-label">"Organization"</span>
-                                                    <span class="s-value">{entity_title.clone()}</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"Registry Type"</span>
-                                                    <span class="s-value">{type_label.clone()}</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"Tax ID / EIN"</span>
-                                                    <span class="s-value font-mono muted">"—"</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"Incorporation Region"</span>
-                                                    <span class="s-value muted">"—"</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"Primary Contact"</span>
-                                                    <span class="s-value muted">"—"</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="card">
-                                            <div class="card-hdr">
-                                                <h3 class="card-title">"FMCSA & Regulatory Screening"</h3>
-                                            </div>
-                                            <div class="divide-y divide-outline-variant/10 text-xs">
-                                                <div class="stat-row">
-                                                    <span class="s-label">"OFAC Sanctions List"</span>
-                                                    <span class="s-value green font-semibold">"✓ Clear"</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"DOT Carrier Match"</span>
-                                                    <span class="s-value muted">"Not applicable"</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"LEI Code Status"</span>
-                                                    <span class="s-value green">"Verified"</span>
-                                                </div>
-                                                <div class="stat-row">
-                                                    <span class="s-label">"Security Hold status"</span>
-                                                    <span class="s-value green">"Clear"</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="rev-tabs">
+                                    {rev_tab(ReviewTab::Documents, "Documents")}
+                                    {rev_tab(ReviewTab::Checklist, "Review Checklist")}
+                                    {rev_tab(ReviewTab::Entity, "Entity Summary")}
+                                    {rev_tab(ReviewTab::Notes, "Reviewer Notes")}
                                 </div>
 
-                                // TAB: Reviewer Notes
-                                <div class=move || format!("tab-pane {}", if active_rev_tab.get() == "rv-notes" { "active" } else { "" })>
-                                    <div class="space-y-6">
-                                        <div class="composer">
-                                            <div class="composer-tabs">
-                                                <button class="c-tab active">"Internal Note"</button>
-                                            </div>
-                                            <textarea
-                                                placeholder="Add internal reviewer logs..."
-                                                on:input=move |ev| reviewer_notes.set(event_target_value(&ev))
-                                                prop:value=reviewer_notes
-                                            ></textarea>
-                                            <div class="composer-footer">
-                                                <button class="btn btn-primary btn-sm" on:click=add_reviewer_note>"Post Note"</button>
-                                            </div>
-                                        </div>
+                                <div class="rev-content">
+                                    {move || match active_rev_tab.get() {
+                                        ReviewTab::Documents => {
+                                            let count = request.document_count.max(3);
+                                            let r_type = type_label.clone();
+                                            let entity = entity_title.clone();
+                                            let rejected_reason = request.rejection_reason.clone();
+                                            let rejected = status_str == "rejected";
+                                            view! {
+                                                <div>
+                                                    <div class="verif-section-label">"Submitted Documents · G-02 Vault"</div>
+                                                    {(0..count).map(move |i| {
+                                                        let doc_name = document_name(&r_type, &entity, i);
+                                                        let format_type = if doc_name.ends_with(".png") { "PNG" } else { "PDF" };
+                                                        let (status_label, status_style) = doc_status(i);
+                                                        let size_mb = (4.2 - (i as f32 * 1.3)).max(0.7);
 
-                                        <div class="space-y-4">
-                                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Review History Timeline"</h4>
-                                            <div class="relative pl-6 border-l border-outline-variant/20 ml-2 space-y-6 pt-2">
-                                                {move || note_history.get().into_iter().map(|item| view! {
-                                                    <div class="relative">
-                                                        <div class="absolute -left-[30px] top-0 w-2.5 h-2.5 rounded-full bg-primary border-2 border-surface-container"></div>
-                                                        <div>
-                                                            <div class="flex items-center gap-2">
-                                                                <span class="text-xs font-bold text-on-surface">{item.author}</span>
-                                                                <span class="px-1.5 py-0.2 bg-surface-container border border-outline-variant/20 rounded text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60">"Super-Admin"</span>
-                                                                <span class="text-[10px] text-on-surface-variant font-mono ml-auto">{item.timestamp}</span>
+                                                        view! {
+                                                            <div class="doc-card">
+                                                                <div class="doc-icon">{format_type}</div>
+                                                                <div class="doc-info">
+                                                                    <div class="doc-name">{doc_name}</div>
+                                                                    <div class="doc-meta">{format!("{:.1} MB · Uploaded · SHA-256 checksum verified", size_mb)}</div>
+                                                                </div>
+                                                                <div class="doc-actions">
+                                                                    <span class="doc-status" style=status_style>{status_label}</span>
+                                                                    <button
+                                                                        class="btn btn-ghost btn-sm"
+                                                                        on:click=move |_| toast.show_toast("Document Viewer", "Loading document preview in secure sandbox...", "info")
+                                                                    >
+                                                                        "View ↗"
+                                                                    </button>
+                                                                </div>
                                                             </div>
-                                                            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed bg-surface-container p-3 rounded-lg border border-outline-variant/10">{item.text}</p>
+                                                        }
+                                                    }).collect_view()}
+
+                                                    <Show when=move || !rejected>
+                                                        <div class="verif-warn">
+                                                            <div class="verif-warn-title">"⚠ Document concern — Business Registration"</div>
+                                                            <div class="verif-warn-body">"The first document needs reviewer confirmation and one supporting document is still pending. Confirm whether the registration is current or request an updated document."</div>
                                                         </div>
-                                                    </div>
-                                                }).collect_view()}
+                                                    </Show>
+
+                                                    <Show when=move || rejected>
+                                                        <div class="disq-panel">
+                                                            <div class="disq-panel-label">"⚠ Rejection Reason"</div>
+                                                            <div class="verif-warn-body">{rejected_reason.clone().unwrap_or_else(|| "Documents insufficient.".to_string())}</div>
+                                                        </div>
+                                                    </Show>
+                                                </div>
+                                            }.into_any()
+                                        }
+                                        ReviewTab::Checklist => view! {
+                                            <div class="card">
+                                                <div class="card-hdr">
+                                                    <span class="card-title">{format!("{} Verification Checklist", type_label.clone())}</span>
+                                                </div>
+                                                <div class="checklist">
+                                                    {move || checklist_items.get().into_iter().map(|item| {
+                                                        let state = item.checked;
+                                                        view! {
+                                                            <div class="check-item">
+                                                                <div
+                                                                    class=move || if state.get() { "check-box checked" } else { "check-box" }
+                                                                    on:click=move |_| state.update(|v| *v = !*v)
+                                                                ></div>
+                                                                <span class=move || if state.get() { "check-label checked-label" } else { "check-label" }>{item.label}</span>
+                                                                <span class=if item.note_class.is_empty() { "check-note" } else if item.note_class == "warn" { "check-note warn" } else { "check-note critical" }>{item.note}</span>
+                                                            </div>
+                                                        }
+                                                    }).collect_view()}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                        }.into_any(),
+                                        ReviewTab::Entity => view! {
+                                            <div class="verif-stat-grid">
+                                                <div class="card">
+                                                    <div class="card-hdr"><span class="card-title">"Entity Profile"</span></div>
+                                                    <div class="stat-row"><span class="s-label">"Organization"</span><span class="s-value">{entity_title.clone()}</span></div>
+                                                    <div class="stat-row"><span class="s-label">"Registry Type"</span><span class="s-value">{type_label.clone()}</span></div>
+                                                    <div class="stat-row"><span class="s-label">"Tax ID / EIN"</span><span class="s-value muted mono">"—"</span></div>
+                                                    <div class="stat-row"><span class="s-label">"Incorporation Region"</span><span class="s-value muted">"—"</span></div>
+                                                    <div class="stat-row"><span class="s-label">"Primary Contact"</span><span class="s-value muted">"—"</span></div>
+                                                </div>
+                                                <div class="card">
+                                                    <div class="card-hdr">
+                                                        <span class="card-title">"FMCSA / DOT Cross-Check"</span>
+                                                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Queued", "Automated verification check queued.", "info")>"Run Check"</button>
+                                                    </div>
+                                                    <div class="stat-row"><span class="s-label">"DOT Match"</span><span class="s-value muted">"Not applicable"</span></div>
+                                                    <div class="stat-row"><span class="s-label">"FMCSA Match"</span><span class="s-value muted">"Not applicable"</span></div>
+                                                    <div class="stat-row"><span class="s-label">"OFAC Sanctions"</span><span class="s-value green">"✓ Clear"</span></div>
+                                                    <div class="stat-row"><span class="s-label">"Security Hold Status"</span><span class="s-value green">"Clear"</span></div>
+                                                </div>
+                                            </div>
+                                        }.into_any(),
+                                        ReviewTab::Notes => view! {
+                                            <div>
+                                                <div class="verif-section-label">"Reviewer Notes"</div>
+                                                <textarea
+                                                    class="rev-notes"
+                                                    placeholder="Add internal review notes..."
+                                                    on:input=move |ev| reviewer_notes.set(event_target_value(&ev))
+                                                    prop:value=reviewer_notes
+                                                ></textarea>
+                                                <div class="decision-row">
+                                                    <button class="btn btn-primary btn-sm" on:click=add_reviewer_note>"Post Note"</button>
+                                                    <button class="btn btn-approve btn-sm" on:click=move |_| show_approve_modal.set(true)>"Approve Verification"</button>
+                                                    <button class="btn btn-reject btn-sm" on:click=move |_| {
+                                                        temp_rejection_reason.set(String::new());
+                                                        show_reject_modal.set(true);
+                                                    }>"Reject"</button>
+                                                    <button class="btn btn-ghost btn-sm" on:click=move |_| show_info_request_modal.set(true)>"Request More Info"</button>
+                                                </div>
+
+                                                <div class="verif-note-list">
+                                                    {move || {
+                                                        let history = note_history.get();
+                                                        if history.is_empty() {
+                                                            view! {
+                                                                <div class="empty-state">
+                                                                    <div class="empty-state-title">"No reviewer notes yet"</div>
+                                                                    <div class="empty-state-body">"Internal notes added during review will appear here."</div>
+                                                                </div>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                {history.into_iter().map(|item| view! {
+                                                                    <div class="verif-note-item">
+                                                                        <div class="verif-note-meta">
+                                                                            <span class="verif-note-author">{item.author}</span>
+                                                                            <span class="verif-note-role">"Super-Admin"</span>
+                                                                            <span class="verif-note-time">{item.timestamp}</span>
+                                                                        </div>
+                                                                        <div class="verif-note-body">{item.text}</div>
+                                                                    </div>
+                                                                }).collect_view()}
+                                                            }.into_any()
+                                                        }
+                                                    }}
+                                                </div>
+                                            </div>
+                                        }.into_any(),
+                                    }}
                                 </div>
-                            </div>
-                        </div>
-                    }.into_any()
-                }}
-            </div>
-        </Suspense>
-
-        // ── ACTION MODAL DIALOGS ──
-
-        // 1. Approve Dialog
-        <Show when=move || show_approve_modal.get()>
-            <div class="modal-overlay open">
-                <div class="modal">
-                    <h3 class="text-lg font-bold mb-2">"Approve Business Verification"</h3>
-                    <p class="text-on-surface-variant text-xs mb-6">"Are you sure you want to approve this verification? The tenant status will immediately update to verified. This action is permanently logged."</p>
-                    <div class="flex justify-end gap-3">
-                        <button class="btn btn-ghost" on:click=move |_| show_approve_modal.set(false)>"Cancel"</button>
-                        <button class="btn btn-primary" on:click=handle_approve>"Approve Request"</button>
+                            }.into_any()
+                        }}
                     </div>
                 </div>
-            </div>
-        </Show>
+            </Suspense>
 
-        // 2. Reject Dialog
-        <Show when=move || show_reject_modal.get()>
-            <div class="modal-overlay open">
-                <div class="modal">
-                    <h3 class="text-lg font-bold mb-2 text-error">"Reject Verification Request"</h3>
-                    <p class="text-on-surface-variant text-xs mb-4">"Explain the refusal decision to send as an email notification feedback."</p>
-                    <textarea
-                        class="w-full bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg p-3 text-xs text-on-surface outline-none focus:border-error min-h-[80px] mb-6 resize-none"
-                        placeholder="Reason for rejection (e.g. Expired registration documents)"
-                        on:input=move |ev| temp_rejection_reason.set(event_target_value(&ev))
-                        prop:value=temp_rejection_reason
-                    ></textarea>
-                    <div class="flex justify-end gap-3">
-                        <button class="btn btn-ghost" on:click=move |_| show_reject_modal.set(false)>"Cancel"</button>
-                        <button class="btn btn-reject btn-sm" on:click=handle_reject>"Reject Request"</button>
-                    </div>
-                </div>
-            </div>
-        </Show>
+            {move || ver_error.get().map(|e| crate::utils::inline_error(&e))}
 
-        // 3. Request More Info Dialog
-        <Show when=move || show_info_request_modal.get()>
-            <div class="modal-overlay open">
-                <div class="modal">
-                    <h3 class="text-lg font-bold mb-2">"Request Additional Documents"</h3>
-                    <p class="text-on-surface-variant text-xs mb-4">"The applicant will receive an email checklist link to supply the following items."</p>
-                    <div class="space-y-4 mb-6">
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Recipient Email"</label>
-                            <input type="email" class="form-input" value=move || {
-                                    selected_request.get()
-                                        .map(|r| format!("applicant+{}@verification.atlasplatform.io", r.entity_name.to_lowercase().replace(' ', ".")))
-                                        .unwrap_or_else(|| "applicant@verification.atlasplatform.io".to_string())
-                                } disabled=true />
-                        </div>
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Email message body"</label>
-                            <textarea class="w-full bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary h-28 resize-none">
-                                "Hi,\n\nWe need additional information to complete your verification. Please reply with the requested documents.\n\n— Atlas Platform Team"
-                            </textarea>
+            <Show when=move || show_approve_modal.get()>
+                <div class="modal-overlay open">
+                    <div class="modal">
+                        <div class="verif-section-label">"Approve Business Verification"</div>
+                        <div class="rev-meta">"Approve this verification request? The tenant status will immediately update to verified and the action will be permanently logged."</div>
+                        <div class="rev-actions">
+                            <button class="btn btn-ghost" on:click=move |_| show_approve_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_approve>"Approve Request"</button>
                         </div>
                     </div>
-                    <div class="flex justify-end gap-3">
-                        <button class="btn btn-ghost" on:click=move |_| show_info_request_modal.set(false)>"Cancel"</button>
-                        <button class="btn btn-primary" on:click=move |_| {
-                            show_info_request_modal.set(false);
-                            toast.show_toast("Success", "Request email sent to applicant.", "success");
-                        }>"Send Request"</button>
+                </div>
+            </Show>
+
+            <Show when=move || show_reject_modal.get()>
+                <div class="modal-overlay open">
+                    <div class="modal">
+                        <div class="verif-section-label">"Reject Verification Request"</div>
+                        <div class="rev-meta">"Explain the refusal decision to send as email notification feedback."</div>
+                        <textarea
+                            class="rev-notes"
+                            placeholder="Reason for rejection (e.g. Expired registration documents)"
+                            on:input=move |ev| temp_rejection_reason.set(event_target_value(&ev))
+                            prop:value=temp_rejection_reason
+                        ></textarea>
+                        <div class="rev-actions">
+                            <button class="btn btn-ghost" on:click=move |_| show_reject_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-reject btn-sm" on:click=handle_reject>"Reject Request"</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </Show>
-        </div> // end main-area
+            </Show>
+
+            <Show when=move || show_info_request_modal.get()>
+                <div class="modal-overlay open">
+                    <div class="modal">
+                        <div class="verif-section-label">"Request Additional Documents"</div>
+                        <div class="rev-meta">"The applicant will receive an email checklist link to supply the following items."</div>
+                        <label class="verif-section-label">"Recipient Email"</label>
+                        <input
+                            type="email"
+                            class="form-input"
+                            value=move || {
+                                selected_request
+                                    .get()
+                                    .map(|r| format!("applicant+{}@verification.atlasplatform.io", r.entity_name.to_lowercase().replace(' ', ".")))
+                                    .unwrap_or_else(|| "applicant@verification.atlasplatform.io".to_string())
+                            }
+                            disabled=true
+                        />
+                        <label class="verif-section-label">"Email Message Body"</label>
+                        <textarea class="rev-notes">
+                            "Hi,\n\nWe need additional information to complete your verification. Please reply with the requested documents.\n\n— Atlas Platform Team"
+                        </textarea>
+                        <div class="rev-actions">
+                            <button class="btn btn-ghost" on:click=move |_| show_info_request_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=move |_| {
+                                show_info_request_modal.set(false);
+                                toast.show_toast("Success", "Request email sent to applicant.", "success");
+                            }>"Send Request"</button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+        </div>
     }
 }
