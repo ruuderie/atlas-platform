@@ -1062,6 +1062,38 @@ pub async fn list_campaign_members(
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferrerLeaderboardRow {
+    pub referred_by: String,
+    pub signup_count: i64,
+    pub latest_signup_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferrerLeaderboardResponse {
+    pub campaign_id: uuid::Uuid,
+    pub utm_campaign: Option<String>,
+    pub total_attributed: i64,
+    pub referrers: Vec<ReferrerLeaderboardRow>,
+}
+
+/// GET /api/admin/campaigns/:id/referrers — who referred the most.
+pub async fn list_campaign_referrers(
+    campaign_id: uuid::Uuid,
+) -> Result<ReferrerLeaderboardResponse, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/referrers", campaign_id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<ReferrerLeaderboardResponse>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
 /// PUT /api/admin/campaigns/:id/status — transition campaign status.
 pub async fn update_campaign_status(
     id: uuid::Uuid,

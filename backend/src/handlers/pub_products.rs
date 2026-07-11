@@ -45,10 +45,12 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::entities::{
-    app_page, app_page_variant, atlas_lead, outbox_job, platform_product, platform_product_plan,
-    product_page::{template, variant},
+    app_page, app_page_variant, atlas_campaign, atlas_lead, outbox_job, platform_product,
+    platform_product_plan, product_page::{template, variant},
 };
+use crate::services::pm::campaign::{CampaignService, EnrollContactPayload, RecordEventPayload};
 use crate::types::gtm::PlanTier;
+use crate::types::pm::{CampaignChannel, CampaignEventType};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -204,6 +206,9 @@ pub struct WaitlistBody {
     pub why_beta: Option<String>,
     /// Optional source override hint for campaign-specific capture flows.
     pub source: Option<String>,
+    /// Friends & Family / referral attribution — who shared the link.
+    /// Also mirrored into utm_content when that field is empty.
+    pub referred_by: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -984,6 +989,21 @@ async fn join_waitlist_inner(
         .map(str::to_string)
         .unwrap_or_else(|| format!("waitlist:{}", product_slug));
 
+    let referred_by = body
+        .referred_by
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            body.utm_content
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string)
+        });
+    let utm_content = body.utm_content.clone().or_else(|| referred_by.clone());
+
     // Increment variant lead_count if applicable
     if let Some(v) = variant_info {
         let mut active: variant::ActiveModel = v.into();
@@ -1000,6 +1020,8 @@ async fn join_waitlist_inner(
         .await
         .ok()
         .flatten();
+
+    let mut inserted_lead_id: Option<Uuid> = existing_lead.as_ref().map(|l| l.id);
 
     if existing_lead.is_none() {
         // Compute display name per entity rule: first+last ?? company ?? email
@@ -1034,7 +1056,7 @@ async fn join_waitlist_inner(
             lead_status: Set("new".to_string()),
             email_verified: Set(false),
             phone_verified: Set(false),
-            // Attribution + landing context stored in lead_metadata JSONB
+            // Attribution + signup context stored in lead_metadata JSONB
             lead_metadata: Set(Some(json!({
                 "role":          body.role,
                 "portfolio_size": body.portfolio_size_label,
@@ -1042,7 +1064,7 @@ async fn join_waitlist_inner(
                 "utm_source":    body.utm_source,
                 "utm_medium":    body.utm_medium,
                 "utm_campaign":  body.utm_campaign,
-                "utm_content":   body.utm_content,
+                "utm_content":   utm_content,
                 "utm_term":      body.utm_term,
                 "gclid":         body.gclid,
                 "fbclid":        body.fbclid,
@@ -1062,6 +1084,7 @@ async fn join_waitlist_inner(
                 "feedback_call": body.feedback_call,
                 "why_beta":      body.why_beta,
                 "source_hint":   body.source,
+                "referred_by":   referred_by.clone(),
                 "captured_at":   Utc::now().to_rfc3339(),
             }))),
             created_at: Set(Utc::now()),
@@ -1069,40 +1092,70 @@ async fn join_waitlist_inner(
             ..Default::default()
         };
 
-        if let Err(e) = new_lead.insert(db).await {
-            // Non-fatal — waitlist count still increments; log and continue
-            tracing::warn!(email = %body.email, error = %e, "atlas_lead insert failed");
-        } else {
-            // Atomically increment platform_product.waitlist_count
-            let mut prod_active: platform_product::ActiveModel = product.into();
-            prod_active.waitlist_count = Set(prod_active.waitlist_count.unwrap() + 1);
-            let _ = prod_active.update(db).await;
+        match new_lead.insert(db).await {
+            Ok(lead) => {
+                inserted_lead_id = Some(lead.id);
+                // Atomically increment platform_product.waitlist_count
+                let mut prod_active: platform_product::ActiveModel = product.into();
+                prod_active.waitlist_count = Set(prod_active.waitlist_count.unwrap() + 1);
+                let _ = prod_active.update(db).await;
 
-            // Enqueue confirmation email via outbox (fire-and-forget — non-fatal)
-            let confirmation_job = outbox_job::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                tenant_id: Set(sentinel_tenant_id),
-                job_type: Set(
-                    crate::types::outbox::OutboxJobType::SendWaitlistConfirmation.to_string(),
-                ),
-                payload: Set(json!({
-                    "to_email":     body.email,
-                    "name":         display_name,
-                    "product_slug": product_slug,
-                    "variant_slug": variant_slug,
-                })),
-                status: Set(crate::types::outbox::OutboxJobStatus::Pending.to_string()),
-                run_at: Set(Utc::now()),
-                attempts: Set(0),
-                created_at: Set(Utc::now()),
-                ..Default::default()
-            };
-            if let Err(e) = confirmation_job.insert(db).await {
-                tracing::warn!(email = %body.email, error = %e, "outbox job insert failed — email will not be sent");
+                // Enqueue confirmation email via outbox (fire-and-forget — non-fatal)
+                let confirmation_job = outbox_job::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    tenant_id: Set(sentinel_tenant_id),
+                    job_type: Set(
+                        crate::types::outbox::OutboxJobType::SendWaitlistConfirmation.to_string(),
+                    ),
+                    payload: Set(json!({
+                        "to_email":     body.email,
+                        "name":         display_name,
+                        "product_slug": product_slug,
+                        "variant_slug": variant_slug,
+                    })),
+                    status: Set(crate::types::outbox::OutboxJobStatus::Pending.to_string()),
+                    run_at: Set(Utc::now()),
+                    attempts: Set(0),
+                    created_at: Set(Utc::now()),
+                    ..Default::default()
+                };
+                if let Err(e) = confirmation_job.insert(db).await {
+                    tracing::warn!(email = %body.email, error = %e, "outbox job insert failed — email will not be sent");
+                }
+            }
+            Err(e) => {
+                tracing::warn!(email = %body.email, error = %e, "atlas_lead insert failed");
             }
         }
     } else {
         tracing::debug!(email = %body.email, "duplicate waitlist signup — skipping lead insert");
+    }
+
+    // Auto-enroll into a matching active campaign when utm_campaign is set.
+    if let Some(utm_campaign) = body
+        .utm_campaign
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        if let Err(e) = maybe_enroll_waitlist_in_campaign(
+            db,
+            utm_campaign,
+            &body.email,
+            body.name.as_deref().or(body.biz_name.as_deref()),
+            inserted_lead_id,
+            referred_by.as_deref(),
+            &lead_source,
+        )
+        .await
+        {
+            tracing::warn!(
+                email = %body.email,
+                utm_campaign,
+                error = %e,
+                "waitlist campaign auto-enroll failed"
+            );
+        }
     }
 
     // Return 201 with position (waitlist_count reflects all leads for this product)
@@ -1126,6 +1179,81 @@ async fn join_waitlist_inner(
         })),
     )
         .into_response()
+}
+
+/// When a waitlist signup carries `utm_campaign`, enroll the contact into the
+/// matching active `atlas_campaigns` row (Friends & Family, etc.).
+async fn maybe_enroll_waitlist_in_campaign(
+    db: &DatabaseConnection,
+    utm_campaign: &str,
+    email: &str,
+    name: Option<&str>,
+    lead_id: Option<Uuid>,
+    referred_by: Option<&str>,
+    lead_source: &str,
+) -> Result<(), String> {
+    let campaign = atlas_campaign::Entity::find()
+        .filter(atlas_campaign::Column::UtmCampaign.eq(utm_campaign))
+        .filter(atlas_campaign::Column::Status.eq("active"))
+        .one(db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let Some(campaign) = campaign else {
+        return Ok(());
+    };
+
+    if CampaignService::find_enrollment_by_email(db, campaign.id, email)
+        .await
+        .map_err(|e| e.to_string())?
+        .is_some()
+    {
+        return Ok(());
+    }
+
+    let enrollment = CampaignService::enroll(
+        db,
+        campaign.tenant_id,
+        EnrollContactPayload {
+            campaign_id: campaign.id,
+            contact_user_id: None,
+            contact_email: Some(email.to_string()),
+            contact_name: name.map(str::to_string).filter(|s| !s.is_empty()),
+            contact_metadata: Some(json!({
+                "lead_id": lead_id,
+                "source": lead_source,
+                "referred_by": referred_by,
+                "utm_campaign": utm_campaign,
+            })),
+            external_enrollment_id: None,
+            next_step_at: None,
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let _ = CampaignService::record_event(
+        db,
+        campaign.tenant_id,
+        RecordEventPayload {
+            enrollment_id: enrollment.id,
+            event_type: CampaignEventType::FormFill,
+            channel: CampaignChannel::Referral,
+            sequence_step_id: None,
+            link_clicked: None,
+            ip_address: None,
+            user_agent: None,
+            metadata: Some(json!({
+                "referred_by": referred_by,
+                "utm_campaign": utm_campaign,
+            })),
+            conversion_entity_type: None,
+            conversion_entity_id: None,
+        },
+    )
+    .await;
+
+    Ok(())
 }
 
 async fn create_pre_order(

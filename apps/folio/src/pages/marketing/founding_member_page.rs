@@ -360,14 +360,63 @@ fn FoundingSignup(
     #[prop(into)] id: String,
     #[prop(into)] label: String,
     #[prop(into)] tier_key: String,
+    #[prop(into)] role: String,
     is_featured: bool,
 ) -> impl IntoView {
     let email = RwSignal::new(String::new());
     let submitted = RwSignal::new(false);
+    let loading = RwSignal::new(false);
+    let err_msg = RwSignal::new(String::new());
+    let role = RwSignal::new(role);
+    let tier_key = RwSignal::new(tier_key);
+    let label = RwSignal::new(label);
+    let input_id = RwSignal::new(id);
     let btn_class = if is_featured {
         "founding-claim-btn founding-claim-btn--featured"
     } else {
         "founding-claim-btn"
+    };
+
+    let submit = move |_| {
+        let e = email.get().trim().to_string();
+        if loading.get() || e.is_empty() || !e.contains('@') {
+            err_msg.set("Please enter a valid email address.".to_string());
+            return;
+        }
+        loading.set(true);
+        err_msg.set(String::new());
+        #[cfg(feature = "hydrate")]
+        let landing_url = web_sys::window()
+            .and_then(|w| w.location().href().ok())
+            .unwrap_or_default();
+        #[cfg(not(feature = "hydrate"))]
+        let landing_url = String::new();
+        let body = serde_json::json!({
+            "email": e,
+            "role": role.get(),
+            "source": "founding",
+            "utm_source": "founding",
+            "utm_medium": "lifetime",
+            "utm_campaign": "founding",
+            "utm_content": tier_key.get(),
+            "landing_url": landing_url,
+        });
+        leptos::task::spawn_local(async move {
+            let resp = gloo_net::http::Request::post(&FolioMarketingSlug::FolioFounding.waitlist_path())
+                .header("Content-Type", "application/json")
+                .body(body.to_string())
+                .unwrap()
+                .send()
+                .await;
+            loading.set(false);
+            match resp {
+                Ok(r) if r.ok() => submitted.set(true),
+                Ok(_) => {
+                    err_msg.set("We couldn't reserve your spot. Please try again.".to_string())
+                }
+                Err(_) => err_msg.set("Network issue. Please try again in a moment.".to_string()),
+            }
+        });
     };
 
     view! {
@@ -389,19 +438,21 @@ fn FoundingSignup(
                             type="email"
                             class="mktg-wl-input"
                             placeholder="your@email.com"
-                            id=id.clone()
+                            id=move || input_id.get()
                             prop:value=move || email.get()
                             on:input=move |e| email.set(event_target_value(&e))
                         />
                         <button
                             class=btn_class
-                            data-tier=tier_key.clone()
-                            on:click=move |_| {
-                                if !email.get().is_empty() { submitted.set(true); }
-                            }
+                            data-tier=move || tier_key.get()
+                            disabled=move || loading.get()
+                            on:click=submit.clone()
                         >
-                            {label.clone()}
+                            {move || if loading.get() { "Reserving…".to_string() } else { label.get() }}
                         </button>
+                        <Show when=move || !err_msg.get().is_empty() fallback=|| ()>
+                            <p style="font-size:.78rem;color:#f87171;margin-top:.75rem;">{move || err_msg.get()}</p>
+                        </Show>
                     </div>
                 }.into_any()
             }}
@@ -440,7 +491,7 @@ fn FoundingLandlord(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Tenant portal"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Vacancy marketing"</li>
                         </ul>
-                        <FoundingSignup id="ll-grow-email" label="Reserve Grow Lifetime" tier_key="ll-grow" is_featured=false/>
+                        <FoundingSignup id="ll-grow-email" label="Reserve Grow Lifetime" tier_key="ll-grow" role="Landlord" is_featured=false/>
                     </div>
 
                     // Pro Lifetime (featured)
@@ -458,7 +509,7 @@ fn FoundingLandlord(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Cohost Network access"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Portfolio analytics"</li>
                         </ul>
-                        <FoundingSignup id="ll-pro-email" label="Reserve Pro Lifetime" tier_key="ll-pro" is_featured=true/>
+                        <FoundingSignup id="ll-pro-email" label="Reserve Pro Lifetime" tier_key="ll-pro" role="Landlord" is_featured=true/>
                     </div>
 
                     // Investor Lifetime
@@ -475,7 +526,7 @@ fn FoundingLandlord(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Owner portal (for investors)"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"API access"</li>
                         </ul>
-                        <FoundingSignup id="ll-investor-email" label="Reserve Investor Lifetime" tier_key="ll-investor" is_featured=false/>
+                        <FoundingSignup id="ll-investor-email" label="Reserve Investor Lifetime" tier_key="ll-investor" role="Landlord" is_featured=false/>
                     </div>
                 </div>
             </div>
@@ -514,7 +565,7 @@ fn FoundingBroker(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#3b82f6;font-variation-settings:'FILL' 1">"check"</span>"Transaction dashboard"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#3b82f6;font-variation-settings:'FILL' 1">"check"</span>"Agent profile page"</li>
                         </ul>
-                        <FoundingSignup id="br-solo-email" label="Reserve Solo Lifetime" tier_key="br-solo" is_featured=false/>
+                        <FoundingSignup id="br-solo-email" label="Reserve Solo Lifetime" tier_key="br-solo" role="Broker" is_featured=false/>
                     </div>
 
                     // Team Lifetime (featured)
@@ -532,7 +583,7 @@ fn FoundingBroker(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Shared listing pipeline"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Branded client portal"</li>
                         </ul>
-                        <FoundingSignup id="br-team-email" label="Reserve Team Lifetime" tier_key="br-team" is_featured=true/>
+                        <FoundingSignup id="br-team-email" label="Reserve Team Lifetime" tier_key="br-team" role="Broker" is_featured=true/>
                     </div>
 
                     // Firm Lifetime
@@ -549,7 +600,7 @@ fn FoundingBroker(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Scorecard analytics per agent"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"API access"</li>
                         </ul>
-                        <FoundingSignup id="br-firm-email" label="Reserve Firm Lifetime" tier_key="br-firm" is_featured=false/>
+                        <FoundingSignup id="br-firm-email" label="Reserve Firm Lifetime" tier_key="br-firm" role="Broker" is_featured=false/>
                     </div>
                 </div>
             </div>
@@ -588,7 +639,7 @@ fn FoundingPM(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#a855f7;font-variation-settings:'FILL' 1">"check"</span>"Maintenance dispatch"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#a855f7;font-variation-settings:'FILL' 1">"check"</span>"Tenant + vendor portals"</li>
                         </ul>
-                        <FoundingSignup id="pm-starter-email" label="Reserve Starter PM Lifetime" tier_key="pm-starter" is_featured=false/>
+                        <FoundingSignup id="pm-starter-email" label="Reserve Starter PM Lifetime" tier_key="pm-starter" role="Property Manager" is_featured=false/>
                     </div>
 
                     // Growth PM Lifetime (featured)
@@ -606,7 +657,7 @@ fn FoundingPM(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Reporting & owner statements"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vendor marketplace access"</li>
                         </ul>
-                        <FoundingSignup id="pm-growth-email" label="Reserve Growth PM Lifetime" tier_key="pm-growth" is_featured=true/>
+                        <FoundingSignup id="pm-growth-email" label="Reserve Growth PM Lifetime" tier_key="pm-growth" role="Property Manager" is_featured=true/>
                     </div>
                 </div>
             </div>
@@ -644,7 +695,7 @@ fn FoundingVendor(spots: SpotInventory) -> impl IntoView {
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Job analytics dashboard"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Founding Member badge"</li>
                         </ul>
-                        <FoundingSignup id="vd-pro-email" label="Reserve Vendor Pro Lifetime" tier_key="vd-pro" is_featured=true/>
+                        <FoundingSignup id="vd-pro-email" label="Reserve Vendor Pro Lifetime" tier_key="vd-pro" role="Vendor" is_featured=true/>
                     </div>
                 </div>
             </div>

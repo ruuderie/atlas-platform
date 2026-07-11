@@ -14,7 +14,8 @@ use axum::{
     routing::{get, post, put},
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
+    FromQueryResult, QueryFilter, QueryOrder, Set, Statement,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -272,6 +273,85 @@ pub async fn list_campaign_enrollments(
     ))
 }
 
+/// One row in the Friends & Family (or any UTM-tagged) referrer leaderboard.
+#[derive(Debug, Serialize, Deserialize, Clone, FromQueryResult)]
+pub struct ReferrerLeaderboardRow {
+    pub referred_by: String,
+    pub signup_count: i64,
+    pub latest_signup_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReferrerLeaderboardResponse {
+    pub campaign_id: Uuid,
+    pub utm_campaign: Option<String>,
+    pub total_attributed: i64,
+    pub referrers: Vec<ReferrerLeaderboardRow>,
+}
+
+/// GET /api/admin/campaigns/:id/referrers — leaderboard of who referred the most.
+pub async fn list_campaign_referrers(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ReferrerLeaderboardResponse>, (axum::http::StatusCode, String)> {
+    let campaign = atlas_campaign::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                "Campaign not found".to_string(),
+            )
+        })?;
+
+    let utm = campaign
+        .utm_campaign
+        .clone()
+        .filter(|s| !s.trim().is_empty())
+        .ok_or_else(|| {
+            (
+                axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+                "Campaign has no utm_campaign — cannot build referrer leaderboard".to_string(),
+            )
+        })?;
+
+    let rows = ReferrerLeaderboardRow::find_by_statement(Statement::from_sql_and_values(
+        db.get_database_backend(),
+        r#"
+        SELECT
+            COALESCE(
+                NULLIF(TRIM(lead_metadata->>'referred_by'), ''),
+                NULLIF(TRIM(lead_metadata->>'utm_content'), ''),
+                '(unknown)'
+            ) AS referred_by,
+            COUNT(*)::bigint AS signup_count,
+            MAX(created_at)::text AS latest_signup_at
+        FROM atlas_lead
+        WHERE lead_metadata->>'utm_campaign' = $1
+          AND (
+                NULLIF(TRIM(lead_metadata->>'referred_by'), '') IS NOT NULL
+             OR NULLIF(TRIM(lead_metadata->>'utm_content'), '') IS NOT NULL
+          )
+        GROUP BY 1
+        ORDER BY signup_count DESC, latest_signup_at DESC NULLS LAST
+        "#,
+        [utm.clone().into()],
+    ))
+    .all(&db)
+    .await
+    .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let total_attributed: i64 = rows.iter().map(|r| r.signup_count).sum();
+
+    Ok(Json(ReferrerLeaderboardResponse {
+        campaign_id: id,
+        utm_campaign: Some(utm),
+        total_attributed,
+        referrers: rows,
+    }))
+}
+
 // ── Route constructor ─────────────────────────────────────────────────────────
 
 pub fn routes_raw() -> Router<DatabaseConnection> {
@@ -288,5 +368,9 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
         .route(
             "/api/admin/campaigns/{id}/enrollments",
             get(list_campaign_enrollments),
+        )
+        .route(
+            "/api/admin/campaigns/{id}/referrers",
+            get(list_campaign_referrers),
         )
 }

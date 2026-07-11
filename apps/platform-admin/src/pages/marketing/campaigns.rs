@@ -1,6 +1,6 @@
 use crate::api::admin::{
     CampaignModel, CreateCampaignInput, campaign_export_url, create_campaign, get_campaign,
-    list_campaign_members, list_campaigns,
+    list_campaign_members, list_campaign_referrers, list_campaigns,
 };
 use crate::api::products::get_products;
 use crate::components::gtm_process_strip::{GtmProcessStrip, GtmStage};
@@ -498,6 +498,16 @@ pub fn CampaignDetail() -> impl IntoView {
                     let campaign_name = campaign.name.clone();
                     let utm_source = campaign.utm_source.clone().unwrap_or_default();
                     let utm_medium = campaign.utm_medium.clone().unwrap_or_default();
+                    let utm_query = if utm_cmp.is_empty() {
+                        None
+                    } else {
+                        Some(format!(
+                            "?utm_source={}&utm_medium={}&utm_campaign={}",
+                            utm_source, utm_medium, &utm_cmp
+                        ))
+                    };
+                    let utm_for_referrers = utm_cmp.clone();
+                    let utm_for_landing_pages = utm_cmp;
 
                     view! {
                         <div class="space-y-6">
@@ -520,14 +530,11 @@ pub fn CampaignDetail() -> impl IntoView {
                                             </span>
                                         </div>
                                         <h1 class="text-xl font-extrabold text-on-surface tracking-tight">{campaign_name.clone()}</h1>
-                                        {if utm_cmp.is_empty() {
-                                            view! { <p class="text-xs text-on-surface-variant mt-0.5 font-mono italic">"utm_campaign not set"</p> }.into_any()
-                                        } else {
-                                            view! {
-                                                <p class="text-xs text-primary/70 mt-0.5 font-mono">
-                                                    {format!("?utm_source={}&utm_medium={}&utm_campaign={}", utm_source, utm_medium, utm_cmp)}
-                                                </p>
-                                            }.into_any()
+                                        {match utm_query {
+                                            None => view! { <p class="text-xs text-on-surface-variant mt-0.5 font-mono italic">"utm_campaign not set"</p> }.into_any(),
+                                            Some(q) => view! {
+                                                <p class="text-xs text-primary/70 mt-0.5 font-mono">{q}</p>
+                                            }.into_any(),
                                         }}
                                     </div>
                                 </div>
@@ -567,7 +574,7 @@ pub fn CampaignDetail() -> impl IntoView {
 
                             // ── Tabs ─────────────────────────────────────────
                             <div class="tab-bar">
-                                {[("overview", "Overview"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
+                                {[("overview", "Overview"), ("referrers", "Referrers"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
                                     let slug = slug.to_string();
                                     let label = label.to_string();
                                     let slug2 = slug.clone();
@@ -589,6 +596,11 @@ pub fn CampaignDetail() -> impl IntoView {
                                 <OverviewTab campaign_id=id />
                             </Show>
 
+                            // ── Tab: Referrers ───────────────────────────────
+                            <Show when=move || active_tab.get() == "referrers">
+                                <ReferrersTab campaign_id=id utm_campaign=utm_for_referrers.clone() />
+                            </Show>
+
                             // ── Tab: Members ─────────────────────────────────
                             <Show when=move || active_tab.get() == "members">
                                 <MembersTab campaign_id=id />
@@ -596,7 +608,7 @@ pub fn CampaignDetail() -> impl IntoView {
 
                             // ── Tab: Landing Pages ───────────────────────────
                             <Show when=move || active_tab.get() == "landing-pages">
-                                <LandingPagesTab utm_campaign=utm_cmp.clone() />
+                                <LandingPagesTab utm_campaign=utm_for_landing_pages.clone() />
                             </Show>
 
                             // ── Tab: Sequence ────────────────────────────────
@@ -688,6 +700,96 @@ fn OverviewTab(campaign_id: uuid::Uuid) -> impl IntoView {
                     </div>
                 </div>
             </div>
+        </div>
+    }
+}
+
+// ── Referrers Tab ────────────────────────────────────────────────────────────
+
+#[component]
+fn ReferrersTab(campaign_id: uuid::Uuid, utm_campaign: String) -> impl IntoView {
+    let board_res = LocalResource::new(move || async move {
+        list_campaign_referrers(campaign_id).await
+    });
+    let share_hint = if utm_campaign.is_empty() {
+        "/refer/{code}".to_string()
+    } else {
+        format!("/refer/{{code}}?utm_campaign={utm_campaign}")
+    };
+
+    view! {
+        <div class="space-y-4">
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4">
+                <p class="text-xs text-on-surface-variant">
+                    "Share template: "
+                    <span class="font-mono text-primary/80">{share_hint}</span>
+                </p>
+                <p class="text-[11px] text-on-surface-variant/70 mt-1">
+                    "Attributed waitlist signups grouped by referred_by / utm_content."
+                </p>
+            </div>
+
+            <Suspense fallback=|| view! {
+                <div class="text-xs text-on-surface-variant/60 animate-pulse">"Loading referrers..."</div>
+            }>
+                {move || board_res.get().map(|result| match result {
+                    Err(e) => view! {
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-8 text-center">
+                            <p class="text-sm text-on-surface-variant">{e}</p>
+                        </div>
+                    }.into_any(),
+                    Ok(board) if board.referrers.is_empty() => view! {
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-10 text-center">
+                            <p class="text-sm text-on-surface-variant">"No attributed referrals yet."</p>
+                            <p class="text-xs text-on-surface-variant mt-1">
+                                "Signups from /refer/{code} will appear here once they join the waitlist."
+                            </p>
+                        </div>
+                    }.into_any(),
+                    Ok(board) => {
+                        let total = board.total_attributed;
+                        let top = board.referrers.first().map(|r| r.referred_by.clone()).unwrap_or_default();
+                        view! {
+                            <div class="grid grid-cols-2 gap-3 mb-2">
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3">
+                                    <div class="text-lg font-extrabold font-mono text-on-surface">{total}</div>
+                                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-0.5">"Attributed signups"</div>
+                                </div>
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3">
+                                    <div class="text-lg font-extrabold font-mono text-emerald-400">{top}</div>
+                                    <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-0.5">"Top referrer"</div>
+                                </div>
+                            </div>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="text-[10px] uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/15 bg-surface-container-high/20">
+                                            <th class="py-3 px-4 font-semibold">"Rank"</th>
+                                            <th class="py-3 px-4 font-semibold">"Referrer"</th>
+                                            <th class="py-3 px-4 font-semibold text-right">"Signups"</th>
+                                            <th class="py-3 px-4 font-semibold">"Last signup"</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {board.referrers.into_iter().enumerate().map(|(i, row)| {
+                                            let rank = i + 1;
+                                            let last = row.latest_signup_at.clone().unwrap_or_else(|| "—".to_string());
+                                            view! {
+                                                <tr class="border-b border-outline-variant/10 hover:bg-surface-container-high/20">
+                                                    <td class="py-3 px-4 font-mono text-on-surface-variant">{rank}</td>
+                                                    <td class="py-3 px-4 font-semibold text-on-surface">{row.referred_by}</td>
+                                                    <td class="py-3 px-4 text-right font-mono font-bold">{row.signup_count}</td>
+                                                    <td class="py-3 px-4 text-on-surface-variant font-mono text-[11px]">{last}</td>
+                                                </tr>
+                                            }
+                                        }).collect_view()}
+                                    </tbody>
+                                </table>
+                            </div>
+                        }.into_any()
+                    }
+                })}
+            </Suspense>
         </div>
     }
 }

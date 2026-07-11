@@ -346,6 +346,7 @@ pub mod m20261025_folio_founding_beta_products; // Folio founding + beta campaig
 pub mod m20261026_folio_vendor_trade_categories; // Folio vendor trade category CMS overlay seed
 pub mod m20261027_atlas_flag_instance_enablements; // Per-app-instance feature flag enablements
 pub mod m20261028_g06_verification_reviewer_notes; // G-06: request_type + reviewer_notes
+pub mod m20261029_friends_family_referral_campaign; // Friends & Family referral campaign + UTM preset
 
 pub struct Migrator;
 
@@ -660,6 +661,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261026_folio_vendor_trade_categories::Migration),
             Box::new(m20261027_atlas_flag_instance_enablements::Migration),
             Box::new(m20261028_g06_verification_reviewer_notes::Migration),
+            Box::new(m20261029_friends_family_referral_campaign::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

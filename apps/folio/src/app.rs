@@ -12,6 +12,7 @@ use crate::pages::marketing::broker_landing_page::BrokerLandingPage;
 use crate::pages::marketing::founding_member_page::FoundingMemberPage;
 use crate::pages::marketing::market_landing_page::MarketLandingPage;
 use crate::pages::marketing::property_manager_landing_page::PropertyManagerLandingPage;
+use crate::pages::marketing::referral_landing_page::ReferralLandingPage;
 use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
 
 // Landlord pages
@@ -182,6 +183,9 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/founding")             view=FoundingMemberPage/>
                 // /beta → Beta program application page
                 <Route path=path!("/beta")                 view=BetaProgramPage/>
+                // /refer → Friends & Family referral capture (+ optional :code)
+                <Route path=path!("/refer")                view=ReferralLandingPage/>
+                <Route path=path!("/refer/:code")          view=ReferralLandingPage/>
 
                 // ── Home dispatch: / → marketing page (unauth) or role portal (auth) ──
                 <Route path=path!("/") view=HomeDispatch/>

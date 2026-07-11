@@ -11,6 +11,7 @@ pub mod market_landing_page;
 pub mod marketing_pricing;
 pub mod ni_signup;
 pub mod property_manager_landing_page;
+pub mod referral_landing_page;
 pub mod renter_application;
 pub mod str_listings;
 pub mod vendor_landing_page;

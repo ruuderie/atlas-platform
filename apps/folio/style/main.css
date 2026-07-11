@@ -5148,6 +5148,15 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
 .mktg-footer-legal a { color: var(--mk-muted); transition: color .15s; }
 .mktg-footer-legal a:hover { color: var(--mk-text); }
 
+/* ── Friends & Family referral form ───────────────────────────────────────── */
+.refer-form { display: flex; flex-direction: column; gap: .35rem; }
+.refer-label {
+  display: block; font-size: .75rem; font-weight: 600; color: var(--mk-muted);
+  margin-top: .85rem; margin-bottom: .35rem;
+}
+.refer-form .mktg-wl-input,
+.refer-form .mktg-wl-select { width: 100%; }
+
 /* ── Skeleton ──────────────────────────────────────────────────────────────── */
 .mktg-skeleton-page { min-height: 100vh; }
 .mktg-hero--skeleton { justify-content: center; align-items: center; flex-direction: column; gap: 1rem; }
