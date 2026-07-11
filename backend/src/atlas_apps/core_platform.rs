@@ -148,6 +148,7 @@ impl AtlasApp for CorePlatformApp {
             // GENERIC-36: Productized growth/incentive programs (NetworkInvite first)
             Box::new(crate::migration::m20261018_g36_atlas_programs::Migration),
             Box::new(crate::migration::m20261019_g36_network_invite_reward_rules::Migration),
+            Box::new(crate::migration::m20261020_g36_subscription_credit_ledger::Migration),
         ]
     }
 

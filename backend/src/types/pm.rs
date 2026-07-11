@@ -2735,6 +2735,7 @@ impl fmt::Display for ProgramRewardType {
 pub enum ProgramRewardGrantStatus {
     Pending,
     Granted,
+    Applied,
     Revoked,
 }
 
@@ -2743,6 +2744,7 @@ impl fmt::Display for ProgramRewardGrantStatus {
         f.write_str(match self {
             Self::Pending => "pending",
             Self::Granted => "granted",
+            Self::Applied => "applied",
             Self::Revoked => "revoked",
         })
     }

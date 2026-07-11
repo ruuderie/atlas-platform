@@ -188,6 +188,22 @@ impl ProgramService {
         .await
         .map_err(|e| format!("outcome create failed: {e}"))?;
 
+        // Vendors invited onto Folio also track first completed job.
+        if target_role == "vendor" && default_outcome != ProgramOutcomeType::FirstJobLogged.to_string()
+        {
+            db.execute(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"
+                INSERT INTO atlas_program_outcomes
+                    (id, program_action_id, outcome_type, status, created_at)
+                VALUES (gen_random_uuid(), $1, 'first_job_logged', 'pending', now())
+                "#,
+                [action_id.into()],
+            ))
+            .await
+            .map_err(|e| format!("first_job outcome create failed: {e}"))?;
+        }
+
         // Best-effort outbound invite email via transactional outbox.
         if let Err(e) = Self::enqueue_network_invite_email(
             db,
@@ -382,7 +398,7 @@ impl ProgramService {
         .await
         .map_err(|e| e.to_string())?;
 
-        // Create reward grants for matching rules (pending; no billing in v1)
+        // Create reward grants for matching rules (then apply subscription credits)
         db.execute(Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Postgres,
             r#"
@@ -407,7 +423,49 @@ impl ProgramService {
         .await
         .map_err(|e| e.to_string())?;
 
+        if let Err(e) = Self::apply_subscription_credit_grants(db, action_id).await {
+            tracing::warn!("G-36 apply_subscription_credit_grants failed (non-fatal): {e}");
+        }
+
         Ok(())
+    }
+
+    /// Apply granted `subscription_credit_days` rows into the internal credit ledger.
+    /// Idempotent via unique `grant_id`. Stripe consumption is a later integration.
+    pub async fn apply_subscription_credit_grants(
+        db: &DatabaseConnection,
+        action_id: Uuid,
+    ) -> Result<u64, String> {
+        let result = db
+            .execute(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"
+                WITH applied AS (
+                    INSERT INTO atlas_subscription_credit_ledger (id, user_id, grant_id, days, note, created_at)
+                    SELECT gen_random_uuid(), g.beneficiary_user_id, g.id, r.amount,
+                           'G-36 ' || COALESCE(p.slug, 'program') || ' reward',
+                           now()
+                    FROM atlas_program_reward_grants g
+                    JOIN atlas_program_reward_rules r ON r.id = g.rule_id
+                    JOIN atlas_program_actions a ON a.id = g.program_action_id
+                    JOIN atlas_programs p ON p.id = a.program_id
+                    WHERE g.program_action_id = $1
+                      AND g.status = 'granted'
+                      AND r.reward_type = 'subscription_credit_days'
+                      AND r.amount > 0
+                    ON CONFLICT (grant_id) DO NOTHING
+                    RETURNING grant_id
+                )
+                UPDATE atlas_program_reward_grants g
+                SET status = 'applied'
+                FROM applied
+                WHERE g.id = applied.grant_id
+                "#,
+                [action_id.into()],
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(result.rows_affected())
     }
 
     /// Complete outcomes for actions linked to an invite code (wizard finish hook).
@@ -436,6 +494,83 @@ impl ProgramService {
                 outcome_type.clone(),
                 Some("user"),
                 Some(evidence_user_id),
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Complete pending outcomes for actions targeting a user (e.g. invited vendor's first job).
+    pub async fn complete_outcomes_for_target_user(
+        db: &DatabaseConnection,
+        target_user_id: Uuid,
+        outcome_type: ProgramOutcomeType,
+        evidence_entity_type: Option<&str>,
+        evidence_entity_id: Option<Uuid>,
+    ) -> Result<(), String> {
+        let rows = db
+            .query_all(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"
+                SELECT DISTINCT a.id
+                FROM atlas_program_actions a
+                JOIN atlas_program_outcomes o ON o.program_action_id = a.id
+                WHERE a.target_user_id = $1
+                  AND o.outcome_type = $2
+                  AND o.status = 'pending'
+                "#,
+                [target_user_id.into(), outcome_type.to_string().into()],
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+
+        for row in rows {
+            let action_id: Uuid = row.try_get("", "id").map_err(|e| e.to_string())?;
+            Self::complete_outcome(
+                db,
+                action_id,
+                outcome_type.clone(),
+                evidence_entity_type,
+                evidence_entity_id,
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Complete pending outcomes where the program actor is this user
+    /// (e.g. vendor receives a review from an invited client).
+    pub async fn complete_outcomes_for_actor_user(
+        db: &DatabaseConnection,
+        actor_user_id: Uuid,
+        outcome_type: ProgramOutcomeType,
+        evidence_entity_type: Option<&str>,
+        evidence_entity_id: Option<Uuid>,
+    ) -> Result<(), String> {
+        let rows = db
+            .query_all(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                r#"
+                SELECT DISTINCT a.id
+                FROM atlas_program_actions a
+                JOIN atlas_program_outcomes o ON o.program_action_id = a.id
+                WHERE a.actor_user_id = $1
+                  AND o.outcome_type = $2
+                  AND o.status = 'pending'
+                "#,
+                [actor_user_id.into(), outcome_type.to_string().into()],
+            ))
+            .await
+            .map_err(|e| e.to_string())?;
+
+        for row in rows {
+            let action_id: Uuid = row.try_get("", "id").map_err(|e| e.to_string())?;
+            Self::complete_outcome(
+                db,
+                action_id,
+                outcome_type.clone(),
+                evidence_entity_type,
+                evidence_entity_id,
             )
             .await?;
         }

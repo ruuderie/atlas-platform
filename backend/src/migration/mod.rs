@@ -336,6 +336,7 @@ pub mod m20261016_atlas_scorecard_template_deployments; // G-27 Phase 1b: templa
 pub mod m20261017_rating_sessions_app_instance_id;      // G-27 Phase C: app_instance_id on rating sessions
 pub mod m20261018_g36_atlas_programs;                   // G-36: atlas_programs + actions + outcomes + rewards
 pub mod m20261019_g36_network_invite_reward_rules;      // G-36: seed NetworkInvite reward rules (grants only)
+pub mod m20261020_g36_subscription_credit_ledger;       // G-36: apply subscription_credit_days to ledger
 
 pub struct Migrator;
 

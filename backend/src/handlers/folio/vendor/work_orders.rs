@@ -33,7 +33,7 @@ use axum::{
 };
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection,
-    EntityTrait, QueryFilter, QueryOrder,
+    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -223,6 +223,31 @@ async fn complete_work_order(
             case_id = %updated.id,
             "case_resolved trigger failed (non-fatal): {e:#}"
         );
+    }
+
+    // G-36: first completed job for invited vendors.
+    let completed_count = atlas_case::Entity::find()
+        .filter(atlas_case::Column::TenantId.eq(tenant_id))
+        .filter(atlas_case::Column::AssignedServiceProviderId.eq(sp.id))
+        .filter(atlas_case::Column::Status.eq("completed"))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+    if completed_count == 1 {
+        if let Err(e) = crate::services::program_service::ProgramService::complete_outcomes_for_target_user(
+            &db,
+            current_user.id,
+            crate::types::pm::ProgramOutcomeType::FirstJobLogged,
+            Some("atlas_cases"),
+            Some(updated.id),
+        )
+        .await
+        {
+            tracing::warn!(
+                case_id = %updated.id,
+                "G-36 first_job_logged failed (non-fatal): {e}"
+            );
+        }
     }
 
     Ok((StatusCode::OK, Json(serde_json::json!({

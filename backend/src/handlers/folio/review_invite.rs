@@ -491,6 +491,23 @@ pub async fn submit_review(
         if let Err(e) = NotificationService::dispatch(&db, dispatch).await {
             tracing::warn!(error = %e, vendor_user_id = %v_user, "G35: review_received notify failed (non-fatal)");
         }
+
+        // G-36: complete review_submitted outcomes for the vendor actor's NetworkInvite actions.
+        if let Err(e) = crate::services::program_service::ProgramService::complete_outcomes_for_actor_user(
+            &db,
+            v_user,
+            crate::types::pm::ProgramOutcomeType::ReviewSubmitted,
+            Some("atlas_rating_sessions"),
+            Some(session_id),
+        )
+        .await
+        {
+            tracing::warn!(
+                error = %e,
+                vendor_user_id = %v_user,
+                "G-36 review_submitted failed (non-fatal)"
+            );
+        }
     }
 
     (StatusCode::CREATED, axum::Json(SubmitReviewResponse { session_id })).into_response()
