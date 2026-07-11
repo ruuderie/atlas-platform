@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_category, ensure_network_type, ensure_subcategory, record_seed_application};
+use super::helpers::{
+    ensure_category, ensure_network_type, ensure_subcategory, record_seed_application,
+};
 use crate::traits::atlas_app::AppSeedPack;
 
 const SEED_ID: &str = "beauty_care_starter";
@@ -20,21 +22,60 @@ pub fn pack() -> AppSeedPack {
                 .await?;
 
                 let categories: &[(&str, &str, &[&str])] = &[
-                    ("Hair Care", "Hair styling and treatment services", &[
-                        "Hair Cutting", "Hair Coloring", "Hair Styling", "Hair Extensions", "Hair Treatments",
-                    ]),
-                    ("Skin Care", "Skin treatment and maintenance services", &[
-                        "Facials", "Acne Treatments", "Anti-Aging Treatments", "Waxing", "Tanning",
-                    ]),
-                    ("Nail Care", "Nail styling and treatment services", &[
-                        "Manicures", "Pedicures", "Nail Extensions", "Nail Art", "Nail Repair",
-                    ]),
-                    ("Makeup Services", "Makeup application and consultation", &[
-                        "Bridal Makeup", "Special Event Makeup", "Makeup Lessons", "Permanent Makeup",
-                    ]),
-                    ("Spa & Wellness", "Relaxation and wellness services", &[
-                        "Massage Therapy", "Body Treatments", "Hydrotherapy", "Aromatherapy", "Meditation Classes",
-                    ]),
+                    (
+                        "Hair Care",
+                        "Hair styling and treatment services",
+                        &[
+                            "Hair Cutting",
+                            "Hair Coloring",
+                            "Hair Styling",
+                            "Hair Extensions",
+                            "Hair Treatments",
+                        ],
+                    ),
+                    (
+                        "Skin Care",
+                        "Skin treatment and maintenance services",
+                        &[
+                            "Facials",
+                            "Acne Treatments",
+                            "Anti-Aging Treatments",
+                            "Waxing",
+                            "Tanning",
+                        ],
+                    ),
+                    (
+                        "Nail Care",
+                        "Nail styling and treatment services",
+                        &[
+                            "Manicures",
+                            "Pedicures",
+                            "Nail Extensions",
+                            "Nail Art",
+                            "Nail Repair",
+                        ],
+                    ),
+                    (
+                        "Makeup Services",
+                        "Makeup application and consultation",
+                        &[
+                            "Bridal Makeup",
+                            "Special Event Makeup",
+                            "Makeup Lessons",
+                            "Permanent Makeup",
+                        ],
+                    ),
+                    (
+                        "Spa & Wellness",
+                        "Relaxation and wellness services",
+                        &[
+                            "Massage Therapy",
+                            "Body Treatments",
+                            "Hydrotherapy",
+                            "Aromatherapy",
+                            "Meditation Classes",
+                        ],
+                    ),
                 ];
 
                 for (parent_name, parent_desc, subs) in categories {

@@ -1,19 +1,17 @@
 #![allow(dead_code)]
+use crate::entities::app_menu::{self, Entity as AppMenu};
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    Json,
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
+use chrono::Utc;
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, QueryOrder,
-    ActiveModelTrait, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
 use serde::Deserialize;
-use crate::entities::app_menu::{self, Entity as AppMenu};
 use uuid::Uuid;
-use chrono::Utc;
 
 // ── Request / Response types ──────────────────────────────────────────────────
 
@@ -43,7 +41,10 @@ pub struct UpdateMenuPayload {
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/public/menus/{tenant_id}", get(list_menus))
-        .route("/api/public/menus/{tenant_id}/tree/{menu_type}", get(get_menu_tree))
+        .route(
+            "/api/public/menus/{tenant_id}/tree/{menu_type}",
+            get(get_menu_tree),
+        )
 }
 
 /// State-free authenticated CRUD route definitions.
@@ -148,7 +149,10 @@ pub async fn create_menu(
 
     let inserted = new_menu.insert(&db).await.map_err(|e| {
         tracing::error!("create_menu error: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create menu item".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create menu item".to_string(),
+        )
     })?;
 
     Ok((StatusCode::CREATED, Json(inserted)))
@@ -168,16 +172,27 @@ pub async fn update_menu(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Menu item not found".to_string()))?;
 
     let mut active: app_menu::ActiveModel = existing.into();
-    if let Some(l) = payload.label         { active.label = Set(l); }
-    if let Some(h) = payload.href          { active.href = Set(Some(h)); }
-    if let Some(p) = payload.parent_id     { active.parent_id = Set(Some(p)); }
-    if let Some(o) = payload.display_order { active.display_order = Set(o); }
-    if let Some(v) = payload.is_visible    { active.is_visible = Set(v); }
+    if let Some(l) = payload.label {
+        active.label = Set(l);
+    }
+    if let Some(h) = payload.href {
+        active.href = Set(Some(h));
+    }
+    if let Some(p) = payload.parent_id {
+        active.parent_id = Set(Some(p));
+    }
+    if let Some(o) = payload.display_order {
+        active.display_order = Set(o);
+    }
+    if let Some(v) = payload.is_visible {
+        active.is_visible = Set(v);
+    }
     active.updated_at = Set(Utc::now());
 
-    let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(updated))
 }
@@ -195,9 +210,10 @@ pub async fn delete_menu(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Menu item not found".to_string()))?;
 
     let active: app_menu::ActiveModel = existing.into();
-    active.delete(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    active
+        .delete(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(StatusCode::NO_CONTENT)
 }

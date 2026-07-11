@@ -1,8 +1,8 @@
 use crate::traits::atlas_app::{AtlasApp, BackgroundJob};
+use async_trait::async_trait;
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
-use async_trait::async_trait;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PlatformAdminApp — AtlasApp implementation for the platform operator panel.
@@ -55,8 +55,7 @@ impl AtlasApp for PlatformAdminApp {
     ///
     /// State is applied exactly once here via `.with_state(db)`.
     fn authenticated_router(&self, db: DatabaseConnection) -> Router<DatabaseConnection> {
-        crate::admin::routes::admin_routes_raw()
-            .with_state(db)
+        crate::admin::routes::admin_routes_raw().with_state(db)
     }
 
     /// No app-specific migrations — admin panel uses the shared platform schema.

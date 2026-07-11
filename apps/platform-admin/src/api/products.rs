@@ -161,6 +161,28 @@ pub async fn get_template(id: Uuid) -> Result<ProductTemplateModel, String> {
     api_get(&format!("api/admin/platform/products/{}/template", id)).await
 }
 
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct UpsertProductTemplateBody {
+    pub hero_payload: Option<serde_json::Value>,
+    pub blocks_payload: Option<serde_json::Value>,
+    pub meta_title: Option<String>,
+    pub meta_description: Option<String>,
+    pub og_image_url: Option<String>,
+    pub structured_data: Option<serde_json::Value>,
+    pub cta_label: Option<String>,
+    pub cta_action: Option<String>,
+}
+
+pub async fn upsert_template(
+    id: Uuid,
+    body: UpsertProductTemplateBody,
+) -> Result<ProductTemplateModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/platform/products/{}/template", id));
+    let req = client.post(&url).json(&body);
+    api_request(req).await
+}
+
 pub async fn get_variants(id: Uuid) -> Result<Vec<ProductVariantModel>, String> {
     api_get(&format!("api/admin/platform/products/{}/variants", id)).await
 }

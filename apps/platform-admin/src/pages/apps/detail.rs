@@ -2,28 +2,28 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
-use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::badge::{Badge, BadgeIntent};
+use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
 
-use crate::components::upsell_banner::UpsellBanner;
-use crate::components::onboarding_wizard::OnboardingWizard;
-use crate::components::seed_picker::SeedPicker;
-use crate::api::onboarding::get_onboarding_status;
-use crate::api::admin::{suspend_instance, resume_instance};
+use crate::api::admin::{resume_instance, suspend_instance};
 use crate::api::listings::update_listing;
 use crate::api::models::ListingUpdate;
+use crate::api::onboarding::get_onboarding_status;
+use crate::components::onboarding_wizard::OnboardingWizard;
+use crate::components::seed_picker::SeedPicker;
+use crate::components::upsell_banner::UpsellBanner;
 
 /// Maps a canonical `app_slug` / `app_type` to (icon, display label, accent css suffix).
 /// accent suffix is used as `text-{accent}-400` / `bg-{accent}-500/10`.
 fn app_type_display(slug: &str) -> (&'static str, &'static str, &'static str) {
     match slug {
-        "property_management" | "folio" => ("🏠", "Folio PM",        "violet"),
-        "anchor"                        => ("⚓", "Anchor CMS",       "amber"),
-        "network_instance" | "network"  => ("🔗", "Network Directory","blue"),
-        "str"                           => ("🏖️","Atlas STR",         "emerald"),
-        _                               => ("📦", "App Instance",     "slate"),
+        "property_management" | "folio" => ("🏠", "Folio PM", "violet"),
+        "anchor" => ("⚓", "Anchor CMS", "amber"),
+        "network_instance" | "network" => ("🔗", "Network Directory", "blue"),
+        "str" => ("🏖️", "Atlas STR", "emerald"),
+        _ => ("📦", "App Instance", "slate"),
     }
 }
 
@@ -33,11 +33,11 @@ pub fn AppDashboard() -> impl IntoView {
     let site_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
     let (show_add_listing, set_show_add_listing) = signal(false);
     let (show_add_category, set_show_add_category) = signal(false);
     let (show_add_template, set_show_add_template) = signal(false);
-    
+
     // (listing_id, display_name) — both needed to call PUT /api/admin/listings/{id}
     let (editing_listing, set_editing_listing) = signal(None::<(String, String)>);
     let editing_alias = RwSignal::new(String::new());
@@ -46,20 +46,24 @@ pub fn AppDashboard() -> impl IntoView {
 
     let active_tab = RwSignal::new("settings".to_string());
 
-    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>().expect("dirs context");
+    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>()
+        .expect("dirs context");
     let domain_bind = RwSignal::new(String::new());
-    
+
     Effect::new(move |_| {
         let current_id = site_id();
         if let Some(d) = dirs.get() {
-            if let Some(dir) = d.into_iter().find(|dir| dir.instance_id.to_string() == current_id) {
+            if let Some(dir) = d
+                .into_iter()
+                .find(|dir| dir.instance_id.to_string() == current_id)
+            {
                 domain_bind.set(dir.domain.clone());
             } else {
                 domain_bind.set(format!("{}.example.com", current_id));
             }
         }
     });
-    
+
     let site_id_str = site_id().to_string();
     // Wrap in StoredValue so reactive `move ||` closures can clone it
     // without consuming the binding (avoids FnOnce / Fn mismatch).
@@ -68,22 +72,29 @@ pub fn AppDashboard() -> impl IntoView {
         let sid = site_id_str.clone();
         move || {
             let sid = sid.clone();
-            async move { crate::api::listings::get_listings(&sid).await.unwrap_or_default() }
+            async move {
+                crate::api::listings::get_listings(&sid)
+                    .await
+                    .unwrap_or_default()
+            }
         }
     });
-
 
     let domains_res = LocalResource::new({
         let sid = site_id_str.clone();
         move || {
             let sid = sid.clone();
-            async move { crate::api::admin::get_app_domains(sid).await.unwrap_or_default() }
+            async move {
+                crate::api::admin::get_app_domains(sid)
+                    .await
+                    .unwrap_or_default()
+            }
         }
     });
 
     let (show_domain_modal, set_show_domain_modal) = signal(false);
     let new_domain_input = RwSignal::new(String::new());
-    
+
     let add_domain_action = Action::new_local({
         let toast = toast.clone();
         let sid = site_id_str.clone();
@@ -93,8 +104,12 @@ pub fn AppDashboard() -> impl IntoView {
             let toast = toast.clone();
             async move {
                 match crate::api::admin::add_app_domain(sid, domain).await {
-                    Ok(_) => { toast.show_toast("Domains", "Domain securely attached.", "success"); }
-                    Err(e) => { toast.show_toast("Error", &format!("Error adding domain: {}", e), "error"); }
+                    Ok(_) => {
+                        toast.show_toast("Domains", "Domain securely attached.", "success");
+                    }
+                    Err(e) => {
+                        toast.show_toast("Error", &format!("Error adding domain: {}", e), "error");
+                    }
                 }
             }
         }
@@ -124,7 +139,10 @@ pub fn AppDashboard() -> impl IntoView {
     let app_manifest = Signal::derive(move || {
         let current_id = site_id();
         let app_type_str = if let Some(d) = dirs.get() {
-            if let Some(dir) = d.into_iter().find(|dir| dir.instance_id.to_string() == current_id) {
+            if let Some(dir) = d
+                .into_iter()
+                .find(|dir| dir.instance_id.to_string() == current_id)
+            {
                 dir.app_type.clone()
             } else {
                 "network".to_string()
@@ -198,7 +216,7 @@ pub fn AppDashboard() -> impl IntoView {
                 <div class="p-8 text-center text-on-surface-variant flex flex-col items-center justify-center min-h-[400px]">
                     <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
                     "Loading Application Workspace..."
-                </div> 
+                </div>
             }
         >
             <div class="main-canvas">
@@ -369,7 +387,7 @@ pub fn AppDashboard() -> impl IntoView {
 
                 <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>
                     <div class="px-6 mt-4">
-                        <UpsellBanner 
+                        <UpsellBanner
                             title="Supercharge your new application!".to_string()
                             description="Jumpstart your marketplace with pre-populated leads and premium business listings."
                                 .to_string()
@@ -529,7 +547,7 @@ pub fn AppDashboard() -> impl IntoView {
                                     "Add Domain"
                                 </Button>
                             </div>
-                            
+
                             <div class="bg-surface border border-outline-variant/30 rounded-xl shadow-sm overflow-hidden">
                                 <table class="w-full text-left border-collapse">
                                     <thead>
@@ -694,7 +712,7 @@ pub fn AppDashboard() -> impl IntoView {
                     </div>
                 </div>
             </Show>
-            
+
             <Show when=move || show_add_category.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
@@ -713,7 +731,7 @@ pub fn AppDashboard() -> impl IntoView {
                     </div>
                 </div>
             </Show>
-            
+
             <Show when=move || show_add_template.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">

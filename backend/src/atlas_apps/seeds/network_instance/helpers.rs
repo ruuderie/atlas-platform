@@ -10,23 +10,26 @@ pub(super) async fn ensure_network_type(
     name: &str,
     description: &str,
 ) -> Result<Uuid, String> {
-    use sea_orm::Statement;
     use sea_orm::ConnectionTrait;
+    use sea_orm::Statement;
 
-    let row = db.query_one(Statement::from_string(
-        sea_orm::DatabaseBackend::Postgres,
-        format!(
+    let row = db
+        .query_one(Statement::from_string(
+            sea_orm::DatabaseBackend::Postgres,
+            format!(
             "INSERT INTO network_type (id, name, description, is_active, created_at, updated_at)
              VALUES (gen_random_uuid(), '{name}', '{description}', true, NOW(), NOW())
              ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
              RETURNING id"
         ),
-    ))
-    .await
-    .map_err(|e| format!("ensure_network_type error: {e}"))?
-    .ok_or_else(|| "ensure_network_type: no row returned".to_string())?;
+        ))
+        .await
+        .map_err(|e| format!("ensure_network_type error: {e}"))?
+        .ok_or_else(|| "ensure_network_type: no row returned".to_string())?;
 
-    let id: Uuid = row.try_get("", "id").map_err(|e| format!("uuid parse: {e}"))?;
+    let id: Uuid = row
+        .try_get("", "id")
+        .map_err(|e| format!("uuid parse: {e}"))?;
     Ok(id)
 }
 
@@ -37,8 +40,8 @@ pub(super) async fn ensure_category(
     name: &str,
     description: &str,
 ) -> Result<Uuid, String> {
-    use sea_orm::Statement;
     use sea_orm::ConnectionTrait;
+    use sea_orm::Statement;
 
     let row = db.query_one(Statement::from_string(
         sea_orm::DatabaseBackend::Postgres,
@@ -53,7 +56,9 @@ pub(super) async fn ensure_category(
     .map_err(|e| format!("ensure_category('{name}') error: {e}"))?
     .ok_or_else(|| format!("ensure_category('{name}'): no row returned"))?;
 
-    let id: Uuid = row.try_get("", "id").map_err(|e| format!("uuid parse: {e}"))?;
+    let id: Uuid = row
+        .try_get("", "id")
+        .map_err(|e| format!("uuid parse: {e}"))?;
     Ok(id)
 }
 
@@ -64,8 +69,8 @@ pub(super) async fn ensure_subcategory(
     parent_id: Uuid,
     name: &str,
 ) -> Result<(), String> {
-    use sea_orm::Statement;
     use sea_orm::ConnectionTrait;
+    use sea_orm::Statement;
 
     db.execute(Statement::from_string(
         sea_orm::DatabaseBackend::Postgres,
@@ -88,8 +93,8 @@ pub(super) async fn record_seed_application(
     tenant_id: Uuid,
     seed_id: &str,
 ) -> Result<(), String> {
-    use sea_orm::Statement;
     use sea_orm::ConnectionTrait;
+    use sea_orm::Statement;
 
     let key = format!("seed_applied:{seed_id}");
     let now = chrono::Utc::now().to_rfc3339();

@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_category, ensure_network_type, ensure_subcategory, record_seed_application};
+use super::helpers::{
+    ensure_category, ensure_network_type, ensure_subcategory, record_seed_application,
+};
 use crate::traits::atlas_app::AppSeedPack;
 
 const SEED_ID: &str = "healthcare_starter";
@@ -20,25 +22,59 @@ pub fn pack() -> AppSeedPack {
                 .await?;
 
                 let categories: &[(&str, &str, &[&str])] = &[
-                    ("Medical Services", "Healthcare services and providers", &[
-                        "Primary Care", "Specialty Care", "Emergency Services",
-                        "Urgent Care", "Mental Health Services",
-                        "Physical Therapy", "Chiropractic Services", "Dental Services",
-                    ]),
-                    ("Pharmaceuticals", "Pharmaceutical products and services", &[
-                        "Pharmaceutical Manufacturing", "Pharmaceutical Distribution", "Pharmaceutical Retail",
-                    ]),
-                    ("Medical Equipment", "Medical equipment and supplies", &[
-                        "Medical Imaging Equipment", "Medical Laboratory Equipment",
-                        "Medical Supplies", "Medical Furniture",
-                    ]),
-                    ("Health Insurance", "Health insurance products and services", &[
-                        "Individual Plans", "Group Plans", "Medicare Supplements", "Dental & Vision",
-                    ]),
-                    ("Healthcare Consulting", "Consulting services for healthcare organizations", &[
-                        "Revenue Cycle Management", "Compliance Consulting",
-                        "Healthcare IT", "Practice Management",
-                    ]),
+                    (
+                        "Medical Services",
+                        "Healthcare services and providers",
+                        &[
+                            "Primary Care",
+                            "Specialty Care",
+                            "Emergency Services",
+                            "Urgent Care",
+                            "Mental Health Services",
+                            "Physical Therapy",
+                            "Chiropractic Services",
+                            "Dental Services",
+                        ],
+                    ),
+                    (
+                        "Pharmaceuticals",
+                        "Pharmaceutical products and services",
+                        &[
+                            "Pharmaceutical Manufacturing",
+                            "Pharmaceutical Distribution",
+                            "Pharmaceutical Retail",
+                        ],
+                    ),
+                    (
+                        "Medical Equipment",
+                        "Medical equipment and supplies",
+                        &[
+                            "Medical Imaging Equipment",
+                            "Medical Laboratory Equipment",
+                            "Medical Supplies",
+                            "Medical Furniture",
+                        ],
+                    ),
+                    (
+                        "Health Insurance",
+                        "Health insurance products and services",
+                        &[
+                            "Individual Plans",
+                            "Group Plans",
+                            "Medicare Supplements",
+                            "Dental & Vision",
+                        ],
+                    ),
+                    (
+                        "Healthcare Consulting",
+                        "Consulting services for healthcare organizations",
+                        &[
+                            "Revenue Cycle Management",
+                            "Compliance Consulting",
+                            "Healthcare IT",
+                            "Practice Management",
+                        ],
+                    ),
                 ];
 
                 for (parent_name, parent_desc, subs) in categories {

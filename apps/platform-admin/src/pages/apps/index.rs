@@ -1,7 +1,7 @@
-use leptos::prelude::*;
+use crate::api::admin::{get_tenant_stats, impersonate_user};
 use crate::api::models::{PlatformAppModel, TenantStatModel};
 use crate::api::networks::get_networks;
-use crate::api::admin::{get_tenant_stats, impersonate_user};
+use leptos::prelude::*;
 use uuid::Uuid;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -21,10 +21,10 @@ fn fmt_mrr(cents: i64) -> String {
 fn app_type_label(slug: &str) -> (&'static str, &'static str) {
     match slug {
         "property_management" | "folio" => ("🏠", "Folio PM"),
-        "anchor"              => ("⚓", "Anchor CMS"),
+        "anchor" => ("⚓", "Anchor CMS"),
         "network_instance" | "network" => ("🔗", "Network"),
-        "str"                 => ("🏖️", "Atlas STR"),
-        _                     => ("📦", "App"),
+        "str" => ("🏖️", "Atlas STR"),
+        _ => ("📦", "App"),
     }
 }
 
@@ -35,14 +35,12 @@ pub fn Apps() -> impl IntoView {
     let active_network = use_context::<ReadSignal<Option<Uuid>>>().expect("active network context");
 
     // ── Data resources ───────────────────────────────────────────────────────
-    let networks = LocalResource::new(move || async move {
-        get_networks().await.unwrap_or_default()
-    });
+    let networks =
+        LocalResource::new(move || async move { get_networks().await.unwrap_or_default() });
 
     // Fetch all tenant stats in one call — resolved against the rendered tenant below.
-    let tenant_stats = LocalResource::new(move || async move {
-        get_tenant_stats().await.unwrap_or_default()
-    });
+    let tenant_stats =
+        LocalResource::new(move || async move { get_tenant_stats().await.unwrap_or_default() });
 
     view! {
         <Suspense fallback=move || view! {

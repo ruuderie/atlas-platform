@@ -1,10 +1,9 @@
 use crate::traits::atlas_app::{AtlasApp, BackgroundJob};
+use async_trait::async_trait;
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
-use async_trait::async_trait;
 use uuid::Uuid;
-
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CorePlatformApp — The canonical reference implementation of AtlasApp.
@@ -57,8 +56,8 @@ impl AtlasApp for CorePlatformApp {
         Router::new()
             .merge(crate::handlers::tenant::authenticated_routes_raw())
             .merge(crate::handlers::app_instance::authenticated_routes_raw())
-            .merge(crate::handlers::app_pages::authenticated_routes_raw())   // Phase 5: CRUD
-            .merge(crate::handlers::app_menus::authenticated_routes_raw())   // Phase 5: CRUD
+            .merge(crate::handlers::app_pages::authenticated_routes_raw()) // Phase 5: CRUD
+            .merge(crate::handlers::app_menus::authenticated_routes_raw()) // Phase 5: CRUD
             .merge(crate::handlers::onboarding::authenticated_routes_raw())
             .merge(crate::handlers::feeds::authenticated_routes_raw())
             .merge(crate::handlers::search::authenticated_routes()) // already state-free
@@ -67,7 +66,6 @@ impl AtlasApp for CorePlatformApp {
             .merge(crate::handlers::geo::authenticated_routes_raw())
             .with_state(db)
     }
-
 
     /// Core platform schema migrations live in the base mod.rs migrator today.
     /// A follow-up can extract them here for full encapsulation once the migration
@@ -96,10 +94,8 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g04_subscriptions::Migration),
             // G-08: Async AI / LLM task queue
             Box::new(crate::migration::m20260601_g08_ai_tasks::Migration),
-
             // === Unification Migration (new canonical model) ===
             Box::new(crate::migration::m20260601_unify_accounts_contacts::Migration),
-
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping
             Box::new(crate::migration::m20260601_g09_portfolios::Migration),
@@ -125,7 +121,6 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g17_tax::Migration),
             // GENERIC-18: Structured applications / onboarding
             Box::new(crate::migration::m20260601_g18_applications::Migration),
-
             // ═══════════════════════════════════════════════════════════════════
             // Platform Generics Round 1 Gap Fills — June 2026
             //
@@ -144,7 +139,6 @@ impl AtlasApp for CorePlatformApp {
             //         + backfills atlas_ledger_splits.commission_plan_id
             // Prevents: Commission logic being hardcoded in CoverFlow/AgentLink handlers.
             Box::new(crate::migration::m20260701_g25_commission_plans::Migration),
-
             // GENERIC-36: Productized growth/incentive programs (NetworkInvite first)
             Box::new(crate::migration::m20261018_g36_atlas_programs::Migration),
             Box::new(crate::migration::m20261019_g36_network_invite_reward_rules::Migration),
@@ -200,8 +194,8 @@ impl AtlasApp for CorePlatformApp {
     /// Accepts any `ConnectionTrait` so it can be called inside a transaction
     /// (`&DatabaseTransaction`) or directly against a `DatabaseConnection`.
     async fn provision(&self, db: &DatabaseConnection, tenant_id: Uuid) -> Result<(), String> {
-        use sea_orm::{ConnectionTrait, Statement};
         use chrono::Utc;
+        use sea_orm::{ConnectionTrait, Statement};
 
         let now = Utc::now();
 
@@ -244,7 +238,6 @@ impl AtlasApp for CorePlatformApp {
 
         Ok(())
     }
-
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -290,10 +283,13 @@ mod tests {
 
         // G-23: The reservation hold expiry sweeper must be present so the
         // background job poller can sweep expired holds platform-wide every 5 minutes.
-        assert_eq!(jobs.len(), 1, "Expected exactly 1 platform background job registered");
         assert_eq!(
-            jobs[0].job_type,
-            "release_expired_reservation_holds",
+            jobs.len(),
+            1,
+            "Expected exactly 1 platform background job registered"
+        );
+        assert_eq!(
+            jobs[0].job_type, "release_expired_reservation_holds",
             "G-23 hold expiry sweeper must be registered as the platform background job"
         );
         assert_eq!(jobs[0].default_interval_seconds, 300);
@@ -313,4 +309,3 @@ mod tests {
         let _: &dyn AtlasApp = &app;
     }
 }
-

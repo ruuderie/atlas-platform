@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     routing::{get, post},
-    Json, Router,
 };
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
@@ -90,21 +90,23 @@ pub async fn list_seed_packs(
 
     // Load all seed application records for this tenant in one query.
     use sea_orm::{ConnectionTrait, Statement};
-    let rows = db.query_all(Statement::from_string(
-        sea_orm::DatabaseBackend::Postgres,
-        format!(
-            "SELECT key, value FROM tenant_setting
+    let rows = db
+        .query_all(Statement::from_string(
+            sea_orm::DatabaseBackend::Postgres,
+            format!(
+                "SELECT key, value FROM tenant_setting
              WHERE tenant_id = '{}' AND key LIKE 'seed_applied:%'",
-            instance.tenant_id
-        ),
-    ))
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                instance.tenant_id
+            ),
+        ))
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Build a map: seed_id → (latest_timestamp, count).
     // Each re-application overwrites the value with the latest timestamp.
     // For count we'd need a separate counter; for now we surface last_applied_at.
-    let mut applied_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut applied_map: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     for row in rows {
         if let (Ok(key), Ok(value)) = (
             row.try_get::<String>("", "key"),

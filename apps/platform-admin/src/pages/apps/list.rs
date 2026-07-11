@@ -1,6 +1,6 @@
-use leptos::prelude::*;
 use crate::api::admin::get_tenant_stats;
 use crate::api::models::TenantStatModel;
+use leptos::prelude::*;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -15,25 +15,37 @@ fn fmt_mrr(cents: Option<i64>) -> String {
 
 fn setup_score(t: &TenantStatModel) -> u8 {
     let mut s = 0u8;
-    if t.site_status.as_deref().unwrap_or("active").to_lowercase() == "active" { s += 1; }
-    if t.mrr_cents.map(|c| c > 0).unwrap_or(false) { s += 1; }
-    if t.profile_count > 0 { s += 1; }
-    if t.listing_count > 0 { s += 1; }
+    if t.site_status.as_deref().unwrap_or("active").to_lowercase() == "active" {
+        s += 1;
+    }
+    if t.mrr_cents.map(|c| c > 0).unwrap_or(false) {
+        s += 1;
+    }
+    if t.profile_count > 0 {
+        s += 1;
+    }
+    if t.listing_count > 0 {
+        s += 1;
+    }
     s
 }
 
 fn score_color(score: u8) -> &'static str {
-    if score == 4 { "var(--green)" }
-    else if score >= 2 { "var(--amber)" }
-    else { "var(--red)" }
+    if score == 4 {
+        "var(--green)"
+    } else if score >= 2 {
+        "var(--amber)"
+    } else {
+        "var(--red)"
+    }
 }
 
 fn health_color(status: &str) -> &'static str {
     match status.to_lowercase().as_str() {
-        "active"       => "var(--green)",
-        "suspended"    => "var(--red)",
+        "active" => "var(--green)",
+        "suspended" => "var(--red)",
         "provisioning" => "var(--amber)",
-        _              => "var(--text-muted)",
+        _ => "var(--text-muted)",
     }
 }
 
@@ -41,9 +53,8 @@ fn health_color(status: &str) -> &'static str {
 
 #[component]
 pub fn TenantList() -> impl IntoView {
-    let tenants_res = LocalResource::new(|| async move {
-        get_tenant_stats().await.unwrap_or_default()
-    });
+    let tenants_res =
+        LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
     // Search and filter state
     let search = RwSignal::new(String::new());

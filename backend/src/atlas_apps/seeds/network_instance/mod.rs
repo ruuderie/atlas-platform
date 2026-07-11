@@ -1,12 +1,12 @@
 #![allow(dead_code, unused_imports)]
+pub mod automotive_sales;
+pub mod beauty_care;
+pub mod construction;
+pub mod financial_services;
+pub mod general_starter;
+pub mod healthcare;
 pub mod helpers;
 pub mod transportation_logistics;
-pub mod automotive_sales;
-pub mod construction;
-pub mod beauty_care;
-pub mod financial_services;
-pub mod healthcare;
-pub mod general_starter;
 
 use crate::traits::atlas_app::AppSeedPack;
 

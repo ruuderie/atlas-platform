@@ -1,11 +1,11 @@
 use leptos::prelude::*;
 
-use crate::pages::shared::profiles::ProfilesPanel;
-use crate::pages::network::settings::NetworkSettingsPanel;
 use crate::pages::network::categories::index::Categories;
-use crate::pages::network::templates::index::Templates;
 use crate::pages::network::listings::index::Listings;
+use crate::pages::network::settings::NetworkSettingsPanel;
+use crate::pages::network::templates::index::Templates;
 use crate::pages::network::types::index::NetworkTypes;
+use crate::pages::shared::profiles::ProfilesPanel;
 
 #[component]
 pub fn PlaceholderPanel(panel_id: String) -> impl IntoView {

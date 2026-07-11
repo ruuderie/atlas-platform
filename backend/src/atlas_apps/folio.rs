@@ -1,4 +1,7 @@
 use crate::traits::atlas_app::{AtlasApp, BackgroundJob, OnboardingStep, StepCompletionCheck};
+use async_trait::async_trait;
+use axum::body::Body;
+use axum::http::Request;
 use axum::{
     Router,
     extract::{Extension, FromRequestParts},
@@ -6,11 +9,8 @@ use axum::{
     middleware::{self, Next},
     response::Response,
 };
-use axum::http::Request;
-use axum::body::Body;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
-use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::extractors::folio_role::RequireFolioRole;
@@ -223,15 +223,18 @@ impl AtlasApp for FolioApp {
                     Box::pin(async move {
                         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-                        let config = config.unwrap_or_else(|| serde_json::json!({
-                            "confirmation_threshold": 1,
-                            "mempool_host": "https://mempool.space"
-                        }));
+                        let config = config.unwrap_or_else(|| {
+                            serde_json::json!({
+                                "confirmation_threshold": 1,
+                                "mempool_host": "https://mempool.space"
+                            })
+                        });
 
                         let confirmation_threshold = config
                             .get("confirmation_threshold")
                             .and_then(|v| v.as_u64())
-                            .unwrap_or(1) as u32;
+                            .unwrap_or(1)
+                            as u32;
 
                         let mempool_host_from_config = config
                             .get("mempool_host")
@@ -261,10 +264,21 @@ impl AtlasApp for FolioApp {
 
                         // Load all BTC on-chain entries: processing + txid submitted.
                         let pending = crate::entities::atlas_ledger_entry::Entity::find()
-                            .filter(crate::entities::atlas_ledger_entry::Column::TenantId.eq(tenant_id))
-                            .filter(crate::entities::atlas_ledger_entry::Column::PaymentRail.eq("btc_onchain"))
-                            .filter(crate::entities::atlas_ledger_entry::Column::Status.eq("processing"))
-                            .filter(crate::entities::atlas_ledger_entry::Column::ExternalTxId.is_not_null())
+                            .filter(
+                                crate::entities::atlas_ledger_entry::Column::TenantId.eq(tenant_id),
+                            )
+                            .filter(
+                                crate::entities::atlas_ledger_entry::Column::PaymentRail
+                                    .eq("btc_onchain"),
+                            )
+                            .filter(
+                                crate::entities::atlas_ledger_entry::Column::Status
+                                    .eq("processing"),
+                            )
+                            .filter(
+                                crate::entities::atlas_ledger_entry::Column::ExternalTxId
+                                    .is_not_null(),
+                            )
                             .all(&db)
                             .await;
 
@@ -300,7 +314,10 @@ impl AtlasApp for FolioApp {
                             };
 
                             match rail.poll_tx(&txid).await {
-                                Some(status) if status.confirmed && status.confirmations >= confirmation_threshold => {
+                                Some(status)
+                                    if status.confirmed
+                                        && status.confirmations >= confirmation_threshold =>
+                                {
                                     tracing::info!(
                                         ledger_entry_id = %entry.id, %tenant_id, %txid,
                                         confirmations = status.confirmations,
@@ -349,7 +366,8 @@ impl AtlasApp for FolioApp {
                 })),
                 executor: Box::new(|db, tenant_id, config| {
                     Box::pin(async move {
-                        let config = config.unwrap_or_else(|| serde_json::json!({ "warning_days": 30 }));
+                        let config =
+                            config.unwrap_or_else(|| serde_json::json!({ "warning_days": 30 }));
                         let warning_days = config
                             .get("warning_days")
                             .and_then(|v| v.as_u64())
@@ -388,7 +406,7 @@ impl AtlasApp for FolioApp {
             BackgroundJob {
                 job_type: "pm_ota_revenue_sync".to_string(),
                 default_interval_seconds: 3600, // hourly
-                is_active_by_default: false, // enable per-tenant when OTA integration configured
+                is_active_by_default: false,    // enable per-tenant when OTA integration configured
                 // Config schema:
                 // {
                 //   "ota_integration_id": "<atlas_external_integration.id>",
@@ -481,8 +499,8 @@ impl AtlasApp for FolioApp {
     ///
     /// Idempotent: all inserts use ON CONFLICT DO NOTHING / WHERE NOT EXISTS.
     async fn provision(&self, db: &DatabaseConnection, tenant_id: Uuid) -> Result<(), String> {
-        use sea_orm::{ConnectionTrait, Statement};
         use chrono::Utc;
+        use sea_orm::{ConnectionTrait, Statement};
 
         let now = Utc::now();
 
@@ -562,7 +580,8 @@ mod tests {
         let app = FolioApp;
         let jobs = app.background_jobs();
         assert_eq!(
-            jobs.len(), 4,
+            jobs.len(),
+            4,
             "Expected 4 Folio background jobs: mempool poll, STR permit scan, OTA sync, STR hold expiry sweeper"
         );
 
@@ -573,8 +592,13 @@ mod tests {
         assert!(job_types.contains(&"pm_str_hold_expiry_sweeper"));
 
         // pm_btc_mempool_poll must have a documented config schema and correct defaults.
-        let mempool_job = jobs.iter().find(|j| j.job_type == "pm_btc_mempool_poll").unwrap();
-        let config = mempool_job.default_config_payload.as_ref()
+        let mempool_job = jobs
+            .iter()
+            .find(|j| j.job_type == "pm_btc_mempool_poll")
+            .unwrap();
+        let config = mempool_job
+            .default_config_payload
+            .as_ref()
             .expect("pm_btc_mempool_poll must have a default_config_payload");
         assert_eq!(config["confirmation_threshold"], 1);
         assert_eq!(config["mempool_host"], "https://mempool.space");
@@ -609,7 +633,10 @@ mod tests {
         let mut sorted = positions.clone();
         sorted.sort();
         sorted.dedup();
-        assert_eq!(positions, sorted, "Onboarding step positions must be unique and ascending");
+        assert_eq!(
+            positions, sorted,
+            "Onboarding step positions must be unique and ascending"
+        );
     }
 }
 
@@ -626,29 +653,21 @@ mod tests {
 
 /// Middleware: allows only `FolioRole::Landlord` (+ platform Owner/Admin/PSA).
 /// Applied to the entire `landlord_router` sub-router in `authenticated_router`.
-async fn require_landlord(
-    mut req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
+async fn require_landlord(mut req: Request<Body>, next: Next) -> Result<Response, StatusCode> {
     // We need to extract RequireFolioRole from the request parts.
     // from_fn middleware receives the whole Request, so we split parts.
     let (mut parts, body) = req.into_parts();
 
     // Resolve role — TenantContext + G-32 lookup
     // The state is already injected as an Extension by the time middleware runs.
-    let role_result = RequireFolioRole::from_request_parts(
-        &mut parts,
-        &(),
-    ).await;
+    let role_result = RequireFolioRole::from_request_parts(&mut parts, &()).await;
 
     req = Request::from_parts(parts, body);
 
     match role_result {
         Ok(RequireFolioRole(FolioRole::Landlord)) => Ok(next.run(req).await),
         Ok(RequireFolioRole(role)) => {
-            tracing::warn!(
-                "require_landlord: denied — user has role '{role}', need Landlord"
-            );
+            tracing::warn!("require_landlord: denied — user has role '{role}', need Landlord");
             Err(StatusCode::FORBIDDEN)
         }
         Err(status) => Err(status),
@@ -657,10 +676,7 @@ async fn require_landlord(
 
 /// Middleware: allows only `FolioRole::Tenant`.
 /// Applied to the `tenant_router` sub-router.
-async fn require_tenant(
-    mut req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
+async fn require_tenant(mut req: Request<Body>, next: Next) -> Result<Response, StatusCode> {
     let (mut parts, body) = req.into_parts();
 
     let role_result = RequireFolioRole::from_request_parts(&mut parts, &()).await;
@@ -670,9 +686,7 @@ async fn require_tenant(
     match role_result {
         Ok(RequireFolioRole(FolioRole::Tenant)) => Ok(next.run(req).await),
         Ok(RequireFolioRole(role)) => {
-            tracing::warn!(
-                "require_tenant: denied — user has role '{role}', need Tenant"
-            );
+            tracing::warn!("require_tenant: denied — user has role '{role}', need Tenant");
             Err(StatusCode::FORBIDDEN)
         }
         Err(status) => Err(status),
@@ -680,19 +694,14 @@ async fn require_tenant(
 }
 /// Middleware: allows only `FolioRole::Owner` (beneficial property owner).
 /// Applied to the `owner_router` sub-router — all routes behind this are read-only.
-async fn require_owner(
-    mut req: Request<Body>,
-    next: Next,
-) -> Result<Response, StatusCode> {
+async fn require_owner(mut req: Request<Body>, next: Next) -> Result<Response, StatusCode> {
     let (mut parts, body) = req.into_parts();
     let role_result = RequireFolioRole::from_request_parts(&mut parts, &()).await;
     req = Request::from_parts(parts, body);
     match role_result {
         Ok(RequireFolioRole(FolioRole::Owner)) => Ok(next.run(req).await),
         Ok(RequireFolioRole(role)) => {
-            tracing::warn!(
-                "require_owner: denied — user has role '{role}', need Owner"
-            );
+            tracing::warn!("require_owner: denied — user has role '{role}', need Owner");
             Err(StatusCode::FORBIDDEN)
         }
         Err(status) => Err(status),

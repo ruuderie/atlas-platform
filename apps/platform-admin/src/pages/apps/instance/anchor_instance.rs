@@ -12,56 +12,65 @@
 //!   Users            — TenantUsersPanel
 //!   Operational Config — InstanceOperationalConfigPanel
 
-use leptos::prelude::*;
 use crate::api::admin::{PublicConfigResponse, get_instance_stats, update_public_config};
+use crate::components::callout::Callout;
 use crate::components::instance_operational_config_panel::InstanceOperationalConfigPanel;
 use crate::components::tenant_users_panel::TenantUsersPanel;
-use crate::components::callout::Callout;
+use leptos::prelude::*;
 
 #[component]
-pub fn AnchorInstance(
-    cfg: PublicConfigResponse,
-) -> impl IntoView {
+pub fn AnchorInstance(cfg: PublicConfigResponse) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    let instance_id  = cfg.instance_id;
-    let tenant_id    = cfg.tenant_id;
+    let instance_id = cfg.instance_id;
+    let tenant_id = cfg.tenant_id;
     // Human-readable name resolved by the backend — never show a raw UUID as the title.
-    let tenant_name  = StoredValue::new(cfg.tenant_name.clone());
+    let tenant_name = StoredValue::new(cfg.tenant_name.clone());
 
     // ── Tab state ──
     let active_tab = RwSignal::new("t-overview".to_string());
 
     // ── Signals from config ──
-    let public_slug   = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
+    let public_slug = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
     let custom_domain = RwSignal::new(cfg.custom_domain.clone().unwrap_or_default());
-    let is_suspended  = RwSignal::new(cfg.instance_status == "suspended");
-    let billing_tier  = StoredValue::new(cfg.billing_tier.clone());
+    let is_suspended = RwSignal::new(cfg.instance_status == "suspended");
+    let billing_tier = StoredValue::new(cfg.billing_tier.clone());
 
     // Pre-populate DNS instructions from the loaded config.
     // These are refreshed after a successful domain save.
     let dns_record_type = StoredValue::new(
-        cfg.dns_instructions.as_ref().map(|d| d.record_type.clone()).unwrap_or_default()
+        cfg.dns_instructions
+            .as_ref()
+            .map(|d| d.record_type.clone())
+            .unwrap_or_default(),
     );
     let dns_name = RwSignal::new(
-        cfg.dns_instructions.as_ref().map(|d| d.name.clone()).unwrap_or_default()
+        cfg.dns_instructions
+            .as_ref()
+            .map(|d| d.name.clone())
+            .unwrap_or_default(),
     );
     let dns_value = RwSignal::new(
-        cfg.dns_instructions.as_ref().map(|d| d.value.clone()).unwrap_or_default()
+        cfg.dns_instructions
+            .as_ref()
+            .map(|d| d.value.clone())
+            .unwrap_or_default(),
     );
     let dns_note = RwSignal::new(
-        cfg.dns_instructions.as_ref().map(|d| d.note.clone()).unwrap_or_default()
+        cfg.dns_instructions
+            .as_ref()
+            .map(|d| d.note.clone())
+            .unwrap_or_default(),
     );
 
     // ── Domain edit state ──
-    let slug_draft   = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
+    let slug_draft = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
     let domain_draft = RwSignal::new(cfg.custom_domain.clone().unwrap_or_default());
     let saving_domain = RwSignal::new(false);
 
     // ── Live stats ──
-    let stats = LocalResource::new(move || async move {
-        get_instance_stats(instance_id).await.ok()
-    });
+    let stats =
+        LocalResource::new(move || async move { get_instance_stats(instance_id).await.ok() });
 
     view! {
         <div class="w-full space-y-6">

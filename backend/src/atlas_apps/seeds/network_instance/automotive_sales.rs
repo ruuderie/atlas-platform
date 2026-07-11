@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_category, ensure_network_type, ensure_subcategory, record_seed_application};
+use super::helpers::{
+    ensure_category, ensure_network_type, ensure_subcategory, record_seed_application,
+};
 use crate::traits::atlas_app::AppSeedPack;
 
 const SEED_ID: &str = "automotive_sales_starter";
@@ -20,21 +22,61 @@ pub fn pack() -> AppSeedPack {
                 .await?;
 
                 let categories: &[(&str, &str, &[&str])] = &[
-                    ("New Vehicles", "Brand new vehicle sales", &[
-                        "Sedans", "SUVs & Crossovers", "Trucks", "Electric Vehicles", "Luxury Vehicles",
-                    ]),
-                    ("Used Vehicles", "Pre-owned vehicle sales", &[
-                        "Certified Pre-Owned", "Economy Cars", "Classic Cars", "Commercial Vehicles", "Motorcycles",
-                    ]),
-                    ("Parts & Accessories", "Vehicle parts and accessories", &[
-                        "OEM Parts", "Aftermarket Parts", "Tires & Wheels", "Audio & Electronics", "Performance Parts",
-                    ]),
-                    ("Auto Services", "Vehicle maintenance and repair", &[
-                        "Oil Changes", "Brake Service", "Transmission Repair", "Body Shop", "Detailing",
-                    ]),
-                    ("Financing & Insurance", "Vehicle financing and insurance products", &[
-                        "Auto Loans", "Lease Options", "Gap Insurance", "Extended Warranties", "Trade-In Evaluation",
-                    ]),
+                    (
+                        "New Vehicles",
+                        "Brand new vehicle sales",
+                        &[
+                            "Sedans",
+                            "SUVs & Crossovers",
+                            "Trucks",
+                            "Electric Vehicles",
+                            "Luxury Vehicles",
+                        ],
+                    ),
+                    (
+                        "Used Vehicles",
+                        "Pre-owned vehicle sales",
+                        &[
+                            "Certified Pre-Owned",
+                            "Economy Cars",
+                            "Classic Cars",
+                            "Commercial Vehicles",
+                            "Motorcycles",
+                        ],
+                    ),
+                    (
+                        "Parts & Accessories",
+                        "Vehicle parts and accessories",
+                        &[
+                            "OEM Parts",
+                            "Aftermarket Parts",
+                            "Tires & Wheels",
+                            "Audio & Electronics",
+                            "Performance Parts",
+                        ],
+                    ),
+                    (
+                        "Auto Services",
+                        "Vehicle maintenance and repair",
+                        &[
+                            "Oil Changes",
+                            "Brake Service",
+                            "Transmission Repair",
+                            "Body Shop",
+                            "Detailing",
+                        ],
+                    ),
+                    (
+                        "Financing & Insurance",
+                        "Vehicle financing and insurance products",
+                        &[
+                            "Auto Loans",
+                            "Lease Options",
+                            "Gap Insurance",
+                            "Extended Warranties",
+                            "Trade-In Evaluation",
+                        ],
+                    ),
                 ];
 
                 for (parent_name, parent_desc, subs) in categories {

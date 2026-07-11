@@ -23,12 +23,12 @@ use crate::api::models::PlatformAppModel;
 
 // Sub-components — each handles a specific app type's UI.
 // Rust looks for these in `pages/apps/instance/` relative to this file.
-pub mod folio_instance;
 pub mod anchor_instance;
+pub mod folio_instance;
 pub mod network_instance;
 
-use folio_instance::FolioInstance;
 use anchor_instance::AnchorInstance;
+use folio_instance::FolioInstance;
 use network_instance::NetworkInstance;
 
 // ── Thin loader / dispatcher ──────────────────────────────────────────────────

@@ -1,9 +1,9 @@
+use crate::api::provision::{ProvisionTenantPayload, provision_tenant};
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-use crate::api::provision::{provision_tenant, ProvisionTenantPayload};
 
 /// Available app types that can be included at provision time.
 /// Each entry: (slug, icon, name, description, required)
@@ -33,23 +33,23 @@ const APP_TYPES: &[(&str, &str, &str, &str, bool)] = &[
 
 #[component]
 pub fn AppCreate() -> impl IntoView {
-    let site_name       = RwSignal::new("".to_string());
-    let slug            = RwSignal::new("".to_string());
-    let domain          = RwSignal::new("".to_string());
-    let admin_email     = RwSignal::new("".to_string());
-    let admin_first     = RwSignal::new("".to_string());
-    let admin_last      = RwSignal::new("".to_string());
+    let site_name = RwSignal::new("".to_string());
+    let slug = RwSignal::new("".to_string());
+    let domain = RwSignal::new("".to_string());
+    let admin_email = RwSignal::new("".to_string());
+    let admin_first = RwSignal::new("".to_string());
+    let admin_last = RwSignal::new("".to_string());
 
     // App type selections — anchor always selected
-    let include_folio   = RwSignal::new(false);
+    let include_folio = RwSignal::new(false);
     let include_network = RwSignal::new(false);
-    let bypass_dns      = RwSignal::new(false);
+    let bypass_dns = RwSignal::new(false);
 
     // Multi-step state
-    let current_step    = RwSignal::new(1_u8); // 1 = Identity, 2 = Apps, 3 = Domain & Review
+    let current_step = RwSignal::new(1_u8); // 1 = Identity, 2 = Apps, 3 = Domain & Review
 
-    let is_submitting   = RwSignal::new(false);
-    let setup_url       = RwSignal::new(None::<String>);
+    let is_submitting = RwSignal::new(false);
+    let setup_url = RwSignal::new(None::<String>);
     let provisioned_domain = RwSignal::new(String::new());
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast");
@@ -58,7 +58,8 @@ pub fn AppCreate() -> impl IntoView {
     let on_name_input = move |val: String| {
         site_name.set(val.clone());
         let current = slug.get();
-        let auto = val.to_lowercase()
+        let auto = val
+            .to_lowercase()
             .replace(' ', "-")
             .chars()
             .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
@@ -79,14 +80,16 @@ pub fn AppCreate() -> impl IntoView {
     let step3_valid = move || !domain.get().trim().is_empty();
 
     let handle_submit = move |_| {
-        if is_submitting.get() { return; }
+        if is_submitting.get() {
+            return;
+        }
 
         let display = site_name.get().trim().to_string();
-        let tenant  = slug.get().trim().to_lowercase();
-        let dom     = domain.get().trim().to_lowercase();
-        let email   = admin_email.get().trim().to_string();
-        let first   = admin_first.get().trim().to_string();
-        let last    = admin_last.get().trim().to_string();
+        let tenant = slug.get().trim().to_lowercase();
+        let dom = domain.get().trim().to_lowercase();
+        let email = admin_email.get().trim().to_string();
+        let first = admin_first.get().trim().to_string();
+        let last = admin_last.get().trim().to_string();
 
         if display.is_empty() || tenant.is_empty() || dom.is_empty() || email.is_empty() {
             toast.show_toast("Validation", "All required fields must be filled.", "error");
@@ -94,11 +97,19 @@ pub fn AppCreate() -> impl IntoView {
         }
 
         let mut apps = vec!["anchor".to_string()];
-        if include_folio.get()   { apps.push("property_management".to_string()); }
-        if include_network.get() { apps.push("network_instance".to_string()); }
+        if include_folio.get() {
+            apps.push("property_management".to_string());
+        }
+        if include_network.get() {
+            apps.push("network_instance".to_string());
+        }
 
         is_submitting.set(true);
-        toast.show_toast("Provisioning", "Wiring tenant, app instances, and CORS…", "info");
+        toast.show_toast(
+            "Provisioning",
+            "Wiring tenant, app instances, and CORS…",
+            "info",
+        );
 
         let bypass = if bypass_dns.get() { Some(true) } else { None };
         let payload = ProvisionTenantPayload {

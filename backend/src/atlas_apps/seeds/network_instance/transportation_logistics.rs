@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_category, ensure_network_type, ensure_subcategory, record_seed_application};
+use super::helpers::{
+    ensure_category, ensure_network_type, ensure_subcategory, record_seed_application,
+};
 use crate::traits::atlas_app::AppSeedPack;
 
 const SEED_ID: &str = "transportation_logistics_starter";
@@ -21,25 +23,61 @@ pub fn pack() -> AppSeedPack {
 
                 // Parent categories and their sub-categories
                 let categories: &[(&str, &str, &[&str])] = &[
-                    ("Freight Services", "Services related to freight transportation", &[
-                        "Air Freight", "Ocean Freight", "Road Freight", "Rail Freight", "Intermodal",
-                    ]),
-                    ("Warehousing", "Storage and warehousing services", &[
-                        "Cold Storage", "Distribution Centers", "Fulfillment Centers",
-                        "Cross-Docking", "Bonded Warehouses",
-                    ]),
-                    ("Supply Chain Management", "End-to-end supply chain solutions", &[
-                        "Inventory Management", "Demand Planning", "Supplier Management",
-                        "Logistics Technology", "Supply Chain Consulting",
-                    ]),
-                    ("Courier Services", "Package and document delivery services", &[
-                        "Same-Day Delivery", "Next-Day Delivery", "International Shipping",
-                        "Medical Courier", "Legal Document Delivery",
-                    ]),
-                    ("Fleet Management", "Vehicle fleet management services", &[
-                        "Fleet Tracking", "Vehicle Maintenance", "Driver Management",
-                        "Fuel Management", "Compliance & Safety",
-                    ]),
+                    (
+                        "Freight Services",
+                        "Services related to freight transportation",
+                        &[
+                            "Air Freight",
+                            "Ocean Freight",
+                            "Road Freight",
+                            "Rail Freight",
+                            "Intermodal",
+                        ],
+                    ),
+                    (
+                        "Warehousing",
+                        "Storage and warehousing services",
+                        &[
+                            "Cold Storage",
+                            "Distribution Centers",
+                            "Fulfillment Centers",
+                            "Cross-Docking",
+                            "Bonded Warehouses",
+                        ],
+                    ),
+                    (
+                        "Supply Chain Management",
+                        "End-to-end supply chain solutions",
+                        &[
+                            "Inventory Management",
+                            "Demand Planning",
+                            "Supplier Management",
+                            "Logistics Technology",
+                            "Supply Chain Consulting",
+                        ],
+                    ),
+                    (
+                        "Courier Services",
+                        "Package and document delivery services",
+                        &[
+                            "Same-Day Delivery",
+                            "Next-Day Delivery",
+                            "International Shipping",
+                            "Medical Courier",
+                            "Legal Document Delivery",
+                        ],
+                    ),
+                    (
+                        "Fleet Management",
+                        "Vehicle fleet management services",
+                        &[
+                            "Fleet Tracking",
+                            "Vehicle Maintenance",
+                            "Driver Management",
+                            "Fuel Management",
+                            "Compliance & Safety",
+                        ],
+                    ),
                 ];
 
                 for (parent_name, parent_desc, subs) in categories {

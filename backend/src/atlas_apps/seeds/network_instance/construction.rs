@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_category, ensure_network_type, ensure_subcategory, record_seed_application};
+use super::helpers::{
+    ensure_category, ensure_network_type, ensure_subcategory, record_seed_application,
+};
 use crate::traits::atlas_app::AppSeedPack;
 use sea_orm::{ConnectionTrait, Statement};
 use uuid::Uuid;
@@ -23,26 +25,56 @@ pub fn pack() -> AppSeedPack {
 
                 // ── Categories ────────────────────────────────────────────────
                 let categories: &[(&str, &str, &[&str])] = &[
-                    ("Residential Construction", "Home building and renovation services", &[
-                        "New Home Construction", "Home Renovations", "Kitchen Remodeling",
-                        "Bathroom Remodeling", "Roofing",
-                    ]),
-                    ("Commercial Construction", "Commercial building services", &[
-                        "Office Buildings", "Retail Spaces", "Industrial Facilities",
-                        "Healthcare Facilities",
-                    ]),
-                    ("Specialized Contracting", "Trade-specific contracting services", &[
-                        "Electrical", "Plumbing", "HVAC", "Landscaping", "Painting",
-                    ]),
-                    ("Construction Equipment", "Equipment sales and rental", &[
-                        "Heavy Machinery", "Power Tools", "Safety Equipment", "Equipment Rental",
-                    ]),
-                    ("Construction Management", "Project and site management services", &[
-                        "Project Planning", "Cost Estimation", "Quality Control", "Safety Management",
-                    ]),
+                    (
+                        "Residential Construction",
+                        "Home building and renovation services",
+                        &[
+                            "New Home Construction",
+                            "Home Renovations",
+                            "Kitchen Remodeling",
+                            "Bathroom Remodeling",
+                            "Roofing",
+                        ],
+                    ),
+                    (
+                        "Commercial Construction",
+                        "Commercial building services",
+                        &[
+                            "Office Buildings",
+                            "Retail Spaces",
+                            "Industrial Facilities",
+                            "Healthcare Facilities",
+                        ],
+                    ),
+                    (
+                        "Specialized Contracting",
+                        "Trade-specific contracting services",
+                        &["Electrical", "Plumbing", "HVAC", "Landscaping", "Painting"],
+                    ),
+                    (
+                        "Construction Equipment",
+                        "Equipment sales and rental",
+                        &[
+                            "Heavy Machinery",
+                            "Power Tools",
+                            "Safety Equipment",
+                            "Equipment Rental",
+                        ],
+                    ),
+                    (
+                        "Construction Management",
+                        "Project and site management services",
+                        &[
+                            "Project Planning",
+                            "Cost Estimation",
+                            "Quality Control",
+                            "Safety Management",
+                        ],
+                    ),
                 ];
 
-                let mut cat_ids: std::collections::HashMap<&str, Uuid> = std::collections::HashMap::new();
+                let mut cat_ids: std::collections::HashMap<&str, Uuid> =
+                    std::collections::HashMap::new();
                 for (parent_name, parent_desc, subs) in categories {
                     let parent_id = ensure_category(&db, nt_id, parent_name, parent_desc).await?;
                     cat_ids.insert(parent_name, parent_id);
@@ -87,22 +119,83 @@ pub fn pack() -> AppSeedPack {
                 let residential_cat = cat_ids.get("Residential Construction").copied();
 
                 let businesses: &[(&str, &str, &str, &str)] = &[
-                    ("Apex CT Renovations", "Premium renovation services across Connecticut. Licensed and fully insured.", "New Haven", "Residential Construction"),
-                    ("Elite HVAC Professionals", "24/7 HVAC installation, repair, and maintenance for residential and commercial.", "Stamford", "Specialized Contracting"),
-                    ("Prime Wiring & Electric", "Licensed electricians serving all of Connecticut. Commercial & residential.", "Bridgeport", "Specialized Contracting"),
-                    ("Sparkle Commercial Cleaning", "Professional commercial cleaning services. Verified and insured.", "Hartford", "Specialized Contracting"),
-                    ("Scenic Views Outdoor", "Full-service landscaping and outdoor living solutions.", "Waterbury", "Specialized Contracting"),
-                    ("Precision Plumbing CT", "Emergency plumbing services available 24/7 across CT.", "Danbury", "Specialized Contracting"),
-                    ("Stamford Roofing Co.", "Expert roofing installation and repair. 20+ years experience.", "Stamford", "Residential Construction"),
-                    ("Greenwich Build Partners", "High-end residential and commercial construction.", "Greenwich", "Residential Construction"),
-                    ("New Haven Hardwood", "Custom hardwood flooring installation and refinishing.", "New Haven", "Residential Construction"),
-                    ("Bridgeport Masonry", "Expert masonry, concrete, and stonework services.", "Bridgeport", "Commercial Construction"),
-                    ("Fairfield Landscapes", "Comprehensive landscape design and lawn care.", "Fairfield", "Specialized Contracting"),
-                    ("Hartford Heating & Air", "Full HVAC services for homes and businesses.", "Hartford", "Specialized Contracting"),
+                    (
+                        "Apex CT Renovations",
+                        "Premium renovation services across Connecticut. Licensed and fully insured.",
+                        "New Haven",
+                        "Residential Construction",
+                    ),
+                    (
+                        "Elite HVAC Professionals",
+                        "24/7 HVAC installation, repair, and maintenance for residential and commercial.",
+                        "Stamford",
+                        "Specialized Contracting",
+                    ),
+                    (
+                        "Prime Wiring & Electric",
+                        "Licensed electricians serving all of Connecticut. Commercial & residential.",
+                        "Bridgeport",
+                        "Specialized Contracting",
+                    ),
+                    (
+                        "Sparkle Commercial Cleaning",
+                        "Professional commercial cleaning services. Verified and insured.",
+                        "Hartford",
+                        "Specialized Contracting",
+                    ),
+                    (
+                        "Scenic Views Outdoor",
+                        "Full-service landscaping and outdoor living solutions.",
+                        "Waterbury",
+                        "Specialized Contracting",
+                    ),
+                    (
+                        "Precision Plumbing CT",
+                        "Emergency plumbing services available 24/7 across CT.",
+                        "Danbury",
+                        "Specialized Contracting",
+                    ),
+                    (
+                        "Stamford Roofing Co.",
+                        "Expert roofing installation and repair. 20+ years experience.",
+                        "Stamford",
+                        "Residential Construction",
+                    ),
+                    (
+                        "Greenwich Build Partners",
+                        "High-end residential and commercial construction.",
+                        "Greenwich",
+                        "Residential Construction",
+                    ),
+                    (
+                        "New Haven Hardwood",
+                        "Custom hardwood flooring installation and refinishing.",
+                        "New Haven",
+                        "Residential Construction",
+                    ),
+                    (
+                        "Bridgeport Masonry",
+                        "Expert masonry, concrete, and stonework services.",
+                        "Bridgeport",
+                        "Commercial Construction",
+                    ),
+                    (
+                        "Fairfield Landscapes",
+                        "Comprehensive landscape design and lawn care.",
+                        "Fairfield",
+                        "Specialized Contracting",
+                    ),
+                    (
+                        "Hartford Heating & Air",
+                        "Full HVAC services for homes and businesses.",
+                        "Hartford",
+                        "Specialized Contracting",
+                    ),
                 ];
 
                 for (name, desc, city, category_name) in businesses {
-                    let cat_id = cat_ids.get(category_name)
+                    let cat_id = cat_ids
+                        .get(category_name)
                         .or(specialized_cat.as_ref())
                         .or(residential_cat.as_ref())
                         .copied()

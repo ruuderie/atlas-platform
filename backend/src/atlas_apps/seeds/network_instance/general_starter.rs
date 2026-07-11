@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_network_type, ensure_category, record_seed_application};
+use super::helpers::{ensure_category, ensure_network_type, record_seed_application};
 use crate::traits::atlas_app::AppSeedPack;
 use sea_orm::{ConnectionTrait, Statement};
 
@@ -17,28 +17,75 @@ pub fn pack() -> AppSeedPack {
         apply: Box::new(|db, tenant_id, _app_instance_id| {
             Box::pin(async move {
                 // ── Transportation & Logistics ────────────────────────────────
-                let tl_id = ensure_network_type(&db, "Transportation & Logistics", "Network for transportation and logistics services").await?;
-                let freight_id = ensure_category(&db, tl_id, "Freight Services", "Services related to freight transportation").await?;
+                let tl_id = ensure_network_type(
+                    &db,
+                    "Transportation & Logistics",
+                    "Network for transportation and logistics services",
+                )
+                .await?;
+                let freight_id = ensure_category(
+                    &db,
+                    tl_id,
+                    "Freight Services",
+                    "Services related to freight transportation",
+                )
+                .await?;
 
                 // ── Automotive ────────────────────────────────────────────────
-                let auto_id = ensure_network_type(&db, "Automotive Sales", "Network for automotive sales and dealerships").await?;
-                let used_id = ensure_category(&db, auto_id, "Used Vehicles", "Pre-owned vehicle sales").await?;
+                let auto_id = ensure_network_type(
+                    &db,
+                    "Automotive Sales",
+                    "Network for automotive sales and dealerships",
+                )
+                .await?;
+                let used_id =
+                    ensure_category(&db, auto_id, "Used Vehicles", "Pre-owned vehicle sales")
+                        .await?;
 
                 // ── Construction ──────────────────────────────────────────────
-                let con_id = ensure_network_type(&db, "Construction & Contracting", "Network for construction and contracting services").await?;
-                let spec_id = ensure_category(&db, con_id, "Specialized Contracting", "Trade-specific contracting services").await?;
+                let con_id = ensure_network_type(
+                    &db,
+                    "Construction & Contracting",
+                    "Network for construction and contracting services",
+                )
+                .await?;
+                let spec_id = ensure_category(
+                    &db,
+                    con_id,
+                    "Specialized Contracting",
+                    "Trade-specific contracting services",
+                )
+                .await?;
 
                 // Networks
                 let networks: &[(&str, &str, uuid::Uuid)] = &[
-                    ("Global Logistics Network", "Connecting logistics professionals worldwide", tl_id),
-                    ("Auto Dealer Hub", "Connecting car buyers with trusted dealerships", auto_id),
-                    ("Builder Connect", "Connecting construction professionals and clients", con_id),
+                    (
+                        "Global Logistics Network",
+                        "Connecting logistics professionals worldwide",
+                        tl_id,
+                    ),
+                    (
+                        "Auto Dealer Hub",
+                        "Connecting car buyers with trusted dealerships",
+                        auto_id,
+                    ),
+                    (
+                        "Builder Connect",
+                        "Connecting construction professionals and clients",
+                        con_id,
+                    ),
                 ];
 
                 let mut network_ids: Vec<(uuid::Uuid, uuid::Uuid)> = Vec::new(); // (network_id, cat_id)
 
                 for (name, desc, nt_id) in networks {
-                    let default_cat = if *nt_id == tl_id { freight_id } else if *nt_id == auto_id { used_id } else { spec_id };
+                    let default_cat = if *nt_id == tl_id {
+                        freight_id
+                    } else if *nt_id == auto_id {
+                        used_id
+                    } else {
+                        spec_id
+                    };
 
                     let row = db.query_one(Statement::from_string(
                         sea_orm::DatabaseBackend::Postgres,
@@ -61,9 +108,18 @@ pub fn pack() -> AppSeedPack {
 
                 // Sample listings — 3 per network
                 let sample_listings: &[(&str, &str)] = &[
-                    ("Nationwide Freight Brokerage", "Full-service freight brokerage connecting shippers and carriers across the US."),
-                    ("2022 Toyota Camry LE", "Clean title, 28k miles. One owner. Full service history available."),
-                    ("CT Licensed Master Electrician", "Commercial and residential electrical services. 24/7 emergency response."),
+                    (
+                        "Nationwide Freight Brokerage",
+                        "Full-service freight brokerage connecting shippers and carriers across the US.",
+                    ),
+                    (
+                        "2022 Toyota Camry LE",
+                        "Clean title, 28k miles. One owner. Full service history available.",
+                    ),
+                    (
+                        "CT Licensed Master Electrician",
+                        "Commercial and residential electrical services. 24/7 emergency response.",
+                    ),
                 ];
 
                 for (i, (nid, cat_id)) in network_ids.iter().enumerate() {

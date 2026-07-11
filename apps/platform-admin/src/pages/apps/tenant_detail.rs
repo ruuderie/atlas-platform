@@ -10,25 +10,29 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
+use crate::api::admin::{get_tenant_stats, impersonate_user};
 use crate::api::models::{PlatformAppModel, TenantStatModel};
 use crate::api::networks::get_networks;
-use crate::api::admin::{get_tenant_stats, impersonate_user};
 
 // ── helpers (duplicated from apps/index.rs to keep files independent) ─────────
 
 fn fmt_mrr(cents: i64) -> String {
-    if cents == 0 { "$0".to_string() }
-    else if cents % 100 == 0 { format!("${}", cents / 100) }
-    else { format!("${:.2}", cents as f64 / 100.0) }
+    if cents == 0 {
+        "$0".to_string()
+    } else if cents % 100 == 0 {
+        format!("${}", cents / 100)
+    } else {
+        format!("${:.2}", cents as f64 / 100.0)
+    }
 }
 
 fn app_type_label(slug: &str) -> (&'static str, &'static str) {
     match slug {
         "property_management" | "folio" => ("🏠", "Folio PM"),
-        "anchor"                        => ("⚓", "Anchor CMS"),
-        "network_instance" | "network"  => ("🔗", "Network"),
-        "str"                           => ("🏖️", "Atlas STR"),
-        _                               => ("📦", "App"),
+        "anchor" => ("⚓", "Anchor CMS"),
+        "network_instance" | "network" => ("🔗", "Network"),
+        "str" => ("🏖️", "Atlas STR"),
+        _ => ("📦", "App"),
     }
 }
 
@@ -44,13 +48,11 @@ pub fn TenantDetail() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // ── Data resources ────────────────────────────────────────────────────────
-    let networks = LocalResource::new(move || async move {
-        get_networks().await.unwrap_or_default()
-    });
+    let networks =
+        LocalResource::new(move || async move { get_networks().await.unwrap_or_default() });
 
-    let tenant_stats = LocalResource::new(move || async move {
-        get_tenant_stats().await.unwrap_or_default()
-    });
+    let tenant_stats =
+        LocalResource::new(move || async move { get_tenant_stats().await.unwrap_or_default() });
 
     view! {
         <Suspense fallback=move || view! {

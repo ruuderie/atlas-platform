@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,23 +20,60 @@ pub fn get_manifest_for_app_type(type_name: &str) -> AppManifest {
             app_type_id: "anchor_app".to_string(),
             name: "Anchor Services Portal".to_string(),
             panels: vec![
-                PanelConfig { id: "profiles".to_string(), title: "Identities".to_string(), icon: Some("group".to_string()) },
-                PanelConfig { id: "services".to_string(), title: "Service Offerings".to_string(), icon: Some("sell".to_string()) },
-                PanelConfig { id: "anchor_settings".to_string(), title: "System Configuration".to_string(), icon: Some("settings".to_string()) },
-            ]
+                PanelConfig {
+                    id: "profiles".to_string(),
+                    title: "Identities".to_string(),
+                    icon: Some("group".to_string()),
+                },
+                PanelConfig {
+                    id: "services".to_string(),
+                    title: "Service Offerings".to_string(),
+                    icon: Some("sell".to_string()),
+                },
+                PanelConfig {
+                    id: "anchor_settings".to_string(),
+                    title: "System Configuration".to_string(),
+                    icon: Some("settings".to_string()),
+                },
+            ],
         },
-        _ => AppManifest { // Default Network Manifest
+        _ => AppManifest {
+            // Default Network Manifest
             app_type_id: "network".to_string(),
             name: "Network Network".to_string(),
             panels: vec![
-                PanelConfig { id: "listings".to_string(), title: "Listings".to_string(), icon: Some("list_alt".to_string()) },
-                PanelConfig { id: "network_types".to_string(), title: "Network Types".to_string(), icon: Some("schema".to_string()) },
-                PanelConfig { id: "categories".to_string(), title: "Categories".to_string(), icon: Some("category".to_string()) },
-                PanelConfig { id: "templates".to_string(), title: "Templates".to_string(), icon: Some("draw".to_string()) },
-                PanelConfig { id: "profiles".to_string(), title: "User Profiles".to_string(), icon: Some("group".to_string()) },
-                PanelConfig { id: "network_settings".to_string(), title: "Settings".to_string(), icon: Some("settings".to_string()) },
-            ]
-        }
+                PanelConfig {
+                    id: "listings".to_string(),
+                    title: "Listings".to_string(),
+                    icon: Some("list_alt".to_string()),
+                },
+                PanelConfig {
+                    id: "network_types".to_string(),
+                    title: "Network Types".to_string(),
+                    icon: Some("schema".to_string()),
+                },
+                PanelConfig {
+                    id: "categories".to_string(),
+                    title: "Categories".to_string(),
+                    icon: Some("category".to_string()),
+                },
+                PanelConfig {
+                    id: "templates".to_string(),
+                    title: "Templates".to_string(),
+                    icon: Some("draw".to_string()),
+                },
+                PanelConfig {
+                    id: "profiles".to_string(),
+                    title: "User Profiles".to_string(),
+                    icon: Some("group".to_string()),
+                },
+                PanelConfig {
+                    id: "network_settings".to_string(),
+                    title: "Settings".to_string(),
+                    icon: Some("settings".to_string()),
+                },
+            ],
+        },
     }
 }
 

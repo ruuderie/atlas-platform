@@ -1,19 +1,15 @@
 #![allow(dead_code)]
+use crate::entities::app_page::{self, Entity as AppPage};
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    Json,
-    routing::{get, post, put, delete},
-    Router,
+    routing::{delete, get, post, put},
 };
-use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait,
-    ActiveModelTrait, Set,
-};
-use serde::{Deserialize, Serialize};
-use crate::entities::app_page::{self, Entity as AppPage};
-use uuid::Uuid;
 use chrono::Utc;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Request / Response types ──────────────────────────────────────────────────
 
@@ -70,7 +66,10 @@ impl From<app_page::Model> for PageSummary {
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/public/pages/{tenant_id}", get(list_pages))
-        .route("/api/public/pages/{tenant_id}/{*slug}", get(get_page_by_slug))
+        .route(
+            "/api/public/pages/{tenant_id}/{*slug}",
+            get(get_page_by_slug),
+        )
 }
 
 /// State-free authenticated CRUD route definitions.
@@ -119,8 +118,13 @@ pub async fn get_page_by_slug(
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<app_page::Model>, StatusCode> {
     let clean_slug = slug.trim_start_matches('/');
-    
-    tracing::info!("DEBUG get_page_by_slug: tenant_id={}, slug='{}', clean_slug='{}'", tenant_id, slug, clean_slug);
+
+    tracing::info!(
+        "DEBUG get_page_by_slug: tenant_id={}, slug='{}', clean_slug='{}'",
+        tenant_id,
+        slug,
+        clean_slug
+    );
     let page = AppPage::find()
         .filter(app_page::Column::TenantId.eq(tenant_id))
         .filter(app_page::Column::Slug.eq(clean_slug))
@@ -192,6 +196,7 @@ pub async fn create_page(
         // New platform-admin pages use the /api/admin/landing-pages route which sets app_id explicitly.
         app_id: Set("folio".to_string()),
         slug: Set(payload.slug),
+        locale: Set("en".to_string()),
         title: Set(payload.title),
         description: Set(payload.description),
         page_type: Set(payload.page_type.unwrap_or_else(|| "standard".to_string())),
@@ -204,7 +209,10 @@ pub async fn create_page(
 
     let inserted = new_page.insert(&db).await.map_err(|e| {
         tracing::error!("create_page error: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create page".to_string())
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create page".to_string(),
+        )
     })?;
 
     Ok((StatusCode::CREATED, Json(inserted)))
@@ -226,17 +234,30 @@ pub async fn update_page(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Page not found".to_string()))?;
 
     let mut active: app_page::ActiveModel = existing.into();
-    if let Some(t) = payload.title         { active.title = Set(t); }
-    if let Some(d) = payload.description   { active.description = Set(d); }
-    if let Some(pt) = payload.page_type    { active.page_type = Set(pt); }
-    if let Some(h) = payload.hero_payload  { active.hero_payload = Set(Some(h)); }
-    if let Some(b) = payload.blocks_payload { active.blocks_payload = Set(Some(b)); }
-    if let Some(p) = payload.is_published  { active.is_published = Set(p); }
+    if let Some(t) = payload.title {
+        active.title = Set(t);
+    }
+    if let Some(d) = payload.description {
+        active.description = Set(d);
+    }
+    if let Some(pt) = payload.page_type {
+        active.page_type = Set(pt);
+    }
+    if let Some(h) = payload.hero_payload {
+        active.hero_payload = Set(Some(h));
+    }
+    if let Some(b) = payload.blocks_payload {
+        active.blocks_payload = Set(Some(b));
+    }
+    if let Some(p) = payload.is_published {
+        active.is_published = Set(p);
+    }
     active.updated_at = Set(Utc::now());
 
-    let updated = active.update(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(updated))
 }
@@ -256,9 +277,10 @@ pub async fn delete_page(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Page not found".to_string()))?;
 
     let active: app_page::ActiveModel = existing.into();
-    active.delete(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
+    active
+        .delete(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(StatusCode::NO_CONTENT)
 }

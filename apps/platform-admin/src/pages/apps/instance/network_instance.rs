@@ -14,35 +14,34 @@
 //!   Operational Config — InstanceOperationalConfigPanel
 //!   Users            — TenantUsersPanel
 
-use leptos::prelude::*;
 use crate::api::admin::{PublicConfigResponse, get_instance_stats};
-use crate::components::instance_syndication_panel::{InstanceSyndicationPanel, AvailableOffersPanel};
 use crate::components::instance_operational_config_panel::InstanceOperationalConfigPanel;
+use crate::components::instance_syndication_panel::{
+    AvailableOffersPanel, InstanceSyndicationPanel,
+};
 use crate::components::tenant_users_panel::TenantUsersPanel;
+use leptos::prelude::*;
 
 #[component]
-pub fn NetworkInstance(
-    cfg: PublicConfigResponse,
-) -> impl IntoView {
+pub fn NetworkInstance(cfg: PublicConfigResponse) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let instance_id = cfg.instance_id;
-    let tenant_id   = cfg.tenant_id;
+    let tenant_id = cfg.tenant_id;
     let tenant_name = StoredValue::new(cfg.tenant_name.clone());
 
     // ── Tab state ──
     let active_tab = RwSignal::new("t-overview".to_string());
 
     // ── Signals from config ──
-    let public_slug   = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
+    let public_slug = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
     let custom_domain = RwSignal::new(cfg.custom_domain.clone().unwrap_or_default());
-    let is_suspended  = RwSignal::new(cfg.instance_status == "suspended");
-    let billing_tier  = StoredValue::new(cfg.billing_tier.clone());
+    let is_suspended = RwSignal::new(cfg.instance_status == "suspended");
+    let billing_tier = StoredValue::new(cfg.billing_tier.clone());
 
     // ── Live stats ──
-    let stats = LocalResource::new(move || async move {
-        get_instance_stats(instance_id).await.ok()
-    });
+    let stats =
+        LocalResource::new(move || async move { get_instance_stats(instance_id).await.ok() });
 
     view! {
         <div class="w-full space-y-6">

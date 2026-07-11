@@ -26,19 +26,19 @@
 //! ```
 
 use axum::{
+    Router,
     body::Body,
     extract::{Extension, Json, Path, Query},
     http::{HeaderMap, StatusCode, header},
     response::IntoResponse,
     routing::{delete, get, patch, post},
-    Router,
 };
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
     QueryOrder,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
@@ -113,72 +113,72 @@ pub fn routes(db: DatabaseConnection) -> Router {
 
 #[derive(Debug, Deserialize)]
 pub struct UpsertTemplateBody {
-    pub hero_payload:      Option<Value>,
-    pub blocks_payload:    Option<Value>,
-    pub meta_title:        Option<String>,
-    pub meta_description:  Option<String>,
-    pub og_image_url:      Option<String>,
-    pub structured_data:   Option<Value>,
-    pub cta_label:         Option<String>,
-    pub cta_action:        Option<String>,
+    pub hero_payload: Option<Value>,
+    pub blocks_payload: Option<Value>,
+    pub meta_title: Option<String>,
+    pub meta_description: Option<String>,
+    pub og_image_url: Option<String>,
+    pub structured_data: Option<Value>,
+    pub cta_label: Option<String>,
+    pub cta_action: Option<String>,
 }
 
 /// Single variant creation input
 #[derive(Debug, Deserialize)]
 pub struct CreateVariantBody {
-    pub variant_slug:     String,
-    pub locale:           String,
-    pub country_code:     Option<String>,
-    pub region:           Option<String>,
-    pub city:             Option<String>,
-    pub geo_lat:          Option<f64>,
-    pub geo_lng:          Option<f64>,
-    pub launch_mode:      Option<String>,
-    pub copy_strategy:    Option<String>,   // "manual" | "city_inject" | "ai_localize"
+    pub variant_slug: String,
+    pub locale: String,
+    pub country_code: Option<String>,
+    pub region: Option<String>,
+    pub city: Option<String>,
+    pub geo_lat: Option<f64>,
+    pub geo_lng: Option<f64>,
+    pub launch_mode: Option<String>,
+    pub copy_strategy: Option<String>, // "manual" | "city_inject" | "ai_localize"
     pub subdomain_override: Option<String>,
-    pub pre_order_cap:    Option<i32>,
+    pub pre_order_cap: Option<i32>,
     // SEO overrides (optional — if copy_strategy=city_inject, auto-generated)
-    pub meta_title:       Option<String>,
+    pub meta_title: Option<String>,
     pub meta_description: Option<String>,
 }
 
 /// Bulk generate input — list of markets
 #[derive(Debug, Deserialize, Clone)]
 pub struct MarketSpec {
-    pub slug:         String,
-    pub locale:       String,
-    pub city:         Option<String>,
-    pub region:       Option<String>,
+    pub slug: String,
+    pub locale: String,
+    pub city: Option<String>,
+    pub region: Option<String>,
     pub country_code: Option<String>,
-    pub geo_lat:      Option<f64>,
-    pub geo_lng:      Option<f64>,
+    pub geo_lat: Option<f64>,
+    pub geo_lng: Option<f64>,
     pub subdomain_override: Option<String>,
     pub pre_order_cap: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct BulkGenerateBody {
-    pub markets:       Vec<MarketSpec>,
-    pub launch_mode:   Option<String>,
+    pub markets: Vec<MarketSpec>,
+    pub launch_mode: Option<String>,
     /// "manual" | "city_inject" | "ai_localize"
     pub copy_strategy: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateVariantBody {
-    pub hero_overrides:   Option<Value>,
-    pub block_overrides:  Option<Value>,
-    pub meta_title:       Option<String>,
+    pub hero_overrides: Option<Value>,
+    pub block_overrides: Option<Value>,
+    pub meta_title: Option<String>,
     pub meta_description: Option<String>,
-    pub og_image_url:     Option<String>,
-    pub canonical_url:    Option<String>,
-    pub structured_data:  Option<Value>,
-    pub launch_mode:      Option<String>,
-    pub is_published:     Option<bool>,
-    pub cta_label:        Option<String>,
-    pub cta_action:       Option<String>,
+    pub og_image_url: Option<String>,
+    pub canonical_url: Option<String>,
+    pub structured_data: Option<Value>,
+    pub launch_mode: Option<String>,
+    pub is_published: Option<bool>,
+    pub cta_label: Option<String>,
+    pub cta_action: Option<String>,
     pub subdomain_override: Option<String>,
-    pub pre_order_cap:    Option<i32>,
+    pub pre_order_cap: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -189,8 +189,8 @@ pub struct PublishVariantBody {
 #[derive(Debug, Deserialize)]
 pub struct BulkPublishFilter {
     pub country_code: Option<String>,
-    pub locale:       Option<String>,
-    pub launch_mode:  Option<String>,
+    pub locale: Option<String>,
+    pub launch_mode: Option<String>,
 }
 
 // ── Template handlers ─────────────────────────────────────────────────────────
@@ -224,14 +224,30 @@ async fn upsert_template(
     match existing {
         Ok(Some(t)) => {
             let mut active: template::ActiveModel = t.into();
-            if let Some(h) = body.hero_payload       { active.hero_payload = Set(h); }
-            if let Some(b) = body.blocks_payload     { active.blocks_payload = Set(b); }
-            if let Some(v) = body.meta_title         { active.meta_title = Set(Some(v)); }
-            if let Some(v) = body.meta_description   { active.meta_description = Set(Some(v)); }
-            if let Some(v) = body.og_image_url       { active.og_image_url = Set(Some(v)); }
-            if let Some(v) = body.structured_data    { active.structured_data = Set(v); }
-            if let Some(v) = body.cta_label          { active.cta_label = Set(v); }
-            if let Some(v) = body.cta_action         { active.cta_action = Set(v); }
+            if let Some(h) = body.hero_payload {
+                active.hero_payload = Set(h);
+            }
+            if let Some(b) = body.blocks_payload {
+                active.blocks_payload = Set(b);
+            }
+            if let Some(v) = body.meta_title {
+                active.meta_title = Set(Some(v));
+            }
+            if let Some(v) = body.meta_description {
+                active.meta_description = Set(Some(v));
+            }
+            if let Some(v) = body.og_image_url {
+                active.og_image_url = Set(Some(v));
+            }
+            if let Some(v) = body.structured_data {
+                active.structured_data = Set(v);
+            }
+            if let Some(v) = body.cta_label {
+                active.cta_label = Set(v);
+            }
+            if let Some(v) = body.cta_action {
+                active.cta_action = Set(v);
+            }
             match active.update(&db).await {
                 Ok(t) => (StatusCode::OK, Json(t)).into_response(),
                 Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -239,16 +255,16 @@ async fn upsert_template(
         }
         Ok(None) => {
             let new = template::ActiveModel {
-                id:             Set(Uuid::new_v4()),
-                product_id:     Set(product_id),
-                hero_payload:   Set(body.hero_payload.unwrap_or_else(|| json!({}))),
+                id: Set(Uuid::new_v4()),
+                product_id: Set(product_id),
+                hero_payload: Set(body.hero_payload.unwrap_or_else(|| json!({}))),
                 blocks_payload: Set(body.blocks_payload.unwrap_or_else(|| json!([]))),
-                meta_title:     Set(body.meta_title),
+                meta_title: Set(body.meta_title),
                 meta_description: Set(body.meta_description),
-                og_image_url:   Set(body.og_image_url),
+                og_image_url: Set(body.og_image_url),
                 structured_data: Set(body.structured_data.unwrap_or_else(|| json!({}))),
-                cta_label:      Set(body.cta_label.unwrap_or_else(|| "Join the Waitlist".into())),
-                cta_action:     Set(body.cta_action.unwrap_or_else(|| "waitlist".into())),
+                cta_label: Set(body.cta_label.unwrap_or_else(|| "Join the Waitlist".into())),
+                cta_action: Set(body.cta_action.unwrap_or_else(|| "waitlist".into())),
                 ..Default::default()
             };
             match new.insert(&db).await {
@@ -288,11 +304,17 @@ async fn create_variant(
         .await
     {
         Ok(Some(t)) => t,
-        Ok(None) => return (StatusCode::UNPROCESSABLE_ENTITY, "create a template first").into_response(),
+        Ok(None) => {
+            return (StatusCode::UNPROCESSABLE_ENTITY, "create a template first").into_response();
+        }
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    let copy_strategy = body.copy_strategy.as_deref().unwrap_or("manual").to_string();
+    let copy_strategy = body
+        .copy_strategy
+        .as_deref()
+        .unwrap_or("manual")
+        .to_string();
     let (meta_title, meta_description) = if copy_strategy == "city_inject" {
         city_inject_seo(&body)
     } else {
@@ -300,26 +322,26 @@ async fn create_variant(
     };
 
     let new_variant = variant::ActiveModel {
-        id:               Set(Uuid::new_v4()),
-        product_id:       Set(product_id),
-        template_id:      Set(tmpl.id),
-        variant_slug:     Set(body.variant_slug),
-        locale:           Set(body.locale),
-        country_code:     Set(body.country_code),
-        region:           Set(body.region),
-        city:             Set(body.city),
-        geo_lat:          Set(body.geo_lat),
-        geo_lng:          Set(body.geo_lng),
-        hero_overrides:   Set(json!({})),
-        block_overrides:  Set(json!({})),
-        meta_title:       Set(meta_title),
+        id: Set(Uuid::new_v4()),
+        product_id: Set(product_id),
+        template_id: Set(tmpl.id),
+        variant_slug: Set(body.variant_slug),
+        locale: Set(body.locale),
+        country_code: Set(body.country_code),
+        region: Set(body.region),
+        city: Set(body.city),
+        geo_lat: Set(body.geo_lat),
+        geo_lng: Set(body.geo_lng),
+        hero_overrides: Set(json!({})),
+        block_overrides: Set(json!({})),
+        meta_title: Set(meta_title),
         meta_description: Set(meta_description),
-        launch_mode:      Set(body.launch_mode.unwrap_or_else(|| "draft".into())),
-        is_published:     Set(false),
-        copy_strategy:    Set(copy_strategy.clone()),
+        launch_mode: Set(body.launch_mode.unwrap_or_else(|| "draft".into())),
+        is_published: Set(false),
+        copy_strategy: Set(copy_strategy.clone()),
         localization_status: Set("not_started".to_string()),
         subdomain_override: Set(body.subdomain_override),
-        pre_order_cap:    Set(body.pre_order_cap),
+        pre_order_cap: Set(body.pre_order_cap),
         ..Default::default()
     };
 
@@ -330,16 +352,20 @@ async fn create_variant(
                 let db2 = db.clone();
                 let vid = v.id;
                 tokio::spawn(async move {
-                    if let Err(e) = ProductLocalizationService::enqueue_variant_localization(&db2, vid).await {
+                    if let Err(e) =
+                        ProductLocalizationService::enqueue_variant_localization(&db2, vid).await
+                    {
                         tracing::warn!(variant_id = %vid, error = %e, "auto-localize enqueue failed");
                     }
                 });
             }
             (StatusCode::CREATED, Json(v)).into_response()
         }
-        Err(e) if e.to_string().contains("unique") => {
-            (StatusCode::CONFLICT, "variant_slug already exists for this product").into_response()
-        }
+        Err(e) if e.to_string().contains("unique") => (
+            StatusCode::CONFLICT,
+            "variant_slug already exists for this product",
+        )
+            .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -355,12 +381,18 @@ async fn bulk_generate_variants(
         .await
     {
         Ok(Some(t)) => t,
-        Ok(None) => return (StatusCode::UNPROCESSABLE_ENTITY, "create a template first").into_response(),
+        Ok(None) => {
+            return (StatusCode::UNPROCESSABLE_ENTITY, "create a template first").into_response();
+        }
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
     let launch_mode = body.launch_mode.as_deref().unwrap_or("draft").to_string();
-    let copy_strategy = body.copy_strategy.as_deref().unwrap_or("city_inject").to_string();
+    let copy_strategy = body
+        .copy_strategy
+        .as_deref()
+        .unwrap_or("city_inject")
+        .to_string();
 
     let mut created = 0usize;
     let mut skipped = 0usize;
@@ -369,17 +401,17 @@ async fn bulk_generate_variants(
     for market in &body.markets {
         let body_equiv = CreateVariantBody {
             variant_slug: market.slug.clone(),
-            locale:       market.locale.clone(),
+            locale: market.locale.clone(),
             country_code: market.country_code.clone(),
-            region:       market.region.clone(),
-            city:         market.city.clone(),
-            geo_lat:      market.geo_lat,
-            geo_lng:      market.geo_lng,
-            launch_mode:  Some(launch_mode.clone()),
+            region: market.region.clone(),
+            city: market.city.clone(),
+            geo_lat: market.geo_lat,
+            geo_lng: market.geo_lng,
+            launch_mode: Some(launch_mode.clone()),
             copy_strategy: Some(copy_strategy.clone()),
             subdomain_override: market.subdomain_override.clone(),
             pre_order_cap: market.pre_order_cap,
-            meta_title:   None,
+            meta_title: None,
             meta_description: None,
         };
 
@@ -390,26 +422,26 @@ async fn bulk_generate_variants(
         };
 
         let new_variant = variant::ActiveModel {
-            id:               Set(Uuid::new_v4()),
-            product_id:       Set(product_id),
-            template_id:      Set(tmpl.id),
-            variant_slug:     Set(market.slug.clone()),
-            locale:           Set(market.locale.clone()),
-            country_code:     Set(market.country_code.clone()),
-            region:           Set(market.region.clone()),
-            city:             Set(market.city.clone()),
-            geo_lat:          Set(market.geo_lat),
-            geo_lng:          Set(market.geo_lng),
-            hero_overrides:   Set(json!({})),
-            block_overrides:  Set(json!({})),
-            meta_title:       Set(meta_title),
+            id: Set(Uuid::new_v4()),
+            product_id: Set(product_id),
+            template_id: Set(tmpl.id),
+            variant_slug: Set(market.slug.clone()),
+            locale: Set(market.locale.clone()),
+            country_code: Set(market.country_code.clone()),
+            region: Set(market.region.clone()),
+            city: Set(market.city.clone()),
+            geo_lat: Set(market.geo_lat),
+            geo_lng: Set(market.geo_lng),
+            hero_overrides: Set(json!({})),
+            block_overrides: Set(json!({})),
+            meta_title: Set(meta_title),
             meta_description: Set(meta_description),
-            launch_mode:      Set(launch_mode.clone()),
-            is_published:     Set(false),
-            copy_strategy:    Set(copy_strategy.clone()),
+            launch_mode: Set(launch_mode.clone()),
+            is_published: Set(false),
+            copy_strategy: Set(copy_strategy.clone()),
             localization_status: Set("not_started".to_string()),
             subdomain_override: Set(market.subdomain_override.clone()),
-            pre_order_cap:    Set(market.pre_order_cap),
+            pre_order_cap: Set(market.pre_order_cap),
             ..Default::default()
         };
 
@@ -436,7 +468,9 @@ async fn bulk_generate_variants(
         let queue = localize_queue.clone();
         tokio::spawn(async move {
             for vid in queue {
-                if let Err(e) = ProductLocalizationService::enqueue_variant_localization(&db2, vid).await {
+                if let Err(e) =
+                    ProductLocalizationService::enqueue_variant_localization(&db2, vid).await
+                {
                     tracing::warn!(variant_id = %vid, error = %e, "bulk localize enqueue failed");
                 }
             }
@@ -467,19 +501,45 @@ async fn update_variant(
     };
 
     let mut active: variant::ActiveModel = v.into();
-    if let Some(v) = body.hero_overrides   { active.hero_overrides = Set(v); }
-    if let Some(v) = body.block_overrides  { active.block_overrides = Set(v); }
-    if let Some(v) = body.meta_title       { active.meta_title = Set(Some(v)); }
-    if let Some(v) = body.meta_description { active.meta_description = Set(Some(v)); }
-    if let Some(v) = body.og_image_url     { active.og_image_url = Set(Some(v)); }
-    if let Some(v) = body.canonical_url    { active.canonical_url = Set(Some(v)); }
-    if let Some(v) = body.structured_data  { active.structured_data = Set(Some(v)); }
-    if let Some(v) = body.launch_mode      { active.launch_mode = Set(v); }
-    if let Some(v) = body.is_published     { active.is_published = Set(v); }
-    if let Some(v) = body.cta_label        { active.cta_label = Set(Some(v)); }
-    if let Some(v) = body.cta_action       { active.cta_action = Set(Some(v)); }
-    if let Some(v) = body.subdomain_override { active.subdomain_override = Set(Some(v)); }
-    if let Some(v) = body.pre_order_cap    { active.pre_order_cap = Set(Some(v)); }
+    if let Some(v) = body.hero_overrides {
+        active.hero_overrides = Set(v);
+    }
+    if let Some(v) = body.block_overrides {
+        active.block_overrides = Set(v);
+    }
+    if let Some(v) = body.meta_title {
+        active.meta_title = Set(Some(v));
+    }
+    if let Some(v) = body.meta_description {
+        active.meta_description = Set(Some(v));
+    }
+    if let Some(v) = body.og_image_url {
+        active.og_image_url = Set(Some(v));
+    }
+    if let Some(v) = body.canonical_url {
+        active.canonical_url = Set(Some(v));
+    }
+    if let Some(v) = body.structured_data {
+        active.structured_data = Set(Some(v));
+    }
+    if let Some(v) = body.launch_mode {
+        active.launch_mode = Set(v);
+    }
+    if let Some(v) = body.is_published {
+        active.is_published = Set(v);
+    }
+    if let Some(v) = body.cta_label {
+        active.cta_label = Set(Some(v));
+    }
+    if let Some(v) = body.cta_action {
+        active.cta_action = Set(Some(v));
+    }
+    if let Some(v) = body.subdomain_override {
+        active.subdomain_override = Set(Some(v));
+    }
+    if let Some(v) = body.pre_order_cap {
+        active.pre_order_cap = Set(Some(v));
+    }
 
     match active.update(&db).await {
         Ok(v) => (StatusCode::OK, Json(v)).into_response(),
@@ -541,8 +601,12 @@ async fn bulk_publish_variants(
         .filter(variant::Column::ProductId.eq(product_id))
         .filter(variant::Column::IsPublished.eq(false));
 
-    if let Some(cc) = filter.country_code { q = q.filter(variant::Column::CountryCode.eq(cc)); }
-    if let Some(loc) = filter.locale      { q = q.filter(variant::Column::Locale.eq(loc)); }
+    if let Some(cc) = filter.country_code {
+        q = q.filter(variant::Column::CountryCode.eq(cc));
+    }
+    if let Some(loc) = filter.locale {
+        q = q.filter(variant::Column::Locale.eq(loc));
+    }
 
     let variants = match q.all(&db).await {
         Ok(vs) => vs,
@@ -556,7 +620,9 @@ async fn bulk_publish_variants(
         if let Some(ref mode) = filter.launch_mode {
             active.launch_mode = Set(mode.clone());
         }
-        if active.update(&db).await.is_ok() { published += 1; }
+        if active.update(&db).await.is_ok() {
+            published += 1;
+        }
     }
 
     (StatusCode::OK, Json(json!({ "published": published }))).into_response()
@@ -581,7 +647,10 @@ async fn get_waitlist_analytics(
     Extension(db): Extension<DatabaseConnection>,
     Path(product_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    let product = match platform_product::Entity::find_by_id(product_id).one(&db).await {
+    let product = match platform_product::Entity::find_by_id(product_id)
+        .one(&db)
+        .await
+    {
         Ok(Some(p)) => p,
         Ok(None) => return (StatusCode::NOT_FOUND, "product not found").into_response(),
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
@@ -597,17 +666,19 @@ async fn get_waitlist_analytics(
     let total_leads: i32 = variants.iter().map(|v| v.lead_count).sum();
     let by_market: Vec<Value> = variants
         .iter()
-        .map(|v| json!({
-            "variant_id":   v.id,
-            "variant_slug": v.variant_slug,
-            "city":         v.city,
-            "country_code": v.country_code,
-            "locale":       v.locale,
-            "launch_mode":  v.launch_mode,
-            "is_published": v.is_published,
-            "lead_count":   v.lead_count,
-            "view_count":   v.view_count,
-        }))
+        .map(|v| {
+            json!({
+                "variant_id":   v.id,
+                "variant_slug": v.variant_slug,
+                "city":         v.city,
+                "country_code": v.country_code,
+                "locale":       v.locale,
+                "launch_mode":  v.launch_mode,
+                "is_published": v.is_published,
+                "lead_count":   v.lead_count,
+                "view_count":   v.view_count,
+            })
+        })
         .collect();
 
     (
@@ -637,7 +708,8 @@ async fn export_waitlist_csv(
         .await
         .unwrap_or_default();
 
-    let mut csv = "variant_slug,city,country_code,locale,launch_mode,lead_count,view_count\n".to_string();
+    let mut csv =
+        "variant_slug,city,country_code,locale,launch_mode,lead_count,view_count\n".to_string();
     for v in &variants {
         csv.push_str(&format!(
             "{},{},{},{},{},{},{}\n",
@@ -655,7 +727,9 @@ async fn export_waitlist_csv(
     headers.insert(header::CONTENT_TYPE, "text/csv".parse().unwrap());
     headers.insert(
         header::CONTENT_DISPOSITION,
-        format!("attachment; filename=\"waitlist-{product_id}.csv\"").parse().unwrap(),
+        format!("attachment; filename=\"waitlist-{product_id}.csv\"")
+            .parse()
+            .unwrap(),
     );
 
     (StatusCode::OK, headers, csv).into_response()
@@ -666,7 +740,11 @@ async fn export_waitlist_csv(
 fn city_inject_seo(body: &CreateVariantBody) -> (Option<String>, Option<String>) {
     let city = body.city.as_deref().unwrap_or("");
     let region = body.region.as_deref().unwrap_or("");
-    let location = if region.is_empty() { city.to_string() } else { format!("{city}, {region}") };
+    let location = if region.is_empty() {
+        city.to_string()
+    } else {
+        format!("{city}, {region}")
+    };
 
     let title = if !city.is_empty() {
         Some(format!("Folio — Property Management in {location}"))

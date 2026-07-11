@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports)]
-use super::helpers::{ensure_category, ensure_network_type, ensure_subcategory, record_seed_application};
+use super::helpers::{
+    ensure_category, ensure_network_type, ensure_subcategory, record_seed_application,
+};
 use crate::traits::atlas_app::AppSeedPack;
 
 const SEED_ID: &str = "financial_services_starter";
@@ -20,18 +22,39 @@ pub fn pack() -> AppSeedPack {
                 .await?;
 
                 let categories: &[(&str, &str, &[&str])] = &[
-                    ("Business Banking", "Banking services for businesses", &[
-                        "Business Checking", "Business Savings", "Merchant Services",
-                        "Payroll Services", "Business Credit Cards",
-                    ]),
-                    ("Loans & Lending", "Various loan and lending services", &[
-                        "Home Loans", "Auto Loans", "Student Loans",
-                        "Small Business Loans", "Commercial Real Estate Loans",
-                    ]),
-                    ("Insurance Services", "Various insurance products", &[
-                        "Life Insurance", "Health Insurance", "Auto Insurance",
-                        "Home Insurance", "Business Insurance",
-                    ]),
+                    (
+                        "Business Banking",
+                        "Banking services for businesses",
+                        &[
+                            "Business Checking",
+                            "Business Savings",
+                            "Merchant Services",
+                            "Payroll Services",
+                            "Business Credit Cards",
+                        ],
+                    ),
+                    (
+                        "Loans & Lending",
+                        "Various loan and lending services",
+                        &[
+                            "Home Loans",
+                            "Auto Loans",
+                            "Student Loans",
+                            "Small Business Loans",
+                            "Commercial Real Estate Loans",
+                        ],
+                    ),
+                    (
+                        "Insurance Services",
+                        "Various insurance products",
+                        &[
+                            "Life Insurance",
+                            "Health Insurance",
+                            "Auto Insurance",
+                            "Home Insurance",
+                            "Business Insurance",
+                        ],
+                    ),
                 ];
 
                 for (parent_name, parent_desc, subs) in categories {
