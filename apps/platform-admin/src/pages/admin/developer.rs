@@ -1,5 +1,6 @@
 use crate::api::developer::*;
 use crate::app::GlobalToast;
+use crate::components::active_network_picker::ActiveNetworkPicker;
 use leptos::prelude::*;
 use uuid::Uuid;
 
@@ -58,8 +59,8 @@ pub fn DeveloperConsole() -> impl IntoView {
             if let Some(tenant_id) = tenant {
                 // For now, give blanket scopes or prompt via modal. We just use ["*"]
                 let req = CreateApiTokenRequest {
-                    name: "Developer Console Key".to_string(),
-                    scopes: vec!["*".to_string()],
+                    name: Some("Developer Console Key".to_string()),
+                    scopes: serde_json::json!(["*"]),
                 };
                 match create_api_token(tenant_id, req).await {
                     Ok(resp) => {
@@ -89,8 +90,7 @@ pub fn DeveloperConsole() -> impl IntoView {
             if let Some(tenant_id) = tenant {
                 let req = CreateWebhookRequest {
                     target_url: url,
-                    events: vec!["*".to_string()],
-                    secret: None,
+                    subscribed_events: serde_json::json!(["*"]),
                 };
                 match create_webhook_endpoint(tenant_id, req).await {
                     Ok(_) => {
@@ -149,6 +149,8 @@ pub fn DeveloperConsole() -> impl IntoView {
                 </div>
             </div>
 
+            <ActiveNetworkPicker/>
+
             <Show when=move || active_network.get().is_some()>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     // Left Column: API Keys
@@ -191,10 +193,9 @@ pub fn DeveloperConsole() -> impl IntoView {
                                                                 <li class="px-4 py-4 sm:px-6 flex justify-between items-center hover:bg-surface-bright/5">
                                                                     <div>
                                                                         <div class="flex items-center gap-2">
-                                                                            <span class="text-sm font-medium text-on-surface">"Token"</span>
-                                                                            <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-secondary-container text-on-secondary-container">"Root"</span>
+                                                                            <span class="text-sm font-medium text-on-surface">{key.display_label()}</span>
                                                                         </div>
-                                                                        <div class="text-xs text-on-surface-variant mt-1 font-mono">{key.prefix.unwrap_or_default()}"••••••"</div>
+                                                                        <div class="text-xs text-on-surface-variant mt-1 font-mono">{key.id.to_string().chars().take(8).collect::<String>()}"… · " {key.scopes_display()}</div>
                                                                     </div>
                                                                     <button on:click=move |_| { revoke_token_action.dispatch(kid); } class="btn btn-ghost btn-sm" style="color:var(--error)">
                                                                         "Revoke"
