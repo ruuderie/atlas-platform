@@ -1,3 +1,8 @@
+> **STATUS: COMPLETED — Historical Reference Only**
+> This document describes work that has been fully implemented as of June 2026.
+> The canonical current state is maintained in `docs/CURRENT_STATE.md`.
+> Do not treat this document as a description of current platform state.
+
 # Atlas Platform — Generic Subsystems (Original 8 — Historical Reference)
 
 > **Important**: This document covers the original 8 infrastructure generics. The complete current architecture (all generics + Account/Contact unification + service layer) is documented in:

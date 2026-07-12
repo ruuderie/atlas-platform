@@ -1,12 +1,12 @@
 # Atlas Platform — Generics v3
 
-> **Status:** Implemented & Merged to dev (June 2026 — Rev 5)
-> **Date:** June 2026
+> **Status:** Implemented & Merged to `dev` (July 11, 2026 — Rev 11 sync)
+> **Date:** June 2026 (original) → July 11, 2026 (status sync from CURRENT_STATE Rev 11)
 > **Supersedes:** [`platform_generics_v2.md`](./platform_generics_v2.md)
 > **Branch Target:** `feat/platform-generics-v3` → merged to `dev`
-> **Purpose:** Adds G-32 (`atlas_rbac`), G-33 (`atlas_app_deployment_config`), G-34 (`atlas_vendor_marketplace`), promotes field enhancements to G-01/G-10/G-05 (Syndication), and resolves all gaps identified in the PM/Folio verticals.
+> **Purpose:** Canonical generics design doc for G01–G37+. Adds G-32 (`atlas_rbac`), G-33 (`atlas_app_deployment_config`), G-34 (`atlas_vendor_marketplace`), G-35–G-37 (notifications / programs / ambassadors), and field enhancements to G-01/G-10/G-05 (Syndication).
 >
-> **See also:** `../CURRENT_STATE.md` for the absolute latest high-level summary.
+> **See also:** [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — **authoritative registry** (backend + frontend status). Status columns below must match that file.
 >
 > **Living Rule 7 text:** [`generic_fitness_test.md`](./generic_fitness_test.md) — use that doc (not §1 alone) before any net-new table or new G-number.
 >
@@ -49,9 +49,9 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 | 03 | `atlas_payments` | Multi-rail payment ledger | `atlas_ledger_entries`, `atlas_ledger_splits`, `atlas_payment_credentials` | Deployed with API | **Full UI** |
 | 04 | `atlas_subscriptions` | B2C recurring billing | `atlas_subscriptions` | Deployed with API | Partial UI |
 | 05 | `atlas_syndication` | Outbound syndication + external integration event bus | `atlas_external_integrations`, `atlas_syndication_offer`, `atlas_app_instance_syndication`, `atlas_syndication_outbox`, `atlas_integration_events` | **Deployed with API** | **Full UI** |
-| 06 | `atlas_verification_queue` | Human + automated trust workflows | `atlas_verification_requests` | Deployed with API | Partial UI |
+| 06 | `atlas_verification_queue` | Human + automated trust workflows | `atlas_verification_requests` (+ reviewer notes) | Deployed with API | **Full UI** |
 | 07 | `atlas_realtime` | WebSocket entity rooms | `atlas_ws_rooms`, `atlas_ws_messages` | Deployed with API | No UI |
-| 08 | `atlas_ai_tasks` | Async LLM / model work queue | `atlas_ai_tasks` | Deployed with API | No UI |
+| 08 | `atlas_ai_tasks` | Async LLM / model work queue | `atlas_ai_tasks` | Deployed with API | **Full UI** |
 
 > **G-05 expansion (Rev 5):** Originally scoped to `atlas_external_integrations` (passive connector registry). Now extended with the full Syndication Event Bus: transactional outbox, per-instance offer links, HMAC-signed webhook delivery, exponential back-off retry, dead-letter, and integration event audit log.
 
@@ -64,11 +64,11 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 | 11 | `atlas_contracts` | Legal agreements (leases, policies, rate agreements, SLAs) | `atlas_contracts` (+ `contract_type`, `terms_metadata JSONB`) | Deployed with API | **Full UI** |
 | 12 | `atlas_service_providers` | Vendors, contractors, agents, adjusters | `atlas_service_providers` (+ `scope`, `service_categories`) | Deployed with API | **Full UI** |
 | 13 | `atlas_cases` | Work items, tickets, claims, tasks, compliance alerts | `atlas_cases` (+ `case_type`, `case_metadata JSONB`) | Deployed with API | **Full UI** |
-| 14 | `atlas_documents` | Documents with metadata, e-sig, versioning, polymorphic linkage | `atlas_documents` (+ `document_category`, `app_namespace`) | Deployed with API | No UI |
+| 14 | `atlas_documents` | Documents with metadata, e-sig, versioning, polymorphic linkage | `atlas_documents` (+ `document_category`, `app_namespace`) | Deployed with API | Partial UI |
 | 15 | `atlas_opportunities` | Deal / pipeline objects with financial modeling | `atlas_opportunities` (+ `opportunity_type`, `financial_inputs/outputs JSONB`) | Deployed with API | Partial UI |
 | 16 | `atlas_regulatory_registrations` | Government permits, licenses, STR registrations | `atlas_regulatory_registrations` | Deployed with API | **Full UI** |
-| 17 | `atlas_tax_events` + `atlas_tax_filings` | Taxable revenue events and periodic filings | Two tables for event-level + periodic filing | Deployed with API | No UI |
-| 18 | `atlas_applications` | Structured multi-step intake, screening, and onboarding | `atlas_applications` (+ `application_type`, `application_metadata JSONB`) | Deployed with API | No UI |
+| 17 | `atlas_tax_events` + `atlas_tax_filings` | Taxable revenue events and periodic filings | Two tables for event-level + periodic filing | Deployed with API | Partial UI |
+| 18 | `atlas_applications` | Structured multi-step intake, screening, and onboarding | `atlas_applications` (+ `application_type`, `application_metadata JSONB`) | Deployed with API | Partial UI |
 
 ### Round 1 Gap-Fill Additions (G19–G26) — All Deployed ✅
 
@@ -87,7 +87,7 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 
 | ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
 |----|------|-----------|------------|----------------|-----------------|
-| 27 | `atlas_scorecards` | Universal Structured Evaluation Engine + The Combinator similarity search | `atlas_scorecard_templates`, `atlas_scorecard_dimensions`, `atlas_scorecard_dimension_options`, `atlas_scorecards`, `atlas_rating_sessions`, `atlas_scorecard_entries`, `atlas_scorecard_dimension_aggregates`, `atlas_scorecard_poll_aggregates`, `atlas_scorecard_time_series`, `atlas_scorecard_targets`, `atlas_scorecard_target_criteria`, `atlas_scorecard_display_rules`, `atlas_scorecard_contributor_calibrations` | Deployed with API | Partial UI |
+| 27 | `atlas_scorecards` | Universal Structured Evaluation Engine + The Combinator similarity search | `atlas_scorecard_*` (+ `atlas_scorecard_template_deployments`, `rating_sessions.app_instance_id`) | Deployed with API | **Full UI** |
 | 28 | `atlas_note` | Universal polymorphic note with threading + visibility | `atlas_notes` | Entity defined | Partial UI |
 | 29 | `atlas_activity` | Universal polymorphic activity log | `activity` | Entity defined | Partial UI |
 | 31 | `atlas_lead` | Canonical lead/prospect with full import→qualify→convert→disqualify lifecycle | `atlas_lead`, `atlas_lead_compat_view` | Deployed with API | **Full UI** |
@@ -98,18 +98,27 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 
 | ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
 |----|------|-----------|------------|----------------|-----------------|
-| 32 | `atlas_rbac` | Platform-generic Role Based Access Control | `atlas_role_profiles`, `atlas_role_profile_permissions`, `atlas_user_app_roles` | Deployed with API | Partial UI |
-| 33 | `atlas_app_deployment_config` | Multi-tenant deployment topology + operational instance config | `atlas_app_deployment_config` (`folio_mode`: standard\|pmc\|brokerage; `deployment_mode`: standard\|internal_operator) | Deployed with API | Partial UI |
-| 34 | `atlas_vendor_marketplace` | Opt-in cross-tenant vendor/service provider discovery | `atlas_service_providers` extension (`is_marketplace_visible`, `marketplace_bio`, `marketplace_trade_types`, `marketplace_location` PostGIS point) | Deployed | No UI |
+| 32 | `atlas_rbac` | Platform-generic Role Based Access Control | `atlas_role_profiles`, `atlas_role_profile_permissions`, `atlas_user_app_roles`, `atlas_user_asset_access` | Deployed with API | Partial UI |
+| 33 | `atlas_app_deployment_config` | Multi-tenant deployment topology + operational instance config | `atlas_app_deployment_config` (`folio_mode`: standard\|pmc\|brokerage; `deployment_mode`: standard\|internal_operator; `account_id` FK) | Deployed with API | Partial UI |
+| 34 | `atlas_vendor_marketplace` | Opt-in cross-tenant vendor/service provider discovery | `atlas_service_providers` extension (`is_marketplace_visible`, `marketplace_bio`, `marketplace_trade_types`, `marketplace_location` PostGIS point) | Deployed | Partial UI |
 
-### Round 4 — Growth Programs (G35–G36) ✅
+### Round 4 — Growth & Ops (G35–G37+) ✅
 
 | ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
 |----|------|-----------|------------|----------------|-----------------|
 | 35 | `atlas_notifications` | Multi-channel in-app notification inbox + prefs | `atlas_notifications`, `atlas_user_notification_preferences` | Deployed with API | Partial UI |
-| 36 | `atlas_programs` | Productized growth/incentive programs (invite is one kind) with actions, outcomes, reward grants | `atlas_programs`, `atlas_program_actions`, `atlas_program_outcomes`, `atlas_program_reward_rules`, `atlas_program_reward_grants` | Deployed with API | Partial UI |
+| 36 | `atlas_programs` | Productized growth/incentive programs (invite is one kind) with actions, outcomes, reward grants | `atlas_programs`, `atlas_program_actions`, `atlas_program_outcomes`, `atlas_program_reward_rules`, `atlas_program_reward_grants`, `atlas_program_instance_enablements` | Deployed with API | **Full UI** |
+| 37 | `atlas_ambassadors` | Growth partners (referral / influencer / affiliate / recruiter) + dual-audience QR | `atlas_ambassadors`, `atlas_ambassador_campaigns` | Deployed with API | **Full UI** |
+| — | `feature_flags` | Platform feature-flag catalog + per-instance enablements | `feature_flags`, `flag_audit_logs`, `flag_overrides`, `atlas_flag_instance_enablements` | Deployed with API | **Full UI** |
 
 See [`g36_atlas_programs_spec.md`](./g36_atlas_programs_spec.md) for Rule 7 writeup, DDL, and seed programs.
+
+### Party Model (replaces legacy CRM)
+
+| Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|------|-----------|------------|----------------|-----------------|
+| `atlas_accounts` | Top-level party (individual \| organization) + firmographics | `atlas_accounts` | Deployed with API | **Full UI** (anchor + NI + platform-admin) |
+| `atlas_contacts` | Lightweight people records belonging to an Account | `atlas_contacts` | Deployed with API | **Full UI** |
 
 ---
 
@@ -310,14 +319,17 @@ m20260915_atlas_syndication_outbox
 - G-10 asset lifecycle fields, listing mode
 - Feature flags registry, platform invitations
 
-### Pending (Highest Value)
+### Pending (Highest Value) — synced to CURRENT_STATE Rev 11
 
-1. **G-34 Public Marketplace UI** — No public-facing vendor search directory page yet.
-2. **G-24 Quote Builder UI** — Backend deployed, no frontend.
-3. **G-21 Event Management UI** — Backend deployed, no frontend.
-4. **G-14 Document Browser UI** — Backend deployed, no frontend.
-5. **G-28/G-29 Full Services** — Notes/Activities use handler-only pattern; should be promoted to `NoteService`/`ActivityService`.
-6. **G-05 Inbound Webhook Handler** — Outbound delivery complete; inbound receiver not yet built.
+1. **G-24 Quote Builder UI** — Backend deployed, no frontend.
+2. **G-21 Event Management UI** — Backend deployed, no frontend.
+3. **G-22 Record Relationship Graph UI** — Backend deployed, no frontend.
+4. **G-25 Commission Plan Editor UI** — Backend deployed, no frontend.
+5. **G-20 Attribution Dashboard UI** — Backend deployed, no frontend.
+6. **G-28/G-29 Full Services** — Notes/Activities use handler-only pattern; promote to `NoteService`/`ActivityService`.
+7. **G-05 Inbound Webhook Handler** — Outbound delivery complete; inbound receiver not yet built.
+8. **G-35 Notification bell** — Landlord inbox exists; extend to tenant/vendor/str_host portals.
+9. **Persona self-serve referrals (all roles)** — Beyond F&F landlord/vendor; see backlog.
 
 ### Original v3 Design (Agency Provisioning) — Future
 

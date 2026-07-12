@@ -1,33 +1,36 @@
 # Atlas Platform
 
 **For anyone (human or AI) joining this project:**  
-Please start by reading **`docs/CURRENT_STATE.md`**. It contains the most up-to-date high-level overview of the current architecture (including the completed Platform Generics v2 + Legacy CRM Unification effort).
+Please start by reading **[`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md)**. It is the living registry of what is actually built (backend + frontend status for G01–G37+, apps, workers, migrations).
 
 ---
 
-This repository contains the Atlas Platform — a multi-tenant application platform built in Rust (Axum + SeaORM) with Leptos SSR frontends. It is designed around strong reuse of 18 platform generics instead of duplicating vertical-specific tables across applications.
+This repository contains the Atlas Platform — a multi-tenant application platform built in Rust (Axum + SeaORM) with Leptos frontends. It is designed around strong reuse of **platform generics (G01–G37+)** instead of duplicating vertical-specific tables across applications. Before any net-new table, run **Rule 7** in [`docs/architecture/generic_fitness_test.md`](docs/architecture/generic_fitness_test.md).
 
 ## Important Documentation
 
-- **[`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md)** — Start here. Current architecture, status, and what changed in 2026.
+- **[`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md)** — Start here. Ground-truth architecture and status (Rev 11+).
+- **[`docs/architecture/generic_fitness_test.md`](docs/architecture/generic_fitness_test.md)** — Rule 7 before new tables / G-numbers.
+- **[`docs/architecture/platform_generics_v3.md`](docs/architecture/platform_generics_v3.md)** — Canonical generics design doc (G01–G37+). Status columns must match CURRENT_STATE.
+- [`docs/architecture/platform_generics_v2.md`](docs/architecture/platform_generics_v2.md) — Historical G01–G31 design record (superseded by v3 for G32+).
 - **[`docs/TEST_ENVIRONMENT_REQUIREMENTS.md`](docs/TEST_ENVIRONMENT_REQUIREMENTS.md)** — How to run the full test suite (PostGIS requirements, etc.).
-- `docs/architecture/platform_generics_v2.md` — The authoritative spec for the 18 reusable generics.
-- `docs/atlas_app_integration.md` — How new applications integrate with the platform (including the "Generic Fitness Test").
-
-The old README content below is retained for historical context but is no longer the best starting point.
+- [`docs/atlas_app_integration.md`](docs/atlas_app_integration.md) — How new applications integrate (`AtlasApp` trait + Fitness Test).
+- [`docs/backlog/README.md`](docs/backlog/README.md) — Known gaps and future work (not yet in schema/code).
 
 ## Project Structure
 
-The project has been migrated to a monorepo workspace containing:
+Monorepo workspace:
 
 1. **`apps/` (Frontend)**
-   - `platform-admin`: A Svelte/Leptos CSR app for platform administration.
-   - `network-instance`: A Leptos SSR app that powers the user-facing networks.
-   - `shared-ui`: Shared UI components for a consistent design language.
+   - `anchor` — Leptos SSR+WASM CMS / listings / CRM
+   - `folio` — Leptos SSR+WASM property management (9 role portals)
+   - `network-instance` — Leptos SSR+WASM multi-tenant marketplace / directory
+   - `platform-admin` — Leptos CSR operator console
+   - `shared-ui` — Shared primitives (85+) + G-27 Configurator / scorecard widgets
 2. **`backend/` (Backend API)**
-   - Built using Rust, Axum, and SeaORM.
+   - Rust, Axum, SeaORM — headless REST + Folio/PM handlers + workers
 3. **`k8s/`**
-   - Kustomize manifests for seamless Kubernetes deployments.
+   - Kustomize manifests for Kubernetes deployments
 
 ## Local Development (Docker & Caddy)
 
@@ -45,16 +48,14 @@ The easiest way to develop locally is using the included Docker Compose configur
 
 ## Deployment & CI/CD
 
-The project includes an enterprise-grade CI/CD pipeline using GitHub Actions (`.github/workflows/deploy.yml`). Pushing to the `main` branch automatically:
-1. Builds optimized, multi-stage Docker images.
-2. Pushes them to GitHub Container Registry (GHCR).
-3. Updates the `k8s/kustomization.yaml` manifests with the fresh commit hashes for continuous delivery to Kubernetes.
+CI/CD uses Woodpecker (see `docs/cicd_security_hardening.md` and `k8s/`). Pushing builds optimized images, updates manifests, and deploys via the cluster pipeline. Domain provisioning flows through the ingress sidecar + cert-manager (see `docs/architecture/tls_and_custom_domains.md`).
 
 ## API & Features
 
-- Dynamic Multi-Tenant Domain Routing
-- Business Network listings, searching, and Profiles
-- CRM, CMS, and Site Settings management for Admins
+- Dynamic multi-tenant domain routing (Host → AppDomain → tenant)
+- Platform generics G01–G37+ (payments, syndication, scorecards, programs, ambassadors, …)
+- Folio PM portals, Anchor CMS/CRM, Network Instance marketplace
+- Feature flags + per-instance enablements, verification queue, AI task worker
 
 ---
 

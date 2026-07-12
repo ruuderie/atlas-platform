@@ -595,3 +595,123 @@ erDiagram
         boolean is_active
         datetime created_at
     }
+
+
+    %% ==========================================
+    %% SECTION: Round 2 CRM & Scorecards (G27–G31)
+    %% Added July 2026 — CURRENT_STATE Rev 11 sync
+    %% ==========================================
+
+    AtlasAccount ||--o{ AtlasContact : has
+    AtlasAccount ||--o{ AtlasLead : may_own
+    AtlasLead ||--o| AtlasOpportunity : converts_to
+    AtlasLead ||--o| AtlasContact : converts_to
+    AtlasLead ||--o| AtlasAccount : converts_to
+
+    AtlasNote }o--|| Tenant : scoped
+    AtlasActivity }o--|| Tenant : scoped
+
+    AtlasScorecardTemplate ||--o{ AtlasScorecardDimension : defines
+    AtlasScorecardDimension ||--o{ AtlasScorecardDimensionOption : has
+    AtlasScorecardTemplate ||--o{ AtlasScorecard : instantiates
+    AtlasScorecard ||--o{ AtlasRatingSession : hosts
+    AtlasRatingSession ||--o{ AtlasScorecardEntry : records
+    AtlasScorecard ||--o{ AtlasScorecardDimensionAggregate : rolls_up
+    AtlasScorecardTemplate ||--o{ AtlasScorecardTemplateDeployment : deploys_to
+
+    AtlasAccount {
+        UUID id PK
+        UUID tenant_id FK
+        string account_type "individual | organization"
+        string name
+        string domain
+        string duns_number
+        string naics_code
+        string data_source
+    }
+    AtlasContact {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        string first_name
+        string last_name
+        string email
+    }
+    AtlasLead {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        string email
+        string domain
+        string duns_number
+        string lead_status
+        string data_source
+        boolean is_converted
+        UUID converted_opportunity_id FK
+        UUID converted_contact_id FK
+    }
+    AtlasNote {
+        UUID id PK
+        UUID tenant_id FK
+        string subject_type
+        UUID subject_id
+        string body
+        string visibility
+    }
+    AtlasActivity {
+        UUID id PK
+        UUID tenant_id FK
+        string primary_subject_type
+        UUID primary_subject_id
+        string activity_category
+        string direction
+        string outcome
+    }
+    AtlasScorecardTemplate {
+        UUID id PK
+        UUID tenant_id FK
+        string name
+        string entity_type
+    }
+    AtlasScorecardDimension {
+        UUID id PK
+        UUID template_id FK
+        string scale_type
+        string name
+    }
+    AtlasScorecardDimensionOption {
+        UUID id PK
+        UUID dimension_id FK
+        string label
+    }
+    AtlasScorecard {
+        UUID id PK
+        UUID tenant_id FK
+        UUID template_id FK
+        string entity_type
+        UUID entity_id
+    }
+    AtlasRatingSession {
+        UUID id PK
+        UUID scorecard_id FK
+        UUID rater_id FK
+        UUID app_instance_id FK
+    }
+    AtlasScorecardEntry {
+        UUID id PK
+        UUID session_id FK
+        UUID dimension_id FK
+        decimal score
+        UUID option_id FK
+    }
+    AtlasScorecardDimensionAggregate {
+        UUID id PK
+        UUID scorecard_id FK
+        UUID dimension_id FK
+        decimal aggregate_score
+    }
+    AtlasScorecardTemplateDeployment {
+        UUID id PK
+        UUID template_id FK
+        UUID app_instance_id FK
+    }

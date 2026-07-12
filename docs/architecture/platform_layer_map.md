@@ -1,10 +1,12 @@
 # Atlas Platform — Layer Map
 
-> **Last updated:** 2026-05-02 | **Status:** Production-ready (Phases 1–6 complete)
+> **Last updated:** 2026-07-11 | **Status:** Production (generics G01–G37+; see CURRENT_STATE Rev 11)
 
 This document formalises the three-tier route and responsibility model introduced
 by the `CorePlatformApp` migration. Every handler, route prefix, and state injection
 point is traceable back to exactly one tier.
+
+**Ground truth:** [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — generic counts, frontend apps, workers.
 
 ---
 
@@ -13,18 +15,21 @@ point is traceable back to exactly one tier.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Tier 3 — Infrastructure                   │
-│  api.rs — Auth, Sessions, Passkeys, Admin, A/B, Setup        │
+│  api.rs — Auth, Sessions, Passkeys, Admin, A/B, Setup, RBAC  │
 │  GET /api/version ← X-Atlas-Version header on ALL responses  │
 └──────────────────────────┬──────────────────────────────────┘
                            │ get_active_apps() loop
-            ┌──────────────┴──────────────┐
-            ▼                             ▼
-┌───────────────────────┐    ┌────────────────────────────┐
-│  Tier 1 — Core CMS    │    │  Tier 2 — Domain Sub-Apps  │
-│  CorePlatformApp       │    │  AnchorApp                 │
-│  core_platform.rs      │    │  NetworkInstanceApp (TBD)  │
-└───────────────────────┘    └────────────────────────────┘
+            ┌──────────────┼──────────────────────────────┐
+            ▼              ▼                              ▼
+┌───────────────────┐ ┌──────────────────┐ ┌────────────────────────┐
+│ Tier 1 — Core CMS │ │ Tier 2 — Anchor  │ │ Tier 2 — Folio (PM)    │
+│ CorePlatformApp   │ │ AnchorApp        │ │ FolioApp / handlers/   │
+│ core_platform.rs  │ │ Listings / CRM   │ │ folio/ (G09–G37 PM)    │
+└───────────────────┘ └──────────────────┘ └────────────────────────┘
 ```
+
+**Frontend apps (Leptos):** `anchor` · `network-instance` · `platform-admin` · `folio` · `shared-ui`  
+**Platform generics:** G01–G37+ (see CURRENT_STATE registry — not “18 generics”).
 
 ---
 
@@ -140,9 +145,28 @@ Idempotent — safe to call multiple times.
 
 > Routes documented separately in `docs/anchor_route_map.md` (TBD).
 
-### NetworkInstanceApp (planned)
+### FolioApp (Property Management)
 
-Owns multi-tenant network/directory routing. Planned for Phase 9+.
+**Owned by:** `backend/src/handlers/folio/` (44+ handler modules) + `backend/src/services/pm/`  
+**Frontend:** `apps/folio` — 9 role portals (landlord, tenant, vendor, owner, PMC, agent, broker, STR host, property owner).  
+**Surfaces:** G09–G26 PM generics, G27 scorecards, G31 leads, G32 RBAC shells, G35–G37 growth, G05 syndication.
+
+### NetworkInstanceApp
+
+**Frontend:** `apps/network-instance` (SSR + WASM) — contacts, leads, listings, G-27 scorecard mount.  
+**Backend:** network/marketplace routes via platform admin + NI app handlers. Further NetworkInstanceApp AtlasApp registration still expanding (Phase 9+).
+
+---
+
+## Frontend Apps Layer
+
+| App | Stack | Role |
+|-----|-------|------|
+| `apps/anchor` | Leptos SSR+WASM | CMS, listings, CRM (G-31 / Party) |
+| `apps/network-instance` | Leptos SSR+WASM | Multi-tenant marketplace / directory |
+| `apps/platform-admin` | Leptos CSR | Operator console (instances, flags, G-06, G-08, G-36/G-37, billing) |
+| `apps/folio` | Leptos SSR+WASM | Property management portals |
+| `apps/shared-ui` | Leptos lib | 85 UI primitives + G-27 Configurator / scorecard widgets |
 
 ---
 
@@ -201,12 +225,11 @@ The block editor (`pages/block_editor.rs`, Phase 6) defines:
 
 ```
 backend/ cargo test --workspace
-  44 integration tests (postgres)
-   5 unit tests (in-memory / compile-check)
-   0 failures
+  43 test files (27 integration + 16 unit) — see CURRENT_STATE.md
 ```
 
-Key test modules:
-- `tests::atlas_apps_tests` — verifies CorePlatformApp is first in registry
+Key patterns:
+- `tests/unit/` — pure no-DB tests
+- `tests/*.rs` — DB-backed integration via `setup_test_app`
+- `tests::atlas_apps_tests` — CorePlatformApp first in registry
 - `traits::atlas_app::tests` — encapsulation compliance
-- `atlas_apps::core_platform::tests` — compile-check for provision() signature

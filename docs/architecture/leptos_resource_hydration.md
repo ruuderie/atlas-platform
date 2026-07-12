@@ -135,3 +135,15 @@ The `grep` command to audit for remaining violations:
 grep -rn '_ => view!' apps/anchor/src apps/network-instance/src apps/shared-ui/src
 ```
 Only non-resource wildcards should remain (tab switches, prop tuple matches, etc.).
+
+---
+
+## Related: Conditional Rendering with `<Show>` (SSR)
+
+For **boolean/option conditional UI** (not resource matches), prefer the Leptos `<Show>` component over `if` blocks that return `Option<impl IntoView>`. Plain `if` conditionals can cause Tachys hydration mismatches (`hydration.rs` “entered unreachable code”). See `docs/leptos_architecture_decisions.md` §5.5 and CURRENT_STATE developer notes.
+
+Also extend the audit grep to Folio:
+
+```bash
+grep -rn '_ => view!' apps/anchor/src apps/network-instance/src apps/folio/src apps/shared-ui/src apps/platform-admin/src
+```

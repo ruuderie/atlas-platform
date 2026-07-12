@@ -1,28 +1,27 @@
 # Atlas Platform — Generics v2 (Consolidated)
 
 > [!WARNING]
-> **SUPERSEDED.** This document has been superseded by [`platform_generics_v3.md`](./platform_generics_v3.md) which adds G-32 (`atlas_memberships`), G-33 (`atlas_entitlements`), and field enhancements to G-01/G-16/Party model. Do not extend v2 — all new generics belong in v3.
+> **SUPERSEDED for G32+ design.** Prefer [`platform_generics_v3.md`](./platform_generics_v3.md) for G-32+.  
+> **Ground-truth status** (backend + frontend) is always [`../CURRENT_STATE.md`](../CURRENT_STATE.md) (Rev 11 — July 11, 2026).
 
-> **Status:** Implemented & Merged to dev (June 2026 — Rev 2: G27–G31 complete)
-> **Date:** 2026-05-27 (original design) → June 2026 (G01-G18 complete) → June 2026 (G27-G31 complete)
+> **Status:** Implemented & Merged to `dev` — status columns synced July 11, 2026 (Rev 11)
+> **Date:** 2026-05-27 (original design) → June 2026 (G01–G31) → July 11, 2026 (status sync)
 > **Branch History:** `feat/platform-generics-v2` → merged to `dev`
-> **Purpose:** Historical record for G01–G31. Superseded by v3 for G32+.
+> **Purpose:** Historical + status registry for G01–G31 design rationale. Do not invent new G-numbers here — use Rule 7 in [`generic_fitness_test.md`](./generic_fitness_test.md).
 >
-> **See also:** [`platform_generics_v3.md`](./platform_generics_v3.md) — current authoritative source.
+> **See also:** [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — authoritative implementation registry.
 
 ---
 
 ## 1. Philosophy & Rule 7
 
-**Core Principle:** Before any AtlasApp writes a net-new table, it must prove that none of the 18 platform generics can satisfy the need.
+**Core Principle:** Before any AtlasApp writes a net-new table, it must prove that none of the existing platform generics can satisfy the need.
 
-This rule exists to prevent the platform from becoming a collection of 13 slightly different CRMs, asset systems, case systems, and document stores.
+This rule exists to prevent the platform from becoming a collection of slightly different CRMs, asset systems, case systems, and document stores.
 
-**The Fitness Test (new for v2):**
+**Living fitness procedure:** [`generic_fitness_test.md`](./generic_fitness_test.md) (includes USE EXISTING / EXTEND JSONB / EXTEND COMPANION). The questions below are preserved for history:
 
-When an app author wants to introduce a new table, they must answer in `atlas_app_integration.md` style:
-
-1. Which of the 18 generics comes closest?
+1. Which existing generic comes closest?
 2. What specific field or behavior is missing?
 3. Can it be modeled as `*_type` + `*_metadata JSONB` + app-level service typing?
 4. If truly not, what is the cross-app benefit that justifies promoting it to a new generic?
@@ -31,58 +30,70 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 
 ---
 
-## 2. The 18 Generics — Quick Reference
+## 2. All Generics — Quick Reference (G01–G31+)
 
-### Infrastructure Layer (GENERIC-01–08)
+Status columns match [`../CURRENT_STATE.md`](../CURRENT_STATE.md) Rev 11.
 
-| ID | Name | Core Need | Key Tables |
-|----|------|-----------|------------|
-| 01 | `atlas_geo` | Spatial / PostGIS queries | `geo_service_areas` |
-| 02 | `atlas_vault` | Secure file storage + sharing | `attachment` (extended), `attachment_share_tokens`, `attachment_multipart_uploads` |
-| 03 | `atlas_payments` | Multi-rail payment ledger | `atlas_ledger_entries`, `atlas_ledger_splits` |
-| 04 | `atlas_subscriptions` | B2C recurring billing | `atlas_subscriptions` |
-| 05 | `atlas_external_integrations` | Third-party connectors (PMS/OTA/AMS) | `atlas_external_integrations`, `atlas_integration_events` |
-| 06 | `atlas_verification_queue` | Human + automated trust workflows | `atlas_verification_requests` |
-| 07 | `atlas_realtime` | WebSocket entity rooms | `atlas_ws_rooms`, `atlas_ws_messages` |
-| 08 | `atlas_ai_tasks` | Async LLM / model work queue | `atlas_ai_tasks` |
+### Infrastructure Layer (G01–G08) — All Deployed ✅
 
-### Domain Object Layer (GENERIC-09–17)
+| ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|----|------|-----------|------------|----------------|-----------------|
+| 01 | `atlas_geo` | Spatial / PostGIS queries | `geo_service_areas`, `atlas_geo` | Deployed with API | Partial UI |
+| 02 | `atlas_vault` | Secure file storage + sharing | `attachment`, `attachment_share_tokens`, `attachment_multipart_uploads` | Deployed with API | Partial UI |
+| 03 | `atlas_payments` | Multi-rail payment ledger | `atlas_ledger_entries`, `atlas_ledger_splits`, `atlas_payment_credentials` | Deployed with API | **Full UI** |
+| 04 | `atlas_subscriptions` | B2C recurring billing | `atlas_subscriptions` | Deployed with API | Partial UI |
+| 05 | `atlas_syndication` | Outbound syndication + external integration event bus | `atlas_external_integrations`, `atlas_syndication_offer`, `atlas_app_instance_syndication`, `atlas_syndication_outbox`, `atlas_integration_events` | Deployed with API | **Full UI** |
+| 06 | `atlas_verification_queue` | Human + automated trust workflows | `atlas_verification_requests` (+ reviewer notes) | Deployed with API | **Full UI** |
+| 07 | `atlas_realtime` | WebSocket entity rooms | `atlas_ws_rooms`, `atlas_ws_messages` | Deployed with API | No UI |
+| 08 | `atlas_ai_tasks` | Async LLM / model work queue | `atlas_ai_tasks` | Deployed with API | **Full UI** |
 
-| ID | Name | Core Need | Key Tables |
-|----|------|-----------|------------|
-| 09 | `atlas_portfolios` | Grouping of assets for reporting/billing/access | `atlas_portfolios` |
-| 10 | `atlas_assets` | Physical or digital ledger items (properties, units, vehicles, equipment, hotel rooms) | `atlas_assets` (with `asset_type` + `parent_asset_id` + `attributes JSONB`) |
-| 11 | `atlas_contracts` | Legal agreements (leases, policies, rate agreements, SLAs) | `atlas_contracts` (with `contract_type` + `terms_metadata JSONB`) |
-| 12 | `atlas_service_providers` | Vendors, contractors, agents, adjusters | `atlas_service_providers` (with `scope` + `service_categories`) |
-| 13 | `atlas_cases` | Work items, tickets, claims, tasks, compliance alerts | `atlas_cases` (with `case_type` + `case_metadata JSONB`) |
-| 14 | `atlas_documents` | Documents with metadata, e-sig, versioning, polymorphic linkage | `atlas_documents` (with `document_category` + `app_namespace`) |
-| 15 | `atlas_opportunities` | Deal / pipeline objects with financial modeling | `atlas_opportunities` (with `opportunity_type` + `financial_inputs/outputs JSONB`) |
-| 16 | `atlas_regulatory_registrations` | Government permits, licenses, STR registrations | `atlas_regulatory_registrations` (with `registration_type` + `jurisdiction_metadata JSONB`) |
-| 17 | `atlas_tax_events` + `atlas_tax_filings` | Taxable revenue events and periodic filings | Two tables for event-level + periodic filing |
+### Domain Object Layer (G09–G18) — All Deployed ✅
 
-### Intake & Onboarding Layer (GENERIC-18)
+| ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|----|------|-----------|------------|----------------|-----------------|
+| 09 | `atlas_portfolios` | Grouping of assets for reporting/billing/access | `atlas_portfolios` | Deployed with API | **Full UI** |
+| 10 | `atlas_assets` | Physical or digital ledger items | `atlas_assets` | Deployed with API | **Full UI** |
+| 11 | `atlas_contracts` | Legal agreements | `atlas_contracts` | Deployed with API | **Full UI** |
+| 12 | `atlas_service_providers` | Vendors, contractors, agents, adjusters | `atlas_service_providers` | Deployed with API | **Full UI** |
+| 13 | `atlas_cases` | Work items, tickets, claims, tasks | `atlas_cases` | Deployed with API | **Full UI** |
+| 14 | `atlas_documents` | Documents with metadata, e-sig, versioning | `atlas_documents` | Deployed with API | Partial UI |
+| 15 | `atlas_opportunities` | Deal / pipeline objects | `atlas_opportunities` | Deployed with API | Partial UI |
+| 16 | `atlas_regulatory_registrations` | Government permits, licenses, STR registrations | `atlas_regulatory_registrations` | Deployed with API | **Full UI** |
+| 17 | `atlas_tax_events` + `atlas_tax_filings` | Taxable revenue events and periodic filings | `atlas_tax_events`, `atlas_tax_filings` | Deployed with API | Partial UI |
+| 18 | `atlas_applications` | Structured multi-step intake / onboarding | `atlas_applications` | Deployed with API | Partial UI |
 
-| ID | Name | Core Need | Key Tables |
-|----|------|-----------|------------|
-| 18 | `atlas_applications` | Structured multi-step intake, screening, and onboarding workflows | `atlas_applications` (with `application_type` + `application_metadata JSONB`) |
+### Round 1 Gap-Fill Additions (G19–G26) — All Deployed ✅
 
-### Round 1 Gap-Fill Additions (G19, G23, G25, G26)
+| ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|----|------|-----------|------------|----------------|-----------------|
+| 19 | `atlas_campaigns` | Marketing campaign + enrollments + events | `atlas_campaigns` (+ `global_name`), `atlas_campaign_enrollments`, `atlas_campaign_events` | Deployed with API | **Full UI** |
+| 20 | `atlas_attribution` | Marketing touchpoint attribution | `atlas_attribution_touchpoints` | Deployed with API | No UI |
+| 21 | `atlas_events` | Managed events with ticketing + registration | `atlas_events`, `atlas_event_registrations`, `atlas_event_ticket_types` | Deployed with API | No UI |
+| 22 | `atlas_record_relationships` | Polymorphic typed edge between entity types | `atlas_record_relationships` | Deployed with API | No UI |
+| 23 | `atlas_reservations` | Time-bound reservations + availability | `atlas_reservations`, `atlas_availability` (+ `atlas_bookings`) | Deployed with API | **Full UI** |
+| 24 | `atlas_quotes` | Quote + line-item pricing proposals | `atlas_quotes`, `atlas_quote_line_items` | Deployed with API | No UI |
+| 25 | `atlas_commission_plans` | Commission agreement governing ledger splits | `atlas_commission_plans`, `atlas_commission_plan_splits` | Deployed with API | No UI |
+| 26 | `atlas_catalog` | Product/service catalog + rate rules | `atlas_catalog_entries`, `atlas_catalog_availability`, `atlas_catalog_rate_rules` | Deployed with API | **Full UI** |
 
-| ID | Name | Core Need | Key Tables |
-|----|------|-----------|------------|
-| 19 | `atlas_reservations` + `atlas_availability` | Time-bound reservations with slot-conflict detection and availability calendar | `atlas_reservations`, `atlas_availability` |
-| 23 | `atlas_campaigns` | Marketing campaign + member attribution | `atlas_campaigns`, `atlas_campaign_members` |
-| 25 | `atlas_commission_plans` | Commission agreement governing ledger splits | `atlas_commission_plans`, `atlas_commission_splits` |
-| 26 | `atlas_workflows` | Multi-step approval / workflow automation | `atlas_workflow_definitions`, `atlas_workflow_instances` |
+### Round 2 CRM & Intelligence Layer (G27–G31) — Implemented ✅
 
-### Round 2 CRM & Intelligence Layer (G27–G31)
+| ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|----|------|-----------|------------|----------------|-----------------|
+| 27 | `atlas_scorecards` | Universal Structured Evaluation Engine | `atlas_scorecard_*` (+ template deployments) | Deployed with API | **Full UI** |
+| 28 | `atlas_note` | Universal polymorphic note | `atlas_notes` | Entity defined | Partial UI |
+| 29 | `atlas_activity` | Universal polymorphic activity log | `activity` | Entity defined | Partial UI |
+| 31 | `atlas_lead` | Canonical lead/prospect lifecycle | `atlas_lead`, `atlas_lead_compat_view` | Deployed with API | **Full UI** |
 
-| ID | Name | Core Need | Key Tables |
-|----|------|-----------|------------|
-| 27 | `atlas_scorecards` | Universal Structured Evaluation Engine + The Combinator similarity search | `atlas_scorecard_templates`, `atlas_scorecard_dimensions`, `atlas_scorecard_dimension_options`, `atlas_scorecards`, `atlas_rating_sessions`, `atlas_scorecard_entries`, `atlas_scorecard_dimension_aggregates`, `atlas_scorecard_poll_aggregates`, `atlas_scorecard_time_series`, `atlas_scorecard_targets`, `atlas_scorecard_target_criteria` |
-| 28 | `atlas_note` | Universal polymorphic note with threading, visibility, and metadata | `atlas_notes` (promoted from legacy `notes`) |
-| 29 | `atlas_activity` | Universal polymorphic activity log with direction, outcome, duration, category | `activity` (promoted in-place with polymorphic columns + `activity_category`) |
-| 31 | `atlas_lead` | Canonical lead/prospect entity with full import→qualify→convert→disqualify lifecycle | `atlas_lead`, `atlas_lead_compat_view` |
+> **Note:** G-30 was not assigned. For G-32+ see [`platform_generics_v3.md`](./platform_generics_v3.md) and CURRENT_STATE (G32–G37 deployed).
+
+### Party Model (replaces legacy CRM)
+
+| Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|------|-----------|------------|----------------|-----------------|
+| `atlas_accounts` | Top-level party (individual \| organization) | `atlas_accounts` | Deployed with API | **Full UI** |
+| `atlas_contacts` | Lightweight people records on an Account | `atlas_contacts` | Deployed with API | **Full UI** |
+
+**Services:** `AccountService`, `ContactService` — see CURRENT_STATE Key Service Layer Facts.
 
 ---
 
@@ -92,43 +103,25 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 >
 > **See:** [`platform_generics.md`](./platform_generics.md)
 
-The detailed specifications for GENERIC-09 through GENERIC-18 (including all DDL, index strategies, polymorphic patterns, and PM/ClaimSwift/Direct Booking mapping examples) live in the Property Management analysis.
+The detailed specifications for GENERIC-09 through GENERIC-18 live in the Property Management analysis.
 
 **See:** [`../property-management/23_second_round_generics.md`](../property-management/23_second_round_generics.md)
 
-**Payment-specific extension** (new table + adapter trait for GENERIC-03):
+**Payment-specific extension** (GENERIC-03):
 
-**See:** [`../property-management/25_payment_rails_architecture.md`](../property-management/25_payment_rails_architecture.md) — `atlas_payment_credentials` + `PaymentRailAdapter` trait.
+**See:** [`../property-management/25_payment_rails_architecture.md`](../property-management/25_payment_rails_architecture.md)
 
 ---
 
-## 4. Implementation Order (Authoritative)
+## 4. Implementation Order (Authoritative — Complete)
 
-### Phase 0-A: Infrastructure (Blocker for everything)
+### Phase 0-A: Infrastructure (G01–G08) — ✅ Deployed
 
-1. `atlas_vault` (G-02)
-2. `atlas_payments` (G-03) — including the `atlas_payment_credentials` extension
-3. `atlas_geo` (G-01) — PostGIS extension
-4. `atlas_external_integrations` (G-05)
-5. `atlas_verification_queue` (G-06)
-6. `atlas_realtime` (G-07)
-7. `atlas_subscriptions` (G-04)
-8. `atlas_ai_tasks` (G-08)
+### Phase 0-B: Domain Objects (G09–G18) — ✅ Deployed
 
-### Phase 0-B: Domain Objects (Blocker for PM + several other apps)
+### Phase Round 1–2: G19–G31 — ✅ Deployed (G28/G29 Entity defined)
 
-9. `atlas_portfolios` (G-09)
-10. `atlas_assets` (G-10)
-11. `atlas_contracts` (G-11)
-12. `atlas_service_providers` (G-12)
-13. `atlas_cases` (G-13)
-14. `atlas_documents` (G-14)
-15. `atlas_opportunities` (G-15)
-16. `atlas_regulatory_registrations` (G-16)
-17. `atlas_tax_events` + `atlas_tax_filings` (G-17)
-18. `atlas_applications` (G-18)
-
-**Rule:** Each generic must be registered in `CorePlatformApp::migrations()` in the exact order above. App-specific migrations must come *after* all required generics.
+**Rule:** Each generic must be registered in `CorePlatformApp::migrations()` in dependency order. App-specific migrations must come *after* all required generics.
 
 ---
 
@@ -149,41 +142,45 @@ The detailed specifications for GENERIC-09 through GENERIC-18 (including all DDL
 
 ---
 
-## 6. Open Risks & Questions
+## 6. Open Risks & Questions (historical — still relevant)
 
-1. **JSONB Ergonomics** — How painful will the heavy reliance on `*_metadata JSONB` be in Rust service layers and Leptos forms? (Needs POC validation)
-2. **Polymorphic Query Performance** — Heavy use of `*_type` columns + JSONB queries on hot tables. Index strategy and query patterns need review.
-3. **Payment Liability & Key Management** — The two-layer MOR + per-tenant credential encryption design is powerful but high-risk. Requires security review before production use.
-4. **Migration Ordering Complexity** — 18 generics + app migrations creates a long, fragile startup sequence. We need strong test coverage and clear failure messages.
-5. **Over-abstraction** — Is 18 the right number, or will some of these later be found to need app-specific extensions anyway?
+1. **JSONB Ergonomics** — Heavy reliance on `*_metadata JSONB` in Rust service layers and Leptos forms.
+2. **Polymorphic Query Performance** — Index strategy review for high-cardinality JSONB queries.
+3. **Payment Liability & Key Management** — MOR + per-tenant credential encryption requires ongoing security review.
+4. **Migration Ordering Complexity** — Long migration chain; strong test coverage required.
+5. **Over-abstraction** — Prefer EXTEND COMPANION under an existing G-id before inventing a new G-number (Rule 7).
 
 ---
 
 ## 7. Implementation Notes & Test Environment Considerations
 
-**G01 (Geo/PostGIS)**: The `CREATE EXTENSION postgis` step is now tolerant of environments without the PostGIS binaries installed. In such cases it logs a warning and skips table creation. This was necessary to keep the test suite healthy after the v2 merge. Production and proper test environments should still have PostGIS enabled.
+**G01 (Geo/PostGIS)**: The `CREATE EXTENSION postgis` step is tolerant of environments without PostGIS binaries. Production and CI should still enable PostGIS (recommended, not yet enforced in CI — see CURRENT_STATE).
 
 ---
 
-## 8. Current Gaps & Next Build Priorities
+## 8. Current Gaps & Next Build Priorities (synced Rev 11)
 
-After G-27 through G-31, the platform's immediate open items are:
+After G-27 through G-37, highest-value open items (see CURRENT_STATE Recommended Follow-Up):
 
-1. **shared-ui Configurator** — Needed for G-27 template/dimension admin UI. Not yet built.
-2. **G-27 HTTP Handler Layer** — `ScorecardService` methods are not yet wired to REST endpoints.
-3. **G-28/G-29 Handler Migration** — `notes.rs` / `activities.rs` handlers still reference legacy entity files.
-4. **Legacy CRM Teardown** — Dual-write bridge still active for `customer`, `deal`, `activity`, `note`. Drop after PM app validation.
-5. **Compiler warnings** — ~126 remaining (`cargo fix --lib -p atlas_backend`).
+1. **G-20 / G-21 / G-22 / G-24 / G-25 UI** — Backend deployed; no dedicated frontend.
+2. **G-28/G-29 Full Services** — Promote handler-only notes/activities to `NoteService` / `ActivityService`.
+3. **G-05 Inbound Webhook Handler** — Outbound delivery complete; inbound receiver not built.
+4. **G-35 Notification bell** — Landlord inbox exists; other portals still lack a bell.
+5. **Legacy CRM Teardown** — Dual-write bridge still active; drop after full deprecation.
+
+**Resolved since original v2 gaps list:**
+- ✅ shared-ui `configurator.rs` — built (G-27)
+- ✅ G-27 HTTP handler layer — `scorecard_admin.rs` / `scorecard_entries.rs` deployed
+- ✅ G-06 / G-08 Full UI — platform-admin + Folio paths (Rev 11)
 
 ---
 
 **References**
 
+- Ground truth: [`../CURRENT_STATE.md`](../CURRENT_STATE.md)
+- v3 (G32+): [`platform_generics_v3.md`](./platform_generics_v3.md)
 - Original 8 generics: [`platform_generics.md`](./platform_generics.md)
-- Property Management Generics Challenge (Round 2/3): [`../property-management/23_second_round_generics.md`](../property-management/23_second_round_generics.md)
-- Payment Rails Extension: [`../property-management/25_payment_rails_architecture.md`](../property-management/25_payment_rails_architecture.md)
-- PM Implementation Roadmap: [`../property-management/24_implementation_roadmap.md`](../property-management/24_implementation_roadmap.md)
-- AtlasApp Integration Protocol: [`../atlas_app_integration.md`](../atlas_app_integration.md)
+- Fitness test: [`generic_fitness_test.md`](./generic_fitness_test.md)
 - Layer Map: [`platform_layer_map.md`](./platform_layer_map.md)
 
 ---

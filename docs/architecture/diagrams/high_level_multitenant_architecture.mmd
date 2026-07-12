@@ -9,24 +9,26 @@ flowchart TB
         Caddy[Caddy Reverse Proxy / K8s Ingress\nPreserves Host Header for Tenant Resolution]
     end
 
-    subgraph Frontends ["Frontend Applications (Leptos SSR + WASM)"]
-        Anchor[Anchor CMS App\nSSR + WASM Client\napp_type = anchor]
-        NetInst[Network Instance App\nSSR + WASM Client\napp_type = network_instance]
-        PlatAdmin[Platform Admin Portal\nCSR Application\napp_type = platform_admin]
-        PropMgmt[Property Management App\nSSR + WASM\napp_type = property_management\n⟨In Development⟩]
+    subgraph Frontends ["Frontend Applications (Leptos)"]
+        Anchor[Anchor CMS App\nSSR + WASM\napps/anchor]
+        NetInst[Network Instance App\nSSR + WASM\napps/network-instance]
+        PlatAdmin[Platform Admin Portal\nCSR\napps/platform-admin]
+        FolioFE[Folio Property Management\nSSR + WASM\napps/folio — 9 role portals]
+        SharedUI[shared-ui\n85 primitives + G-27 Configurator]
     end
 
     subgraph Backend ["Atlas API Backend (Rust Axum)"]
         subgraph AppRegistry ["AtlasApp Registry"]
             CoreApp[CorePlatformApp\nTier 1 — CMS base routes\nregistered FIRST]
             AnchorApp[AnchorApp\nTier 2 — Listings / CRM / Profiles]
-            PMApp[PropertyManagementApp\nTier 2 — Assets / Contracts / Cases\n⟨Planned⟩]
+            FolioBackend[Folio handlers/folio\nTier 2 — PM generics G09–G37]
         end
 
         subgraph Infra ["Platform Infrastructure (Tier 3 — api.rs)"]
-            AuthRouter[Auth Routes\nMagic Links / Sessions]
+            AuthRouter[Auth Routes\nMagic Links / Sessions / Validate]
             PasskeyRouter[Passkey / WebAuthn Routes]
             AdminRouter[Admin API Routes]
+            RbacRouter[G-32 RBAC Routes]
         end
 
         subgraph Middleware ["Middleware Stack"]
@@ -38,15 +40,21 @@ flowchart TB
         end
 
         subgraph Workers ["Background Workers"]
-            OutboxW[OutboxWorker\nSKIP LOCKED email/webhook delivery]
-            DataSync[DataSyncService\nIdempotent background sync]
-            Telemetry[TelemetryService\nHourly metrics aggregation]
-            WebhookSweep[Webhook Sweeper\nDelivery retry & auditing]
+            OutboxW[OutboxWorker\nSKIP LOCKED 1.5s]
+            SyndBus[SyndicationEventBus\nG-05 HMAC delivery 10s]
+            AIWorker[AITaskService::process_ai_tasks\nG-08 — admin pause/resume]
+            DataSync[DataSyncService]
+            Telemetry[TelemetryService\nHourly metrics]
+            WebhookSweep[Webhook Sweeper]
         end
 
-        subgraph Services ["Platform Generic Services (v2)"]
+        subgraph Services ["Platform Generic Services"]
             AccountSvc[AccountService]
             ContactSvc[ContactService]
+            LeadSvc[LeadService G31]
+            ScoreSvc[ScorecardService G27]
+            FlagSvc[FlagService]
+            ProgSvc[ProgramService G36]
             AssetSvc[AssetService G10]
             ContractSvc[ContractService G11]
             CaseSvc[CaseService G13]
@@ -65,6 +73,8 @@ flowchart TB
             IntegSvc[ExternalIntegrationService G05]
             PortfolioSvc[PortfolioService G09]
             SvcProvSvc[ServiceProviderService G12]
+            NotifSvc[NotificationService G35]
+            RbacSvc[RbacService G32]
         end
 
         WebAuthnReg[Multi-Tenant WebauthnRegistry\nMoka LRU Cache\neTLD+1 rp_id derivation]
@@ -94,13 +104,17 @@ flowchart TB
     %% Caddy to frontends
     Caddy -->|SSR / WASM| Anchor
     Caddy -->|SSR / WASM| NetInst
-    Caddy -->|SSR / WASM| PropMgmt
+    Caddy -->|SSR / WASM| FolioFE
     Caddy -->|CSR Assets| PlatAdmin
+    FolioFE -.->|uses| SharedUI
+    Anchor -.->|uses| SharedUI
+    NetInst -.->|uses| SharedUI
+    PlatAdmin -.->|uses| SharedUI
 
     %% Frontend to backend API
     Anchor -->|API request + Host header| AppInst
     NetInst -->|API request + Host header| AppInst
-    PropMgmt -->|API request + Host header| AppInst
+    FolioFE -->|API request + Host header| AppInst
     PlatAdmin -->|API request + tenant_id| AdminRouter
 
     %% Middleware chain
@@ -108,7 +122,7 @@ flowchart TB
     AppInst -->|Verify tenant| Postgres
     AppInst --> CoreApp
     AppInst --> AnchorApp
-    AppInst --> PMApp
+    AppInst --> FolioBackend
 
     %% Services → DB
     Services --> Postgres
@@ -117,6 +131,9 @@ flowchart TB
     %% Workers → DB/External
     OutboxW --> Postgres
     OutboxW --> SMTP
+    SyndBus --> Postgres
+    SyndBus --> PMS_OTA
+    AIWorker --> Postgres
     DataSync --> Postgres
     DataSync --> Mempool
     Telemetry --> Postgres
@@ -124,7 +141,7 @@ flowchart TB
 
     %% WebAuthn
     PasskeyRouter --> WebAuthnReg
-    WebAuthnReg -->|DoS check | Postgres
+    WebAuthnReg -->|DoS check| Postgres
     WebAuthnReg -->|Cache instance| MokaCache
 
     %% Payment external services

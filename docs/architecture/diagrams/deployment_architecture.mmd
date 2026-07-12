@@ -1,8 +1,13 @@
 graph TD
-    User[End User] -->|Visits app.domain.com| Proxy[Caddy Reverse Proxy / K8s Ingress]
-    Proxy -->|Preserves Host Header| AppInst[App Server SSR/CSR e.g. Network, Anchor]
-    AppInst -->|API Lookup with Host| Backend[Rust Axum Backend API]
+    User[End User] -->|Visits app.domain.com| Proxy[Caddy Reverse Proxy / K8s Ingress Traefik]
+    Proxy -->|Preserves Host Header| AppInst[App Servers: Anchor / Network-Instance / Folio SSR+WASM]
+    AppInst -->|API Lookup with Host| Backend[Rust Axum Backend API :8000]
     Backend -->|Resolves Tenant via AppDomain| DB[(PostgreSQL Database)]
     Admin[Platform Admin] -->|Visits admin.domain.com| Proxy
     Proxy --> AdminApp[Platform Admin CSR App]
     AdminApp --> Backend
+    Backend --> Workers[Workers: OutboxWorker / SyndicationEventBus / AITaskWorker / Telemetry / WebhookSweeper]
+    Workers --> DB
+    Backend --> IngressSidecar[Ingress Sidecar\nprovision / deprovision TLS]
+    IngressSidecar --> K8s[K3s Ingress + cert-manager]
+    Backend --> R2[Cloudflare R2 Vault]
