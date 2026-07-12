@@ -934,11 +934,7 @@ steps:
           <div style="margin-top: 20px; padding: 15px; border-radius: 3px; background-color: #f6f8fa; border: 1px solid #e1e4e8;">
             <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #24292e;">Local test — <code>atlas-local</code> (parity ≈ server)</h3>
             <p style="margin: 0 0 10px 0; color: #586069; font-size: 13px;">Default <code>up</code> uses a baked backend binary (like K8s). Use <code>status</code> for Next steps when stuck. Hot mode (<code>up --hot</code>) is optional and slow on cold compile.</p>
-            <pre style="margin: 0; padding: 12px; background: #24292e; color: #e1e4e8; border-radius: 4px; font-size: 12px; overflow-x: auto; line-height: 1.45;">cd atlas-platform
-cargo run -p atlas-local -- up
-cargo run -p atlas-local -- status
-cargo run -p atlas-local -- refresh backend
-cargo run -p atlas-local -- db info</pre>
+            <pre style="margin: 0; padding: 12px; background: #24292e; color: #e1e4e8; border-radius: 4px; font-size: 12px; overflow-x: auto; line-height: 1.45;">cd atlas-platform<br>cargo run -p atlas-local -- up<br>cargo run -p atlas-local -- status<br>cargo run -p atlas-local -- refresh backend<br>cargo run -p atlas-local -- db info</pre>
             <p style="margin: 12px 0 0 0; font-size: 13px; color: #24292e;">
               <strong>Open:</strong> <a href="http://admin.localhost">admin.localhost</a> · <a href="http://api.localhost">api.localhost</a><br>
               <strong>Stuck:</strong> <code>atlas-local status</code> → Next steps (<code>refresh</code> → <code>down&&up</code> → <code>reset-db</code>)<br>
@@ -989,11 +985,7 @@ cargo run -p atlas-local -- db info</pre>
           <div style="margin-top: 20px; padding: 15px; border-radius: 3px; background-color: #f6f8fa; border: 1px solid #e1e4e8;">
             <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #24292e;">Reproduce locally — <code>atlas-local</code></h3>
             <p style="margin: 0 0 10px 0; color: #586069; font-size: 13px;">Start in parity mode, then use <code>status</code> for copy-paste Next steps. Do not assume a hung <code>--hot</code> compile means the app is broken on the server.</p>
-            <pre style="margin: 0; padding: 12px; background: #24292e; color: #e1e4e8; border-radius: 4px; font-size: 12px; overflow-x: auto; line-height: 1.45;">cd atlas-platform
-cargo run -p atlas-local -- up
-cargo run -p atlas-local -- status
-cargo run -p atlas-local -- logs -f backend
-cargo run -p atlas-local -- refresh backend</pre>
+            <pre style="margin: 0; padding: 12px; background: #24292e; color: #e1e4e8; border-radius: 4px; font-size: 12px; overflow-x: auto; line-height: 1.45;">cd atlas-platform<br>cargo run -p atlas-local -- up<br>cargo run -p atlas-local -- status<br>cargo run -p atlas-local -- logs -f backend<br>cargo run -p atlas-local -- refresh backend</pre>
             <p style="margin: 12px 0 0 0; font-size: 13px; color: #24292e;">
               <strong>Open:</strong> <a href="http://admin.localhost">admin.localhost</a> · <a href="http://api.localhost">api.localhost</a><br>
               <strong>Ladder:</strong> <code>refresh</code> → <code>down && up</code> → <code>reset-db</code> → <code>up</code><br>
