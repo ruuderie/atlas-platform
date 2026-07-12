@@ -165,8 +165,6 @@ pub fn WizardShell(
 
     // Whether the pre-auth step has been completed (either via OTP or existing session)
     let pre_auth_done: RwSignal<bool> = RwSignal::new(false);
-    // False until the mount session probe finishes — prevents OTP flash for authed users.
-    let session_checked: RwSignal<bool> = RwSignal::new(false);
 
     // Local OTP flow state
     let otp_email: RwSignal<String> = RwSignal::new(String::new());
@@ -176,31 +174,28 @@ pub fn WizardShell(
     let otp_verifying: RwSignal<bool> = RwSignal::new(false);
     let otp_error: RwSignal<Option<String>> = RwSignal::new(None);
 
-    // On mount: resolve session before painting OTP or wizard steps.
+    // Client-only session probe. Do NOT gate the form behind an Effect+spawn_local
+    // flag (that pattern hangs across SSR/hydrate and leaves "Preparing your setup"
+    // forever). Show OTP immediately; upgrade to the wizard if a session exists.
     // Fresh magic-link users often have a valid cookie while /api/folio/me is still
     // 403 (no Folio role yet) — peek_auth_session covers that case.
     let session_email_sig = session_email;
+    let session_probe = LocalResource::new(|| async {
+        match crate::auth::get_session().await {
+            Ok(info) => Some(info.email),
+            Err(_) => crate::auth::peek_auth_session()
+                .await
+                .ok()
+                .map(|p| p.email),
+        }
+    });
     Effect::new(move |_| {
-        let se = session_email_sig;
-        leptos::task::spawn_local(async move {
-            match crate::auth::get_session().await {
-                Ok(info) => {
-                    if let Some(sig) = se {
-                        sig.set(Some(info.email));
-                    }
-                    pre_auth_done.set(true);
-                }
-                Err(_) => {
-                    if let Ok(peek) = crate::auth::peek_auth_session().await {
-                        if let Some(sig) = se {
-                            sig.set(Some(peek.email));
-                        }
-                        pre_auth_done.set(true);
-                    }
-                }
+        if let Some(Some(email)) = session_probe.get() {
+            if let Some(sig) = session_email_sig {
+                sig.set(Some(email));
             }
-            session_checked.set(true);
-        });
+            pre_auth_done.set(true);
+        }
     });
 
     // Send OTP action
@@ -299,11 +294,6 @@ pub fn WizardShell(
             </div>
             <div class="wiz-nav-center">
                 {move || {
-                    if !session_checked.get() {
-                        return view! {
-                            <span>{persona_pill}" Setup"</span>
-                        }.into_any();
-                    }
                     if !pre_auth_done.get() {
                         return view! {
                             <span>{persona_pill}" Setup \u{b7} "<strong>"Verify email"</strong></span>
@@ -472,189 +462,181 @@ pub fn WizardShell(
             // ── Form panel ────────────────────────────────────────────────────
             <main class="wiz-fp">
                 <Show
-                    when=move || session_checked.get()
+                    when=move || pre_auth_done.get()
                     fallback=move || {
+                        // Same column as wizard steps (stitch `.fi`) — not a floating modal.
                         view! {
-                            <div class="pre-auth-wrap wiz-session-loading">
-                                <div class="pre-auth-card pre-auth-card--quiet">
-                                    <div class="pre-auth-header">
-                                        <span class="ms msf pre-auth-ico">"hourglass_empty"</span>
-                                        <div class="pre-auth-title">"Preparing your setup"</div>
-                                        <div class="pre-auth-sub">"Just a moment…"</div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    }
-                >
-                    <Show
-                        when=move || pre_auth_done.get()
-                        fallback=move || {
-                            // ── Pre-auth step (email → OTP) ──────────────────
-                            view! {
-                                <div class="pre-auth-wrap">
-                                    <Show when=move || !otp_sent.get() fallback=move || {
-                                        // ── Sub-step 2: Enter OTP code ───────
-                                        view! {
-                                            <div class="pre-auth-card">
-                                                <div class="pre-auth-header">
-                                                    <span class="ms msf pre-auth-ico">"mark_email_read"</span>
-                                                    <div class="pre-auth-title">"Check your email"</div>
-                                                    <div class="pre-auth-sub">
-                                                        "We sent a 6-digit code to "
-                                                        <strong>{move || otp_email.get()}</strong>
-                                                    </div>
-                                                </div>
-                                                <div class="pre-auth-body">
-                                                    <label class="pre-auth-label">"Verification code"</label>
-                                                    <input
-                                                        id="otp-code-input"
-                                                        type="text"
-                                                        inputmode="numeric"
-                                                        autocomplete="one-time-code"
-                                                        placeholder="000 000"
-                                                        maxlength="7"
-                                                        class="pre-auth-input pre-auth-code"
-                                                        prop:value=move || otp_code.get()
-                                                        on:input=move |ev| {
-                                                            otp_code.set(event_target_value(&ev));
-                                                        }
-                                                        on:keydown=move |ev| {
-                                                            if ev.key() == "Enter" {
-                                                                let email = verify_email_clone.get();
-                                                                let code  = verify_code_clone.get();
-                                                                if !code.trim().is_empty() {
-                                                                    otp_error.set(None);
-                                                                    otp_verifying.set(true);
-                                                                    verify_action.dispatch((email, code));
-                                                                }
-                                                            }
-                                                        }
-                                                    />
-                                                    {move || otp_error.get().map(|e| view! {
-                                                        <div class="pre-auth-error">{e}</div>
-                                                    })}
-                                                    <button
-                                                        id="otp-verify-btn"
-                                                        class="pre-auth-btn"
-                                                        on:click=on_verify
-                                                        disabled=move || otp_verifying.get()
-                                                    >
-                                                        {move || if otp_verifying.get() {
-                                                            "Verifying…".to_string()
-                                                        } else {
-                                                            "Verify & Continue →".to_string()
-                                                        }}
-                                                    </button>
-                                                    <button
-                                                        class="pre-auth-link"
-                                                        on:click=move |_| {
-                                                            otp_sent.set(false);
-                                                            otp_code.set(String::new());
-                                                            otp_error.set(None);
-                                                        }
-                                                    >
-                                                        "← Change email"
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        }
-                                    }>
-                                        // ── Sub-step 1: Enter email ───────────
-                                        <div class="pre-auth-card">
-                                            <div class="pre-auth-header">
-                                                <span class="ms msf pre-auth-ico">"person_add"</span>
-                                                <div class="pre-auth-title">"Let's get you set up"</div>
-                                                <div class="pre-auth-sub">
-                                                    "Enter your email — we'll send you a quick verification code"
-                                                </div>
-                                            </div>
-                                            <div class="pre-auth-body">
-                                                <label class="pre-auth-label" for="otp-email-input">"Email address"</label>
+                            <div class="wiz-fi wiz-anim">
+                                <Show when=move || !otp_sent.get() fallback=move || {
+                                    view! {
+                                        <div class="wiz-s-badge">
+                                            <span class="ms" style="font-size:13px;">"mark_email_read"</span>
+                                            "Verify email"
+                                        </div>
+                                        <h1 class="wiz-s-title">"Check your email"</h1>
+                                        <p class="wiz-s-sub">
+                                            "We sent a 6-digit code to "
+                                            <strong>{move || otp_email.get()}</strong>
+                                            ". Enter it below to continue."
+                                        </p>
+                                        <div class="wiz-card">
+                                            <div class="wiz-ct">"Verification code"</div>
+                                            <div class="wiz-f">
+                                                <label class="wiz-label" for="otp-code-input">"Code"</label>
                                                 <input
-                                                    id="otp-email-input"
-                                                    type="email"
-                                                    autocomplete="email"
-                                                    placeholder="you@example.com"
-                                                    class="pre-auth-input"
-                                                    prop:value=move || otp_email.get()
+                                                    id="otp-code-input"
+                                                    type="text"
+                                                    inputmode="numeric"
+                                                    autocomplete="one-time-code"
+                                                    placeholder="000 000"
+                                                    maxlength="7"
+                                                    class="wiz-inp pre-auth-code"
+                                                    prop:value=move || otp_code.get()
                                                     on:input=move |ev| {
-                                                        otp_email.set(event_target_value(&ev));
+                                                        otp_code.set(event_target_value(&ev));
                                                     }
                                                     on:keydown=move |ev| {
                                                         if ev.key() == "Enter" {
-                                                            let email = send_email_clone.get();
-                                                            if !email.trim().is_empty() {
+                                                            let email = verify_email_clone.get();
+                                                            let code  = verify_code_clone.get();
+                                                            if !code.trim().is_empty() {
                                                                 otp_error.set(None);
-                                                                otp_sending.set(true);
-                                                                send_action.dispatch(email);
+                                                                otp_verifying.set(true);
+                                                                verify_action.dispatch((email, code));
                                                             }
                                                         }
                                                     }
                                                 />
-                                                {move || otp_error.get().map(|e| view! {
-                                                    <div class="pre-auth-error">{e}</div>
-                                                })}
-                                                <button
-                                                    id="otp-send-btn"
-                                                    class="pre-auth-btn"
-                                                    on:click=on_send
-                                                    disabled=move || otp_sending.get()
-                                                >
-                                                    {move || if otp_sending.get() {
-                                                        "Sending…".to_string()
-                                                    } else {
-                                                        "Send Code →".to_string()
-                                                    }}
-                                                </button>
-                                                <div class="pre-auth-footer-note">
-                                                    "Already have an account? "
-                                                    <a href="/login" class="pre-auth-link-inline">"Sign in →"</a>
-                                                </div>
                                             </div>
+                                            {move || otp_error.get().map(|e| view! {
+                                                <div class="pre-auth-error">{e}</div>
+                                            })}
+                                            <button
+                                                id="otp-verify-btn"
+                                                class="wiz-btn wiz-btn-primary pre-auth-cta"
+                                                on:click=on_verify
+                                                disabled=move || otp_verifying.get()
+                                            >
+                                                {move || if otp_verifying.get() {
+                                                    "Verifying…".to_string()
+                                                } else {
+                                                    "Verify & Continue".to_string()
+                                                }}
+                                                <Show when=move || !otp_verifying.get()>
+                                                    <span class="ms">"arrow_forward"</span>
+                                                </Show>
+                                            </button>
+                                            <button
+                                                class="pre-auth-link"
+                                                on:click=move |_| {
+                                                    otp_sent.set(false);
+                                                    otp_code.set(String::new());
+                                                    otp_error.set(None);
+                                                }
+                                            >
+                                                "← Change email"
+                                            </button>
                                         </div>
-                                    </Show>
-                                </div>
-                            }
-                        }
-                    >
-                        // ── Normal wizard content (authenticated) ─────────────
-                        <div class="wiz-fi">
-                            {children_store.with_value(|children| children())}
-                        </div>
-                        // ── Sticky footer ─────────────────────────────────────
-                        <footer class="wiz-ftr">
-                            <div class="wiz-ftr-in">
-                                <div class="wiz-step-ind">
-                                    "Step " <strong>{move || current_idx.get() + 1}</strong>
-                                    " of " <strong>{total}</strong>
-                                </div>
-                                <div class="wiz-btn-g">
-                                    <Show when=move || { current_idx.get() > 0 }>
-                                        <button class="wiz-btn wiz-btn-ghost" on:click=move |_| on_prev.run(())>
-                                            <span class="ms">"arrow_back"</span>
-                                            "Back"
+                                    }.into_any()
+                                }>
+                                    <div class="wiz-s-badge">
+                                        <span class="ms" style="font-size:13px;">"mail"</span>
+                                        "Verify email"
+                                    </div>
+                                    <h1 class="wiz-s-title">"Verify your email"</h1>
+                                    <p class="wiz-s-sub">
+                                        "Enter your email and we’ll send a one-time code so we know it’s you."
+                                    </p>
+                                    <div class="wiz-card">
+                                        <div class="wiz-ct">"Email"</div>
+                                        <div class="wiz-f">
+                                            <label class="wiz-label" for="otp-email-input">"Email address"</label>
+                                            <input
+                                                id="otp-email-input"
+                                                type="email"
+                                                autocomplete="email"
+                                                placeholder="you@example.com"
+                                                class="wiz-inp"
+                                                prop:value=move || otp_email.get()
+                                                on:input=move |ev| {
+                                                    otp_email.set(event_target_value(&ev));
+                                                }
+                                                on:keydown=move |ev| {
+                                                    if ev.key() == "Enter" {
+                                                        let email = send_email_clone.get();
+                                                        if !email.trim().is_empty() {
+                                                            otp_error.set(None);
+                                                            otp_sending.set(true);
+                                                            send_action.dispatch(email);
+                                                        }
+                                                    }
+                                                }
+                                            />
+                                        </div>
+                                        {move || otp_error.get().map(|e| view! {
+                                            <div class="pre-auth-error">{e}</div>
+                                        })}
+                                        <button
+                                            id="otp-send-btn"
+                                            class="wiz-btn wiz-btn-primary pre-auth-cta"
+                                            on:click=on_send
+                                            disabled=move || otp_sending.get()
+                                        >
+                                            {move || if otp_sending.get() {
+                                                "Sending…".to_string()
+                                            } else {
+                                                "Send Code".to_string()
+                                            }}
+                                            <Show when=move || !otp_sending.get()>
+                                                <span class="ms">"arrow_forward"</span>
+                                            </Show>
                                         </button>
-                                    </Show>
-                                    <button
-                                        class=move || {
-                                            if is_last_step.get() { "wiz-btn wiz-btn-success" }
-                                            else { "wiz-btn wiz-btn-primary" }
-                                        }
-                                        on:click=move |_| on_next.run(())
-                                    >
-                                        <Show when=move || is_last_step.get()>
-                                            <span class="ms msf">"rocket_launch"</span>
-                                        </Show>
-                                        {move || next_label.get()}
-                                        <Show when=move || !is_last_step.get()>
-                                            <span class="ms">"arrow_forward"</span>
-                                        </Show>
-                                    </button>
-                                </div>
+                                    </div>
+                                    <p class="pre-auth-footer-note">
+                                        "Already have an account? "
+                                        <a href="/login" class="pre-auth-link-inline">"Sign in →"</a>
+                                    </p>
+                                </Show>
                             </div>
-                        </footer>
-                    </Show>
+                        }
+                    }
+                >
+                    // ── Normal wizard content (authenticated) ─────────────
+                    <div class="wiz-fi">
+                        {children_store.with_value(|children| children())}
+                    </div>
+                    // ── Sticky footer ─────────────────────────────────────
+                    <footer class="wiz-ftr">
+                        <div class="wiz-ftr-in">
+                            <div class="wiz-step-ind">
+                                "Step " <strong>{move || current_idx.get() + 1}</strong>
+                                " of " <strong>{total}</strong>
+                            </div>
+                            <div class="wiz-btn-g">
+                                <Show when=move || { current_idx.get() > 0 }>
+                                    <button class="wiz-btn wiz-btn-ghost" on:click=move |_| on_prev.run(())>
+                                        <span class="ms">"arrow_back"</span>
+                                        "Back"
+                                    </button>
+                                </Show>
+                                <button
+                                    class=move || {
+                                        if is_last_step.get() { "wiz-btn wiz-btn-success" }
+                                        else { "wiz-btn wiz-btn-primary" }
+                                    }
+                                    on:click=move |_| on_next.run(())
+                                >
+                                    <Show when=move || is_last_step.get()>
+                                        <span class="ms msf">"rocket_launch"</span>
+                                    </Show>
+                                    {move || next_label.get()}
+                                    <Show when=move || !is_last_step.get()>
+                                        <span class="ms">"arrow_forward"</span>
+                                    </Show>
+                                </button>
+                            </div>
+                        </div>
+                    </footer>
                 </Show>
             </main>
 
@@ -1047,7 +1029,7 @@ select.wiz-inp {
     .wiz-btn-primary:active,
     .wiz-btn-success:active,
     .wiz-btn-ghost:active,
-    .pre-auth-btn:active {
+    .pre-auth-cta:active {
         transform: none;
     }
 }
@@ -1063,128 +1045,36 @@ select.wiz-inp {
     .wiz-fi { padding: 28px 18px 120px; max-width: 100%; }
     .wiz-ftr { padding: 12px 18px; }
     .wiz-og3 { grid-template-columns: 1fr 1fr; }
-    .pre-auth-wrap {
-        min-height: calc(100svh - 56px);
-        padding: 24px 16px;
-    }
-    .pre-auth-input { font-size: 16px; }
+    .wiz-inp { font-size: 16px; }
 }
 @media (max-width: 520px) {
     .wiz-inp-row, .wiz-og2, .wiz-og3 { grid-template-columns: 1fr; }
     .wiz-s-title { font-size: 22px; }
     .wiz-stats { grid-template-columns: 1fr 1fr; }
-    .pre-auth-card { border-radius: 16px; }
-    .pre-auth-header { padding: 28px 20px 20px; }
-    .pre-auth-body { padding: 20px; }
 }
 "#;
 
 // ── Pre-auth CSS ──────────────────────────────────────────────────────────────
+// Lives in the same `.wiz-fi` column as wizard steps — no floating modal.
 
 const PRE_AUTH_CSS: &str = r#"
-.pre-auth-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
+.pre-auth-cta {
+    width: 100%;
     justify-content: center;
-    width: 100%;
-    min-height: 0;
-    padding: 32px 24px;
-    box-sizing: border-box;
+    margin-top: 8px;
+    padding: 12px 18px;
 }
-.pre-auth-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    width: 100%;
-    max-width: 440px;
-    overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0,0,0,.06);
-}
-.pre-auth-card--quiet .pre-auth-body { display: none; }
-.pre-auth-header {
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 32px 28px 24px;
-    text-align: center;
-}
-.pre-auth-card--quiet .pre-auth-header {
-    border-bottom: none;
-    padding-bottom: 32px;
-}
-.pre-auth-ico {
-    font-size: 44px;
-    color: #6366f1;
-    display: block;
-    margin-bottom: 14px;
-}
-.pre-auth-title {
-    font-size: 22px;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -.02em;
-    margin-bottom: 6px;
-}
-.pre-auth-sub {
-    font-size: 13px;
-    color: #64748b;
-    line-height: 1.6;
-}
-.pre-auth-body {
-    padding: 24px 28px 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.pre-auth-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #374151;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-}
-.pre-auth-input {
-    width: 100%;
-    padding: 13px 14px;
-    border: 1.5px solid #d1d5db;
-    border-radius: 10px;
-    font-size: 15px;
-    font-family: 'Inter', sans-serif;
-    color: #111827;
-    background: #f9fafb;
-    box-sizing: border-box;
-    transition: border-color .15s, box-shadow .15s;
-    outline: none;
-}
-.pre-auth-input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
-    background: #fff;
+.pre-auth-cta:disabled {
+    opacity: .6;
+    cursor: default;
 }
 .pre-auth-code {
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: .18em;
-    text-align: center;
-    font-family: monospace;
-}
-.pre-auth-btn {
-    width: 100%;
-    padding: 13px;
-    background: #6366f1;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 700;
-    font-family: 'Inter', sans-serif;
-    cursor: pointer;
-    transition: background .15s, transform 100ms ease-out;
-    margin-top: 4px;
+    letter-spacing: .2em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
-.pre-auth-btn:hover:not(:disabled) { background: #4f46e5; }
-.pre-auth-btn:active:not(:disabled) { transform: scale(0.97); }
-.pre-auth-btn:disabled { opacity: .6; cursor: default; }
 .pre-auth-error {
     font-size: 13px;
     color: #dc2626;
@@ -1192,29 +1082,32 @@ const PRE_AUTH_CSS: &str = r#"
     border: 1px solid #fecaca;
     border-radius: 8px;
     padding: 8px 12px;
+    margin-top: 4px;
 }
 .pre-auth-footer-note {
-    font-size: 12px;
-    color: #9ca3af;
-    text-align: center;
-    margin-top: 4px;
+    margin-top: 18px;
+    font-size: 13px;
+    color: #6b7280;
 }
 .pre-auth-link-inline {
     color: #6366f1;
-    text-decoration: none;
     font-weight: 600;
+    text-decoration: none;
 }
 .pre-auth-link-inline:hover { text-decoration: underline; }
 .pre-auth-link {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 0;
     background: none;
     border: none;
-    color: #6b7280;
     font-size: 13px;
-    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #6b7280;
     cursor: pointer;
-    padding: 0;
+    font-family: inherit;
     text-align: center;
-    text-decoration: underline;
 }
 .pre-auth-link:hover { color: #374151; }
 "#;
