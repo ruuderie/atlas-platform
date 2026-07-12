@@ -38,7 +38,13 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
                         .get("host")
                         .and_then(|v| v.to_str().ok())
                         .unwrap_or("localhost");
-                    let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
+                    let is_https = {
+                        let host = host.split(':').next().unwrap_or(host);
+                        let h = host.to_ascii_lowercase();
+                        !(h == "localhost"
+                            || h.starts_with("127.")
+                            || h.ends_with(".localhost"))
+                    };
                     let secure = if is_https { "; Secure" } else { "" };
                     let header_val = format!(
                         "session={}; HttpOnly; Path=/; SameSite=Strict{}",

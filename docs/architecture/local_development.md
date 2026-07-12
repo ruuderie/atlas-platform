@@ -129,7 +129,9 @@ When something fails, **Next steps** picks commands from stack state (down → `
 | Backend Rust, tight loop | **Hot** | `up --hot` then `watch` | Compose Watch rebuilds on save (live; not server-like) |
 | Status panel only | Either | TUI **`r`** | Reloads probes — does **not** rebuild apps |
 
-**Nothing is live in parity** until you `refresh` (or rebuild). Prefer parity for confidence; use hot/`watch` only when you need a mounted Rust loop.
+**HTTP only locally:** Caddy listens on port 80 (`http://*.localhost`). There is no TLS on `:443`, so `https://folio.localhost` → **ERR_CONNECTION_REFUSED**. Magic-link emails must use `http://…localhost`. If an old link says `https://`, change it to `http://` (same path/token).
+
+Folio used to build `https://folio.localhost/…` because `folio.localhost` does not start with the string `localhost`; that is fixed to treat `*.localhost` as HTTP.
 
 ---
 

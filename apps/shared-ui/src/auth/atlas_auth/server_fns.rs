@@ -1,5 +1,23 @@
 use leptos::prelude::*;
 
+/// Local Compose serves HTTP on `*.localhost` (no TLS). Hosts like
+/// `admin.localhost` / `folio.localhost` must not be treated as HTTPS.
+#[cfg(feature = "ssr")]
+fn request_scheme_for_host(host: &str) -> &'static str {
+    let host = host.split(':').next().unwrap_or(host);
+    let h = host.to_ascii_lowercase();
+    if h == "localhost" || h.starts_with("127.") || h.ends_with(".localhost") {
+        "http"
+    } else {
+        "https"
+    }
+}
+
+#[cfg(feature = "ssr")]
+fn host_is_https(host: &str) -> bool {
+    request_scheme_for_host(host) == "https"
+}
+
 #[cfg(feature = "ssr")]
 pub fn get_atlas_api_url() -> String {
     std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
@@ -41,11 +59,7 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
             .get("host")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
-        let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
-            "http"
-        } else {
-            "https"
-        };
+        let scheme = request_scheme_for_host(host);
         let redirect_url = format!("{}://{}/admin", scheme, host);
         let secure_flag = if scheme == "https" { "; Secure" } else { "" };
 
@@ -111,7 +125,7 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
             .get("host")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
-        let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
+        let is_https = host_is_https(host);
         let _secure_flag = if is_https { "; Secure" } else { "" };
 
         let payload = serde_json::json!({ "token": token });
@@ -341,11 +355,7 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
                 .get("host")
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("localhost");
-            let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
-                "http"
-            } else {
-                "https"
-            };
+            let scheme = request_scheme_for_host(host);
             format!("{}://{}", scheme, host)
         };
 
@@ -436,11 +446,7 @@ pub async fn finish_passkey_registration(
                 .get("host")
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("localhost");
-            let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
-                "http"
-            } else {
-                "https"
-            };
+            let scheme = request_scheme_for_host(host);
             format!("{}://{}", scheme, host)
         };
 
@@ -502,7 +508,7 @@ pub async fn set_session_cookie(token: String) -> Result<(), ServerFnError> {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
 
-        let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
+        let is_https = host_is_https(host);
 
         // Derive root domain for cross-subdomain scope (e.g. "dev.atlas.oply.co" → ".oply.co").
         // This ensures the session cookie is sent to api.dev.atlas.oply.co on cross-subdomain

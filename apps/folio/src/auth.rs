@@ -406,6 +406,20 @@ pub async fn check_session() -> Result<SessionInfo, ServerFnError> {
     }
 }
 
+/// Local Compose/Caddy serves plain HTTP on `*.localhost` (no TLS on :443).
+/// `folio.localhost` does **not** start with `"localhost"`, so a naive prefix
+/// check wrongly picks `https` and magic-link emails refuse to connect.
+#[cfg(feature = "ssr")]
+fn request_scheme_for_host(host: &str) -> &'static str {
+    let host = host.split(':').next().unwrap_or(host);
+    let h = host.to_ascii_lowercase();
+    if h == "localhost" || h.starts_with("127.") || h.ends_with(".localhost") {
+        "http"
+    } else {
+        "https"
+    }
+}
+
 /// Request a magic-link login email.
 #[server(RequestMagicLink, "/api")]
 pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
@@ -419,11 +433,7 @@ pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
             .get("host")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
-        let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
-            "http"
-        } else {
-            "https"
-        };
+        let scheme = request_scheme_for_host(host);
         let redirect_url = format!("{}://{}/verify", scheme, host);
 
         let payload = serde_json::json!({
