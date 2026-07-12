@@ -39,17 +39,6 @@ pub enum HealthStatus {
     Unknown,
 }
 
-impl HealthStatus {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Healthy => "healthy",
-            Self::Degraded => "degraded",
-            Self::Down => "down",
-            Self::Unknown => "unknown",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProbeScheme {
@@ -59,27 +48,102 @@ pub enum ProbeScheme {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum NextStepKind {
-    Info,
-    Action,
-    Warning,
+pub enum EnvironmentId {
+    Production,
+    Uat,
+    Development,
+}
+
+impl EnvironmentId {
+    fn from_env_var(raw: &str) -> Self {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "production" | "prod" => Self::Production,
+            "uat" | "staging" => Self::Uat,
+            "development" | "dev" | "local" => Self::Development,
+            _ => Self::Development,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Production => "Production",
+            Self::Uat => "UAT",
+            Self::Development => "Development",
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Production => "production",
+            Self::Uat => "uat",
+            Self::Development => "development",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IncidentSeverity {
+    Warn,
+    Bad,
 }
 
 // ── Response DTOs ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemStatusResponse {
-    pub environment: String,
+    pub collected_at: String,
+    pub fleet: FleetBlock,
+    pub environments: Vec<EnvironmentStatusNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FleetBlock {
+    pub capacity: FleetCapacity,
+    pub by_environment: Vec<FleetEnvironmentShare>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FleetCapacity {
+    pub tenant_count: u64,
+    pub app_instance_count: u64,
+    pub domain_count: u64,
+    pub db_size_bytes: Option<i64>,
+    pub db_sessions: Option<i64>,
+    pub ai_tasks_queued: u64,
+    pub ai_tasks_running: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FleetEnvironmentShare {
+    pub id: EnvironmentId,
+    pub label: String,
+    pub tenant_count: u64,
+    pub share_of_tenants: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentStatusNode {
+    pub id: EnvironmentId,
+    pub label: String,
     pub overall_status: HealthStatus,
+    pub reachable: bool,
     pub version: VersionBlock,
+    pub collected_at: String,
     pub backend_health: BackendHealthBlock,
     pub platform_services: Vec<PlatformServiceProbe>,
     pub tenants: Vec<TenantStatusNode>,
     pub resources: ResourcesBlock,
     pub telemetry: TelemetryBlock,
-    pub next_steps: Vec<NextStep>,
-    pub local_dev_hint: Option<String>,
-    pub collected_at: String,
+    pub incidents: Vec<Incident>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Incident {
+    pub severity: IncidentSeverity,
+    pub title: String,
+    pub target: String,
+    pub since: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,13 +225,6 @@ pub struct MetricCounter {
     pub value: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NextStep {
-    pub kind: NextStepKind,
-    pub headline: String,
-    pub command: String,
-}
-
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new().route("/api/admin/system-status", get(get_system_status))
 }
@@ -176,7 +233,9 @@ pub async fn get_system_status(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let environment = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "dev".to_string());
+    let env_raw = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "dev".to_string());
+    let env_id = EnvironmentId::from_env_var(&env_raw);
+    let collected_at = chrono::Utc::now().to_rfc3339();
     let version = VersionBlock {
         version: ATLAS_VERSION.to_string(),
         build_sha: ATLAS_BUILD_SHA.to_string(),
@@ -184,44 +243,137 @@ pub async fn get_system_status(
     };
 
     let backend_health = check_backend_health(&db).await;
-    let platform_services = probe_platform_services(&environment).await;
+    let platform_services = probe_platform_services(env_id.as_str()).await;
     let (tenants, domain_count) = build_hierarchy(&db).await?;
     let resources = collect_resources(&db, &tenants, domain_count).await;
     let telemetry = collect_telemetry();
     let overall_status =
         derive_overall(&backend_health, &platform_services, &tenants, &resources);
-    let next_steps = build_next_steps(
-        &environment,
-        overall_status,
-        &backend_health,
-        &resources,
-        &telemetry,
-    );
-    let local_dev_hint = if environment.eq_ignore_ascii_case("development")
-        || environment.eq_ignore_ascii_case("dev")
-        || environment.eq_ignore_ascii_case("local")
-    {
-        Some(
-            "Full Compose/Docker view stays on the host: run `atlas-local status` (parity stack). This page is deploy-safe telemetry only."
-                .to_string(),
-        )
-    } else {
-        None
-    };
+    let incidents = collect_incidents(&platform_services, &tenants);
 
-    Ok(Json(SystemStatusResponse {
-        environment,
+    let env_node = EnvironmentStatusNode {
+        id: env_id,
+        label: env_id.label().to_string(),
         overall_status,
+        reachable: true,
         version,
+        collected_at: collected_at.clone(),
         backend_health,
         platform_services,
         tenants,
-        resources,
+        resources: resources.clone(),
         telemetry,
-        next_steps,
-        local_dev_hint,
-        collected_at: chrono::Utc::now().to_rfc3339(),
+        incidents,
+    };
+
+    let fleet = fleet_from_environments(std::slice::from_ref(&env_node));
+
+    Ok(Json(SystemStatusResponse {
+        collected_at,
+        fleet,
+        environments: vec![env_node],
     }))
+}
+
+fn fleet_from_environments(envs: &[EnvironmentStatusNode]) -> FleetBlock {
+    let mut tenant_count = 0u64;
+    let mut app_instance_count = 0u64;
+    let mut domain_count = 0u64;
+    let mut db_size_bytes: Option<i64> = None;
+    let mut db_sessions: Option<i64> = None;
+    let mut ai_tasks_queued = 0u64;
+    let mut ai_tasks_running = 0u64;
+
+    for env in envs {
+        let r = &env.resources;
+        tenant_count = tenant_count.saturating_add(r.tenant_count);
+        app_instance_count = app_instance_count.saturating_add(r.app_instance_count);
+        domain_count = domain_count.saturating_add(r.domain_count);
+        ai_tasks_queued = ai_tasks_queued.saturating_add(r.ai_tasks_queued);
+        ai_tasks_running = ai_tasks_running.saturating_add(r.ai_tasks_running);
+        if let Some(sz) = r.db_size_bytes {
+            db_size_bytes = Some(db_size_bytes.unwrap_or(0).saturating_add(sz));
+        }
+        if let Some(sess) = r.db_sessions {
+            db_sessions = Some(db_sessions.unwrap_or(0).saturating_add(sess));
+        }
+    }
+
+    let by_environment = envs
+        .iter()
+        .map(|env| {
+            let share = if tenant_count == 0 {
+                0.0
+            } else {
+                env.resources.tenant_count as f64 / tenant_count as f64
+            };
+            FleetEnvironmentShare {
+                id: env.id,
+                label: env.label.clone(),
+                tenant_count: env.resources.tenant_count,
+                share_of_tenants: share,
+            }
+        })
+        .collect();
+
+    FleetBlock {
+        capacity: FleetCapacity {
+            tenant_count,
+            app_instance_count,
+            domain_count,
+            db_size_bytes,
+            db_sessions,
+            ai_tasks_queued,
+            ai_tasks_running,
+        },
+        by_environment,
+    }
+}
+
+fn collect_incidents(
+    services: &[PlatformServiceProbe],
+    tenants: &[TenantStatusNode],
+) -> Vec<Incident> {
+    let mut incidents = Vec::new();
+    for svc in services {
+        match svc.status {
+            HealthStatus::Down => incidents.push(Incident {
+                severity: IncidentSeverity::Bad,
+                title: format!("{} unreachable", svc.name),
+                target: svc.name.clone(),
+                since: "recent".into(),
+            }),
+            HealthStatus::Degraded => incidents.push(Incident {
+                severity: IncidentSeverity::Warn,
+                title: format!("{} degraded", svc.name),
+                target: svc.name.clone(),
+                since: "recent".into(),
+            }),
+            HealthStatus::Healthy | HealthStatus::Unknown => {}
+        }
+    }
+    for tenant in tenants {
+        for app in &tenant.apps {
+            for domain in &app.domains {
+                match domain.status {
+                    HealthStatus::Down => incidents.push(Incident {
+                        severity: IncidentSeverity::Bad,
+                        title: format!("{} down", domain.domain_name),
+                        target: "domain".into(),
+                        since: "recent".into(),
+                    }),
+                    HealthStatus::Degraded => incidents.push(Incident {
+                        severity: IncidentSeverity::Warn,
+                        title: format!("{} degraded", domain.domain_name),
+                        target: "domain".into(),
+                        since: "recent".into(),
+                    }),
+                    HealthStatus::Healthy | HealthStatus::Unknown => {}
+                }
+            }
+        }
+    }
+    incidents
 }
 
 async fn check_backend_health(db: &DatabaseConnection) -> BackendHealthBlock {
@@ -637,8 +789,19 @@ fn collect_telemetry() -> TelemetryBlock {
             });
         }
     }
+    // Surface magic-link outcomes (esp. user_not_found) so operators see why
+    // "email sent" UI produced no outbox / SMTP activity.
+    for (status, v) in prometheus_counter_by_label(&body, "magic_link_requests_total", "status") {
+        counters.push(MetricCounter {
+            name: format!("magic_link_requests[{status}]"),
+            value: v,
+        });
+    }
     let detail = if counters.is_empty() {
         "idle — no labeled counters observed yet".to_string()
+    } else if counters.iter().any(|c| c.name.contains("user_not_found")) {
+        "magic-link: unknown email(s) — check magic_link_requests[user_not_found] / backend logs"
+            .to_string()
     } else {
         format!("{} counter families aggregated", counters.len())
     };
@@ -672,6 +835,47 @@ fn sum_prometheus_counter(body: &str, metric: &str) -> Option<f64> {
     found.then_some(total)
 }
 
+/// Sum a CounterVec by one label value (e.g. status=user_not_found).
+fn prometheus_counter_by_label(
+    body: &str,
+    metric: &str,
+    label: &str,
+) -> Vec<(String, f64)> {
+    use std::collections::BTreeMap;
+    let needle = format!("{label}=\"");
+    let mut map: BTreeMap<String, f64> = BTreeMap::new();
+    for line in body.lines() {
+        if line.starts_with('#') {
+            continue;
+        }
+        let (name_part, rest) = match line.split_once(' ') {
+            Some(p) => p,
+            None => continue,
+        };
+        let base = name_part.split('{').next().unwrap_or(name_part);
+        if base != metric {
+            continue;
+        }
+        let Ok(v) = rest.trim().parse::<f64>() else {
+            continue;
+        };
+        let Some(labels) = name_part.strip_prefix(metric).and_then(|s| {
+            s.strip_prefix('{')
+                .and_then(|s| s.strip_suffix('}'))
+        }) else {
+            continue;
+        };
+        if let Some(idx) = labels.find(&needle) {
+            let after = &labels[idx + needle.len()..];
+            if let Some(end) = after.find('"') {
+                let key = after[..end].to_string();
+                *map.entry(key).or_insert(0.0) += v;
+            }
+        }
+    }
+    map.into_iter().collect()
+}
+
 fn derive_overall(
     backend: &BackendHealthBlock,
     services: &[PlatformServiceProbe],
@@ -700,90 +904,6 @@ fn derive_overall(
     HealthStatus::Degraded
 }
 
-fn build_next_steps(
-    environment: &str,
-    overall: HealthStatus,
-    backend: &BackendHealthBlock,
-    resources: &ResourcesBlock,
-    telemetry: &TelemetryBlock,
-) -> Vec<NextStep> {
-    let mut steps = Vec::new();
-    let is_local = environment.eq_ignore_ascii_case("development")
-        || environment.eq_ignore_ascii_case("dev")
-        || environment.eq_ignore_ascii_case("local");
-
-    match overall {
-        HealthStatus::Healthy => {
-            steps.push(NextStep {
-                kind: NextStepKind::Info,
-                headline: "Environment looks healthy".into(),
-                command: if is_local {
-                    "atlas-local status   # host Compose/Docker detail".into()
-                } else {
-                    "Re-check after deploys: open System Status or GET /api/admin/system-status"
-                        .into()
-                },
-            });
-        }
-        HealthStatus::Down | HealthStatus::Degraded | HealthStatus::Unknown => {
-            if !backend.database_connected {
-                steps.push(NextStep {
-                    kind: NextStepKind::Warning,
-                    headline: "Database unreachable from backend".into(),
-                    command: if is_local {
-                        "atlas-local logs -f backend\natlas-local status\n# last resort: atlas-local reset-db".into()
-                    } else {
-                        "Check Postgres connectivity / Cloud SQL / secrets; inspect backend pod logs"
-                            .into()
-                    },
-                });
-            }
-            steps.push(NextStep {
-                kind: NextStepKind::Action,
-                headline: "Inspect live signals".into(),
-                command: "Open AI Task Monitor (/admin/aitasks) and Audit Logs (/logs)".into(),
-            });
-            if is_local {
-                steps.push(NextStep {
-                    kind: NextStepKind::Action,
-                    headline: "Local recovery ladder".into(),
-                    command: "atlas-local refresh backend\natlas-local down && atlas-local up\natlas-local reset-db   # destructive".into(),
-                });
-            }
-        }
-    }
-
-    if resources.ai_queue_paused {
-        steps.push(NextStep {
-            kind: NextStepKind::Warning,
-            headline: "AI queue is paused".into(),
-            command: "Resume from AI Task Monitor → queue controls".into(),
-        });
-    }
-
-    if !telemetry.metrics_available {
-        steps.push(NextStep {
-            kind: NextStepKind::Warning,
-            headline: "In-process metrics unavailable".into(),
-            command: "Confirm metrics registration at backend boot; Prometheus scrape uses METRICS_TOKEN server-side only".into(),
-        });
-    }
-
-    steps.push(NextStep {
-        kind: NextStepKind::Info,
-        headline: format!("overall={}", overall.as_str()),
-        command: format!(
-            "tenants={} apps={} domains={} db_sessions={:?}",
-            resources.tenant_count,
-            resources.app_instance_count,
-            resources.domain_count,
-            resources.db_sessions
-        ),
-    });
-
-    steps
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -792,6 +912,65 @@ mod tests {
     fn health_status_serializes_snake_case() {
         let json = serde_json::to_string(&HealthStatus::Degraded).unwrap();
         assert_eq!(json, "\"degraded\"");
+    }
+
+    #[test]
+    fn environment_id_from_env_var() {
+        assert_eq!(
+            EnvironmentId::from_env_var("production"),
+            EnvironmentId::Production
+        );
+        assert_eq!(EnvironmentId::from_env_var("UAT"), EnvironmentId::Uat);
+        assert_eq!(
+            EnvironmentId::from_env_var("dev"),
+            EnvironmentId::Development
+        );
+    }
+
+    #[test]
+    fn fleet_share_sums_single_env() {
+        let resources = ResourcesBlock {
+            db_version: None,
+            db_size_bytes: Some(100),
+            db_sessions: Some(3),
+            tenant_count: 5,
+            app_instance_count: 10,
+            domain_count: 7,
+            ai_queue_paused: false,
+            ai_tasks_queued: 1,
+            ai_tasks_running: 0,
+        };
+        let node = EnvironmentStatusNode {
+            id: EnvironmentId::Development,
+            label: "Development".into(),
+            overall_status: HealthStatus::Healthy,
+            reachable: true,
+            version: VersionBlock {
+                version: "0.1.0".into(),
+                build_sha: "abc".into(),
+                build_date: "2026-07-12".into(),
+            },
+            collected_at: "now".into(),
+            backend_health: BackendHealthBlock {
+                status: HealthStatus::Healthy,
+                database_connected: true,
+                check_latency_ms: 1,
+                message: "ok".into(),
+            },
+            platform_services: vec![],
+            tenants: vec![],
+            resources,
+            telemetry: TelemetryBlock {
+                metrics_available: true,
+                detail: "ok".into(),
+                counters: vec![],
+            },
+            incidents: vec![],
+        };
+        let fleet = fleet_from_environments(&[node]);
+        assert_eq!(fleet.capacity.tenant_count, 5);
+        assert_eq!(fleet.by_environment.len(), 1);
+        assert!((fleet.by_environment[0].share_of_tenants - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]

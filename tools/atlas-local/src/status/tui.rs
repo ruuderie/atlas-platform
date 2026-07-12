@@ -1,8 +1,9 @@
-//! Ratatui status dashboard with Overview / Resources / Telemetry / Env tabs.
+//! Ratatui status dashboard with Overview / Capacity / Telemetry / Env tabs.
 //!
 //! Design: purpose-first hierarchy, instant key response, no decorative motion.
 //! Telemetry "streams" via a 3s poll ring-buffer (no SSE exists in the platform).
 //! Env tab writes `.env.local`; **a** recreates backend so Compose injects those values.
+//! Capacity KPIs (tenants / domains / DB / sessions) match Platform Admin System Status.
 
 use super::{
     StatusSnapshot, TelemetryHistory, format_bytes, sparkline, sparkline_u64,
@@ -462,6 +463,10 @@ fn draw_header(
                 format!(" ● {} ", overall.0),
                 Style::default().fg(overall.1).add_modifier(Modifier::BOLD),
             ),
+            Span::styled(
+                format!(" · {}", snap.environment),
+                Style::default().fg(MUTED),
+            ),
             refresh,
         ]),
         Line::from(vec![Span::styled(
@@ -484,7 +489,7 @@ fn draw_header(
 }
 
 fn draw_tabs(frame: &mut Frame, area: Rect, tab: Tab) {
-    let titles = ["1 Overview", "2 Resources", "3 Telemetry", "4 Env"]
+    let titles = ["1 Overview", "2 Capacity", "3 Telemetry", "4 Env"]
         .iter()
         .map(|t| {
             Line::from(Span::styled(
@@ -760,13 +765,61 @@ fn draw_resources(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
     let rows_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(4),
             Constraint::Length(3),
             Constraint::Min(8),
             Constraint::Length(7),
         ])
         .split(area);
 
-    // Totals strip
+    // Application capacity — same KPI vocabulary as Platform Admin System Status
+    let (tenants, domains, sessions, size) = match &snap.db.state {
+        Ok(state) => (
+            state
+                .tenants
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| "—".into()),
+            state
+                .app_domains
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| "—".into()),
+            state
+                .sessions
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| "—".into()),
+            state.size.clone().unwrap_or_else(|| "—".into()),
+        ),
+        Err(_) => ("—".into(), "—".into(), "—".into(), "—".into()),
+    };
+    let app_cap = Line::from(vec![
+        Span::styled("Application  ", Style::default().fg(MUTED)),
+        Span::styled(format!("tenants {tenants}"), Style::default().fg(FG)),
+        Span::styled("  ·  ", Style::default().fg(DIM)),
+        Span::styled(format!("domains {domains}"), Style::default().fg(FG)),
+        Span::styled("  ·  ", Style::default().fg(DIM)),
+        Span::styled(format!("DB {size}"), Style::default().fg(FG)),
+        Span::styled("  ·  ", Style::default().fg(DIM)),
+        Span::styled(format!("sessions {sessions}"), Style::default().fg(FG)),
+    ]);
+    let block = panel("Application capacity");
+    let inner = block.inner(rows_layout[0]);
+    frame.render_widget(block, rows_layout[0]);
+    frame.render_widget(
+        Paragraph::new(vec![
+            app_cap,
+            Line::from(Span::styled(
+                format!(
+                    "env={} · matches System Status Capacity KPIs (host CPU stays below)",
+                    snap.environment
+                ),
+                Style::default().fg(DIM),
+            )),
+        ])
+        .wrap(Wrap { trim: true }),
+        inner,
+    );
+
+    // Host / Docker stack load
     let totals = &snap.resources.totals;
     let summary = Line::from(vec![
         Span::styled("Stack load  ", Style::default().fg(MUTED)),
@@ -790,9 +843,9 @@ fn draw_resources(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
             Style::default().fg(DIM),
         ),
     ]);
-    let block = panel("Capacity");
-    let inner = block.inner(rows_layout[0]);
-    frame.render_widget(block, rows_layout[0]);
+    let block = panel("Stack load");
+    let inner = block.inner(rows_layout[1]);
+    frame.render_widget(block, rows_layout[1]);
     frame.render_widget(
         Paragraph::new(summary).wrap(Wrap { trim: true }),
         inner,
@@ -800,8 +853,8 @@ fn draw_resources(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
 
     // CPU/RAM table
     let block = panel("Containers · CPU / RAM / I/O");
-    let inner = block.inner(rows_layout[1]);
-    frame.render_widget(block, rows_layout[1]);
+    let inner = block.inner(rows_layout[2]);
+    frame.render_widget(block, rows_layout[2]);
 
     let header = Row::new(vec!["SERVICE", "CPU", "MEM", "MEM%", "NET I/O", "BLOCK I/O"])
         .style(Style::default().fg(MUTED).add_modifier(Modifier::BOLD));
@@ -843,8 +896,12 @@ fn draw_resources(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
     // Images + binaries + volumes
     let bottom = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(30), Constraint::Percentage(30)])
-        .split(rows_layout[2]);
+        .constraints([
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+            Constraint::Percentage(30),
+        ])
+        .split(rows_layout[3]);
 
     draw_list_panel(
         frame,
@@ -1039,8 +1096,8 @@ fn draw_footer(frame: &mut Frame, area: Rect, tab: Tab, overlay: &Overlay) {
             "x runs the first refresh in Next steps (e.g. network-instance anchor) — not a full stack rebuild",
         ),
         (Tab::Resources, _) => (
-            "resources",
-            "x = Next-steps refresh (affected apps) · r = reload this panel only",
+            "capacity",
+            "app KPIs + stack load · x = Next-steps refresh · r = reload this panel only",
         ),
         (Tab::Telemetry, _) => (
             "telemetry",

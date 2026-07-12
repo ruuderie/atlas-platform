@@ -34,7 +34,31 @@ pub fn print(snap: &StatusSnapshot) {
     println!("  Compose:       {}", snap.compose);
     println!();
 
-    println!("Capacity");
+    println!("Application capacity");
+    match &snap.db.state {
+        Ok(state) => {
+            println!(
+                "  tenants {}   domains {}   DB {}   sessions {}",
+                state
+                    .tenants
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "—".into()),
+                state
+                    .app_domains
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "—".into()),
+                state.size.as_deref().unwrap_or("—"),
+                state
+                    .sessions
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "—".into()),
+            );
+        }
+        Err(e) => println!("  (db unreachable: {e})"),
+    }
+    println!();
+
+    println!("Stack load");
     println!(
         "  CPU {:.1}%   RAM {:.0} MiB   images {}",
         snap.resources.totals.cpu_pct,

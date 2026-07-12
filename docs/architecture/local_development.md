@@ -71,7 +71,7 @@ On first `up`, the CLI copies [`.env.local.example`](../../.env.local.example) �
 | `atlas-local refresh [services…]` | One-shot recreate so containers **match your latest saves** |
 | `atlas-local watch` | Compose Watch (implies hot mode) |
 | `atlas-local down` | Stop stack |
-| `atlas-local status` | Ratatui dashboard (Overview · Resources · Telemetry · **Env**) with **Next steps** (copy-paste CLI). `--plain` for text |
+| `atlas-local status` | Ratatui dashboard (Overview · Capacity · Telemetry · **Env**) with **Next steps** (copy-paste CLI). `--plain` for text |
 | `atlas-local status --plain` | Same report without TUI (CI / pipes) |
 | `atlas-local logs [-f] [service]` | Compose logs |
 | `atlas-local reset-db` | Wipe Postgres volume + recreate (confirm) |
@@ -101,7 +101,7 @@ From **`atlas-local status` → tab 4 Env**: `s` SMTP form (writes `.env.local`)
 | Tab | Contents |
 |-----|----------|
 | **1 Overview** | System, domains, HTTP latency, DB, **Next steps** (shows what **`x`** will refresh) |
-| **2 Resources** | Per-container CPU/RAM, image sizes, binaries, volumes |
+| **2 Capacity** | Application KPIs (tenants / domains / DB / sessions — same vocabulary as Platform Admin System Status) + host stack load (CPU/RAM), container stats, images, volumes |
 | **3 Telemetry** | Sparklines + polled `/metrics`, `request_log`, `telemetry_events` |
 | **4 Env** | SMTP mock vs configured, local overlay keys; set/apply from the TUI |
 
@@ -193,9 +193,10 @@ Local Compose/Docker detail stays on the host (`atlas-local status`). On **dev /
 | Docker / compose / host CPU | Yes | Never |
 | DB passwords / JDBC | Yes (local only) | Never |
 | Env → Tenant → App → Domain tree | Flat domain sample | Hierarchical blast-radius tree |
-| Health / version | HTTP probes + `/health` | Same shape via `GET /api/admin/system-status` |
+| Health / version | HTTP probes + `/health` | Same shape via `GET /api/admin/system-status` → `fleet` + `environments[]` |
+| Application capacity KPIs | Capacity tab (tenants / domains / DB / sessions) | Capacity tab: fleet totals + selected-env resources |
 | Prometheus | Scrapes `/metrics` with `METRICS_TOKEN` | In-process aggregates; token never in browser |
-| Next steps | CLI recovery ladder | Env-aware ops guidance (+ local hint when `ENVIRONMENT` is dev) |
+| Next steps | CLI recovery ladder (kept) | Removed from deploy UI (not useful remotely) |
 
 Backend: [`admin/system_status.rs`](../../backend/src/admin/system_status.rs) — `PlatformSuperAdmin` session required. Frontend: [`pages/ops/system_status.rs`](../../apps/platform-admin/src/pages/ops/system_status.rs).
 

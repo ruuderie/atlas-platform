@@ -19,28 +19,95 @@ pub enum ProbeScheme {
     Https,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum EnvironmentId {
+    Production,
+    Uat,
+    #[default]
+    Development,
+}
+
+impl EnvironmentId {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Production => "Production",
+            Self::Uat => "UAT",
+            Self::Development => "Development",
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Production => "production",
+            Self::Uat => "uat",
+            Self::Development => "development",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
-pub enum NextStepKind {
+pub enum IncidentSeverity {
     #[default]
-    Info,
-    Action,
-    Warning,
+    Warn,
+    Bad,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemStatusResponse {
-    pub environment: String,
+    pub collected_at: String,
+    pub fleet: FleetBlock,
+    pub environments: Vec<EnvironmentStatusNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FleetBlock {
+    pub capacity: FleetCapacity,
+    pub by_environment: Vec<FleetEnvironmentShare>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FleetCapacity {
+    pub tenant_count: u64,
+    pub app_instance_count: u64,
+    pub domain_count: u64,
+    pub db_size_bytes: Option<i64>,
+    pub db_sessions: Option<i64>,
+    pub ai_tasks_queued: u64,
+    pub ai_tasks_running: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FleetEnvironmentShare {
+    pub id: EnvironmentId,
+    pub label: String,
+    pub tenant_count: u64,
+    pub share_of_tenants: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EnvironmentStatusNode {
+    pub id: EnvironmentId,
+    pub label: String,
     pub overall_status: HealthStatus,
+    pub reachable: bool,
     pub version: VersionBlock,
+    pub collected_at: String,
     pub backend_health: BackendHealthBlock,
     pub platform_services: Vec<PlatformServiceProbe>,
     pub tenants: Vec<TenantStatusNode>,
     pub resources: ResourcesBlock,
     pub telemetry: TelemetryBlock,
-    pub next_steps: Vec<NextStep>,
-    pub local_dev_hint: Option<String>,
-    pub collected_at: String,
+    pub incidents: Vec<Incident>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Incident {
+    pub severity: IncidentSeverity,
+    pub title: String,
+    pub target: String,
+    pub since: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -120,13 +187,6 @@ pub struct TelemetryBlock {
 pub struct MetricCounter {
     pub name: String,
     pub value: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct NextStep {
-    pub kind: NextStepKind,
-    pub headline: String,
-    pub command: String,
 }
 
 /// `GET /api/admin/system-status` — PlatformSuperAdmin session required.
