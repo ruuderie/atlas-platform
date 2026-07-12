@@ -166,12 +166,6 @@ pub fn Compliance() -> impl IntoView {
             </div>
             <div class="page-actions">
                 <button
-                    on:click=move |_| toast.show_toast("Info", "Running PostGIS integrity check...", "info")
-                    class="btn btn-ghost btn-sm"
-                >
-                    "Validate Geo Areas"
-                </button>
-                <button
                     on:click=move |_| {
                         new_permit_municipality.set(String::new());
                         new_permit_license.set(String::new());
@@ -179,9 +173,16 @@ pub fn Compliance() -> impl IntoView {
                     }
                     class="btn btn-primary btn-sm"
                 >
-                    "+ New Registration"
+                    "+ Add permit"
                 </button>
             </div>
+        </div>
+
+        <div class="card" style="padding:10px 14px;border-left:3px solid var(--cobalt);margin-bottom:4px">
+            <p class="muted" style="font-size:11.5px;margin:0">
+                <strong style="color:var(--text-primary)">"Live data path. "</strong>
+                "Binds to /api/admin/compliance/{permits,contracts,geo-zones}. Empty API → empty tables."
+            </p>
         </div>
 
         // KPI Row
@@ -272,38 +273,50 @@ pub fn Compliance() -> impl IntoView {
                     </thead>
                     <tbody>
                         <Suspense fallback=move || view! { <tr><td colspan="8">"Loading permits..."</td></tr> }>
-                            {move || permits_res.get().map(|list| view! {
-                                <For
-                                    each=move || list.clone()
-                                    key=|p| p.id
-                                    children=move |p| {
-                                        let pid = p.id;
-                                        view! {
-                                            <tr>
-                                                <td><strong>{p.name.clone()}</strong></td>
-                                                <td>{p.holder.clone()}</td>
-                                                <td class="mono">{p.license.clone()}</td>
-                                                <td>{p.permit_type.clone()}</td>
-                                                <td>
-                                                    <span class=p.status_class.clone()>
-                                                        {p.status.clone()}
-                                                    </span>
-                                                </td>
-                                                <td class="muted">{p.last_checked.clone()}</td>
-                                                <td class="muted">{p.date_renewed.clone()}</td>
-                                                <td>
-                                                    <button
-                                                        id=format!("btn-ver-{}", pid)
-                                                        class="btn btn-ghost btn-sm"
-                                                        on:click=move |_| verify_permit_action(pid)
-                                                    >
-                                                        "Verify"
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }
-                                />
+                            {move || permits_res.get().map(|list| {
+                                if list.is_empty() {
+                                    view! {
+                                        <tr>
+                                            <td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">
+                                                "No permits on file. Add a license record, then run Verify."
+                                            </td>
+                                        </tr>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <For
+                                            each=move || list.clone()
+                                            key=|p| p.id
+                                            children=move |p| {
+                                                let pid = p.id;
+                                                view! {
+                                                    <tr>
+                                                        <td><strong>{p.name.clone()}</strong></td>
+                                                        <td>{p.holder.clone()}</td>
+                                                        <td class="mono">{p.license.clone()}</td>
+                                                        <td>{p.permit_type.clone()}</td>
+                                                        <td>
+                                                            <span class=p.status_class.clone()>
+                                                                {p.status.clone()}
+                                                            </span>
+                                                        </td>
+                                                        <td class="muted">{p.last_checked.clone()}</td>
+                                                        <td class="muted">{p.date_renewed.clone()}</td>
+                                                        <td>
+                                                            <button
+                                                                id=format!("btn-ver-{}", pid)
+                                                                class="btn btn-ghost btn-sm"
+                                                                on:click=move |_| verify_permit_action(pid)
+                                                            >
+                                                                "Verify"
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        />
+                                    }.into_any()
+                                }
                             })}
                         </Suspense>
                     </tbody>
@@ -361,7 +374,6 @@ pub fn Compliance() -> impl IntoView {
                                             each=move || list.clone()
                                             key=|c| c.id.clone()
                                             children=move |c| {
-                                                let toast2 = toast.clone();
                                                 let fname = c.vault_file.clone().unwrap_or_default();
                                                 view! {
                                                     <tr>
@@ -376,17 +388,9 @@ pub fn Compliance() -> impl IntoView {
                                                                 view! { <span class="muted">"—"</span> }.into_any()
                                                             } else {
                                                                 view! {
-                                                                    <a
-                                                                        href="#"
-                                                                        class="mono"
-                                                                        style="color:var(--text-link)"
-                                                                        on:click=move |e| {
-                                                                            e.prevent_default();
-                                                                            toast2.show_toast("Info", &format!("Opening {} from Vault (G-02)...", fname), "info");
-                                                                        }
-                                                                    >
-                                                                        {c.vault_file.clone().unwrap_or_default()}
-                                                                    </a>
+                                                                    <span class="mono muted" title="Vault file reference (download URL not exposed on this DTO)">
+                                                                        {fname.clone()}
+                                                                    </span>
                                                                 }.into_any()
                                                             }}
                                                         </td>

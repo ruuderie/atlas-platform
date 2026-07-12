@@ -8,8 +8,9 @@ use crate::api::files::{
 };
 use crate::api::models::CreateFileInput;
 use crate::api::models::UserInfo;
-use crate::api::profile::update_email;
+use crate::api::profile::{update_email, update_password};
 use crate::app::GlobalToast;
+use crate::components::active_network_picker::ActiveNetworkPicker;
 use leptos::prelude::*;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 use uuid::Uuid;
@@ -134,11 +135,14 @@ pub fn Settings() -> impl IntoView {
     let is_add_hook = RwSignal::new(false);
 
     // Modal control signals
-    let (show_mfa_modal, set_show_mfa_modal) = signal(false);
     let (show_new_key_modal, set_show_new_key_modal) = signal(false);
     let (show_add_webhook_modal, set_show_add_webhook_modal) = signal(false);
 
-    // Notification switch toggles
+    // Password change
+    let current_password = RwSignal::new(String::new());
+    let new_password = RwSignal::new(String::new());
+
+    // Notification switch toggles (UI-only until operator prefs API ships)
     let lead_converted_notif = RwSignal::new(true);
     let invoice_overdue_notif = RwSignal::new(true);
     let anomaly_detected_notif = RwSignal::new(true);
@@ -151,6 +155,22 @@ pub fn Settings() -> impl IntoView {
             first_name_input.set(u.first_name.clone());
             last_name_input.set(u.last_name.clone());
             email_input.set(u.email.clone());
+        }
+    });
+
+    // Hash deep-links: #security #sessions #apikeys #notifications
+    Effect::new(move |_| {
+        if let Some(window) = web_sys::window() {
+            if let Ok(hash) = window.location().hash() {
+                let h = hash.trim_start_matches('#').to_lowercase();
+                match h.as_str() {
+                    "security" => active_tab.set("security".to_string()),
+                    "sessions" => active_tab.set("sessions".to_string()),
+                    "apikeys" | "api-keys" => active_tab.set("apikeys".to_string()),
+                    "notifications" => active_tab.set("notifications".to_string()),
+                    _ => {}
+                }
+            }
         }
     });
 
@@ -257,7 +277,7 @@ pub fn Settings() -> impl IntoView {
                                         <div>
                                             <div class="profile-name">{record_name}</div>
                                             <div class="profile-role">
-                                                {move || user.get().map(|u| format!("{} · Atlas Platform · Member since Jan 2025", if u.is_admin { "Super-Admin" } else { "Admin" })).unwrap_or_default()}
+                                                {move || user.get().map(|u| format!("{} · Atlas Platform", if u.is_admin { "Super-Admin" } else { "Admin" })).unwrap_or_default()}
                                             </div>
                                             {move || {
                                                 if let Some(url) = avatar_url.get() {
@@ -310,11 +330,14 @@ pub fn Settings() -> impl IntoView {
                                         </div>
                                         <div class="form-row">
                                             <label class="form-label">"Phone (optional)"</label>
-                                            <input class="form-input" type="tel" placeholder="+1 305 555 0100" prop:value=phone_input on:input=move |e| phone_input.set(event_target_value(&e))/>
+                                            <input class="form-input" type="tel" placeholder="Not persisted yet" disabled=true
+                                                title="Phone is not persisted by the profile API yet"
+                                                prop:value=phone_input/>
+                                            <p class="muted" style="font-size:10px;margin-top:4px">"Phone & timezone are display-only until a profile PATCH API ships. Email saves via PUT /api/profile/email."</p>
                                         </div>
                                         <div class="form-row">
                                             <label class="form-label">"Timezone"</label>
-                                            <select class="form-select" prop:value=timezone_input on:change=move |e| timezone_input.set(event_target_value(&e))>
+                                            <select class="form-select" disabled=true prop:value=timezone_input>
                                                 <option value="America/New_York (UTC-4)">"America/New_York (UTC-4)"</option>
                                                 <option value="America/Los_Angeles (UTC-7)">"America/Los_Angeles (UTC-7)"</option>
                                                 <option value="America/Sao_Paulo (UTC-3)">"America/Sao_Paulo (UTC-3)"</option>
@@ -323,7 +346,7 @@ pub fn Settings() -> impl IntoView {
                                         </div>
                                         <div class="form-row">
                                             <label class="form-label">"Language"</label>
-                                            <select class="form-select" prop:value=language_input on:change=move |e| language_input.set(event_target_value(&e))>
+                                            <select class="form-select" disabled=true prop:value=language_input>
                                                 <option value="English (US)">"English (US)"</option>
                                                 <option value="Português (BR)">"Português (BR)"</option>
                                                 <option value="Español">"Español"</option>
@@ -338,9 +361,12 @@ pub fn Settings() -> impl IntoView {
                             <div>
                                 <div class="card">
                                     <div class="card-hdr">
-                                        <span class="card-title">"Passkeys & Biometrics"</span>
+                                        <span class="card-title">"Passkeys (WebAuthn)"</span>
                                     </div>
                                     <div class="card-body">
+                                        <p class="muted" style="font-size:12px;margin-bottom:12px">
+                                            "Passkeys are the primary MFA for platform operators. TOTP is not available on this backend."
+                                        </p>
                                         <ManagePasskeys
                                             api_base_url=Signal::derive(move || crate::api::client::api_url("/api/passkeys"))
                                             auth_token="CSR_COOKIE_FLOW".to_string()
@@ -350,20 +376,38 @@ pub fn Settings() -> impl IntoView {
                                 </div>
                                 <div class="card">
                                     <div class="card-hdr">
-                                        <span class="card-title">"Two-Factor Authentication · TOTP"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| set_show_mfa_modal.set(true)>"Manage"</button>
+                                        <span class="card-title">"Change password"</span>
                                     </div>
-                                    <div class="stat-row">
-                                        <span class="s-label">"Status"</span>
-                                        <span class="s-value green">"✓ Active · TOTP enrolled"</span>
-                                    </div>
-                                    <div class="stat-row">
-                                        <span class="s-label">"Enrolled"</span>
-                                        <span class="s-value">"Jan 12, 2025"</span>
-                                    </div>
-                                    <div class="stat-row">
-                                        <span class="s-label">"Backup codes"</span>
-                                        <span class="s-value amber">"3 of 10 remaining"</span>
+                                    <div class="card-body">
+                                        <div class="form-row">
+                                            <label class="form-label">"Current password"</label>
+                                            <input class="form-input" type="password" prop:value=current_password
+                                                on:input=move |e| current_password.set(event_target_value(&e))/>
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="form-label">"New password"</label>
+                                            <input class="form-input" type="password" prop:value=new_password
+                                                on:input=move |e| new_password.set(event_target_value(&e))/>
+                                        </div>
+                                        <button class="btn btn-primary btn-sm" on:click=move |_| {
+                                            let cur = current_password.get();
+                                            let neu = new_password.get();
+                                            if cur.is_empty() || neu.len() < 8 {
+                                                toast.show_toast("Error", "Current password and a new password (8+ chars) are required.", "error");
+                                                return;
+                                            }
+                                            let t = toast.clone();
+                                            leptos::task::spawn_local(async move {
+                                                match update_password(cur, neu).await {
+                                                    Ok(()) => {
+                                                        current_password.set(String::new());
+                                                        new_password.set(String::new());
+                                                        t.show_toast("Success", "Password updated.", "success");
+                                                    }
+                                                    Err(e) => t.show_toast("Error", &e, "error"),
+                                                }
+                                            });
+                                        }>"Update password"</button>
                                     </div>
                                 </div>
                                 <div class="card">
@@ -372,13 +416,21 @@ pub fn Settings() -> impl IntoView {
                                     </div>
                                     <div class="stat-row">
                                         <div>
-                                            <div class="s-label" style="color:var(--red)">"Revoke all sessions"</div>
-                                            <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">"Signs you out from all devices immediately"</div>
+                                            <div class="s-label" style="color:var(--red)">"Revoke other sessions"</div>
+                                            <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">"Ends every session except this browser"</div>
                                         </div>
                                         <button class="btn btn-danger btn-sm" on:click=move |_| {
-                                            toast.show_toast("Sessions", "All sessions revoked.", "info");
-                                            let _ = web_sys::window().unwrap().location().assign("/login");
-                                        }>"Revoke All Sessions"</button>
+                                            let t = toast.clone();
+                                            leptos::task::spawn_local(async move {
+                                                match revoke_all_other_sessions().await {
+                                                    Ok(_) => {
+                                                        set_sessions_version.update(|v| *v += 1);
+                                                        t.show_toast("Sessions", "Other sessions revoked.", "warn");
+                                                    }
+                                                    Err(e) => t.show_toast("Error", &e, "error"),
+                                                }
+                                            });
+                                        }>"Revoke others"</button>
                                     </div>
                                 </div>
                             </div>
@@ -386,6 +438,12 @@ pub fn Settings() -> impl IntoView {
 
                         "notifications" => view! {
                             <div>
+                                <div class="card" style="padding:12px 16px;border-left:3px solid var(--amber);margin-bottom:12px">
+                                    <p class="text-xs" style="color:var(--amber);font-weight:600;margin:0">"Notification preferences endpoint pending"</p>
+                                    <p class="muted" style="font-size:11px;margin:4px 0 0">
+                                        "Toggles below are local only. Platform-operator prefs API is not shipped (Folio has channel prefs; platform-admin does not)."
+                                    </p>
+                                </div>
                                 <div class="card">
                                     <div class="card-hdr">
                                         <span class="card-title">"Email Notifications"</span>
@@ -459,16 +517,10 @@ pub fn Settings() -> impl IntoView {
                                     <div class="card-body">
                                         <div class="form-row">
                                             <label class="form-label">"Send to"</label>
-                                            <input class="form-input" type="email" value="jamie@atlasplatform.io"/>
+                                            <input class="form-input" type="email" disabled=true
+                                                prop:value=move || user.get().map(|u| u.email).unwrap_or_default()/>
                                         </div>
-                                        <div class="form-row">
-                                            <label class="form-label">"Digest frequency"</label>
-                                            <select class="form-select">
-                                                <option>"Immediately"</option>
-                                                <option>"Hourly digest"</option>
-                                                <option>"Daily digest"</option>
-                                            </select>
-                                        </div>
+                                        <p class="muted" style="font-size:11px">"Uses your account email when prefs API ships."</p>
                                     </div>
                                 </div>
                             </div>
@@ -476,6 +528,10 @@ pub fn Settings() -> impl IntoView {
 
                         "apikeys" => view! {
                             <div>
+                                <ActiveNetworkPicker hint="API keys are tenant-scoped. Prefer Integrations for full webhook + delivery ops."/>
+                                <div style="margin:12px 0">
+                                    <a href="/admin/integrations" class="btn btn-ghost btn-sm">"Open Integrations →"</a>
+                                </div>
                                 <div class="card">
                                     <div class="card-hdr">
                                         <span class="card-title">"API Keys · Tenant Scope"</span>
@@ -509,12 +565,12 @@ pub fn Settings() -> impl IntoView {
                                                         let t = toast.clone();
                                                         view! {
                                                             <div class="api-key-row">
-                                                                <span class="api-key-label">{key.name.clone()}</span>
-                                                                <span class="api-key-val font-mono text-xs">{key.prefix.clone()}"••••••"</span>
-                                                                <span class="api-key-status" style=if key.is_active { "color:var(--green);border-color:var(--green);background:var(--green-dim)" } else { "color:var(--text-muted)" }>
-                                                                    {if key.is_active { "Active" } else { "Revoked" }}
+                                                                <span class="api-key-label">{key.display_label()}</span>
+                                                                <span class="api-key-val font-mono text-xs">{key.id.to_string().chars().take(8).collect::<String>()}"…"</span>
+                                                                <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">
+                                                                    "Active"
                                                                 </span>
-                                                                {if key.is_active {
+                                                                {
                                                                     view! {
                                                                         <button class="btn btn-ghost btn-sm"
                                                                             on:click=move |_| {
@@ -533,9 +589,7 @@ pub fn Settings() -> impl IntoView {
                                                                             }
                                                                         >"Revoke"</button>
                                                                     }.into_any()
-                                                                } else {
-                                                                    view! { <span class="text-xs text-on-surface-variant/40">"—"</span> }.into_any()
-                                                                }}
+                                                                }
                                                             </div>
                                                         }
                                                     }
@@ -700,24 +754,6 @@ pub fn Settings() -> impl IntoView {
 
             // ── Modal Dialogs ──
 
-
-
-            // MFA Status Modal
-            <Show when=move || show_mfa_modal.get()>
-                <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
-                    <div class="bg-surface border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-base font-bold text-on-surface">"MFA Status"</h3>
-                            <button class="text-on-surface-variant hover:text-on-surface font-bold" on:click=move |_| set_show_mfa_modal.set(false)>"✕"</button>
-                        </div>
-                        <p style="font-size:12.5px;color:var(--green)">"✓ TOTP authenticator is active. Scan the QR code in your authenticator app to re-enroll a new device."</p>
-                        <div class="flex justify-end gap-3 mt-6 border-t border-outline-variant/10 pt-4">
-                            <button class="btn btn-primary btn-sm" on:click=move |_| set_show_mfa_modal.set(false)>"Close"</button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
-
             // Create API Key Modal
             <Show when=move || show_new_key_modal.get()>
                 <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
@@ -770,8 +806,8 @@ pub fn Settings() -> impl IntoView {
                                                 let t = toast.clone();
                                                 leptos::task::spawn_local(async move {
                                                     let req = CreateApiTokenRequest {
-                                                        name,
-                                                        scopes: vec![new_key_scope.get()],
+                                                        name: Some(name),
+                                                        scopes: serde_json::json!([new_key_scope.get()]),
                                                     };
                                                     match create_api_token(tid, req).await {
                                                         Ok(resp) => {
@@ -826,8 +862,7 @@ pub fn Settings() -> impl IntoView {
                                     leptos::task::spawn_local(async move {
                                         let req = CreateWebhookRequest {
                                             target_url: url,
-                                            events: vec!["*".to_string()],
-                                            secret: None,
+                                            subscribed_events: serde_json::json!(["*"]),
                                         };
                                         match create_webhook_endpoint(tid, req).await {
                                             Ok(_) => {
