@@ -13,12 +13,13 @@ fn status_label(s: &HealthStatus) -> &'static str {
     }
 }
 
-fn status_color(s: &HealthStatus) -> &'static str {
+/// Tone class shared with stitch: ok | warn | bad | unk
+fn status_tone(s: &HealthStatus) -> &'static str {
     match s {
-        HealthStatus::Healthy => "var(--green, #1b7f4e)",
-        HealthStatus::Degraded => "var(--amber, #b86e00)",
-        HealthStatus::Down => "var(--red, #c0392b)",
-        HealthStatus::Unknown => "var(--text-muted)",
+        HealthStatus::Healthy => "ok",
+        HealthStatus::Degraded => "warn",
+        HealthStatus::Down => "bad",
+        HealthStatus::Unknown => "unk",
     }
 }
 
@@ -51,14 +52,40 @@ fn error_rate(env: &EnvironmentStatusNode) -> String {
     }
 }
 
-fn probe_counts(env: &EnvironmentStatusNode) -> (usize, usize) {
+struct ProbeCounts {
+    ok: usize,
+    warn: usize,
+    bad: usize,
+    total: usize,
+}
+
+fn probe_counts(env: &EnvironmentStatusNode) -> ProbeCounts {
     let total = env.platform_services.len();
     let ok = env
         .platform_services
         .iter()
         .filter(|p| p.status == HealthStatus::Healthy)
         .count();
-    (ok, total)
+    let warn = env
+        .platform_services
+        .iter()
+        .filter(|p| p.status == HealthStatus::Degraded)
+        .count();
+    let bad = env
+        .platform_services
+        .iter()
+        .filter(|p| p.status == HealthStatus::Down)
+        .count();
+    ProbeCounts {
+        ok,
+        warn,
+        bad,
+        total,
+    }
+}
+
+fn sha7(sha: &str) -> String {
+    sha.chars().take(7).collect()
 }
 
 #[component]
@@ -106,47 +133,57 @@ pub fn SystemStatusPage() -> impl IntoView {
     });
 
     view! {
-        <div class="main-canvas">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"System Status"</h1>
-                    <p class="page-subtitle">
-                        "Fleet health by environment. Each rollup is independent — Dev downtime never paints Production red."
-                    </p>
-                </div>
-                <div class="page-actions">
-                    <button
-                        class="btn btn-ghost btn-sm"
-                        style="transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);"
-                        on:click=move |_| refresh.update(|n| *n = n.wrapping_add(1))
-                    >
-                        {move || if loading.get() { "Refreshing…" } else { "Refresh" }}
-                    </button>
-                </div>
+        <div class="main-area no-pad">
+            <div class="ss-page">
+                <div style="display:none">{move || status_res.get().map(|_| ())}</div>
+
+                <Show when=move || error.get().is_some()>
+                    <div class="ss-chrome">
+                        <div class="ss-header">
+                            <div>
+                                <div class="ss-title">"System Status"</div>
+                                <div class="ss-sub">"Fleet health by environment."</div>
+                            </div>
+                            <div class="ss-actions">
+                                <button
+                                    class="btn btn-ghost btn-sm"
+                                    type="button"
+                                    on:click=move |_| refresh.update(|n| *n = n.wrapping_add(1))
+                                >
+                                    "Retry"
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ss-error" style="margin:0 24px 16px">
+                            {move || error.get().unwrap_or_default()}
+                        </div>
+                    </div>
+                </Show>
+
+                <Show when=move || snapshot.get().is_some() fallback=move || view! {
+                    <div class="ss-chrome">
+                        <div class="ss-header">
+                            <div>
+                                <div class="ss-title">"System Status"</div>
+                                <div class="ss-sub">"Loading fleet status…"</div>
+                            </div>
+                            <div class="ss-actions">
+                                <button class="btn btn-ghost btn-sm" type="button" disabled>"Refreshing…"</button>
+                            </div>
+                        </div>
+                    </div>
+                }>
+                    {move || snapshot.get().map(|s| view! {
+                        <StatusBody
+                            status=s
+                            active_tab=active_tab
+                            selected_env=selected_env
+                            loading=loading
+                            refresh=refresh
+                        />
+                    })}
+                </Show>
             </div>
-
-            <Show when=move || error.get().is_some()>
-                <div
-                    class="mb-4 rounded-lg border px-4 py-3 text-sm"
-                    style="border-color: color-mix(in srgb, var(--red, #c0392b) 35%, transparent); background: color-mix(in srgb, var(--red, #c0392b) 8%, transparent);"
-                >
-                    {move || error.get().unwrap_or_default()}
-                </div>
-            </Show>
-
-            <div style="display:none">{move || status_res.get().map(|_| ())}</div>
-
-            <Show when=move || snapshot.get().is_some() fallback=move || view! {
-                <div class="text-sm" style="color:var(--text-muted)">"Loading system status…"</div>
-            }>
-                {move || snapshot.get().map(|s| view! {
-                    <StatusBody
-                        status=s
-                        active_tab=active_tab
-                        selected_env=selected_env
-                    />
-                })}
-            </Show>
         </div>
     }
 }
@@ -156,154 +193,161 @@ fn StatusBody(
     status: SystemStatusResponse,
     active_tab: RwSignal<String>,
     selected_env: RwSignal<EnvironmentId>,
+    loading: RwSignal<bool>,
+    refresh: RwSignal<u32>,
 ) -> impl IntoView {
     let envs_store = StoredValue::new(status.environments.clone());
     let fleet_store = StoredValue::new(status.fleet.clone());
-    let collected = status.collected_at.clone();
     let envs_for_cards = status.environments.clone();
-    let envs_for_versions = status.environments;
+    let envs_for_versions = status.environments.clone();
 
     view! {
-        <div
-            class="mb-4 grid gap-2.5"
-            style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));"
-        >
-            {envs_for_cards.into_iter().map(|env| {
-                let id = env.id;
-                let overall = env.overall_status.clone();
-                let label = env.label.clone();
-                let version = env.version.clone();
-                let (ok, total) = probe_counts(&env);
-                let tenant_n = env.tenants.len();
-                view! {
-                    <button
-                        type="button"
-                        class="rounded-lg border px-3.5 py-3 text-left"
-                        style=move || {
-                            let active = selected_env.get() == id;
-                            if active {
-                                "border-color: var(--cobalt, #2563eb); background: color-mix(in srgb, var(--cobalt, #2563eb) 8%, transparent); cursor:pointer; font:inherit; color:inherit;"
-                            } else {
-                                "border-color: var(--outline-variant, #ddd); background: var(--surface-container-low, transparent); cursor:pointer; font:inherit; color:inherit;"
-                            }
-                        }
-                        on:click=move |_| selected_env.set(id)
-                    >
-                        <div class="flex items-center justify-between gap-2 mb-1">
-                            <span class="text-sm font-semibold">{label.clone()}</span>
-                            <span
-                                class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border"
-                                style=format!(
-                                    "color:{}; border-color:{};",
-                                    status_color(&overall),
-                                    status_color(&overall)
-                                )
-                            >
-                                <span
-                                    class="inline-block h-2 w-2 rounded-full"
-                                    style=format!("background:{}", status_color(&overall))
-                                ></span>
-                                {status_label(&overall)}
-                            </span>
-                        </div>
-                        <div class="text-[11px] font-mono mb-2" style="color:var(--text-muted)">
-                            {format!(
-                                "v{}+{}",
-                                version.version,
-                                version.build_sha.chars().take(7).collect::<String>()
-                            )}
-                        </div>
-                        <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style="color:var(--text-secondary, var(--text-muted))">
-                            <span>{format!("{ok}/{total} probes ok")}</span>
-                            <span>{format!("{tenant_n} tenants")}</span>
-                        </div>
-                    </button>
-                }
-            }).collect_view()}
-        </div>
-
-        {move || {
-            let id = selected_env.get();
-            let env = envs_store.with_value(|envs| {
-                envs.iter()
-                    .find(|e| e.id == id)
-                    .cloned()
-                    .or_else(|| envs.first().cloned())
-            });
-            env.map(|env| {
-                let overall = env.overall_status.clone();
-                let label = env.label.clone();
-                let version = env.version.clone();
-                let collected_env = env.collected_at.clone();
-                let (ok, total) = probe_counts(&env);
-                let err = error_rate(&env);
-                let is_dev = matches!(env.id, EnvironmentId::Development);
-                view! {
-                    <div
-                        class="mb-4 flex flex-wrap items-center gap-4 rounded-lg border px-4 py-3"
-                        style="border-color: var(--outline-variant, #ddd); background: var(--surface-container-low, transparent);"
-                    >
-                        <div class="flex items-center gap-2">
-                            <span
-                                class="inline-block h-2.5 w-2.5 rounded-full"
-                                style=format!("background:{}", status_color(&overall))
-                            ></span>
-                            <span class="text-sm font-semibold" style=format!("color:{}", status_color(&overall))>
-                                {format!("{} · {}", label, status_label(&overall))}
-                            </span>
-                        </div>
-                        <div class="text-xs font-mono" style="color:var(--text-muted)">
-                            {format!("probes {ok}/{total} healthy")}
-                        </div>
-                        <div class="text-xs font-mono" style="color:var(--text-muted)">
-                            {format!("err rate {err}")}
-                        </div>
-                        <div class="text-xs font-mono" style="color:var(--text-muted)">
-                            {format!(
-                                "v{}+{}",
-                                version.version,
-                                version.build_sha.chars().take(7).collect::<String>()
-                            )}
-                        </div>
-                        <div class="text-xs" style="color:var(--text-muted); margin-left:auto">
-                            {format!("collected {collected_env}")}
-                        </div>
+        <div class="ss-chrome">
+            <div class="ss-header">
+                <div>
+                    <div class="ss-title">"System Status"</div>
+                    <div class="ss-sub">
+                        "Fleet health by environment. Pick Production, UAT, or Development — each rollup is independent."
                     </div>
+                </div>
+                <div class="ss-actions">
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        type="button"
+                        on:click=move |_| refresh.update(|n| *n = n.wrapping_add(1))
+                    >
+                        {move || if loading.get() { "Refreshing…" } else { "Refresh" }}
+                    </button>
+                </div>
+            </div>
 
-                    <Show when=move || is_dev>
-                        <div
-                            class="mb-4 rounded-lg border px-4 py-3 text-sm"
-                            style="border-color: color-mix(in srgb, var(--cobalt, #2563eb) 30%, transparent); background: color-mix(in srgb, var(--cobalt, #2563eb) 6%, transparent);"
+            <div class="ss-fleet" role="tablist" aria-label="Environments">
+                {envs_for_cards.into_iter().map(|env| {
+                    let id = env.id;
+                    let overall = env.overall_status.clone();
+                    let tone = status_tone(&overall);
+                    let label = env.label.clone();
+                    let version = env.version.clone();
+                    let counts = probe_counts(&env);
+                    let tenant_n = env.tenants.len();
+                    view! {
+                        <button
+                            type="button"
+                            role="tab"
+                            class=move || {
+                                if selected_env.get() == id {
+                                    "ss-env-card active"
+                                } else {
+                                    "ss-env-card"
+                                }
+                            }
+                            prop:aria-selected=move || selected_env.get() == id
+                            on:click=move |_| selected_env.set(id)
                         >
-                            "Full Compose/Docker view stays on the host: run "
-                            <code class="font-mono text-xs">"atlas-local status"</code>
-                            " (parity stack). This page is deploy-safe telemetry only."
-                        </div>
-                    </Show>
-                }
-            })
-        }}
+                            <div class="ss-env-top">
+                                <span class="ss-env-name">{label.clone()}</span>
+                                <span class=format!("ss-env-pill {tone}")>
+                                    <span class=format!("ss-dot {tone}")></span>
+                                    {status_label(&overall)}
+                                </span>
+                            </div>
+                            <div class="ss-env-meta">
+                                {format!("v{}+{}", version.version, sha7(&version.build_sha))}
+                            </div>
+                            <div class="ss-env-counts">
+                                <span><b>{counts.ok}</b>" ok"</span>
+                                <span><b>{counts.warn}</b>" degraded"</span>
+                                <span><b>{counts.bad}</b>" down"</span>
+                                <span>{format!("{tenant_n} tenants")}</span>
+                            </div>
+                        </button>
+                    }
+                }).collect_view()}
+            </div>
 
-        <div class="tab-bar mb-4">
-            <button
-                class=move || if active_tab.get() == "overview" { "tab active" } else { "tab" }
-                on:click=move |_| active_tab.set("overview".into())
-            >"Overview"</button>
-            <button
-                class=move || if active_tab.get() == "resources" { "tab active" } else { "tab" }
-                on:click=move |_| active_tab.set("resources".into())
-            >"Capacity"</button>
-            <button
-                class=move || if active_tab.get() == "telemetry" { "tab active" } else { "tab" }
-                on:click=move |_| active_tab.set("telemetry".into())
-            >"Telemetry"</button>
-            <button
-                class=move || if active_tab.get() == "versions" { "tab active" } else { "tab" }
-                on:click=move |_| active_tab.set("versions".into())
-            >"Versions"</button>
+            {move || {
+                let id = selected_env.get();
+                let env = envs_store.with_value(|envs| {
+                    envs.iter()
+                        .find(|e| e.id == id)
+                        .cloned()
+                        .or_else(|| envs.first().cloned())
+                });
+                env.map(|env| {
+                    let overall = env.overall_status.clone();
+                    let tone = status_tone(&overall);
+                    let label = env.label.clone();
+                    let version = env.version.clone();
+                    let collected_env = env.collected_at.clone();
+                    let counts = probe_counts(&env);
+                    let err = error_rate(&env);
+                    let is_dev = matches!(env.id, EnvironmentId::Development);
+                    view! {
+                        <div class="ss-health">
+                            <div class=format!("ss-pill {tone}")>
+                                <span class=format!("ss-dot {tone}")></span>
+                                {format!("{} · {}", label, status_label(&overall))}
+                            </div>
+                            <span class="ss-meta">{format!("probes {}/{} healthy", counts.ok, counts.total)}</span>
+                            <span class="ss-meta">{format!("err rate {err}")}</span>
+                            <span class="ss-meta">
+                                {format!("v{}+{}", version.version, sha7(&version.build_sha))}
+                            </span>
+                            <span class="ss-meta-right">{format!("collected {collected_env} · auto 3s")}</span>
+                        </div>
+
+                        <Show when=move || is_dev>
+                            <div style="padding:10px 24px 0">
+                                <div class="ss-live">
+                                    <strong>"Local stack."</strong>
+                                    " Full Compose/Docker view stays on the host: "
+                                    <code>"atlas-local status"</code>
+                                    " (parity). This page is deploy-safe telemetry only."
+                                </div>
+                            </div>
+                        </Show>
+                    }
+                })
+            }}
+
+            <div class="ss-tabs" role="tablist">
+                <button
+                    type="button"
+                    class=move || if active_tab.get() == "overview" { "ss-tab active" } else { "ss-tab" }
+                    on:click=move |_| active_tab.set("overview".into())
+                >"Overview"</button>
+                <button
+                    type="button"
+                    class=move || if active_tab.get() == "resources" { "ss-tab active" } else { "ss-tab" }
+                    on:click=move |_| active_tab.set("resources".into())
+                >"Capacity"</button>
+                <button
+                    type="button"
+                    class=move || if active_tab.get() == "telemetry" { "ss-tab active" } else { "ss-tab" }
+                    on:click=move |_| active_tab.set("telemetry".into())
+                >"Telemetry"</button>
+                <button
+                    type="button"
+                    class=move || if active_tab.get() == "versions" { "ss-tab active" } else { "ss-tab" }
+                    on:click=move |_| active_tab.set("versions".into())
+                >"Versions"</button>
+            </div>
         </div>
 
-        <div style="transition: opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);">
+        <div class="ss-canvas">
+            <div class="ss-live">
+                <strong>"Live contract."</strong>
+                " Status pills are computed "
+                <em>"inside"</em>
+                " each environment node. Dev downtime never paints Production red. Aggregate via "
+                <code>"GET /api/admin/system-status"</code>
+                " → "
+                <code>"fleet"</code>
+                " + "
+                <code>"environments[]"</code>
+                "."
+            </div>
+
             {move || {
                 let tab = active_tab.get();
                 let id = selected_env.get();
@@ -314,17 +358,28 @@ fn StatusBody(
                         .or_else(|| envs.first().cloned())
                 });
                 match (tab.as_str(), env) {
-                    ("overview", Some(env)) => view! { <OverviewTab env=env /> }.into_any(),
-                    ("resources", Some(env)) => {
-                        let fleet = fleet_store.with_value(|f| f.clone());
-                        view! { <CapacityTab fleet=fleet env=env /> }.into_any()
-                    }
-                    ("telemetry", Some(env)) => view! { <TelemetryTab env=env /> }.into_any(),
-                    ("versions", _) => view! {
-                        <VersionsTab envs=envs_for_versions.clone() collected=collected.clone() />
+                    ("overview", Some(env)) => view! {
+                        <div class="ss-pane active"><OverviewTab env=env /></div>
                     }
                     .into_any(),
-                    _ => view! { <div></div> }.into_any(),
+                    ("resources", Some(env)) => {
+                        let fleet = fleet_store.with_value(|f| f.clone());
+                        view! {
+                            <div class="ss-pane active"><CapacityTab fleet=fleet env=env /></div>
+                        }
+                        .into_any()
+                    }
+                    ("telemetry", Some(env)) => view! {
+                        <div class="ss-pane active"><TelemetryTab env=env /></div>
+                    }
+                    .into_any(),
+                    ("versions", _) => view! {
+                        <div class="ss-pane active">
+                            <VersionsTab envs=envs_for_versions.clone() />
+                        </div>
+                    }
+                    .into_any(),
+                    _ => view! { <div class="ss-pane active"></div> }.into_any(),
                 }
             }}
         </div>
@@ -334,10 +389,10 @@ fn StatusBody(
 #[component]
 fn OverviewTab(env: EnvironmentStatusNode) -> impl IntoView {
     let services = env.platform_services.clone();
-    let backend = env.backend_health.clone();
     let tenants = env.tenants.clone();
     let tenants_empty = tenants.is_empty();
     let tenants_list = tenants.clone();
+    let tenant_count = tenants.len();
     let incidents = env.incidents.clone();
     let incidents_empty = incidents.is_empty();
     let incidents_list = incidents.clone();
@@ -348,59 +403,58 @@ fn OverviewTab(env: EnvironmentStatusNode) -> impl IntoView {
     };
 
     view! {
-        <div class="grid gap-4" style="grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); max-width: 1100px;">
-            <div class="flex flex-col gap-4 min-w-0">
-                <section class="rounded-lg border p-4" style="border-color: var(--outline-variant, #ddd);">
-                    <div class="flex items-center justify-between gap-3 mb-3">
-                        <h2 class="text-sm font-semibold">"Incidents in this environment"</h2>
-                        <span class="text-xs" style="color:var(--text-muted)">{incident_sub}</span>
+        <div class="ss-grid">
+            <div class="ss-col">
+                <section class="ss-section">
+                    <div class="ss-section-hd">
+                        <div class="ss-section-title">"Incidents in this environment"</div>
+                        <div class="ss-section-sub">{incident_sub}</div>
                     </div>
-                    <Show when=move || incidents_empty fallback=move || view! {
-                        <div class="flex flex-col gap-2">
+                    <div class="ss-section-bd">
+                        <Show when=move || incidents_empty fallback=move || view! {
                             {incidents_list.clone().into_iter().map(|inc| {
-                                let color = match inc.severity {
-                                    IncidentSeverity::Bad => status_color(&HealthStatus::Down),
-                                    IncidentSeverity::Warn => status_color(&HealthStatus::Degraded),
+                                let tone = match inc.severity {
+                                    IncidentSeverity::Bad => "bad",
+                                    IncidentSeverity::Warn => "warn",
                                 };
                                 view! {
-                                    <div class="flex items-start gap-2.5 py-2 border-b" style="border-color: var(--outline-variant, #eee);">
-                                        <span class="inline-block h-2 w-2 rounded-full mt-1.5" style=format!("background:{color}")></span>
-                                        <div class="min-w-0">
-                                            <div class="text-sm font-semibold">{inc.title.clone()}</div>
-                                            <div class="text-[11px] font-mono mt-0.5" style="color:var(--text-muted)">
+                                    <div class="ss-incident">
+                                        <span class=format!("ss-dot {tone}")></span>
+                                        <div class="ss-incident-body">
+                                            <div class="ss-incident-title">{inc.title.clone()}</div>
+                                            <div class="ss-incident-meta">
                                                 {format!("{} · since {}", inc.target, inc.since)}
                                             </div>
                                         </div>
                                     </div>
                                 }
                             }).collect_view()}
-                        </div>
-                    }>
-                        <p class="text-sm" style="color:var(--text-muted)">"No failing probes in this environment."</p>
-                    </Show>
+                        }>
+                            <div class="ss-empty">"No failing probes in this environment."</div>
+                        </Show>
+                    </div>
                 </section>
 
-                <section class="rounded-lg border p-4" style="border-color: var(--outline-variant, #ddd);">
-                    <h2 class="text-sm font-semibold mb-3">"Platform services"</h2>
-                    <div class="flex flex-col gap-2 text-sm">
-                        <div class="flex items-center gap-2">
-                            <span class="inline-block h-2 w-2 rounded-full" style=format!("background:{}", status_color(&backend.status))></span>
-                            <span class="font-mono text-xs">"backend / DB"</span>
-                            <span style="color:var(--text-muted)" class="text-xs">
-                                {format!("{} · {}ms · {}", status_label(&backend.status), backend.check_latency_ms, backend.message)}
-                            </span>
-                        </div>
+                <section class="ss-section">
+                    <div class="ss-section-hd">
+                        <div class="ss-section-title">"Platform services"</div>
+                        <div class="ss-section-sub">"HTTP probes · this env only"</div>
+                    </div>
+                    <div class="ss-section-bd">
                         {services.into_iter().map(|svc| {
-                            let color = status_color(&svc.status);
-                            let label = status_label(&svc.status);
+                            let tone = status_tone(&svc.status);
+                            let lat = svc
+                                .latency_ms
+                                .map(|ms| format!("{ms}ms"))
+                                .unwrap_or_else(|| "—".into());
                             view! {
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-block h-2 w-2 rounded-full" style=format!("background:{color}")></span>
-                                    <span class="font-mono text-xs">{svc.name.clone()}</span>
-                                    <span class="text-xs" style="color:var(--text-muted)">{format!("{label} · {}", svc.detail)}</span>
-                                    {svc.latency_ms.map(|ms| view! {
-                                        <span class="text-xs font-mono" style="color:var(--text-muted)">{format!("{ms}ms")}</span>
-                                    })}
+                                <div class="ss-svc">
+                                    <span class=format!("ss-dot {tone}")></span>
+                                    <div>
+                                        <div class="ss-svc-name">{svc.name.clone()}</div>
+                                        <div class="ss-svc-detail">{svc.detail.clone()}</div>
+                                    </div>
+                                    <div class="ss-svc-lat">{lat}</div>
                                 </div>
                             }
                         }).collect_view()}
@@ -408,58 +462,63 @@ fn OverviewTab(env: EnvironmentStatusNode) -> impl IntoView {
                 </section>
             </div>
 
-            <section class="rounded-lg border p-4" style="border-color: var(--outline-variant, #ddd);">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <h2 class="text-sm font-semibold">"Tenants → Apps → Domains"</h2>
-                    <span class="text-xs" style="color:var(--text-muted)">{format!("{} tenants", tenants.len())}</span>
+            <section class="ss-section">
+                <div class="ss-section-hd">
+                    <div class="ss-section-title">"Tenants → Apps → Domains"</div>
+                    <div class="ss-section-sub">{format!("{tenant_count} tenants")}</div>
                 </div>
-                <Show when=move || tenants_empty fallback=move || view! {
-                    <div class="flex flex-col gap-3">
+                <div class="ss-section-bd gap-lg">
+                    <Show when=move || tenants_empty fallback=move || view! {
                         {tenants_list.clone().into_iter().map(|tenant| {
-                            let t_color = status_color(&tenant.status);
+                            let tone = status_tone(&tenant.status);
+                            let tenant_class = match tone {
+                                "ok" => "ss-tenant".to_string(),
+                                t => format!("ss-tenant {t}"),
+                            };
                             view! {
-                                <div class="border-l-2 pl-3" style=format!("border-color:{t_color}")>
-                                    <div class="flex items-center gap-2 text-sm font-medium">
-                                        <span class="inline-block h-2 w-2 rounded-full" style=format!("background:{t_color}")></span>
+                                <div class=tenant_class>
+                                    <div class="ss-tenant-hd">
+                                        <span class=format!("ss-dot {tone}")></span>
                                         {tenant.name.clone()}
-                                        <span class="text-xs font-mono" style="color:var(--text-muted)">
+                                        <span class="ss-tenant-meta">
                                             {format!("{} · {}", tenant.site_status, status_label(&tenant.status))}
                                         </span>
                                     </div>
-                                    <div class="mt-2 ml-2 flex flex-col gap-2">
-                                        {tenant.apps.into_iter().map(|app| {
-                                            let a_color = status_color(&app.status);
-                                            view! {
-                                                <div>
-                                                    <div class="flex items-center gap-2 text-xs">
-                                                        <span class="inline-block h-1.5 w-1.5 rounded-full" style=format!("background:{a_color}")></span>
-                                                        <span class="font-semibold">{app.app_type.clone()}</span>
-                                                        <span style="color:var(--text-muted)">{status_label(&app.status)}</span>
-                                                    </div>
-                                                    <ul class="mt-1 ml-4 list-none flex flex-col gap-1">
-                                                        {app.domains.into_iter().map(|d| {
-                                                            let d_color = status_color(&d.status);
-                                                            let latency = d.latency_ms.map(|ms| format!(" · {ms}ms")).unwrap_or_default();
-                                                            view! {
-                                                                <li class="font-mono text-[11px] flex items-center gap-2" style="color:var(--text-muted)">
-                                                                    <span class="inline-block h-1.5 w-1.5 rounded-full" style=format!("background:{d_color}")></span>
-                                                                    <span style="color:var(--on-surface, inherit)">{d.domain_name.clone()}</span>
-                                                                    <span>{format!("{}{}", status_label(&d.status), latency)}</span>
-                                                                </li>
-                                                            }
-                                                        }).collect_view()}
-                                                    </ul>
+                                    {tenant.apps.into_iter().map(|app| {
+                                        let a_tone = status_tone(&app.status);
+                                        view! {
+                                            <div class="ss-app">
+                                                <div class="ss-app-hd">
+                                                    <span class=format!("ss-dot sm {a_tone}")></span>
+                                                    <strong>{app.app_type.clone()}</strong>
+                                                    <span class="ss-tenant-meta">{status_label(&app.status)}</span>
                                                 </div>
-                                            }
-                                        }).collect_view()}
-                                    </div>
+                                                <ul class="ss-domains">
+                                                    {app.domains.into_iter().map(|d| {
+                                                        let d_tone = status_tone(&d.status);
+                                                        let lat = d
+                                                            .latency_ms
+                                                            .map(|ms| format!("{} · {ms}ms", status_label(&d.status)))
+                                                            .unwrap_or_else(|| status_label(&d.status).to_string());
+                                                        view! {
+                                                            <li>
+                                                                <span class=format!("ss-dot sm {d_tone}")></span>
+                                                                <span class="name">{d.domain_name.clone()}</span>
+                                                                <span>{lat}</span>
+                                                            </li>
+                                                        }
+                                                    }).collect_view()}
+                                                </ul>
+                                            </div>
+                                        }
+                                    }).collect_view()}
                                 </div>
                             }
                         }).collect_view()}
-                    </div>
-                }>
-                    <p class="text-sm" style="color:var(--text-muted)">"No tenants provisioned yet."</p>
-                </Show>
+                    }>
+                        <div class="ss-empty">"No tenants in this environment."</div>
+                    </Show>
+                </div>
             </section>
         </div>
     }
@@ -470,68 +529,88 @@ fn CapacityTab(fleet: FleetBlock, env: EnvironmentStatusNode) -> impl IntoView {
     let r = env.resources.clone();
     let label = env.label.clone();
     let db_ver = r.db_version.clone().unwrap_or_default();
-    let db_ver_short = db_ver.chars().take(80).collect::<String>();
     let err = error_rate(&env);
     let fc = fleet.capacity.clone();
     let shares = fleet.by_environment.clone();
+    let ai_queue = if r.ai_queue_paused {
+        "paused".to_string()
+    } else {
+        "running".to_string()
+    };
 
     view! {
-        <div class="flex flex-col gap-4 max-w-3xl">
-            <section class="rounded-lg border p-4" style="border-color: var(--outline-variant, #ddd);">
-                <h2 class="text-sm font-semibold mb-1">"Fleet totals"</h2>
-                <p class="text-xs mb-4" style="color:var(--text-muted)">
-                    "Sum across all reported environments — does not change when you select an env."
-                </p>
-                <div class="grid gap-3 mb-4" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+        <section class="ss-section">
+            <div class="ss-section-hd">
+                <div>
+                    <div class="ss-section-title">"Fleet totals"</div>
+                    <div class="ss-section-sub" style="margin-top:2px">
+                        "Sum across all reported environments — does not change when you select an env"
+                    </div>
+                </div>
+            </div>
+            <div class="ss-section-bd ss-fleet-cap">
+                <div class="ss-stats">
                     <StatCard label="Tenants" value=fc.tenant_count.to_string() />
                     <StatCard label="App instances" value=fc.app_instance_count.to_string() />
                     <StatCard label="Domains" value=fc.domain_count.to_string() />
                     <StatCard label="DB size" value=format_bytes(fc.db_size_bytes) />
-                    <StatCard label="DB sessions" value=fc.db_sessions.map(|n| n.to_string()).unwrap_or_else(|| "—".into()) />
+                    <StatCard
+                        label="DB sessions"
+                        value=fc.db_sessions.map(|n| n.to_string()).unwrap_or_else(|| "—".into())
+                    />
                     <StatCard label="AI queued" value=fc.ai_tasks_queued.to_string() />
                     <StatCard label="AI running" value=fc.ai_tasks_running.to_string() />
                 </div>
-                <div class="flex flex-col gap-2">
+                <div class="ss-share">
                     {shares.into_iter().map(|s| {
                         let pct = (s.share_of_tenants * 100.0).round() as i32;
                         let width = format!("{pct}%");
                         view! {
-                            <div class="grid gap-2.5 items-center text-xs" style="grid-template-columns: 88px minmax(0,1fr) 48px;">
-                                <span class="font-semibold" style="color:var(--text-secondary, var(--text-muted))">{s.label.clone()}</span>
-                                <div class="h-1.5 rounded overflow-hidden" style="background: var(--surface-container-high, #1a1a1a0a); border: 1px solid var(--outline-variant, #eee);">
-                                    <div class="h-full rounded" style=format!("width:{width}; background: var(--cobalt, #2563eb);")></div>
+                            <div class="ss-share-row">
+                                <span class="ss-share-lbl">{s.label.clone()}</span>
+                                <div class="ss-share-track">
+                                    <div class="ss-share-fill" style=format!("width:{width}")></div>
                                 </div>
-                                <span class="font-mono text-right" style="color:var(--text-muted)">{format!("{pct}%")}</span>
+                                <span class="ss-share-pct">{format!("{pct}%")}</span>
                             </div>
                         }
                     }).collect_view()}
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <section class="rounded-lg border p-4" style="border-color: var(--outline-variant, #ddd);">
-                <h2 class="text-sm font-semibold mb-1">"Selected environment"</h2>
-                <p class="text-xs mb-4" style="color:var(--text-muted)">
-                    {format!("{label} · database / workers for this environment only")}
-                </p>
-                <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+        <section class="ss-section">
+            <div class="ss-section-hd">
+                <div>
+                    <div class="ss-section-title">"Selected environment"</div>
+                    <div class="ss-section-sub" style="margin-top:2px">
+                        {format!("{label} · database / workers for this environment only")}
+                    </div>
+                </div>
+            </div>
+            <div class="ss-section-bd">
+                <div class="ss-stats">
                     <StatCard label="Tenants" value=r.tenant_count.to_string() />
                     <StatCard label="App instances" value=r.app_instance_count.to_string() />
                     <StatCard label="Domains" value=r.domain_count.to_string() />
                     <StatCard label="DB size" value=format_bytes(r.db_size_bytes) />
-                    <StatCard label="DB sessions" value=r.db_sessions.map(|n| n.to_string()).unwrap_or_else(|| "—".into()) />
+                    <StatCard
+                        label="DB sessions"
+                        value=r.db_sessions.map(|n| n.to_string()).unwrap_or_else(|| "—".into())
+                    />
                     <StatCard label="AI queued" value=r.ai_tasks_queued.to_string() />
                     <StatCard label="AI running" value=r.ai_tasks_running.to_string() />
-                    <StatCard label="AI queue" value=if r.ai_queue_paused { "paused".into() } else { "running".into() } />
+                    <StatCard label="AI queue" value=ai_queue />
                     <StatCard label="HTTP err rate" value=err />
                 </div>
-                <p class="mt-4 text-xs font-mono" style="color:var(--text-muted)">{db_ver_short}</p>
-                <div class="mt-4 flex gap-2">
-                    <a class="btn btn-ghost btn-sm" href="/admin/aitasks" style="text-decoration:none">"AI Task Monitor →"</a>
-                    <a class="btn btn-ghost btn-sm" href="/logs" style="text-decoration:none">"Audit Logs →"</a>
-                    <a class="btn btn-ghost btn-sm" href="/admin/integrations" style="text-decoration:none">"Integrations →"</a>
+                <p class="ss-note">{db_ver}</p>
+                <div class="ss-links">
+                    <a class="btn btn-ghost btn-sm" href="/admin/aitasks">"AI Task Monitor →"</a>
+                    <a class="btn btn-ghost btn-sm" href="/logs">"Audit Logs →"</a>
+                    <a class="btn btn-ghost btn-sm" href="/admin/integrations">"Integrations →"</a>
                 </div>
-            </section>
-        </div>
+            </div>
+        </section>
     }
 }
 
@@ -543,80 +622,89 @@ fn TelemetryTab(env: EnvironmentStatusNode) -> impl IntoView {
     let metrics_available = t.metrics_available;
     let detail = t.detail.clone();
     view! {
-        <section class="rounded-lg border p-4 max-w-3xl" style="border-color: var(--outline-variant, #ddd);">
-            <h2 class="text-sm font-semibold mb-1">"Sanitized counters"</h2>
-            <p class="text-xs mb-4" style="color:var(--text-muted)">
-                {format!(
-                    "{detail} — aggregated server-side from the in-process registry (no METRICS_TOKEN in the browser)."
-                )}
-            </p>
-            <Show when=move || counters_empty fallback=move || view! {
-                <div class="flex flex-col gap-2">
+        <section class="ss-section">
+            <div class="ss-section-hd">
+                <div>
+                    <div class="ss-section-title">"Sanitized counters"</div>
+                    <div class="ss-section-sub" style="margin-top:2px">
+                        "Server-side aggregates for this env — no METRICS_TOKEN in the browser"
+                    </div>
+                </div>
+            </div>
+            <div class="ss-section-bd">
+                <p class="ss-note">{detail}</p>
+                <Show when=move || counters_empty fallback=move || view! {
                     {counters.clone().into_iter().map(|c| {
                         view! {
-                            <div class="flex justify-between gap-4 text-sm font-mono border-b py-2" style="border-color: var(--outline-variant, #eee);">
-                                <span>{c.name.clone()}</span>
-                                <span class="font-semibold">{format!("{:.0}", c.value)}</span>
+                            <div class="ss-counter">
+                                <span class="ss-counter-name">{c.name.clone()}</span>
+                                <span class="ss-counter-val">{format!("{:.0}", c.value)}</span>
                             </div>
                         }
                     }).collect_view()}
-                </div>
-            }>
-                <p class="text-sm" style="color:var(--text-muted)">
-                    {if metrics_available {
-                        "No labeled counters observed yet (quiet process)."
-                    } else {
-                        "Metrics unavailable."
-                    }}
-                </p>
-            </Show>
+                }>
+                    <div class="ss-empty">
+                        {if metrics_available {
+                            "No labeled counters observed yet (quiet process)."
+                        } else {
+                            "Metrics unavailable for this environment."
+                        }}
+                    </div>
+                </Show>
+            </div>
         </section>
     }
 }
 
 #[component]
-fn VersionsTab(envs: Vec<EnvironmentStatusNode>, collected: String) -> impl IntoView {
-    let _ = collected;
+fn VersionsTab(envs: Vec<EnvironmentStatusNode>) -> impl IntoView {
     view! {
-        <section class="rounded-lg border p-4 max-w-3xl" style="border-color: var(--outline-variant, #ddd);">
-            <h2 class="text-sm font-semibold mb-1">"Build drift across environments"</h2>
-            <p class="text-xs mb-4" style="color:var(--text-muted)">
-                "Compare SHA / version so UAT lag vs Production is obvious."
-            </p>
-            <div class="flex flex-col gap-2">
-                {envs.into_iter().map(|env| {
-                    let color = status_color(&env.overall_status);
-                    view! {
-                        <div class="flex justify-between gap-3 py-2 border-b text-sm" style="border-color: var(--outline-variant, #eee);">
-                            <span class="font-semibold flex items-center gap-2">
-                                <span class="inline-block h-2 w-2 rounded-full" style=format!("background:{color}")></span>
-                                {env.label.clone()}
-                            </span>
-                            <span class="font-mono text-xs" style="color:var(--text-muted)">
-                                {format!(
-                                    "v{} · {} · {}",
-                                    env.version.version,
-                                    env.version.build_sha.chars().take(7).collect::<String>(),
-                                    env.version.build_date
-                                )}
-                            </span>
-                        </div>
-                    }
-                }).collect_view()}
+        <section class="ss-section">
+            <div class="ss-section-hd">
+                <div>
+                    <div class="ss-section-title">"Build drift across environments"</div>
+                    <div class="ss-section-sub" style="margin-top:2px">
+                        "Compare SHA / version so UAT lag vs Production is obvious"
+                    </div>
+                </div>
             </div>
-            <p class="mt-4 text-xs" style="color:var(--text-muted)">
-                "Useful when diagnosing “works in UAT, broken in prod” — same binary or not."
-            </p>
+            <div class="ss-section-bd">
+                <div class="ss-drift">
+                    {envs.into_iter().map(|env| {
+                        let tone = status_tone(&env.overall_status);
+                        view! {
+                            <div class="ss-drift-row">
+                                <span class="ss-drift-env">
+                                    <span class=format!("ss-dot {tone}")></span>
+                                    {env.label.clone()}
+                                </span>
+                                <span class="ss-drift-sha">
+                                    {format!(
+                                        "v{} · {} · {}",
+                                        env.version.version,
+                                        sha7(&env.version.build_sha),
+                                        env.version.build_date
+                                    )}
+                                </span>
+                            </div>
+                        }
+                    }).collect_view()}
+                </div>
+                <p class="ss-note">
+                    "Useful when diagnosing “works in UAT, broken in prod” — same binary or not."
+                </p>
+            </div>
         </section>
     }
 }
 
 #[component]
 fn StatCard(label: &'static str, value: String) -> impl IntoView {
+    let small = value.len() > 8;
     view! {
-        <div class="rounded-lg p-3" style="background: var(--surface-container-high, #1a1a1a0a);">
-            <div class="text-[10px] uppercase tracking-wide mb-1" style="color:var(--text-muted)">{label}</div>
-            <div class="text-lg font-semibold font-mono">{value}</div>
+        <div class="ss-stat">
+            <div class="ss-stat-lbl">{label}</div>
+            <div class=if small { "ss-stat-val sm" } else { "ss-stat-val" }>{value}</div>
         </div>
     }
 }
