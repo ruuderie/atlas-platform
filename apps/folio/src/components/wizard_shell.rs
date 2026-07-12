@@ -101,6 +101,31 @@ pub struct WizardCtxStep {
     pub bullets: &'static [&'static str],
 }
 
+/// Verified identity established by WizardShell (session, peek, or OTP).
+/// Provided to wizard children via context — use [`VerifiedEmailField`].
+#[derive(Clone, Copy)]
+pub struct WizardAuthCtx {
+    pub email: Signal<Option<String>>,
+}
+
+fn accept_verified_email(
+    email: String,
+    verified_email: RwSignal<Option<String>>,
+    session_email_sig: Option<RwSignal<Option<String>>>,
+    pre_auth_done: RwSignal<bool>,
+) {
+    let email = email.trim().to_string();
+    if email.is_empty() {
+        return;
+    }
+    crate::auth::stash_verified_email(&email);
+    verified_email.set(Some(email.clone()));
+    if let Some(sig) = session_email_sig {
+        sig.set(Some(email));
+    }
+    pre_auth_done.set(true);
+}
+
 // ── WizardShell component ─────────────────────────────────────────────────────
 
 /// Shared split-panel wizard shell.
@@ -165,6 +190,10 @@ pub fn WizardShell(
 
     // Whether the pre-auth step has been completed (either via OTP or existing session)
     let pre_auth_done: RwSignal<bool> = RwSignal::new(false);
+    let verified_email: RwSignal<Option<String>> = RwSignal::new(None);
+    provide_context(WizardAuthCtx {
+        email: verified_email.into(),
+    });
 
     // Local OTP flow state
     let otp_email: RwSignal<String> = RwSignal::new(String::new());
@@ -174,27 +203,29 @@ pub fn WizardShell(
     let otp_verifying: RwSignal<bool> = RwSignal::new(false);
     let otp_error: RwSignal<Option<String>> = RwSignal::new(None);
 
-    // Client-only session probe. Do NOT gate the form behind an Effect+spawn_local
-    // flag (that pattern hangs across SSR/hydrate and leaves "Preparing your setup"
-    // forever). Show OTP immediately; upgrade to the wizard if a session exists.
-    // Fresh magic-link users often have a valid cookie while /api/folio/me is still
-    // 403 (no Folio role yet) — peek_auth_session covers that case.
+    // Client-only session probe. Fresh magic-link users often have a valid cookie
+    // while /api/folio/me is still 403 — peek_auth_session covers that case.
+    // sessionStorage is a same-tab assist after magic-link verify (never alone).
     let session_email_sig = session_email;
     let session_probe = LocalResource::new(|| async {
         match crate::auth::get_session().await {
             Ok(info) => Some(info.email),
-            Err(_) => crate::auth::peek_auth_session()
-                .await
-                .ok()
-                .map(|p| p.email),
+            Err(_) => match crate::auth::peek_auth_session().await {
+                Ok(peek) => Some(peek.email),
+                Err(_) => {
+                    // Brief retry — cookie from Set-Cookie may not be on the first
+                    // server-fn round-trip after magic-link redirect.
+                    match crate::auth::peek_auth_session().await {
+                        Ok(peek) => Some(peek.email),
+                        Err(_) => crate::auth::read_stashed_verified_email(),
+                    }
+                }
+            },
         }
     });
     Effect::new(move |_| {
         if let Some(Some(email)) = session_probe.get() {
-            if let Some(sig) = session_email_sig {
-                sig.set(Some(email));
-            }
-            pre_auth_done.set(true);
+            accept_verified_email(email, verified_email, session_email_sig, pre_auth_done);
         }
     });
 
@@ -254,10 +285,12 @@ pub fn WizardShell(
             otp_verifying.set(false);
             match result {
                 Ok(resp) => {
-                    if let Some(sig) = session_email_sig {
-                        sig.set(Some(resp.email));
-                    }
-                    pre_auth_done.set(true);
+                    accept_verified_email(
+                        resp.email,
+                        verified_email,
+                        session_email_sig,
+                        pre_auth_done,
+                    );
                 }
                 Err(e) => {
                     otp_error.set(Some(format!("Incorrect code — please try again. ({e})")));
@@ -874,6 +907,36 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
     box-shadow: 0 0 0 3px rgba(99,102,241,.1);
 }
 .wiz-inp::placeholder { color: #9ca3af; }
+.wiz-inp--readonly {
+    color: #374151;
+    background: #eef1f5;
+    border-color: #e5e7eb;
+    cursor: default;
+}
+.wiz-inp--readonly:focus {
+    border-color: #e5e7eb;
+    box-shadow: none;
+}
+.wiz-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.wiz-verified-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #059669;
+    background: rgba(16,185,129,.1);
+    border: 1px solid rgba(16,185,129,.35);
+    border-radius: 20px;
+    padding: 2px 8px;
+}
 select.wiz-inp {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");

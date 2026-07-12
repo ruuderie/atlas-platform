@@ -21,11 +21,20 @@ pub fn Verify() -> impl IntoView {
     let result: Resource<Result<crate::auth::SessionInfo, _>> =
         Resource::new(token, |t| crate::auth::verify_magic_link(t));
 
+    // Same-tab handoff: stash verified email before redirect so WizardShell
+    // can skip OTP even if the first /api/folio/me probe is 403.
+    Effect::new(move |_| {
+        if let Some(Ok(info)) = result.get() {
+            crate::auth::stash_verified_email(&info.email);
+        }
+    });
+
     view! {
         <div class="verify-page">
             <Suspense fallback=|| view! { <p class="verify-msg">"Verifying…"</p> }>
                 {move || result.get().map(|r| match r {
                     Ok(info) => {
+                        crate::auth::stash_verified_email(&info.email);
                         let dest = if !info.has_passkey {
                             // First login — set up passkey before anything else.
                             "/auth/passkey-setup"

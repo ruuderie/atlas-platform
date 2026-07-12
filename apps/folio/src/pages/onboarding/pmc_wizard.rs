@@ -14,6 +14,7 @@
 // Mode is auto-detected from the resolved invite code context.
 // Falls back to Standalone if no code is present (e.g. admin-initiated).
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -191,6 +192,7 @@ pub fn PmcWizard() -> impl IntoView {
     let pm_email = RwSignal::new(String::new());
     let pm_phone = RwSignal::new(String::new());
     let pm_title = RwSignal::new("On-site Manager".to_string());
+
     let terms_ok = RwSignal::new(false);
 
     // ── Submit state ──────────────────────────────────────────────────────────
@@ -313,6 +315,9 @@ pub fn PmcWizard() -> impl IntoView {
             is_last_step=is_last
             next_label=next_label
         >
+            <SyncVerifiedEmail email=contact_email/>
+            <SyncVerifiedEmail email=pm_email/>
+
             // ── ERROR BANNER ──────────────────────────────────────────────────
             <Show when=move || submit_err.get().is_some()>
                 <div style="background:#ffdad6; border:1px solid rgba(186,26,26,.3); border-radius:10px; padding:12px 16px; margin-bottom:24px; font-size:13px; color:#93000a; display:flex; align-items:center; gap:8px;">
@@ -391,18 +396,13 @@ pub fn PmcWizard() -> impl IntoView {
                         </div>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
-                                <label class="wiz-label">"Email"</label>
-                                <input class="wiz-inp" type="email" placeholder="sarah@meridianpm.com"
-                                    prop:value=move || contact_email.get()
-                                    on:input=move |e| contact_email.set(event_target_value(&e))/>
-                            </div>
-                            <div class="wiz-f">
                                 <label class="wiz-label">"Phone"</label>
                                 <input class="wiz-inp" type="tel" placeholder="+1 (305) 000-0000"
                                     prop:value=move || contact_phone.get()
                                     on:input=move |e| contact_phone.set(event_target_value(&e))/>
                             </div>
                         </div>
+                        <VerifiedEmailField/>
                     </div>
                 </div>
             </Show>
@@ -670,18 +670,13 @@ pub fn PmcWizard() -> impl IntoView {
                         </div>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
-                                <label class="wiz-label">"Email"</label>
-                                <input class="wiz-inp" type="email" placeholder="marcus@email.com"
-                                    prop:value=move || pm_email.get()
-                                    on:input=move |e| pm_email.set(event_target_value(&e))/>
-                            </div>
-                            <div class="wiz-f">
                                 <label class="wiz-label">"Phone"</label>
                                 <input class="wiz-inp" type="tel" placeholder="+1 (312) 000-0000"
                                     prop:value=move || pm_phone.get()
                                     on:input=move |e| pm_phone.set(event_target_value(&e))/>
                             </div>
                         </div>
+                        <VerifiedEmailField/>
                         <div class="wiz-f">
                             <label class="wiz-label">"Your Title"</label>
                             <input class="wiz-inp" type="text" placeholder="e.g. On-site Manager, Property Manager"

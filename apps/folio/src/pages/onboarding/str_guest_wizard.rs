@@ -8,6 +8,7 @@
 //   3. Guest Profile
 //   4. House Rules & Check-In
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -123,6 +124,8 @@ pub fn StrGuestWizard() -> impl IntoView {
             ctx_headline="Book your stay" ctx_body=ctx_body invite_code=invite_sig
             on_next=on_next on_prev=on_prev is_last_step=is_last next_label=next_label>
 
+            <SyncVerifiedEmail email=confirm_email/>
+
             // ── Step 1: Select Your Stay ────────────────────────────────────
             <Show when=move || current_idx.get() == 0>
                 <div class="wiz-anim">
@@ -213,10 +216,7 @@ pub fn StrGuestWizard() -> impl IntoView {
                             </button>
                         </div>
                         <div class="wiz-f" style="margin-top:14px;">
-                            <label class="wiz-label">"Your Email"</label>
-                            <input class="wiz-inp" type="email" placeholder="jamie@email.com"
-                                prop:value=move || confirm_email.get()
-                                on:input=move |e| confirm_email.set(event_target_value(&e))/>
+                            <VerifiedEmailField/>
                         </div>
                     </div>
                 </div>

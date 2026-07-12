@@ -10,6 +10,7 @@
 //
 // Navigates to /po on completion.
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -120,6 +121,8 @@ pub fn PropertyOwnerWizard() -> impl IntoView {
             ctx_headline="Track your property. For free." ctx_body=ctx_body invite_code=invite_sig
             on_next=on_next on_prev=on_prev is_last_step=is_last next_label=next_label>
 
+            <SyncVerifiedEmail email=email/>
+
             // ── Step 1: Your details ────────────────────────────────────────
             <Show when=move || current_idx.get() == 0>
                 <div class="wiz-anim">
@@ -141,10 +144,7 @@ pub fn PropertyOwnerWizard() -> impl IntoView {
                                     prop:value=move || last.get()
                                     on:input=move |e| last.set(event_target_value(&e))/></div>
                         </div>
-                        <div class="wiz-f"><label class="wiz-label">"Email Address"</label>
-                            <input class="wiz-inp" type="email" placeholder="sarah.wilson@gmail.com"
-                                prop:value=move || email.get()
-                                on:input=move |e| email.set(event_target_value(&e))/></div>
+                        <VerifiedEmailField/>
                         <div class="wiz-f"><label class="wiz-label">"Phone (optional)"</label>
                             <input class="wiz-inp" type="tel" placeholder="+1 (555) 000-0000"
                                 prop:value=move || phone.get()

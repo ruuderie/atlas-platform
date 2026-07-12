@@ -6,4 +6,5 @@ pub mod network_invite_panel;
 pub mod onboarding_banner;
 pub mod scorecard_nudge_host;
 pub mod sidebar;
+pub mod verified_email_field;
 pub mod wizard_shell;

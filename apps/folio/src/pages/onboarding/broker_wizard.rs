@@ -9,6 +9,7 @@
 //   4. Agent Roster
 //   5. Commission Plans
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -140,6 +141,8 @@ pub fn BrokerWizard() -> impl IntoView {
             ctx_headline="Set up your Brokerage" ctx_body=ctx_body invite_code=invite_sig
             on_next=on_next on_prev=on_prev is_last_step=is_last next_label=next_label>
 
+            <SyncVerifiedEmail email=email/>
+
             // ── Step 1: Broker Profile & License ────────────────────────────
             <Show when=move || current_idx.get() == 0>
                 <div class="wiz-anim">
@@ -162,15 +165,12 @@ pub fn BrokerWizard() -> impl IntoView {
                                     on:input=move |e| last.set(event_target_value(&e))/></div>
                         </div>
                         <div class="wiz-inp-row">
-                            <div class="wiz-f"><label class="wiz-label">"Email"</label>
-                                <input class="wiz-inp" type="email" placeholder="diana@apexrealty.com"
-                                    prop:value=move || email.get()
-                                    on:input=move |e| email.set(event_target_value(&e))/></div>
                             <div class="wiz-f"><label class="wiz-label">"Phone"</label>
                                 <input class="wiz-inp" type="tel" placeholder="+1 (305) 000-0000"
                                     prop:value=move || phone.get()
                                     on:input=move |e| phone.set(event_target_value(&e))/></div>
                         </div>
+                        <VerifiedEmailField/>
                     </div>
 
                     <div class="wiz-card">

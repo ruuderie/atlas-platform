@@ -17,6 +17,7 @@
 // The invite code is resolved on mount and shown in the WizardShell context panel
 // (landlord/PMC name, property context).
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -282,6 +283,8 @@ pub fn VendorWizard() -> impl IntoView {
             on_next=on_next on_prev=on_prev
             is_last_step=is_last next_label=next_label>
 
+            <SyncVerifiedEmail email=email/>
+
             // Error banner
             <Show when=move || submit_err.get().is_some()>
                 <div style="background:#ffdad6; border:1px solid rgba(186,26,26,.3); border-radius:10px; padding:12px 16px; margin-bottom:24px; font-size:13px; color:#93000a; display:flex; align-items:center; gap:8px;">
@@ -349,13 +352,8 @@ pub fn VendorWizard() -> impl IntoView {
                                     prop:value=move || phone.get()
                                     on:input=move |e| phone.set(event_target_value(&e))/>
                             </div>
-                            <div class="wiz-f">
-                                <label class="wiz-label">"Dispatch Email"</label>
-                                <input class="wiz-inp" type="email" placeholder="dispatch@profixservices.com"
-                                    prop:value=move || email.get()
-                                    on:input=move |e| email.set(event_target_value(&e))/>
-                            </div>
                         </div>
+                        <VerifiedEmailField/>
                     </div>
                     <div class="wiz-card">
                         <div class="wiz-ct">"Business Address"</div>

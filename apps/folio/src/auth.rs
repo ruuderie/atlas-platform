@@ -124,6 +124,50 @@ fn default_wizard_total() -> usize {
     7
 }
 
+/// sessionStorage key written after magic-link / OTP so onboarding can skip
+/// re-asking for email in the same browser tab.
+pub const FOLIO_VERIFIED_EMAIL_KEY: &str = "folio_verified_email";
+
+/// Persist verified email for same-tab handoff into onboarding wizards.
+pub fn stash_verified_email(email: &str) {
+    let email = email.trim();
+    if email.is_empty() {
+        return;
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.session_storage() {
+                let _ = storage.set_item(FOLIO_VERIFIED_EMAIL_KEY, email);
+            }
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = email;
+    }
+}
+
+/// Read stashed verified email (same-tab assist after magic-link verify).
+pub fn read_stashed_verified_email() -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let window = web_sys::window()?;
+        let storage = window.session_storage().ok()??;
+        let email = storage.get_item(FOLIO_VERIFIED_EMAIL_KEY).ok()??;
+        let email = email.trim().to_string();
+        if email.is_empty() {
+            None
+        } else {
+            Some(email)
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        None
+    }
+}
+
 // ── Shared SSR token extractor ────────────────────────────────────────────────
 //
 // Single authoritative function for extracting the session token from an
@@ -399,7 +443,7 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
 
         let payload = serde_json::json!({ "token": token });
 
-        let (_, session_token_opt) = crate::atlas_client::post_returning_session::<
+        let (body, session_token_opt) = crate::atlas_client::post_returning_session::<
             _,
             serde_json::Value,
         >("/api/auth/magic-link/verify", &payload)
@@ -421,10 +465,64 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
             }
         }
 
-        // Fetch Folio identity using the captured session token directly.
-        crate::atlas_client::authenticated_get::<SessionInfo>("/api/folio/me", &session_token, None)
-            .await
-            .map_err(|e| ServerFnError::new(e))
+        // Prefer full Folio identity when RBAC exists. If /api/folio/me fails
+        // (common before onboarding), fall back to verify-response user email
+        // so the client can still enter wizards without OTP again.
+        match crate::atlas_client::authenticated_get::<SessionInfo>(
+            "/api/folio/me",
+            &session_token,
+            None,
+        )
+        .await
+        {
+            Ok(info) => Ok(info),
+            Err(_) => {
+                let user = body.get("user").ok_or_else(|| {
+                    ServerFnError::new("Session created but Folio identity unavailable")
+                })?;
+                let email = user
+                    .get("email")
+                    .and_then(|v| v.as_str())
+                    .filter(|e| !e.is_empty())
+                    .ok_or_else(|| ServerFnError::new("Verify response has no email"))?
+                    .to_string();
+                let user_id = user
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                    .unwrap_or_else(uuid::Uuid::nil);
+                let first = user
+                    .get("first_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let last = user
+                    .get("last_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let display_name = {
+                    let n = format!("{first} {last}").trim().to_string();
+                    if n.is_empty() {
+                        None
+                    } else {
+                        Some(n)
+                    }
+                };
+                Ok(SessionInfo {
+                    user_id,
+                    tenant_id: None,
+                    email,
+                    display_name,
+                    folio_role: FolioRole::Landlord,
+                    has_passkey: false,
+                    onboarding_complete: false,
+                    wizard_steps_completed: 0,
+                    wizard_steps_total: default_wizard_total(),
+                    wizard_dismissed: false,
+                    has_str_assets: false,
+                    active_lease_type: None,
+                })
+            }
+        }
     }
     #[cfg(not(feature = "ssr"))]
     {

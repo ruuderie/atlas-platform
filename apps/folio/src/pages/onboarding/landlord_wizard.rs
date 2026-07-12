@@ -17,6 +17,7 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::components::verified_email_field::VerifiedEmailField;
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardCtxStep, WizardShell, WizardStepDesc,
 };
@@ -421,6 +422,7 @@ pub fn LandlordWizard() -> impl IntoView {
                                 prop:value=move || phone.get()
                                 on:input=move |e| phone.set(event_target_value(&e))/>
                         </div>
+                        <VerifiedEmailField/>
                     </div>
 
                     <div class="wiz-card">

@@ -8,6 +8,7 @@
 //   3. Brokerage Assignment
 //   4. Tools & Notifications
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -137,6 +138,8 @@ pub fn AgentWizard() -> impl IntoView {
             ctx_headline="Set up your Agent profile" ctx_body=ctx_body invite_code=invite_sig
             on_next=on_next on_prev=on_prev is_last_step=is_last next_label=next_label>
 
+            <SyncVerifiedEmail email=email/>
+
             // ── Step 1: Profile & License ───────────────────────────────────
             <Show when=move || current_idx.get() == 0>
                 <div class="wiz-anim">
@@ -163,11 +166,8 @@ pub fn AgentWizard() -> impl IntoView {
                                 <input class="wiz-inp" type="tel" placeholder="+1 (555) 000-0000"
                                     prop:value=move || phone.get()
                                     on:input=move |e| phone.set(event_target_value(&e))/></div>
-                            <div class="wiz-f"><label class="wiz-label">"Business Email"</label>
-                                <input class="wiz-inp" type="email" placeholder="marcus@apexrealty.com"
-                                    prop:value=move || email.get()
-                                    on:input=move |e| email.set(event_target_value(&e))/></div>
                         </div>
+                        <VerifiedEmailField/>
                     </div>
 
                     <div class="wiz-card">
