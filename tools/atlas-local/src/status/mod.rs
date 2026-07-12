@@ -5,7 +5,7 @@ mod plain;
 mod resources;
 mod tui;
 
-pub use guidance::{Guidance, StackHealth};
+pub use guidance::{Guidance, StackHealth, SuggestedRefresh, mode_label, sync_cookbook};
 pub use resources::{TelemetryHistory, format_bytes, sparkline, sparkline_u64};
 
 use crate::compose::{self, ContainerRow};

@@ -4,20 +4,30 @@ use super::{StatusSnapshot, format_bytes};
 
 pub fn print(snap: &StatusSnapshot) {
     let guide = snap.guidance();
+    let hot = crate::compose::hot_mode();
+    let mode = super::mode_label(hot);
 
     println!();
     println!("═══ Atlas local status ═══");
     println!();
+    println!("Mode: {mode}");
+    println!();
     println!("Next steps — {}", guide.headline);
     println!("  {}", guide.x_refresh_hint());
-    println!("  (TUI: press x to run that refresh · r only reloads the panel)");
+    println!("  (TUI: press ? for sync guide · x to run that refresh · r only reloads the panel)");
     for line in &guide.commands {
+        println!("  {line}");
+    }
+    println!();
+    println!("Sync after code changes (same as TUI ?)");
+    for line in super::sync_cookbook(hot) {
         println!("  {line}");
     }
     println!();
 
     println!("System");
     println!("  Root:          {}", snap.root.display());
+    println!("  Mode:          {mode}");
     println!(
         "  Env files:     .env {}   .env.local {}",
         if snap.env_ok { "✓" } else { "✗" },

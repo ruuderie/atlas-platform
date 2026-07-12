@@ -107,7 +107,8 @@ From **`atlas-local status` → tab 4 Env**: `s` SMTP form (writes `.env.local`)
 
 | Key | Action |
 |-----|--------|
-| **`x`** | Run the first Next-steps `refresh <services…>` (affected apps only, e.g. `network-instance anchor`) |
+| **`?`** | **Sync guide** — after a Rust/UI/.env change, which command updates the running app (parity vs hot, refresh vs watch, `--no-build`, trunk) |
+| **`x`** | Run the first Next-steps `refresh <services…>` (honors `--no-build` on that line) |
 | **`r`** | Reload the status panel only — does **not** recreate containers |
 | `q` | Quit |
 | `1`–`4` / tab | Switch tabs |
@@ -115,16 +116,20 @@ From **`atlas-local status` → tab 4 Env**: `s` SMTP form (writes `.env.local`)
 
 Panel auto-refreshes every 3s. CLI equivalent of `x`: `cargo run -p atlas-local -- refresh <services…>`.
 
-When something fails, **Next steps** picks commands from stack state (down → `up`; unhealthy → `logs`/`refresh`; schema missing → wait/`reset-db`; ready → `refresh` after edits). Recovery ladder: `refresh` → `down && up` → `reset-db` → `up`.
+When something fails, **Next steps** picks commands from stack state (down → `up`; unhealthy → `logs`/`refresh`; schema missing → wait/`reset-db`; ready → sync cookbook). Recovery ladder: `refresh` → `down && up` → `reset-db` → `up`.
 
 ### Edit → see cycle
 
-| Mode | After you edit |
-|------|----------------|
-| Parity (default) | `atlas-local refresh` / `refresh backend` (rebuild image) |
-| Hot | `atlas-local watch` or `refresh` |
+| What you changed | Mode | Command | What it does |
+|------------------|------|---------|--------------|
+| Backend Rust | **Parity** (default) | `refresh backend` | Rebuilds Docker image + recreates container (correct; can take minutes) |
+| `.env.local` / SMTP only | Parity or Hot | `refresh backend --no-build` | Recreates backend without image rebuild (TUI Env **`a`**) |
+| platform-admin UI (Leptos/WASM) | Either | `refresh platform-admin --no-build` | Wipes `dist/`, host `trunk build`, recreates (often the slow step) |
+| Backend + admin | Parity | `refresh platform-admin backend` | Trunk + backend image rebuild |
+| Backend Rust, tight loop | **Hot** | `up --hot` then `watch` | Compose Watch rebuilds on save (live; not server-like) |
+| Status panel only | Either | TUI **`r`** | Reloads probes — does **not** rebuild apps |
 
-Every subcommand has `--help` (and many have longer `--help` / `long_about`). Errors are **problem → fix** with concrete commands.
+**Nothing is live in parity** until you `refresh` (or rebuild). Prefer parity for confidence; use hot/`watch` only when you need a mounted Rust loop.
 
 ---
 

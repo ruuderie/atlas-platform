@@ -19,40 +19,132 @@ pub struct Guidance {
     pub commands: Vec<String>,
 }
 
+/// Human label for the current Compose mode (parity vs hot).
+pub fn mode_label(hot: bool) -> &'static str {
+    if hot {
+        "HOT"
+    } else {
+        "PARITY"
+    }
+}
+
+/// Cookbook: after a code/env change, which command actually updates the running app.
+/// Shown in status Next steps (when Ready), plain status, and the TUI `?` overlay.
+pub fn sync_cookbook(hot: bool) -> Vec<String> {
+    let mut lines = Vec::new();
+    if hot {
+        lines.push(
+            "# Mode: HOT — cargo run + volume mounts (live iteration; cold /health is slow)"
+                .into(),
+        );
+        lines.push("# Not server-like. Prefer PARITY (`up` without --hot) for confidence.".into());
+        lines.push("# ── After you change code ──".into());
+        lines.push("# Live on save (leave running; Compose Watch rebuilds backend):".into());
+        lines.push("cargo run -p atlas-local -- watch".into());
+        lines.push("# One-shot backend recreate (sources already mounted; no image rebuild):".into());
+        lines.push("cargo run -p atlas-local -- refresh backend --no-build".into());
+        lines.push(
+            "# platform-admin Leptos/WASM — always host `trunk build` (minutes), then recreate:"
+                .into(),
+        );
+        lines.push("cargo run -p atlas-local -- refresh platform-admin --no-build".into());
+        lines.push("# Back to server-like confidence:".into());
+        lines.push("cargo run -p atlas-local -- down".into());
+        lines.push("cargo run -p atlas-local -- up".into());
+    } else {
+        lines.push(
+            "# Mode: PARITY — baked binaries ≈ server (preferred for confidence)".into(),
+        );
+        lines.push("# Containers do NOT pick up Rust edits until you refresh (or rebuild).".into());
+        lines.push("# ── After you change code ──".into());
+        lines.push("# Backend Rust → rebuild image + recreate (correct, can take minutes):".into());
+        lines.push("cargo run -p atlas-local -- refresh backend".into());
+        lines.push("# .env.local / SMTP only → recreate, skip image rebuild:".into());
+        lines.push("cargo run -p atlas-local -- refresh backend --no-build".into());
+        lines.push(
+            "# platform-admin UI (Rust/CSS/WASM) → wipe dist + host trunk (slow), no image:"
+                .into(),
+        );
+        lines.push("cargo run -p atlas-local -- refresh platform-admin --no-build".into());
+        lines.push("# Backend + admin together (default refresh also --build):".into());
+        lines.push("cargo run -p atlas-local -- refresh platform-admin backend".into());
+        lines.push("# Live save-loop (switches to HOT — diverges from server):".into());
+        lines.push("#   cargo run -p atlas-local -- up --hot".into());
+        lines.push("#   cargo run -p atlas-local -- watch".into());
+    }
+    lines.push(
+        "# TUI: ? = this guide · x = first refresh in Next steps · r = reload panel only".into(),
+    );
+    lines.push(
+        "# r never rebuilds apps. x runs the first refresh line as written (honors --no-build)."
+            .into(),
+    );
+    lines
+}
+
+/// Parsed first `refresh …` line from Next steps (for TUI `x`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SuggestedRefresh {
+    /// Empty = all default app services.
+    pub services: Vec<String>,
+    /// `true` = Docker `--build` (parity Rust). `false` = `--no-build`.
+    pub build: bool,
+}
+
 impl Guidance {
-    /// First `atlas-local -- refresh [services…]` from Next steps (skips comments).
-    /// Empty slice means bare `refresh` (all app services Compose knows).
-    /// `None` means no refresh line (e.g. stack down → use `up`).
-    pub fn suggested_refresh_services(&self) -> Option<Vec<String>> {
+    /// First runnable `cargo run -p atlas-local -- refresh …` from Next steps.
+    /// `None` when stack is down (use `up`) or no refresh line exists.
+    pub fn suggested_refresh(&self) -> Option<SuggestedRefresh> {
         for cmd in &self.commands {
             let trimmed = cmd.trim();
             if trimmed.starts_with('#') {
                 continue;
             }
             if let Some(rest) = trimmed.strip_prefix("cargo run -p atlas-local -- refresh") {
-                let services: Vec<String> = rest
-                    .split_whitespace()
-                    .map(str::to_string)
-                    .collect();
-                return Some(services);
+                let mut build = true;
+                let mut services = Vec::new();
+                for tok in rest.split_whitespace() {
+                    if tok == "--no-build" {
+                        build = false;
+                    } else if tok.starts_with('-') {
+                        // ignore unknown flags in the cookbook line
+                    } else {
+                        services.push(tok.to_string());
+                    }
+                }
+                return Some(SuggestedRefresh { services, build });
             }
         }
         None
     }
 
+    /// Back-compat helper used by tests / callers that only need service names.
+    pub fn suggested_refresh_services(&self) -> Option<Vec<String>> {
+        self.suggested_refresh().map(|s| s.services)
+    }
+
     /// One-line UI/help hint for the TUI `x` key (what it will run).
     pub fn x_refresh_hint(&self) -> String {
-        match self.suggested_refresh_services() {
-            Some(services) if services.is_empty() => {
-                "x → refresh all app services  (r only reloads this panel)".into()
+        match self.suggested_refresh() {
+            Some(SuggestedRefresh { services, build }) if services.is_empty() => {
+                if build {
+                    "x → refresh all app services (with --build) · r = panel only · ? = sync guide"
+                        .into()
+                } else {
+                    "x → refresh all app services --no-build · r = panel only · ? = sync guide"
+                        .into()
+                }
             }
-            Some(services) => {
+            Some(SuggestedRefresh { services, build }) => {
+                let flag = if build { "" } else { " --no-build" };
                 format!(
-                    "x → refresh {}  (r only reloads this panel)",
+                    "x → refresh {}{flag} · r = panel only · ? = sync guide",
                     services.join(" ")
                 )
             }
-            None => "x unavailable (no refresh in Next steps) — use up / see commands below".into(),
+            None => {
+                "x unavailable (no refresh in Next steps) — use up / press ? for sync guide".into()
+            }
         }
     }
 }
@@ -105,15 +197,43 @@ impl StatusSnapshot {
                 commands.push("# then: cargo run -p atlas-local -- status".into());
             }
             StackHealth::Ready => {
-                headline = "Stack looks healthy. After code changes, sync containers.".into();
+                headline = if hot {
+                    format!(
+                        "Stack healthy · {} mode. After Rust edits: watch (live) or refresh (one-shot). Press ? for the full guide.",
+                        mode_label(hot)
+                    )
+                } else {
+                    format!(
+                        "Stack healthy · {} mode. After Rust edits you must refresh — nothing is live until then. Press ? for the full guide.",
+                        mode_label(hot)
+                    )
+                };
+                // First runnable `refresh …` is what TUI `x` executes.
                 if hot {
-                    commands.push("cargo run -p atlas-local -- refresh".into());
-                    commands.push("# or keep watching: cargo run -p atlas-local -- watch".into());
+                    commands.push(
+                        "cargo run -p atlas-local -- refresh backend --no-build".into(),
+                    );
+                    commands.push("# Live on save: cargo run -p atlas-local -- watch".into());
+                    commands.push(
+                        "# platform-admin WASM: cargo run -p atlas-local -- refresh platform-admin --no-build"
+                            .into(),
+                    );
                 } else {
                     commands.push("cargo run -p atlas-local -- refresh backend".into());
-                    commands.push("# full app refresh: cargo run -p atlas-local -- refresh".into());
+                    commands.push(
+                        "# .env only: cargo run -p atlas-local -- refresh backend --no-build"
+                            .into(),
+                    );
+                    commands.push(
+                        "# platform-admin WASM: cargo run -p atlas-local -- refresh platform-admin --no-build"
+                            .into(),
+                    );
+                    commands.push(
+                        "# Live loop (HOT): cargo run -p atlas-local -- up --hot && … watch"
+                            .into(),
+                    );
                 }
-                commands.push("cargo run -p atlas-local -- db info".into());
+                commands.push("# Press ? in the TUI for the full sync cookbook".into());
             }
             StackHealth::Warming | StackHealth::Unhealthy => {
                 if !backend_ok {
@@ -294,19 +414,51 @@ mod tests {
             ],
         };
         assert_eq!(
-            g.suggested_refresh_services(),
-            Some(vec!["network-instance".into(), "anchor".into()])
+            g.suggested_refresh(),
+            Some(SuggestedRefresh {
+                services: vec!["network-instance".into(), "anchor".into()],
+                build: true,
+            })
         );
         let bare = Guidance {
             health: StackHealth::Ready,
             headline: "x".into(),
             commands: vec!["cargo run -p atlas-local -- refresh".into()],
         };
-        assert_eq!(bare.suggested_refresh_services(), Some(vec![]));
+        assert_eq!(
+            bare.suggested_refresh(),
+            Some(SuggestedRefresh {
+                services: vec![],
+                build: true,
+            })
+        );
+        let no_build = Guidance {
+            health: StackHealth::Ready,
+            headline: "x".into(),
+            commands: vec!["cargo run -p atlas-local -- refresh backend --no-build".into()],
+        };
+        assert_eq!(
+            no_build.suggested_refresh(),
+            Some(SuggestedRefresh {
+                services: vec!["backend".into()],
+                build: false,
+            })
+        );
         let down = empty_snap().guidance();
-        assert_eq!(down.suggested_refresh_services(), None);
+        assert_eq!(down.suggested_refresh(), None);
         assert!(down.x_refresh_hint().contains("unavailable"));
         assert!(g.x_refresh_hint().contains("network-instance"));
         assert!(g.x_refresh_hint().contains("x →"));
+    }
+
+    #[test]
+    fn sync_cookbook_mentions_parity_and_trunk() {
+        let parity = sync_cookbook(false);
+        assert!(parity.iter().any(|l| l.contains("PARITY")));
+        assert!(parity.iter().any(|l| l.contains("refresh backend") && !l.contains("--no-build")));
+        assert!(parity.iter().any(|l| l.contains("platform-admin")));
+        let hot = sync_cookbook(true);
+        assert!(hot.iter().any(|l| l.contains("HOT")));
+        assert!(hot.iter().any(|l| l.contains("watch")));
     }
 }

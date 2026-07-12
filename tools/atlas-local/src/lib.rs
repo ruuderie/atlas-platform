@@ -57,17 +57,20 @@ If up times out: atlas-local status  (Next steps)  or  logs -f backend"
     },
     /// Stop the local stack
     Down,
-    /// Live dashboard — press x to refresh affected apps from Next steps
+    /// Live dashboard — press ? for sync guide, x to refresh from Next steps
     #[command(
         long_about = "Ratatui dashboard (TTY) or plain text (--plain / pipes).\n\n\
 Tabs: 1 Overview · 2 Resources · 3 Telemetry · 4 Env (SMTP / .env.local).\n\n\
 Overview → Next steps lists state-aware copy-paste commands.\n\
-  x  run the first `refresh …` from Next steps (only those services, e.g.\n\
-     network-instance anchor when they failed — not a full stack rebuild)\n\
+  ?  sync guide — after a Rust/UI/.env change, which command updates the running app\n\
+     (parity refresh vs hot watch vs --no-build vs trunk for platform-admin)\n\
+  x  run the first `refresh …` from Next steps (honors --no-build on that line)\n\
   r  reload this status panel only (does NOT recreate containers)\n\
   a  (Env tab) apply .env.local to backend (recreate backend)\n\
   s/e (Env tab) set SMTP / open editor\n\
   q  quit · tab / 1–4 switch tabs · auto-refresh panel every 3s\n\n\
+Modes: PARITY (`up`) baked binaries ≈ server — edit then `refresh`.\n\
+       HOT (`up --hot` / `watch`) live mounts — use for tight Rust loops only.\n\n\
 CLI equivalent of x: cargo run -p atlas-local -- refresh <services…>"
     )]
     Status {
@@ -86,8 +89,13 @@ CLI equivalent of x: cargo run -p atlas-local -- refresh <services…>"
     /// Recreate app containers so they match your latest saves (one-shot)
     #[command(
         long_about = "Force-recreate (and optionally rebuild) services so containers match \
-your working tree. Omit SERVICE to refresh all app services (excludes postgres/proxy).\n\
-Parity: rebuilds images. Hot: faster when only mounted sources changed (--no-build)."
+your working tree. Omit SERVICE to refresh all app services (excludes postgres/proxy).\n\n\
+Default includes Docker `--build` (parity backend Rust needs this).\n\
+Pass `--no-build` for env-only recreate or when HOT mounts already have sources.\n\n\
+platform-admin: always wipes dist/ and runs host `trunk build` when that service is targeted \
+(WASM — often the slow step).\n\n\
+Live alternative (HOT only): `atlas-local watch`.\n\
+See also: `atlas-local status` then press `?` for the sync cookbook."
     )]
     Refresh {
         /// Compose service name(s); omit for all app services (see `atlas-local services`)

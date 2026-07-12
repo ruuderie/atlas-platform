@@ -76,6 +76,8 @@ enum Overlay {
         notice: Option<String>,
     },
     Banner(String),
+    /// Sync-after-code-change cookbook (`?`).
+    SyncGuide,
 }
 
 pub fn run(root: &Path, initial: StatusSnapshot) -> Result<()> {
@@ -193,8 +195,19 @@ fn event_loop(
                         KeyCode::Char('q') => break,
                         _ => {}
                     },
+                    Overlay::SyncGuide => match key.code {
+                        KeyCode::Esc
+                        | KeyCode::Enter
+                        | KeyCode::Char(' ')
+                        | KeyCode::Char('?') => {
+                            overlay = Overlay::None;
+                        }
+                        KeyCode::Char('q') => break,
+                        _ => {}
+                    },
                     Overlay::None => match key.code {
                         KeyCode::Char('q') | KeyCode::Esc => break,
+                        KeyCode::Char('?') => overlay = Overlay::SyncGuide,
                         KeyCode::Char('r') => {
                             refreshing = true;
                             terminal.draw(|frame| {
@@ -316,24 +329,29 @@ fn run_suggested_refresh(
     snap: &StatusSnapshot,
 ) -> Result<String> {
     let guide = snap.guidance();
-    let Some(services) = guide.suggested_refresh_services() else {
+    let Some(suggested) = guide.suggested_refresh() else {
         anyhow::bail!(
             "No refresh in Next steps (stack may be down). Start with: atlas-local -- up"
         );
     };
-    let label = if services.is_empty() {
+    let label = if suggested.services.is_empty() {
         "all services".into()
     } else {
-        services.join(" ")
+        suggested.services.join(" ")
     };
-    let service_refs: Vec<&str> = services.iter().map(String::as_str).collect();
+    let build_label = if suggested.build {
+        "with --build"
+    } else {
+        "--no-build"
+    };
+    let service_refs: Vec<&str> = suggested.services.iter().map(String::as_str).collect();
 
     restore()?;
     println!();
-    println!("→ Running suggested refresh: {label}");
+    println!("→ Running suggested refresh: {label} ({build_label})");
     println!("  (same as Next steps — only listed services, not the whole stack)");
     let _ = io::stdout().flush();
-    let result = crate::compose::refresh(root, &service_refs, false);
+    let result = crate::compose::refresh(root, &service_refs, suggested.build);
     println!();
     println!("Press Enter to return to status…");
     let _ = io::stdout().flush();
@@ -341,7 +359,7 @@ fn run_suggested_refresh(
     let _ = io::stdin().read_line(&mut line);
     *terminal = setup()?;
     result?;
-    Ok(format!("Refreshed {label}"))
+    Ok(format!("Refreshed {label} ({build_label})"))
 }
 
 fn open_env_editor(
@@ -451,6 +469,14 @@ fn draw_header(
         Span::raw("")
     };
 
+    let hot = crate::compose::hot_mode();
+    let mode = crate::status::mode_label(hot);
+    let mode_style = if hot {
+        Style::default().fg(WARN).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(OK).add_modifier(Modifier::BOLD)
+    };
+
     let lines = vec![
         Line::from(vec![
             Span::styled(
@@ -463,6 +489,8 @@ fn draw_header(
                 format!(" ● {} ", overall.0),
                 Style::default().fg(overall.1).add_modifier(Modifier::BOLD),
             ),
+            Span::raw(" · "),
+            Span::styled(mode, mode_style),
             Span::styled(
                 format!(" · {}", snap.environment),
                 Style::default().fg(MUTED),
@@ -519,7 +547,7 @@ fn draw_tabs(frame: &mut Frame, area: Rect, tab: Tab) {
 }
 
 fn draw_overview(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
-    // Next steps get a full-width band so long CLI commands can wrap.
+    // Next steps get a full-width band so the sync cookbook can wrap.
     let bands = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(8), Constraint::Length(12)])
@@ -533,7 +561,7 @@ fn draw_overview(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
     let left = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5),
+            Constraint::Length(6),
             Constraint::Min(3),
             Constraint::Length(6),
         ])
@@ -564,9 +592,11 @@ fn draw_next_steps(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
         ))
         .title_bottom(Line::from(vec![
             Span::styled(" ", Style::default()),
+            Span::styled("?", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled(" sync guide · ", Style::default().fg(MUTED)),
             Span::styled("x", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             Span::styled(
-                " = run first refresh below (affected apps only) · ",
+                " = first refresh below · ",
                 Style::default().fg(MUTED),
             ),
             Span::styled("r", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
@@ -607,6 +637,18 @@ fn draw_system(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
             Span::styled("✗", Style::default().fg(ERR))
         }
     };
+    let hot = crate::compose::hot_mode();
+    let mode = crate::status::mode_label(hot);
+    let mode_detail = if hot {
+        "cargo run + mounts · press ? for live vs rebuild"
+    } else {
+        "baked binaries ≈ server · press ? after Rust edits"
+    };
+    let mode_style = if hot {
+        Style::default().fg(WARN).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(OK).add_modifier(Modifier::BOLD)
+    };
     let lines = vec![
         Line::from(vec![
             Span::styled("root  ", Style::default().fg(MUTED)),
@@ -614,6 +656,11 @@ fn draw_system(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
                 snap.root.display().to_string(),
                 Style::default().fg(FG),
             ),
+        ]),
+        Line::from(vec![
+            Span::styled("mode  ", Style::default().fg(MUTED)),
+            Span::styled(mode, mode_style),
+            Span::styled(format!("  {mode_detail}"), Style::default().fg(DIM)),
         ]),
         Line::from(vec![
             Span::styled("env   ", Style::default().fg(MUTED)),
@@ -1091,27 +1138,33 @@ fn draw_footer(frame: &mut Frame, area: Rect, tab: Tab, overlay: &Overlay) {
             "↑↓ fields · enter save · esc cancel — save alone does not reload backend",
         ),
         (_, Overlay::Banner(_)) => ("notice", "enter/esc dismiss · a apply if prompted"),
+        (_, Overlay::SyncGuide) => (
+            "sync guide",
+            "esc/? dismiss — which command updates the running app after a Rust edit",
+        ),
         (Tab::Overview, _) => (
             "overview",
-            "x runs the first refresh in Next steps (e.g. network-instance anchor) — not a full stack rebuild",
+            "? = when to refresh / watch / --hot · x = Next-steps refresh · r = panel only",
         ),
         (Tab::Resources, _) => (
             "capacity",
-            "app KPIs + stack load · x = Next-steps refresh · r = reload this panel only",
+            "app KPIs + stack load · ? sync guide · x = Next-steps refresh · r = panel only",
         ),
         (Tab::Telemetry, _) => (
             "telemetry",
-            "x = Next-steps refresh (affected apps) · r = reload this panel only",
+            "? sync guide · x = Next-steps refresh · r = panel only",
         ),
         (Tab::Env, _) => (
             "env / smtp",
-            "s SMTP · a apply .env to backend · e editor · x = Next-steps app refresh",
+            "s SMTP · a apply .env to backend · e editor · ? sync guide · x = refresh",
         ),
     };
     let lines = vec![
         Line::from(vec![
             Span::styled(" q", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             Span::styled(" quit", Style::default().fg(MUTED)),
+            Span::styled("  ?", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled(" sync guide", Style::default().fg(MUTED)),
             Span::styled("  r", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
             Span::styled(" reload panel", Style::default().fg(MUTED)),
             Span::styled("  x", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
@@ -1238,6 +1291,50 @@ fn draw_overlay(frame: &mut Frame, area: Rect, overlay: &Overlay) {
                 .block(panel("Env"))
                 .wrap(Wrap { trim: true })
                 .alignment(Alignment::Center),
+                rect,
+            );
+        }
+        Overlay::SyncGuide => {
+            let hot = crate::compose::hot_mode();
+            let cookbook = crate::status::sync_cookbook(hot);
+            let width = (area.width.saturating_sub(4)).min(96).max(48);
+            let height = (cookbook.len() as u16)
+                .saturating_add(6)
+                .min(area.height.saturating_sub(2))
+                .max(12);
+            let x = area.x + (area.width.saturating_sub(width)) / 2;
+            let y = area.y + (area.height.saturating_sub(height)) / 2;
+            let rect = Rect::new(x, y, width, height);
+            frame.render_widget(Clear, rect);
+
+            let mut lines: Vec<Line> = vec![
+                Line::from(Span::styled(
+                    "After a code change — what actually updates the running app?",
+                    Style::default().fg(TITLE).add_modifier(Modifier::BOLD),
+                )),
+                Line::from(Span::styled(
+                    "r = status panel only · x = Next-steps refresh · watch = live (HOT)",
+                    Style::default().fg(MUTED),
+                )),
+                Line::from(""),
+            ];
+            for cmd in &cookbook {
+                let style = if cmd.starts_with('#') {
+                    Style::default().fg(DIM)
+                } else {
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)
+                };
+                lines.push(Line::from(Span::styled(cmd.clone(), style)));
+            }
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "esc / ? / enter to dismiss",
+                Style::default().fg(MUTED),
+            )));
+            frame.render_widget(
+                Paragraph::new(lines)
+                    .block(panel("Sync after code changes"))
+                    .wrap(Wrap { trim: false }),
                 rect,
             );
         }
