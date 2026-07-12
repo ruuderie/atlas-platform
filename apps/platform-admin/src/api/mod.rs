@@ -19,6 +19,7 @@ pub mod pages;
 pub mod profile;
 pub mod programs;
 pub mod provision;
+pub mod rbac;
 pub mod search;
 pub mod seeds;
 pub mod setup;

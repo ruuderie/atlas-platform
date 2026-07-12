@@ -338,6 +338,12 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                     <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
                                 </div>
                                 <a href="/settings" data-label="Settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
+                                <a href="/settings#security" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Security & Passkeys"</a>
+                                <a href="/settings#sessions" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Active Sessions"</a>
+                                <div class="border-t border-outline-variant/20 my-1"></div>
+                                <a href="/team" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Team"</a>
+                                <a href="/admin/integrations" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Integrations"</a>
+                                <div class="border-t border-outline-variant/20 my-1"></div>
                                 <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| {
                                     e.stop_propagation();
                                     set_show_profile_menu.set(false);
@@ -642,7 +648,10 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/admin/aitasks") view=AiTasks />
                         <Route path=path!("/admin/integrations") view=Integrations />
                         <Route path=path!("/admin/compliance") view=Compliance />
-                        <Route path=path!("/admin/security") view=crate::pages::admin::security::SecurityPasskeys />
+                        // Platform passkey registry lives on Team → Passkeys; self-service on /settings#security
+                        <Route path=path!("/admin/security") view=|| view! {
+                            <crate::components::redirect::Redirect to="/team#passkeys" />
+                        } />
                         <Route path=path!("/flags") view=FeatureFlags />
                         <Route path=path!("/support") view=SupportQueue />
                         // /marketing is intentionally removed from the authenticated shell.
