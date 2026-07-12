@@ -28,8 +28,7 @@
 // generic persona marketing copy.
 
 use leptos::prelude::*;
-use leptos_router::components::Redirect;
-use leptos_router::hooks::{use_location, use_query_map};
+use leptos_router::hooks::{use_location, use_navigate, use_query_map};
 use serde::{Deserialize, Serialize};
 
 // ── Pre-auth gate mode ────────────────────────────────────────────────────────
@@ -313,6 +312,20 @@ pub fn WizardShell(
         }
     });
 
+    // Cold path: after the client probe settles with no email, navigate to login.
+    // Do NOT put <Redirect/> inside the Show fallback — that swaps the view tree
+    // during/after hydration and panics tachys (unreachable in hydration.rs).
+    let navigate = use_navigate();
+    Effect::new(move |_| {
+        if pre_auth_done.get() || is_warm.get() {
+            return;
+        }
+        // LocalResource resolved to None (no session/peek/stash).
+        if matches!(session_probe.get(), Some(None)) {
+            navigate(&login_redirect.get(), Default::default());
+        }
+    });
+
     // Send OTP action
     let send_action = Action::new(move |email: &String| {
         let email = email.clone();
@@ -581,21 +594,12 @@ pub fn WizardShell(
                 <Show
                     when=move || pre_auth_done.get()
                     fallback=move || {
-                        // Probe still running — avoid flashing OTP on cold routes.
-                        if session_probe.get().is_none() {
-                            return view! {
-                                <div class="wiz-fi wiz-anim">
-                                    <p class="wiz-s-sub">"Checking your session…"</p>
-                                </div>
-                            }.into_any();
-                        }
-                        // Cold + no session → login (magic link / passkey).
-                        if !is_warm.get() {
-                            let dest = login_redirect.get();
-                            return view! { <Redirect path=dest/> }.into_any();
-                        }
-                        // Warm acquisition — editable OTP gate.
-                        view! {
+                        // Branch only on URL warmth (identical on SSR + first client paint).
+                        // Never branch on LocalResource here — that desyncs hydration and
+                        // panics tachys ("entered unreachable code" in hydration.rs).
+                        if is_warm.get() {
+                            // Warm acquisition — editable OTP gate (probe may still upgrade).
+                            view! {
                             <div class="wiz-fi wiz-anim">
                                 <Show when=move || !otp_sent.get() fallback=move || {
                                     view! {
@@ -728,7 +732,23 @@ pub fn WizardShell(
                                     </p>
                                 </Show>
                             </div>
-                        }.into_any()
+                            }.into_any()
+                        } else {
+                            // Cold: stable placeholder until Effect navigates or session probe skips OTP.
+                            view! {
+                                <div class="wiz-fi wiz-anim">
+                                    <p class="wiz-s-sub">"Checking your session…"</p>
+                                    <p class="wiz-s-sub" style="margin-top:8px;font-size:13px;color:#9ca3af;">
+                                        "If you’re signed in, your setup will continue automatically."
+                                    </p>
+                                    <p class="pre-auth-footer-note" style="margin-top:24px;">
+                                        <a href=move || login_redirect.get() class="pre-auth-link-inline">
+                                            "Sign in →"
+                                        </a>
+                                    </p>
+                                </div>
+                            }.into_any()
+                        }
                     }
                 >
                     // ── Normal wizard content (authenticated) ─────────────
