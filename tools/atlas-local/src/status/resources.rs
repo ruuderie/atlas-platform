@@ -426,10 +426,20 @@ fn scrape_prometheus(token: &str) -> (bool, String, Vec<String>) {
             lines.push(format!("{name}={v}"));
         }
     }
+    for (status, v) in prometheus_counter_by_label(&body, "magic_link_requests_total", "status") {
+        lines.push(format!("magic_link_requests[{status}]={v}"));
+    }
     for name in ["outbox_job_latency_seconds", "auth_request_duration_seconds"] {
         if let Some(count) = prometheus_label_value(&body, &format!("{name}_count")) {
             lines.push(format!("{name}_count={count}"));
         }
+    }
+    if lines.iter().any(|l| l.contains("user_not_found")) {
+        lines.insert(
+            0,
+            "hint: magic-link email not in local DB (no SMTP) — see magic_link.user_not_found in logs"
+                .into(),
+        );
     }
     if lines.is_empty() {
         // CounterVec families stay absent until first observation — normal on a quiet local stack.
@@ -471,6 +481,42 @@ fn sum_prometheus_counter(body: &str, metric: &str) -> Option<f64> {
         }
     }
     found.then_some(total)
+}
+
+fn prometheus_counter_by_label(body: &str, metric: &str, label: &str) -> Vec<(String, f64)> {
+    use std::collections::BTreeMap;
+    let needle = format!("{label}=\"");
+    let mut map: BTreeMap<String, f64> = BTreeMap::new();
+    for line in body.lines() {
+        if line.starts_with('#') {
+            continue;
+        }
+        let Some((name_part, rest)) = line.split_once(' ') else {
+            continue;
+        };
+        let base = name_part.split('{').next().unwrap_or(name_part);
+        if base != metric {
+            continue;
+        }
+        let Ok(v) = rest.trim().parse::<f64>() else {
+            continue;
+        };
+        let Some(labels) = name_part
+            .strip_prefix(metric)
+            .and_then(|s| s.strip_prefix('{'))
+            .and_then(|s| s.strip_suffix('}'))
+        else {
+            continue;
+        };
+        if let Some(idx) = labels.find(&needle) {
+            let after = &labels[idx + needle.len()..];
+            if let Some(end) = after.find('"') {
+                let key = after[..end].to_string();
+                *map.entry(key).or_insert(0.0) += v;
+            }
+        }
+    }
+    map.into_iter().collect()
 }
 
 fn prometheus_label_value(body: &str, metric: &str) -> Option<f64> {

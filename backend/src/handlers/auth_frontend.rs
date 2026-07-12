@@ -680,7 +680,31 @@ pub async fn request_magic_link(
             .with_label_values(&["unknown", &final_app_instance_id, "success"])
             .inc();
     } else {
-        // User not found. Invalidate the cache since no email will be sent.
+        // Anti-enumeration: same 200 body as success, but no token / outbox / SMTP.
+        // Still emit log + metric so local Telemetry / `atlas-local status` can explain
+        // "I clicked send but nothing happened" (almost always: email not in this DB).
+        tracing::info!(
+            event = "magic_link.user_not_found",
+            request_id = %request_id,
+            email = %payload.email,
+            ip = %ip,
+            user_agent = %user_agent,
+            app_instance_id = %final_app_instance_id,
+            duration_ms = start.elapsed().as_millis(),
+            status = "user_not_found",
+            hint = "no user row for this email in local DB — no email will be sent"
+        );
+        metrics::MAGIC_LINK_REQUESTS
+            .with_label_values(&["unknown", &final_app_instance_id, "user_not_found"])
+            .inc();
+        metrics::AUTH_REQUESTS
+            .with_label_values(&[
+                "unknown",
+                &final_app_instance_id,
+                "magic_link_request",
+                "user_not_found",
+            ])
+            .inc();
         MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
     }
 
