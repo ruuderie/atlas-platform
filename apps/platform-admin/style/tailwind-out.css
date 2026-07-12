@@ -11956,8 +11956,29 @@ label.ft input:checked ~ .ft-track .ft-thumb {
 }
 
 .n-empty{
-  padding:36px 24px;
+  padding:48px 24px;
   text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:180px;
+  box-sizing:border-box;
+}
+
+.n-empty--loading{
+  min-height:120px;
+  padding:36px 24px;
+}
+
+.n-empty-icon{
+  font-size:32px;
+  line-height:1;
+  opacity:0.28;
+  margin-bottom:10px;
+  color:var(--text-muted);
+  font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;
+  user-select:none;
 }
 
 .n-empty-title{
@@ -11973,6 +11994,47 @@ label.ft input:checked ~ .ft-track .ft-thumb {
   max-width:360px;
   margin:0 auto 14px;
   line-height:1.5;
+}
+
+.card > .n-empty,
+.card .n-empty{
+  flex:none;
+  width:100%;
+}
+
+.table-scroll{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
+.team-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:0;
+}
+
+.team-table th,
+.team-table td{
+  padding:8px 12px;
+  font-size:12px;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+
+.team-email-cell{
+  color:var(--cobalt);
+  max-width:220px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.td-actions{
+  display:flex;
+  gap:4px;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
 }
 
 .toggle{
@@ -14044,10 +14106,41 @@ textarea.rev-notes::placeholder{
     min-width: 540px;
   }
 
+  .table-scroll > table.team-table,
+  .table-scroll > table.team-table.team-table--invites {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .team-table--invites {
+    min-width: 0;
+  }
+
+  .team-email-cell {
+    max-width: 140px;
+    white-space: nowrap;
+  }
+
+  .td-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .td-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .card,
   .section {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .card:has(> .n-empty),
+  .card:has(> .filter-bar + .n-empty) {
+    overflow-x: visible;
   }
 
   /* Hide low-priority table columns on mobile */

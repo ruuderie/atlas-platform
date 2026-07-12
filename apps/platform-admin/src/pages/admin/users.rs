@@ -459,11 +459,20 @@ pub fn PlatformAdmins() -> impl IntoView {
                     </div>
 
                     <Show
+                        when=move || users_res.get().is_some()
+                        fallback=move || view! {
+                            <div class="n-empty n-empty--loading">
+                                <div class="n-empty-sub" style="margin-bottom:0">"Loading operators…"</div>
+                            </div>
+                        }
+                    >
+                    <Show
                         when=move || !filtered_users.get().is_empty()
                         fallback=move || {
                             let has_users = users_res.get().map(|v| !v.is_empty()).unwrap_or(false);
                             view! {
                                 <div class="n-empty">
+                                    <span class="material-symbols-outlined n-empty-icon">"group"</span>
                                     <div class="n-empty-title">
                                         {if has_users { "No matching operators" } else { "No operators yet" }}
                                     </div>
@@ -482,7 +491,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                             }
                         }
                     >
-                    <table>
+                    <div class="table-scroll">
+                    <table class="team-table">
                         <thead>
                             <tr>
                                 <th style="width:36px"></th>
@@ -490,8 +500,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                                 <th>"Email"</th>
                                 <th>"Role"</th>
                                 <th>"Status"</th>
-                                <th>"Last login"</th>
-                                <th>"Auth"</th>
+                                <th class="col-hide-mobile">"Last login"</th>
+                                <th class="col-hide-mobile">"Auth"</th>
                                 <th style="width:80px"></th>
                             </tr>
                         </thead>
@@ -542,8 +552,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                                                     </span>
                                                 </td>
                                                 <td style=status_sty>{status_label}</td>
-                                                <td class="muted">"—"</td>
-                                                <td class="muted">{auth_label}</td>
+                                                <td class="muted col-hide-mobile">"—"</td>
+                                                <td class="muted col-hide-mobile">{auth_label}</td>
                                                 <td>
                                                     <button
                                                         class="btn btn-ghost btn-sm"
@@ -561,6 +571,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                             }}
                         </tbody>
                     </table>
+                    </div>
+                    </Show>
                     </Show>
                 </div>
             </Show>
@@ -569,22 +581,32 @@ pub fn PlatformAdmins() -> impl IntoView {
             <Show when=move || active_tab.get() == "invites">
                 <div class="card">
                     <Show
+                        when=move || invites_res.get().is_some()
+                        fallback=move || view! {
+                            <div class="n-empty n-empty--loading">
+                                <div class="n-empty-sub" style="margin-bottom:0">"Loading invites…"</div>
+                            </div>
+                        }
+                    >
+                    <Show
                         when=move || !invites_res.get().unwrap_or_default().is_empty()
                         fallback=move || view! {
                             <div class="n-empty">
+                                <span class="material-symbols-outlined n-empty-icon">"mail"</span>
                                 <div class="n-empty-title">"No pending invites"</div>
                                 <div class="n-empty-sub">"Sent invites appear here until accepted or revoked."</div>
                                 <button class="btn btn-primary btn-sm" on:click=move |_| show_invite_modal.set(true)>"Invite teammate"</button>
                             </div>
                         }
                     >
-                    <table>
+                    <div class="table-scroll">
+                    <table class="team-table team-table--invites">
                         <thead>
                             <tr>
                                 <th>"Email"</th>
                                 <th>"Role"</th>
-                                <th>"Invited by"</th>
-                                <th>"Sent"</th>
+                                <th class="col-hide-mobile">"Invited by"</th>
+                                <th class="col-hide-mobile">"Sent"</th>
                                 <th>"Expires"</th>
                                 <th></th>
                             </tr>
@@ -609,24 +631,26 @@ pub fn PlatformAdmins() -> impl IntoView {
                                             };
                                             view! {
                                                 <tr>
-                                                    <td style="color:var(--cobalt)">{invite.email}</td>
+                                                    <td class="team-email-cell">{invite.email}</td>
                                                     <td><span class="pill" style=role_color>{invite.role}</span></td>
-                                                    <td class="muted">{invite.invited_by}</td>
-                                                    <td class="muted">{invite.sent}</td>
+                                                    <td class="muted col-hide-mobile">{invite.invited_by}</td>
+                                                    <td class="muted col-hide-mobile">{invite.sent}</td>
                                                     <td class="muted" style="color:var(--amber)">{invite.expires}</td>
-                                                    <td style="display:flex;gap:4px;">
-                                                        <button
-                                                            class="btn btn-ghost btn-sm"
-                                                            on:click=move |_| handle_resend_invite(invite_id, email_clone.clone())
-                                                        >
-                                                            "Resend"
-                                                        </button>
-                                                        <button
-                                                            class="btn btn-ghost btn-sm"
-                                                            on:click=move |_| confirm_revoke_invite.set(Some((invite_id2, email_clone2.clone())))
-                                                        >
-                                                            "Revoke"
-                                                        </button>
+                                                    <td>
+                                                        <div class="td-actions">
+                                                            <button
+                                                                class="btn btn-ghost btn-sm"
+                                                                on:click=move |_| handle_resend_invite(invite_id, email_clone.clone())
+                                                            >
+                                                                "Resend"
+                                                            </button>
+                                                            <button
+                                                                class="btn btn-ghost btn-sm"
+                                                                on:click=move |_| confirm_revoke_invite.set(Some((invite_id2, email_clone2.clone())))
+                                                            >
+                                                                "Revoke"
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             }
@@ -636,6 +660,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                             }}
                         </tbody>
                     </table>
+                    </div>
+                    </Show>
                     </Show>
                 </div>
             </Show>

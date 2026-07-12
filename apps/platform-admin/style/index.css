@@ -2509,9 +2509,66 @@ label.ft input:checked ~ .ft-track .ft-thumb {
 .role-name{font-size:12px;font-weight:600;width:110px;flex-shrink:0;}
 .role-desc{font-size:11.5px;color:var(--text-muted);flex:1;line-height:1.5;}
 .role-count{font-size:11px;color:var(--text-muted);flex-shrink:0;}
-.n-empty{padding:36px 24px;text-align:center;}
+.n-empty{
+  padding:48px 24px;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:180px;
+  box-sizing:border-box;
+}
+.n-empty--loading{min-height:120px;padding:36px 24px;}
+.n-empty-icon{
+  font-size:32px;
+  line-height:1;
+  opacity:0.28;
+  margin-bottom:10px;
+  color:var(--text-muted);
+  font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;
+  user-select:none;
+}
 .n-empty-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;}
 .n-empty-sub{font-size:12px;color:var(--text-muted);max-width:360px;margin:0 auto 14px;line-height:1.5;}
+/* Never let the CRM .empty-state flex rules leak onto Team empty copy */
+.card > .n-empty,
+.card .n-empty{
+  flex:none;
+  width:100%;
+}
+
+/* Team tables — scroll wrapper (not overflow on the whole card, so empty states stay centered) */
+.table-scroll{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.team-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:0;
+}
+.team-table th,
+.team-table td{
+  padding:8px 12px;
+  font-size:12px;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.team-email-cell{
+  color:var(--cobalt);
+  max-width:220px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.td-actions{
+  display:flex;
+  gap:4px;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+}
 .toggle{width:36px;height:20px;background:var(--cobalt);border-radius:10px;position:relative;cursor:pointer;flex-shrink:0;transition:background 0.2s;}
 .toggle::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:3px;right:4px;transition:right 0.2s;}
 .toggle.off{background:var(--bg-elevated);}
@@ -3292,10 +3349,37 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   .section table {
     min-width: 540px;
   }
+  /* Team tables: scroll via .table-scroll; drop forced min-width so mobile can hide cols */
+  .table-scroll > table.team-table,
+  .table-scroll > table.team-table.team-table--invites {
+    min-width: 0;
+    width: 100%;
+  }
+  .team-table--invites {
+    min-width: 0;
+  }
+  .team-email-cell {
+    max-width: 140px;
+    white-space: nowrap;
+  }
+  .td-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .td-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
   .card,
   .section {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  /* Empty / loading cards must not force horizontal scroll chrome */
+  .card:has(> .n-empty),
+  .card:has(> .filter-bar + .n-empty) {
+    overflow-x: visible;
   }
 
   /* Hide low-priority table columns on mobile */
