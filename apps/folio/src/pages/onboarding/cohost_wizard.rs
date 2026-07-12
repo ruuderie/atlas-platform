@@ -8,6 +8,7 @@
 //   3. Assigned Properties
 //   4. Availability & Notifications
 
+use crate::components::verified_email_field::VerifiedEmailField;
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -170,6 +171,7 @@ pub fn CohostWizard() -> impl IntoView {
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"Photo & Name"</div>
+                        <VerifiedEmailField/>
                         <div class="wiz-inp-row">
                             <div class="wiz-f"><label class="wiz-label">"First Name"</label>
                                 <input class="wiz-inp" type="text" placeholder="Alex"

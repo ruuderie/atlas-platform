@@ -11,4 +11,8 @@ pub mod property_owner_wizard; // PropertyOwnerWizard — /onboard/property-owne
 pub mod str_guest_wizard; // StrGuestWizard — /onboard/str-guest
 pub mod tenant_wizard; // TenantApplicantWizard — /onboard/tenant (pending-onboard)
 pub mod vendor_wizard; // VendorWizard — /onboard/vendor
-pub mod wizard; // Legacy OnboardingWizard (kept for compatibility) // SendOtp + VerifyOtp server fns (wizard pre-auth step)
+pub mod wizard; // Legacy OnboardingWizard (kept for compatibility)
+
+#[cfg(test)]
+#[path = "email_contract_tests.rs"]
+mod email_contract_tests;

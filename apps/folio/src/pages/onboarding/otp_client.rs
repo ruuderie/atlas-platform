@@ -23,13 +23,29 @@ pub struct OtpSessionResponse {
 /// Creates a stub user if the email doesn't exist yet.
 #[server(SendOtp, "/api")]
 pub async fn send_otp(email: String) -> Result<(), server_fn::error::ServerFnError> {
-    crate::atlas_client::post::<_, serde_json::Value>(
-        "/api/auth/otp/send",
-        &serde_json::json!({ "email": email.trim().to_lowercase() }),
-    )
-    .await
-    .map(|_| ())
-    .map_err(server_fn::error::ServerFnError::new)
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let fwd = crate::atlas_client::forward_client_ip(&headers);
+        crate::atlas_client::post_with_headers::<_, serde_json::Value>(
+            "/api/auth/otp/send",
+            &serde_json::json!({ "email": email.trim().to_lowercase() }),
+            fwd,
+        )
+        .await
+        .map(|_| ())
+        .map_err(|e| {
+            server_fn::error::ServerFnError::new(crate::auth::humanize_auth_api_error(&e))
+        })
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = email;
+        Ok(())
+    }
 }
 
 /// Verify a 6-digit OTP for the given email.
@@ -40,27 +56,62 @@ pub async fn verify_otp(
     email: String,
     code: String,
 ) -> Result<OtpSessionResponse, server_fn::error::ServerFnError> {
-    // post_returning_session extracts the bearer token from the Set-Cookie header,
-    // which is how the backend returns the session for OTP just like magic links.
-    let (resp, token_opt) = crate::atlas_client::post_returning_session::<_, serde_json::Value>(
-        "/api/auth/otp/verify",
-        &serde_json::json!({
-            "email": email.trim().to_lowercase(),
-            "code":  code.trim(),
-        }),
-    )
-    .await
-    .map_err(server_fn::error::ServerFnError::new)?;
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::{extract, ResponseOptions};
 
-    let token = token_opt.unwrap_or_else(|| {
-        // Fallback: try JSON body (shouldn't happen if backend is consistent)
-        resp["token"].as_str().unwrap_or("").to_string()
-    });
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let fwd = crate::atlas_client::forward_client_ip(&headers);
+        let resp_opts = use_context::<ResponseOptions>();
 
-    let email_out = resp["email"].as_str().unwrap_or(&email).to_string();
+        // post_returning_session extracts the bearer token from the Set-Cookie header,
+        // which is how the backend returns the session for OTP just like magic links.
+        let (resp, token_opt) =
+            crate::atlas_client::post_returning_session_with_headers::<_, serde_json::Value>(
+                "/api/auth/otp/verify",
+                &serde_json::json!({
+                    "email": email.trim().to_lowercase(),
+                    "code":  code.trim(),
+                }),
+                fwd,
+            )
+            .await
+            .map_err(|e| {
+                server_fn::error::ServerFnError::new(crate::auth::humanize_auth_api_error(&e))
+            })?;
 
-    Ok(OtpSessionResponse {
-        token,
-        email: email_out,
-    })
+        let token = token_opt.unwrap_or_else(|| {
+            // Fallback: try JSON body (shouldn't happen if backend is consistent)
+            resp["token"].as_str().unwrap_or("").to_string()
+        });
+
+        if token.is_empty() {
+            return Err(server_fn::error::ServerFnError::new(
+                "No session cookie after OTP verify",
+            ));
+        }
+
+        // Forward the session cookie to the browser (same attributes as magic-link verify).
+        if let Some(resp_opts) = resp_opts {
+            if let Ok(cookie_val) = axum::http::HeaderValue::from_str(&format!(
+                "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400",
+                token
+            )) {
+                resp_opts.insert_header(axum::http::header::SET_COOKIE, cookie_val);
+            }
+        }
+
+        let email_out = resp["email"].as_str().unwrap_or(&email).to_string();
+
+        Ok(OtpSessionResponse {
+            token,
+            email: email_out,
+        })
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = (email, code);
+        Err(server_fn::error::ServerFnError::new("Client fallback"))
+    }
 }

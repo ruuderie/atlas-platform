@@ -14,6 +14,7 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::components::verified_email_field::{SyncVerifiedEmail, VerifiedEmailField};
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -103,6 +104,7 @@ pub fn TenantApplicantWizard() -> impl IntoView {
     // Profile
     let first_name = RwSignal::new(String::new());
     let last_name = RwSignal::new(String::new());
+    let email = RwSignal::new(String::new());
     let phone = RwSignal::new(String::new());
     let dob = RwSignal::new(String::new());
     let emerg_name = RwSignal::new(String::new());
@@ -141,7 +143,7 @@ pub fn TenantApplicantWizard() -> impl IntoView {
             let input = TenantApplicationInput {
                 first_name: first_name.get(),
                 last_name: last_name.get(),
-                email: String::new(),
+                email: email.get(),
                 phone: phone.get(),
                 dob: dob.get(),
                 monthly_income: String::new(),
@@ -199,6 +201,7 @@ pub fn TenantApplicantWizard() -> impl IntoView {
             on_next=on_next on_prev=on_prev
             is_last_step=is_last next_label=next_label
         >
+            <SyncVerifiedEmail email=email/>
             <Show when=move || save_error.get().is_some()>
                 <div class="wiz-error-banner"><span class="ms">"warning"</span>
                     {move || save_error.get().unwrap_or_default()}
@@ -216,6 +219,7 @@ pub fn TenantApplicantWizard() -> impl IntoView {
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"Personal Info"</div>
+                        <VerifiedEmailField/>
                         <div class="wiz-inp-row">
                             <div class="wiz-f"><label class="wiz-label">"First Name"</label>
                                 <input class="wiz-inp" type="text" placeholder="Jamie"

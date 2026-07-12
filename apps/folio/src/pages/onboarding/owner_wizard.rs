@@ -11,6 +11,7 @@
 // Invite code support: ?code= pre-populates the context panel.
 // Email OTP is handled by WizardShell as a pre-auth gate.
 
+use crate::components::verified_email_field::VerifiedEmailField;
 use crate::components::wizard_shell::{
     resolve_invite_code, ResolvedInviteCode, WizardShell, WizardStepDesc,
 };
@@ -133,6 +134,7 @@ pub fn OwnerWizard() -> impl IntoView {
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"Personal Info"</div>
+                        <VerifiedEmailField/>
                         <div class="wiz-inp-row">
                             <div class="wiz-f"><label class="wiz-label">"First Name"</label>
                                 <input class="wiz-inp" type="text" placeholder="Robert"

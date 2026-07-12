@@ -8,6 +8,34 @@ pub fn get_atlas_api_url() -> String {
     std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string())
 }
 
+/// Forward the browser client IP when Folio SSR proxies to Atlas.
+///
+/// Without this, every magic-link/OTP request from Folio shares one pod IP (or
+/// `unknown`), so `check_auth_rate_limit` (5 req / IP / 10 min) trips for all
+/// users after a few attempts and surfaces as a opaque 500 in the browser.
+#[cfg(feature = "ssr")]
+pub fn forward_client_ip(incoming: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
+    let mut out = reqwest::header::HeaderMap::new();
+    let client_ip = incoming
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            incoming
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+        });
+    if let Some(ip) = client_ip {
+        if let Ok(val) = reqwest::header::HeaderValue::from_str(ip) {
+            out.insert("x-forwarded-for", val);
+        }
+    }
+    out
+}
+
 /// Unauthenticated GET — for public endpoints (health, etc.)
 pub async fn fetch<T: DeserializeOwned>(path: &str) -> Result<T, String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
@@ -20,9 +48,19 @@ pub async fn fetch<T: DeserializeOwned>(path: &str) -> Result<T, String> {
 
 /// Unauthenticated POST — for public token-gated endpoints (PMC onboard, etc.)
 pub async fn post<B: Serialize, T: DeserializeOwned>(path: &str, body: &B) -> Result<T, String> {
+    post_with_headers(path, body, reqwest::header::HeaderMap::new()).await
+}
+
+/// Like [`post`], but forwards selected request headers (e.g. client IP).
+pub async fn post_with_headers<B: Serialize, T: DeserializeOwned>(
+    path: &str,
+    body: &B,
+    headers: reqwest::header::HeaderMap,
+) -> Result<T, String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
     let res = CLIENT
         .post(&url)
+        .headers(headers)
         .json(body)
         .send()
         .await
@@ -48,9 +86,18 @@ pub async fn post_returning_session<B: Serialize, T: DeserializeOwned>(
     path: &str,
     body: &B,
 ) -> Result<(T, Option<String>), String> {
+    post_returning_session_with_headers(path, body, reqwest::header::HeaderMap::new()).await
+}
+
+pub async fn post_returning_session_with_headers<B: Serialize, T: DeserializeOwned>(
+    path: &str,
+    body: &B,
+    headers: reqwest::header::HeaderMap,
+) -> Result<(T, Option<String>), String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
     let res = CLIENT
         .post(&url)
+        .headers(headers)
         .json(body)
         .send()
         .await

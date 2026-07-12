@@ -168,6 +168,29 @@ pub fn read_stashed_verified_email() -> Option<String> {
     }
 }
 
+/// Resolve verified email for WizardShell pre-auth skip.
+/// Precedence: Folio session (`/api/folio/me`) → auth peek → same-tab stash.
+pub fn resolve_verified_email_probe(
+    session_email: Option<String>,
+    peek_email: Option<String>,
+    stash_email: Option<String>,
+) -> Option<String> {
+    [session_email, peek_email, stash_email]
+        .into_iter()
+        .flatten()
+        .map(|e| e.trim().to_string())
+        .find(|e| !e.is_empty())
+}
+
+/// Map Atlas API errors into a user-facing message for auth server fns.
+pub fn humanize_auth_api_error(err: &str) -> String {
+    if err.contains("429") {
+        "Too many sign-in attempts. Wait a few minutes and try again.".to_string()
+    } else {
+        err.to_string()
+    }
+}
+
 // ── Shared SSR token extractor ────────────────────────────────────────────────
 //
 // Single authoritative function for extracting the session token from an
@@ -406,10 +429,16 @@ pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
             "email": email,
             "redirect_url": redirect_url,
         });
-        crate::atlas_client::post::<_, serde_json::Value>("/api/auth/magic-link/request", &payload)
-            .await
-            .map(|_| ())
-            .map_err(ServerFnError::new)
+        // Forward the browser IP so auth rate limits aren't shared across all Folio users.
+        let fwd = crate::atlas_client::forward_client_ip(&headers);
+        crate::atlas_client::post_with_headers::<_, serde_json::Value>(
+            "/api/auth/magic-link/request",
+            &payload,
+            fwd,
+        )
+        .await
+        .map(|_| ())
+        .map_err(|e| ServerFnError::new(humanize_auth_api_error(&e)))
     }
     #[cfg(not(feature = "ssr"))]
     {
@@ -552,7 +581,67 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
 // ── Unit tests ────────────────────────────────────────────────────────────────
 //
 // Note: extract_bearer_token is SSR-only (cfg(feature = "ssr")).
-// These tests are compiled only when running cargo test with --features ssr.
+// Those tests are compiled only when running cargo test with --features ssr.
+
+#[cfg(test)]
+mod probe_tests {
+    use super::{humanize_auth_api_error, resolve_verified_email_probe};
+
+    #[test]
+    fn probe_prefers_session_over_peek_and_stash() {
+        let got = resolve_verified_email_probe(
+            Some("session@example.com".into()),
+            Some("peek@example.com".into()),
+            Some("stash@example.com".into()),
+        );
+        assert_eq!(got.as_deref(), Some("session@example.com"));
+    }
+
+    #[test]
+    fn probe_falls_back_to_peek_when_no_session() {
+        let got = resolve_verified_email_probe(
+            None,
+            Some("peek@example.com".into()),
+            Some("stash@example.com".into()),
+        );
+        assert_eq!(got.as_deref(), Some("peek@example.com"));
+    }
+
+    #[test]
+    fn probe_falls_back_to_stash_when_session_and_peek_missing() {
+        let got =
+            resolve_verified_email_probe(None, None, Some("stash@example.com".into()));
+        assert_eq!(got.as_deref(), Some("stash@example.com"));
+    }
+
+    #[test]
+    fn probe_skips_blank_sources() {
+        let got = resolve_verified_email_probe(
+            Some("  ".into()),
+            Some("".into()),
+            Some(" stash@example.com ".into()),
+        );
+        assert_eq!(got.as_deref(), Some("stash@example.com"));
+    }
+
+    #[test]
+    fn probe_returns_none_when_all_missing() {
+        assert!(resolve_verified_email_probe(None, None, None).is_none());
+    }
+
+    #[test]
+    fn humanize_maps_429_to_friendly_message() {
+        let msg = humanize_auth_api_error("API 429 Too Many Requests: ");
+        assert!(msg.contains("Too many sign-in attempts"));
+        assert!(!msg.contains("429"));
+    }
+
+    #[test]
+    fn humanize_passes_through_other_errors() {
+        let raw = "API 500: boom";
+        assert_eq!(humanize_auth_api_error(raw), raw);
+    }
+}
 
 #[cfg(all(test, feature = "ssr"))]
 mod tests {
@@ -639,5 +728,44 @@ mod tests {
     fn returns_none_when_only_unrelated_cookie() {
         let headers = headers_with("csrf=abcdef; other=value");
         assert!(extract_bearer_token(&headers).is_none());
+    }
+}
+
+#[cfg(all(test, feature = "ssr"))]
+mod forward_ip_tests {
+    use axum::http::{header, HeaderMap, HeaderValue};
+
+    #[test]
+    fn forwards_x_forwarded_for_first_hop() {
+        let mut h = HeaderMap::new();
+        h.insert(
+            header::HeaderName::from_static("x-forwarded-for"),
+            HeaderValue::from_static("203.0.113.9, 10.0.0.1"),
+        );
+        let out = crate::atlas_client::forward_client_ip(&h);
+        assert_eq!(
+            out.get("x-forwarded-for").and_then(|v| v.to_str().ok()),
+            Some("203.0.113.9")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_x_real_ip() {
+        let mut h = HeaderMap::new();
+        h.insert(
+            header::HeaderName::from_static("x-real-ip"),
+            HeaderValue::from_static("198.51.100.7"),
+        );
+        let out = crate::atlas_client::forward_client_ip(&h);
+        assert_eq!(
+            out.get("x-forwarded-for").and_then(|v| v.to_str().ok()),
+            Some("198.51.100.7")
+        );
+    }
+
+    #[test]
+    fn empty_when_no_client_ip_headers() {
+        let out = crate::atlas_client::forward_client_ip(&HeaderMap::new());
+        assert!(out.get("x-forwarded-for").is_none());
     }
 }

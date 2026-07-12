@@ -28,7 +28,56 @@
 // generic persona marketing copy.
 
 use leptos::prelude::*;
+use leptos_router::components::Redirect;
+use leptos_router::hooks::{use_location, use_query_map};
 use serde::{Deserialize, Serialize};
+
+// ── Pre-auth gate mode ────────────────────────────────────────────────────────
+
+/// How WizardShell should treat an unauthenticated (or not-yet-probed) visitor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnboardAuthMode {
+    /// Session / peek / stash already proved identity — skip OTP.
+    Skip,
+    /// Warm acquisition (`ref` or `code`) — show editable OTP gate.
+    Otp,
+    /// Cold hit with no session — send to login (magic link / passkey).
+    RedirectLogin,
+}
+
+/// Decide OTP vs skip vs login redirect.
+///
+/// Warm = non-empty `ref` (F&F referral) or `code` (NetworkInvite).
+pub fn onboard_auth_mode(
+    has_session_email: bool,
+    ref_q: Option<&str>,
+    code_q: Option<&str>,
+) -> OnboardAuthMode {
+    if has_session_email {
+        return OnboardAuthMode::Skip;
+    }
+    let warm = ref_q.is_some_and(|s| !s.trim().is_empty())
+        || code_q.is_some_and(|s| !s.trim().is_empty());
+    if warm {
+        OnboardAuthMode::Otp
+    } else {
+        OnboardAuthMode::RedirectLogin
+    }
+}
+
+/// Build `/login?next=…` for cold onboard redirects.
+pub fn login_next_path(current_path_with_query: &str) -> String {
+    format!("/login?next={}", encode_next_param(current_path_with_query))
+}
+
+fn encode_next_param(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            _ => format!("%{:02X}", c as u32),
+        })
+        .collect()
+}
 
 // ── Invite code context types ─────────────────────────────────────────────────
 
@@ -185,14 +234,39 @@ pub fn WizardShell(
     let nav_detail = nav_detail;
 
     // ── Pre-auth phase ─────────────────────────────────────────────────────────
-    // For unauthenticated users (cold QR scan / direct mail), we show an email + OTP
-    // entry step before the wizard. On success the session cookie is set by the backend.
+    // Warm (`ref` / `code`): editable OTP when no session.
+    // Cold: redirect to /login?next=… (magic link / passkey), never open OTP signup.
+    // Magic-link returnees: session/peek/stash → skip OTP → VerifiedEmailField.
 
-    // Whether the pre-auth step has been completed (either via OTP or existing session)
     let pre_auth_done: RwSignal<bool> = RwSignal::new(false);
     let verified_email: RwSignal<Option<String>> = RwSignal::new(None);
     provide_context(WizardAuthCtx {
         email: verified_email.into(),
+    });
+
+    let location = use_location();
+    let query = use_query_map();
+    let is_warm = Memo::new(move |_| {
+        query.with(|q| {
+            let ref_q = q.get("ref");
+            let code_q = q.get("code");
+            matches!(
+                onboard_auth_mode(false, ref_q.as_deref(), code_q.as_deref()),
+                OnboardAuthMode::Otp
+            )
+        })
+    });
+    let login_redirect = Memo::new(move |_| {
+        let path = location.pathname.get();
+        let search = location.search.get();
+        let current = if search.is_empty() {
+            path
+        } else if search.starts_with('?') {
+            format!("{path}{search}")
+        } else {
+            format!("{path}?{search}")
+        };
+        login_next_path(&current)
     });
 
     // Local OTP flow state
@@ -208,20 +282,30 @@ pub fn WizardShell(
     // sessionStorage is a same-tab assist after magic-link verify (never alone).
     let session_email_sig = session_email;
     let session_probe = LocalResource::new(|| async {
-        match crate::auth::get_session().await {
+        let session = match crate::auth::get_session().await {
             Ok(info) => Some(info.email),
-            Err(_) => match crate::auth::peek_auth_session().await {
+            Err(_) => None,
+        };
+        let peek = if session.is_some() {
+            None
+        } else {
+            match crate::auth::peek_auth_session().await {
                 Ok(peek) => Some(peek.email),
                 Err(_) => {
                     // Brief retry — cookie from Set-Cookie may not be on the first
                     // server-fn round-trip after magic-link redirect.
                     match crate::auth::peek_auth_session().await {
                         Ok(peek) => Some(peek.email),
-                        Err(_) => crate::auth::read_stashed_verified_email(),
+                        Err(_) => None,
                     }
                 }
-            },
-        }
+            }
+        };
+        crate::auth::resolve_verified_email_probe(
+            session,
+            peek,
+            crate::auth::read_stashed_verified_email(),
+        )
     });
     Effect::new(move |_| {
         if let Some(Some(email)) = session_probe.get() {
@@ -497,7 +581,20 @@ pub fn WizardShell(
                 <Show
                     when=move || pre_auth_done.get()
                     fallback=move || {
-                        // Same column as wizard steps (stitch `.fi`) — not a floating modal.
+                        // Probe still running — avoid flashing OTP on cold routes.
+                        if session_probe.get().is_none() {
+                            return view! {
+                                <div class="wiz-fi wiz-anim">
+                                    <p class="wiz-s-sub">"Checking your session…"</p>
+                                </div>
+                            }.into_any();
+                        }
+                        // Cold + no session → login (magic link / passkey).
+                        if !is_warm.get() {
+                            let dest = login_redirect.get();
+                            return view! { <Redirect path=dest/> }.into_any();
+                        }
+                        // Warm acquisition — editable OTP gate.
                         view! {
                             <div class="wiz-fi wiz-anim">
                                 <Show when=move || !otp_sent.get() fallback=move || {
@@ -631,7 +728,7 @@ pub fn WizardShell(
                                     </p>
                                 </Show>
                             </div>
-                        }
+                        }.into_any()
                     }
                 >
                     // ── Normal wizard content (authenticated) ─────────────
@@ -1174,3 +1271,60 @@ const PRE_AUTH_CSS: &str = r#"
 }
 .pre-auth-link:hover { color: #374151; }
 "#;
+
+#[cfg(test)]
+mod auth_mode_tests {
+    use super::{login_next_path, onboard_auth_mode, OnboardAuthMode};
+
+    #[test]
+    fn session_email_skips_otp() {
+        assert_eq!(
+            onboard_auth_mode(true, Some("alice"), Some("CODE")),
+            OnboardAuthMode::Skip
+        );
+        assert_eq!(
+            onboard_auth_mode(true, None, None),
+            OnboardAuthMode::Skip
+        );
+    }
+
+    #[test]
+    fn warm_ref_shows_otp() {
+        assert_eq!(
+            onboard_auth_mode(false, Some("alice"), None),
+            OnboardAuthMode::Otp
+        );
+    }
+
+    #[test]
+    fn warm_code_shows_otp() {
+        assert_eq!(
+            onboard_auth_mode(false, None, Some("OAK4B")),
+            OnboardAuthMode::Otp
+        );
+    }
+
+    #[test]
+    fn blank_warm_params_are_cold() {
+        assert_eq!(
+            onboard_auth_mode(false, Some("  "), Some("")),
+            OnboardAuthMode::RedirectLogin
+        );
+    }
+
+    #[test]
+    fn cold_redirects_to_login() {
+        assert_eq!(
+            onboard_auth_mode(false, None, None),
+            OnboardAuthMode::RedirectLogin
+        );
+    }
+
+    #[test]
+    fn login_next_path_encodes_query() {
+        let path = login_next_path("/onboarding?ref=alice");
+        assert!(path.starts_with("/login?next="));
+        assert!(path.contains("onboarding"));
+        assert!(path.contains("ref"));
+    }
+}

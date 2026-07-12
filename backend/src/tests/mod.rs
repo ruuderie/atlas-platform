@@ -9,6 +9,7 @@ pub mod crm_extended_tests;
 pub mod crm_tests;
 pub mod feed_tests;
 pub mod magic_link_tests;
+pub mod otp_tests;
 pub mod relational_dependencies_tests;
 pub mod search_tests;
 pub mod telemetry_tests;
