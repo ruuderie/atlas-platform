@@ -1,10 +1,43 @@
 use crate::api::admin::{
-    CreateInviteInput, InviteModel, UserModel, create_invite, get_audit_logs, get_invites,
-    get_tenant_stats, get_users, impersonate_user, resend_invite, revoke_invite, toggle_admin,
+    CreateInviteInput, InviteModel, PasskeyAdminModel, UserModel, create_invite, get_all_passkeys,
+    get_audit_logs, get_invites, get_tenant_stats, get_users, impersonate_user, resend_invite,
+    revoke_invite, revoke_passkey_admin, toggle_admin,
 };
+use crate::api::audit_logs::audit_logs_export_url;
+use crate::api::rbac::{AssignRoleInput, assign_role, list_role_profiles, revoke_role};
 use crate::app::GlobalToast;
 use leptos::prelude::*;
 use uuid::Uuid;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PlatformInviteRole {
+    SuperAdmin,
+    Admin,
+    Editor,
+    Viewer,
+}
+
+impl PlatformInviteRole {
+    #[allow(dead_code)]
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::SuperAdmin => "Super-Admin",
+            Self::Admin => "Admin",
+            Self::Editor => "Editor",
+            Self::Viewer => "Viewer",
+        }
+    }
+
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            "Super-Admin" => Some(Self::SuperAdmin),
+            "Admin" => Some(Self::Admin),
+            "Editor" => Some(Self::Editor),
+            "Viewer" => Some(Self::Viewer),
+            _ => None,
+        }
+    }
+}
 
 #[component]
 pub fn PlatformAdmins() -> impl IntoView {
@@ -25,6 +58,8 @@ pub fn PlatformAdmins() -> impl IntoView {
     let show_invite_modal = RwSignal::new(false);
     let invite_step = RwSignal::new(1u8); // 1 = Who, 2 = Access
     let show_manage_modal = RwSignal::new(None::<UserModel>);
+    let confirm_revoke_invite = RwSignal::new(None::<(Uuid, String)>);
+    let confirm_revoke_passkey = RwSignal::new(None::<Uuid>);
 
     // Invite form — Step 1: Who
     let invite_display_name = RwSignal::new(String::new());
@@ -41,6 +76,16 @@ pub fn PlatformAdmins() -> impl IntoView {
     let invite_sending = RwSignal::new(false);
     let invite_sent_to = RwSignal::new(None::<String>); // email of last sent
 
+    // RBAC (G-32)
+    let rbac_app_slug = RwSignal::new("folio".to_string());
+    let rbac_user_id = RwSignal::new(String::new());
+    let rbac_role_slug = RwSignal::new(String::new());
+    let rbac_refetch = RwSignal::new(0u32);
+
+    // Passkeys ops
+    let passkeys_refetch = RwSignal::new(0u32);
+    let passkey_search = RwSignal::new(String::new());
+
     // Live invitations resource
     let invites_refetch = RwSignal::new(0);
     let invites_res = LocalResource::new(move || {
@@ -55,13 +100,65 @@ pub fn PlatformAdmins() -> impl IntoView {
         async move { get_users(n).await.unwrap_or_default() }
     });
 
-    // Audit log resource (loaded lazily when audit tab is active)
+    // Audit log resource
     let audit_logs_res =
         LocalResource::new(|| async move { get_audit_logs().await.unwrap_or_default() });
+
+    let passkeys_res = LocalResource::new(move || {
+        let _ = passkeys_refetch.get();
+        async move { get_all_passkeys(None).await.unwrap_or_default() }
+    });
+
+    let role_profiles_res = LocalResource::new(move || {
+        let slug = rbac_app_slug.get();
+        let _ = rbac_refetch.get();
+        async move { list_role_profiles(&slug).await.unwrap_or_default() }
+    });
 
     // Tenant list for the invite modal dropdown
     let tenants_for_invite =
         LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+
+    // Deep-link: /team#passkeys
+    Effect::new(move |_| {
+        if let Some(window) = web_sys::window() {
+            if let Ok(hash) = window.location().hash() {
+                let h = hash.trim_start_matches('#').to_lowercase();
+                if h == "passkeys" || h == "security" {
+                    active_tab.set("passkeys".to_string());
+                }
+            }
+        }
+    });
+
+    let filtered_users = Signal::derive(move || {
+        let users = users_res.get().unwrap_or_default();
+        let q = search_query.get().to_lowercase();
+        let role = role_filter.get();
+        let status = status_filter.get();
+        let _tenant = tenant_filter.get(); // scope not on UserModel — filter reserved
+        users
+            .into_iter()
+            .filter(|u| {
+                if !q.is_empty()
+                    && !u.username.to_lowercase().contains(&q)
+                    && !u.email.to_lowercase().contains(&q)
+                {
+                    return false;
+                }
+                let role_str = if u.is_admin { "Super-Admin" } else { "Admin" };
+                if role != "All Roles" && role != role_str {
+                    return false;
+                }
+                match status.as_str() {
+                    "Active" if !u.is_active => return false,
+                    "Inactive" | "Suspended" if u.is_active => return false,
+                    _ => {}
+                }
+                true
+            })
+            .collect::<Vec<_>>()
+    });
 
     // Impersonate
     let handle_impersonate = move |id: Uuid| {
@@ -116,6 +213,10 @@ pub fn PlatformAdmins() -> impl IntoView {
         let display_name = invite_display_name.get();
         let personal_msg = invite_personal_msg.get();
         let platform_role = invite_platform_role.get();
+        if PlatformInviteRole::parse(&platform_role).is_none() {
+            toast.show_toast("Error", "Invalid platform role.", "error");
+            return;
+        }
         let app_role = invite_app_role.get();
         let tenant = invite_tenant.get();
         let app_instance = invite_app_instance.get();
@@ -182,7 +283,7 @@ pub fn PlatformAdmins() -> impl IntoView {
         });
     };
 
-    // Revoke Invite helper
+    // Revoke Invite helper (called after confirm)
     let handle_revoke_invite = move |id: Uuid, email: String| {
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
@@ -203,6 +304,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                     );
                 }
             }
+            confirm_revoke_invite.set(None);
         });
     };
 
@@ -267,9 +369,9 @@ pub fn PlatformAdmins() -> impl IntoView {
                 </span>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">"Audit Events"</span>
+                <span class="kpi-label">"Passkeys enrolled"</span>
                 <span class="kpi-value">
-                    {move || audit_logs_res.get().map(|v| v.len().to_string()).unwrap_or_else(|| "—".to_string())}
+                    {move || passkeys_res.get().map(|v| v.len().to_string()).unwrap_or_else(|| "—".to_string())}
                 </span>
             </div>
         </div>
@@ -280,13 +382,13 @@ pub fn PlatformAdmins() -> impl IntoView {
                 class=move || if active_tab.get() == "users" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("users".to_string())
             >
-                "All Users"
+                "All operators"
             </button>
             <button
                 class=move || if active_tab.get() == "invites" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("invites".to_string())
             >
-                "Pending Invites "
+                "Pending invites "
                 <span style="font-size:10px;color:var(--amber)">
                     {move || format!("  {}", invites_res.get().map(|list| list.len()).unwrap_or(0))}
                 </span>
@@ -295,13 +397,19 @@ pub fn PlatformAdmins() -> impl IntoView {
                 class=move || if active_tab.get() == "roles" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("roles".to_string())
             >
-                "Roles & Permissions"
+                "Roles & permissions"
             </button>
             <button
                 class=move || if active_tab.get() == "audit" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("audit".to_string())
             >
-                "Audit Log"
+                "Access audit"
+            </button>
+            <button
+                class=move || if active_tab.get() == "passkeys" { "tab active" } else { "tab" }
+                on:click=move |_| active_tab.set("passkeys".to_string())
+            >
+                "Passkeys"
             </button>
         </div>
 
@@ -368,13 +476,13 @@ pub fn PlatformAdmins() -> impl IntoView {
                         <tbody>
                             // Real DB users only
                             {move || {
-                                let users = users_res.get().unwrap_or_default();
+                                let users = filtered_users.get();
                                 if users.is_empty() {
                                     view! {
                                         <tr>
                                             <td colspan="9" class="empty-state">
                                                 <span class="material-symbols-outlined" style="font-size:28px;opacity:0.25;display:block;margin-bottom:6px">"group"</span>
-                                                "No users found. Invite someone to get started."
+                                                "No operators match. Invite a teammate or clear filters."
                                             </td>
                                         </tr>
                                     }.into_any()
@@ -469,84 +577,153 @@ pub fn PlatformAdmins() -> impl IntoView {
                             </tr>
                         </thead>
                         <tbody>
-                            {move || invites_res.get().map(|invites| view! {
-                                <For
-                                    each=move || invites.clone()
-                                    key=|i: &InviteModel| i.id.clone()
-                                    children=move |invite| {
-                                        let invite_id = invite.id;
-                                        let invite_id2 = invite.id;
-                                        let email_clone = invite.email.clone();
-                                        let email_clone2 = invite.email.clone();
-                                        view! {
-                                            <tr>
-                                                <td class="cobalt">{invite.email}</td>
-                                                <td><span class="pill" style="color:var(--violet);border-color:var(--violet)">{invite.role}</span></td>
-                                                <td class="muted">{invite.tenant}</td>
-                                                <td class="muted">{invite.invited_by}</td>
-                                                <td class="muted">{invite.sent}</td>
-                                                <td class="muted amber">{invite.expires}</td>
-                                                <td style="display:flex;gap:4px;">
-                                                    <button
-                                                        class="btn btn-ghost btn-sm"
-                                                        on:click=move |_| handle_resend_invite(invite_id, email_clone.clone())
-                                                    >
-                                                        "Resend"
-                                                    </button>
-                                                    <button
-                                                        class="btn btn-ghost btn-sm"
-                                                        on:click=move |_| handle_revoke_invite(invite_id2, email_clone2.clone())
-                                                    >
-                                                        "Revoke"
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }
-                                />
-                            })}
+                            {move || {
+                                let invites = invites_res.get().unwrap_or_default();
+                                if invites.is_empty() {
+                                    view! {
+                                        <tr>
+                                            <td colspan="7" class="p-6 text-center muted">
+                                                "No pending invites. Sent invites appear here until accepted or revoked."
+                                            </td>
+                                        </tr>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <For
+                                            each=move || invites.clone()
+                                            key=|i: &InviteModel| i.id.clone()
+                                            children=move |invite| {
+                                                let invite_id = invite.id;
+                                                let invite_id2 = invite.id;
+                                                let email_clone = invite.email.clone();
+                                                let email_clone2 = invite.email.clone();
+                                                view! {
+                                                    <tr>
+                                                        <td class="cobalt">{invite.email}</td>
+                                                        <td><span class="pill" style="color:var(--violet);border-color:var(--violet)">{invite.role}</span></td>
+                                                        <td class="muted">{invite.tenant}</td>
+                                                        <td class="muted">{invite.invited_by}</td>
+                                                        <td class="muted">{invite.sent}</td>
+                                                        <td class="muted amber">{invite.expires}</td>
+                                                        <td style="display:flex;gap:4px;">
+                                                            <button
+                                                                class="btn btn-ghost btn-sm"
+                                                                on:click=move |_| handle_resend_invite(invite_id, email_clone.clone())
+                                                            >
+                                                                "Resend"
+                                                            </button>
+                                                            <button
+                                                                class="btn btn-ghost btn-sm"
+                                                                on:click=move |_| confirm_revoke_invite.set(Some((invite_id2, email_clone2.clone())))
+                                                            >
+                                                                "Revoke"
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        />
+                                    }.into_any()
+                                }
+                            }}
                         </tbody>
                     </table>
                 </div>
             </Show>
 
-            // ── Tab: Roles & Permissions ──
+            // ── Tab: Roles & Permissions (G-32 RBAC) ──
             <Show when=move || active_tab.get() == "roles">
                 <div class="two-col">
                     <div class="card">
-                        <div class="card-hdr"><span class="card-title">"Platform Roles"</span></div>
-                        <div class="role-row">
-                            <span class="role-name" style="color:var(--cobalt)">"Super-Admin"</span>
-                            <span class="role-desc">"Full platform access: all tenants, billing, commission plans, user management, impersonation."</span>
-                            <span class="role-count">"3"</span>
+                        <div class="card-hdr">
+                            <span class="card-title">"App role profiles (G-32)"</span>
                         </div>
-                        <div class="role-row">
-                            <span class="role-name" style="color:var(--violet)">"Admin"</span>
-                            <span class="role-desc">"Manage their tenant's users, app config, billing. Cannot access other tenants or platform settings."</span>
-                            <span class="role-count">"8"</span>
+                        <div style="padding:12px 14px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border-default)">
+                            <input class="form-input" style="max-width:140px" placeholder="app_slug"
+                                prop:value=move || rbac_app_slug.get()
+                                on:input=move |ev| rbac_app_slug.set(event_target_value(&ev))/>
+                            <button class="btn btn-ghost btn-sm" on:click=move |_| rbac_refetch.update(|v| *v += 1)>"Load roles"</button>
                         </div>
-                        <div class="role-row">
-                            <span class="role-name" style="color:var(--amber)">"Editor"</span>
-                            <span class="role-desc">"Read + write access to CRM entities, reservations, assets. Cannot manage users or billing."</span>
-                            <span class="role-count">"12"</span>
-                        </div>
-                        <div class="role-row">
-                            <span class="role-name" style="color:var(--text-muted)">"Viewer"</span>
-                            <span class="role-desc">"Read-only access to all records in their tenant scope."</span>
-                            <span class="role-count">"8"</span>
-                        </div>
+                        <Suspense fallback=move || view! { <div class="p-4 muted text-sm">"Loading roles…"</div> }>
+                        {move || {
+                            let profiles = role_profiles_res.get().unwrap_or_default();
+                            if profiles.is_empty() {
+                                view! {
+                                    <div class="p-4 muted text-sm">
+                                        "No role profiles for this app_slug (or insufficient rbac:read). Try folio / landlord."
+                                    </div>
+                                }.into_any()
+                            } else {
+                                profiles.into_iter().map(|p| {
+                                    let slug = p.role_slug.clone();
+                                    view! {
+                                        <div class="role-row" style="cursor:pointer" on:click=move |_| rbac_role_slug.set(slug.clone())>
+                                            <span class="role-name" style="color:var(--cobalt)">{p.display_name.clone()}</span>
+                                            <span class="role-desc">{p.description.clone().unwrap_or_else(|| p.role_slug.clone())}</span>
+                                            <span class="role-count mono">{p.role_slug.clone()}</span>
+                                        </div>
+                                    }
+                                }).collect_view().into_any()
+                            }
+                        }}
+                        </Suspense>
                     </div>
                     <div class="card">
-                        <div class="card-hdr"><span class="card-title">"Permission Matrix"</span></div>
-                        <div class="stat-row"><span class="s-label">"Manage platform users"</span><span class="s-value" style="color:var(--cobalt)">"Super-Admin only"</span></div>
-                        <div class="stat-row"><span class="s-label">"Impersonate tenants"</span><span class="s-value" style="color:var(--cobalt)">"Super-Admin only"</span></div>
-                        <div class="stat-row"><span class="s-label">"View billing & ledger"</span><span class="s-value">"Super-Admin, Admin"</span></div>
-                        <div class="stat-row"><span class="s-label">"Manage commission plans"</span><span class="s-value" style="color:var(--cobalt)">"Super-Admin only"</span></div>
-                        <div class="stat-row"><span class="s-label">"Create/edit CRM records"</span><span class="s-value">"Admin, Editor"</span></div>
-                        <div class="stat-row"><span class="s-label">"Configure app instance"</span><span class="s-value">"Admin+"</span></div>
-                        <div class="stat-row"><span class="s-label">"View records"</span><span class="s-value">"All roles"</span></div>
-                        <div class="stat-row"><span class="s-label">"Export data"</span><span class="s-value">"Admin+"</span></div>
-                        <div class="stat-row"><span class="s-label">"Manage API keys"</span><span class="s-value" style="color:var(--cobalt)">"Super-Admin only"</span></div>
+                        <div class="card-hdr"><span class="card-title">"Assign / revoke"</span></div>
+                        <div class="card-body" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+                            <div class="form-row">
+                                <label class="form-label">"User ID"</label>
+                                <input class="form-input" placeholder="uuid"
+                                    prop:value=move || rbac_user_id.get()
+                                    on:input=move |ev| rbac_user_id.set(event_target_value(&ev))/>
+                            </div>
+                            <div class="form-row">
+                                <label class="form-label">"Role slug"</label>
+                                <input class="form-input" placeholder="tenant | owner | …"
+                                    prop:value=move || rbac_role_slug.get()
+                                    on:input=move |ev| rbac_role_slug.set(event_target_value(&ev))/>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-primary btn-sm" on:click=move |_| {
+                                    let Ok(uid) = Uuid::parse_str(&rbac_user_id.get()) else {
+                                        toast.show_toast("Error", "Invalid user UUID.", "error");
+                                        return;
+                                    };
+                                    let app = rbac_app_slug.get();
+                                    let role = rbac_role_slug.get();
+                                    if role.trim().is_empty() {
+                                        toast.show_toast("Error", "Role slug required.", "error");
+                                        return;
+                                    }
+                                    let t = toast.clone();
+                                    leptos::task::spawn_local(async move {
+                                        match assign_role(uid, AssignRoleInput { app_slug: app, role_slug: role }).await {
+                                            Ok(_) => t.show_toast("Assigned", "Role assigned.", "success"),
+                                            Err(e) => t.show_toast("Error", &e, "error"),
+                                        }
+                                    });
+                                }>"Assign role"</button>
+                                <button class="btn btn-ghost btn-sm" style="color:var(--red)" on:click=move |_| {
+                                    let Ok(uid) = Uuid::parse_str(&rbac_user_id.get()) else {
+                                        toast.show_toast("Error", "Invalid user UUID.", "error");
+                                        return;
+                                    };
+                                    let app = rbac_app_slug.get();
+                                    let t = toast.clone();
+                                    leptos::task::spawn_local(async move {
+                                        match revoke_role(uid, &app).await {
+                                            Ok(_) => t.show_toast("Revoked", "Role revoked.", "warn"),
+                                            Err(e) => t.show_toast("Error", &e, "error"),
+                                        }
+                                    });
+                                }>"Revoke for app"</button>
+                            </div>
+                            <p class="muted" style="font-size:11px">
+                                "Platform Super-Admin is toggled on the Operators tab. App roles use /api/rbac (G-32)."
+                            </p>
+                            <div class="stat-row"><span class="s-label">"Impersonate"</span><span class="s-value" style="color:var(--cobalt)">"Super-Admin · audited"</span></div>
+                            <div class="stat-row"><span class="s-label">"Toggle Super-Admin"</span><span class="s-value" style="color:var(--cobalt)">"Cannot demote self"</span></div>
+                        </div>
                     </div>
                 </div>
             </Show>
@@ -555,8 +732,15 @@ pub fn PlatformAdmins() -> impl IntoView {
             <Show when=move || active_tab.get() == "audit">
                 <div class="card">
                     <div class="card-hdr">
-                        <span class="card-title">"Audit Log · All Actions"</span>
-                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Audit CSV export triggered.", "info")>"Export CSV"</button>
+                        <span class="card-title">"Access audit"</span>
+                        <div style="display:flex;gap:8px">
+                            <a class="btn btn-ghost btn-sm" href="/logs">"Full ledger →"</a>
+                            <a
+                                class="btn btn-ghost btn-sm"
+                                href=move || audit_logs_export_url(None, None, "", "")
+                                download="audit-logs.csv"
+                            >"Export CSV"</a>
+                        </div>
                     </div>
                     <Suspense fallback=move || view! { <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:12px;">"Loading audit log..."</div> }>
                     <table>
@@ -600,6 +784,77 @@ pub fn PlatformAdmins() -> impl IntoView {
                         </tbody>
                     </table>
                     </Suspense>
+                </div>
+            </Show>
+
+            // ── Tab: Passkeys (platform ops registry) ──
+            <Show when=move || active_tab.get() == "passkeys">
+                <div class="card">
+                    <div class="card-hdr">
+                        <span class="card-title">"Platform passkey registry"</span>
+                        <button class="btn btn-ghost btn-sm" on:click=move |_| passkeys_refetch.update(|v| *v += 1)>"Refresh"</button>
+                    </div>
+                    <div style="padding:10px 14px;border-bottom:1px solid var(--border-default)">
+                        <input class="form-input" style="max-width:280px" placeholder="Search email or device…"
+                            prop:value=move || passkey_search.get()
+                            on:input=move |ev| passkey_search.set(event_target_value(&ev))/>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>"User"</th>
+                                <th>"Device"</th>
+                                <th>"Sign count"</th>
+                                <th>"Last used"</th>
+                                <th>"Registered"</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {move || {
+                                let q = passkey_search.get().to_lowercase();
+                                let pks: Vec<PasskeyAdminModel> = passkeys_res.get().unwrap_or_default()
+                                    .into_iter()
+                                    .filter(|pk| q.is_empty()
+                                        || pk.user_email.to_lowercase().contains(&q)
+                                        || pk.name.to_lowercase().contains(&q))
+                                    .collect();
+                                if pks.is_empty() {
+                                    view! {
+                                        <tr><td colspan="6" class="p-6 text-center muted">"No passkeys registered."</td></tr>
+                                    }.into_any()
+                                } else {
+                                    pks.into_iter().map(|pk| {
+                                        let pk_id = pk.id;
+                                        let last = pk.last_used_at.clone().unwrap_or_else(|| "—".into());
+                                        let created = pk.created_at.chars().take(10).collect::<String>();
+                                        view! {
+                                            <tr>
+                                                <td>
+                                                    <div style="font-weight:500">{pk.user_email.clone()}</div>
+                                                    <div class="mono muted" style="font-size:10px">{pk.user_id.to_string().chars().take(8).collect::<String>()}"…"</div>
+                                                </td>
+                                                <td class="muted">{pk.name.clone()}</td>
+                                                <td class="mono">{pk.sign_count}</td>
+                                                <td class="muted">{last}</td>
+                                                <td class="muted">{created}</td>
+                                                <td>
+                                                    <button class="btn btn-ghost btn-sm" style="color:var(--red)"
+                                                        on:click=move |_| confirm_revoke_passkey.set(Some(pk_id))
+                                                    >"Revoke"</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }).collect_view().into_any()
+                                }
+                            }}
+                        </tbody>
+                    </table>
+                    <div style="padding:12px 14px;font-size:12px;color:var(--text-secondary)">
+                        "Revoking a passkey is immediate. Self-service enrollment: "
+                        <a href="/settings#security" style="color:var(--cobalt)">"Account Settings → Security"</a>
+                        "."
+                    </div>
                 </div>
             </Show>
         </div>
@@ -886,6 +1141,54 @@ pub fn PlatformAdmins() -> impl IntoView {
             </div>
         </Show>
 
+        // Confirm revoke invite
+        <Show when=move || confirm_revoke_invite.get().is_some()>
+            {let (id, email) = confirm_revoke_invite.get().unwrap_or_else(|| (Uuid::nil(), String::new()));
+             view! {
+                <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:16px">
+                    <div style="background:var(--bg-surface);max-width:400px;width:100%;padding:24px;border-radius:12px;border:1px solid var(--border-default)">
+                        <h3 style="font-size:16px;font-weight:600;margin-bottom:8px">"Revoke invite"</h3>
+                        <p class="muted" style="font-size:12px;margin-bottom:16px">"Revoke invite for " <strong>{email.clone()}</strong> "?"</p>
+                        <div style="display:flex;justify-content:flex-end;gap:8px">
+                            <button class="btn btn-ghost" on:click=move |_| confirm_revoke_invite.set(None)>"Cancel"</button>
+                            <button class="btn btn-primary" style="background:var(--red);border-color:var(--red)"
+                                on:click=move |_| handle_revoke_invite(id, email.clone())>"Revoke"</button>
+                        </div>
+                    </div>
+                </div>
+             }}
+        </Show>
+
+        // Confirm revoke passkey
+        <Show when=move || confirm_revoke_passkey.get().is_some()>
+            {let pk_id = confirm_revoke_passkey.get().unwrap_or_else(Uuid::nil);
+             view! {
+                <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:16px">
+                    <div style="background:var(--bg-surface);max-width:400px;width:100%;padding:24px;border-radius:12px;border:1px solid var(--border-default)">
+                        <h3 style="font-size:16px;font-weight:600;margin-bottom:8px">"Revoke passkey"</h3>
+                        <p class="muted" style="font-size:12px;margin-bottom:16px">"This is immediate and irreversible for WebAuthn login."</p>
+                        <div style="display:flex;justify-content:flex-end;gap:8px">
+                            <button class="btn btn-ghost" on:click=move |_| confirm_revoke_passkey.set(None)>"Cancel"</button>
+                            <button class="btn btn-primary" style="background:var(--red);border-color:var(--red)"
+                                on:click=move |_| {
+                                    let t = toast.clone();
+                                    leptos::task::spawn_local(async move {
+                                        match revoke_passkey_admin(pk_id).await {
+                                            Ok(()) => {
+                                                t.show_toast("Revoked", "Passkey revoked.", "success");
+                                                passkeys_refetch.update(|v| *v += 1);
+                                            }
+                                            Err(e) => t.show_toast("Error", &e, "error"),
+                                        }
+                                        confirm_revoke_passkey.set(None);
+                                    });
+                                }
+                            >"Revoke"</button>
+                        </div>
+                    </div>
+                </div>
+             }}
+        </Show>
 
         // Modal: Manage User
         <Show when=move || show_manage_modal.get().is_some()>
@@ -903,6 +1206,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                             <div style="font-size:14px;font-weight:700;margin-bottom:4px">"Manage User"</div>
                             <div style="font-size:11px;color:var(--text-muted)">{user.username} " · " {user.email}</div>
                         </div>
+                        <p class="muted" style="font-size:11px;margin-bottom:12px">"Toggle Super-Admin and impersonation are audit-logged."</p>
                         <div style="display:flex;flex-direction:column;gap:8px">
                             <button
                                 on:click=move |_| handle_toggle_admin(u_id.clone())
@@ -918,6 +1222,14 @@ pub fn PlatformAdmins() -> impl IntoView {
                             >
                                 "Impersonate User Session"
                             </button>
+                            <button
+                                class="btn btn-ghost btn-sm"
+                                on:click=move |_| {
+                                    rbac_user_id.set(u_id.to_string());
+                                    show_manage_modal.set(None);
+                                    active_tab.set("roles".to_string());
+                                }
+                            >"Assign app role (G-32) →"</button>
                         </div>
                         <div style="display:flex;justify-content:flex-end;padding-top:16px;margin-top:16px;border-top:1px solid var(--border-default)">
                             <button on:click=move |_| show_manage_modal.set(None) class="btn btn-ghost">"Close"</button>
