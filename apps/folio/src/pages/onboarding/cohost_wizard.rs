@@ -72,6 +72,7 @@ const DAYS: &[(&str, &str)] = &[
 pub fn CohostWizard() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
+    crate::pages::landlord::referrals::use_referral_attribution("cohost");
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
     let code_resource = Resource::new(code_key, |code| resolve_invite_code(code));
     Effect::new(move |_| {

@@ -1837,6 +1837,41 @@ impl TryFrom<String> for ReferAudience {
     }
 }
 
+/// Invite-out channel for F&F referrals (portal + platform-admin).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReferralInviteChannel {
+    Sms,
+    Email,
+}
+
+impl fmt::Display for ReferralInviteChannel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Sms => write!(f, "sms"),
+            Self::Email => write!(f, "email"),
+        }
+    }
+}
+
+impl TryFrom<&str> for ReferralInviteChannel {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "sms" | "text" => Ok(Self::Sms),
+            "email" | "mail" => Ok(Self::Email),
+            other => Err(format!("unknown ReferralInviteChannel: {other}")),
+        }
+    }
+}
+
+impl TryFrom<String> for ReferralInviteChannel {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AmbassadorFulfillmentKind {

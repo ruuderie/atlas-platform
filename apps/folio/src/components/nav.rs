@@ -182,6 +182,12 @@ pub enum FolioRoute {
     LandlordCommunications, // /l/communications — multi-party messaging
     LandlordNotifications, // /l/notifications  — notification inbox + channel prefs
     LandlordTeam,          // /l/team — team access + G-36 network invites
+    LandlordReferrals,     // /l/referrals — F&F share link + SMS/email
+    VendorReferrals,       // /v/referrals
+    PmcReferrals,          // /pmc/referrals
+    StrHostReferrals,      // /s/referrals
+    AgentReferrals,        // /a/referrals
+    BrokerReferrals,       // /b/referrals
 
     // ── Tenant /t/** ──────────────────────────────────────────────────────────
     TenantDashboard,
@@ -302,6 +308,12 @@ impl FolioRoute {
             Self::LandlordCommunications => "/l/communications",
             Self::LandlordNotifications => "/l/notifications",
             Self::LandlordTeam => "/l/team",
+            Self::LandlordReferrals => "/l/referrals",
+            Self::VendorReferrals => "/v/referrals",
+            Self::PmcReferrals => "/pmc/referrals",
+            Self::StrHostReferrals => "/s/referrals",
+            Self::AgentReferrals => "/a/referrals",
+            Self::BrokerReferrals => "/b/referrals",
 
             Self::TenantDashboard => "/t",
             Self::TenantMyLease => "/t/my-lease",
@@ -669,6 +681,7 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
                     NavIcon::Campaign,
                 ),
                 NavItem::new(FolioRoute::LandlordTeam, "Network", NavIcon::Group),
+                NavItem::new(FolioRoute::LandlordReferrals, "Referrals", NavIcon::Campaign),
             ],
         },
         NavGroup {
@@ -771,6 +784,7 @@ static VENDOR_NAV: NavConfig = NavConfig {
                 "Schedule",
                 NavIcon::CalendarMonth,
             ),
+            NavItem::new(FolioRoute::VendorReferrals, "Referrals", NavIcon::Campaign),
         ],
     }],
     footer_items: &[NavItem::new(
@@ -794,6 +808,7 @@ static PMC_NAV: NavConfig = NavConfig {
                 "Statements",
                 NavIcon::ReceiptLong,
             ),
+            NavItem::new(FolioRoute::PmcReferrals, "Referrals", NavIcon::Campaign),
         ],
     }],
     footer_items: &[NavItem::new(
@@ -844,6 +859,7 @@ static AGENT_NAV: NavConfig = NavConfig {
                 "Schedule",
                 NavIcon::CalendarMonth,
             ),
+            NavItem::new(FolioRoute::AgentReferrals, "Referrals", NavIcon::Campaign),
         ],
     }],
     footer_items: &[NavItem::new(
@@ -867,6 +883,7 @@ static BROKER_NAV: NavConfig = NavConfig {
                 NavIcon::Verified,
             ),
             NavItem::new(FolioRoute::BrokerRevenue, "Revenue", NavIcon::Payments),
+            NavItem::new(FolioRoute::BrokerReferrals, "Referrals", NavIcon::Campaign),
         ],
     }],
     footer_items: &[NavItem::new(

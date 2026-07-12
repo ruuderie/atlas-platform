@@ -7,6 +7,7 @@ use leptos::prelude::*;
 use crate::api::admin::{
     AmbassadorModel, CreateAmbassadorInput, CreateFulfillmentInput, create_ambassador,
     create_ambassador_fulfillment, download_ambassador_qr, list_ambassadors,
+    send_ambassador_invite,
 };
 
 #[component]
@@ -47,7 +48,9 @@ pub fn AmbassadorsPage() -> impl IntoView {
                 <div>
                     <h1 class="page-title">"Ambassadors"</h1>
                     <p class="text-xs text-on-surface-variant mt-1 max-w-xl">
-                        "Mint partner codes for Friends & Family card packs. Each ambassador gets landlord and vendor QR links."
+                        "Mint partner codes, send SMS/email invites for any app, and fulfill card packs. Share URL is unified "
+                        <code class="text-[10px]">"/refer/{code}"</code>
+                        "."
                     </p>
                 </div>
                 <button class="btn btn-primary" on:click=move |_| show_create.set(true)>
@@ -214,6 +217,10 @@ fn AmbassadorDetail(
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     let a = RwSignal::new(ambassador);
     let requesting = RwSignal::new(false);
+    let sending = RwSignal::new(false);
+    let app_slug = RwSignal::new("folio".to_string());
+    let sms_to = RwSignal::new(String::new());
+    let email_to = RwSignal::new(String::new());
     let id = a.get_untracked().id;
 
     view! {
@@ -227,54 +234,100 @@ fn AmbassadorDetail(
             </div>
 
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Share URLs"</h3>
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <code class="text-[11px] text-emerald-400/90 break-all flex-1">{move || a.get().landlord_url}</code>
-                        <button
-                            class="btn btn-ghost btn-sm ambassador-press-btn"
-                            on:click={
-                                let toast = toast.clone();
-                                move |_| {
-                                    let url = a.get().landlord_url;
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        if let Some(clipboard) = web_sys::window().map(|w| w.navigator().clipboard()) {
-                                            let _ = clipboard.write_text(&url);
-                                            toast.show_toast("Copied", "Landlord URL copied", "success");
-                                        }
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"App"</h3>
+                <select
+                    class="w-full bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-2 text-xs"
+                    on:change=move |ev| app_slug.set(event_target_value(&ev))
+                >
+                    <option value="folio" selected=true>"Folio"</option>
+                    <option value="folio-broker">"Broker"</option>
+                    <option value="folio-pm">"Property Manager"</option>
+                    <option value="folio-vendor">"Vendor"</option>
+                    <option value="network">"Network"</option>
+                    <option value="anchor">"Anchor"</option>
+                </select>
+            </div>
+
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Share URL"</h3>
+                                <div class="flex items-center gap-2 flex-wrap">
+                    <code class="text-[11px] text-emerald-400/90 break-all flex-1">{move || {
+                        let u = a.get().refer_url;
+                        if u.is_empty() { a.get().landlord_url } else { u }
+                    }}</code>
+                    <button
+                        class="btn btn-ghost btn-sm ambassador-press-btn"
+                        on:click={
+                            let toast = toast.clone();
+                            move |_| {
+                                let url = {
+                                    let u = a.get().refer_url;
+                                    if u.is_empty() { a.get().landlord_url } else { u }
+                                };
+                                #[cfg(target_arch = "wasm32")]
+                                {
+                                    if let Some(clipboard) = web_sys::window().map(|w| w.navigator().clipboard()) {
+                                        let _ = clipboard.write_text(&url);
+                                        toast.show_toast("Copied", "Refer URL copied", "success");
                                     }
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    { let _ = (&toast, url); }
                                 }
+                                #[cfg(not(target_arch = "wasm32"))]
+                                { let _ = (&toast, url); }
                             }
-                        >"Copy"</button>
+                        }
+                    >"Copy"</button>
+                </div>
+            </div>
+
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Send invite"</h3>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"SMS"</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="tel" class="flex-1 min-w-[10rem] bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-2 text-xs" placeholder="+1…" prop:value=move || sms_to.get() on:input=move |ev| sms_to.set(event_target_value(&ev))/>
+                        <button class="btn btn-primary btn-sm ambassador-press-btn" disabled=move || sending.get() on:click={
+                            let toast = toast.clone();
+                            move |_| {
+                                let toast = toast.clone();
+                                let to = sms_to.get();
+                                let slug = app_slug.get();
+                                sending.set(true);
+                                leptos::task::spawn_local(async move {
+                                    match send_ambassador_invite(id, "sms", &to, &slug).await {
+                                        Ok(()) => toast.show_toast("Sent", "SMS invite queued", "success"),
+                                        Err(e) => toast.show_toast("Send failed", &e, "error"),
+                                    }
+                                    sending.set(false);
+                                });
+                            }
+                        }>"Send SMS"</button>
                     </div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <code class="text-[11px] text-emerald-400/90 break-all flex-1">{move || a.get().vendor_url}</code>
-                        <button
-                            class="btn btn-ghost btn-sm ambassador-press-btn"
-                            on:click={
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Email"</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="email" class="flex-1 min-w-[10rem] bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-2 text-xs" placeholder="friend@email.com" prop:value=move || email_to.get() on:input=move |ev| email_to.set(event_target_value(&ev))/>
+                        <button class="btn btn-ghost btn-sm ambassador-press-btn" disabled=move || sending.get() on:click={
+                            let toast = toast.clone();
+                            move |_| {
                                 let toast = toast.clone();
-                                move |_| {
-                                    let url = a.get().vendor_url;
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        if let Some(clipboard) = web_sys::window().map(|w| w.navigator().clipboard()) {
-                                            let _ = clipboard.write_text(&url);
-                                            toast.show_toast("Copied", "Vendor URL copied", "success");
-                                        }
+                                let to = email_to.get();
+                                let slug = app_slug.get();
+                                sending.set(true);
+                                leptos::task::spawn_local(async move {
+                                    match send_ambassador_invite(id, "email", &to, &slug).await {
+                                        Ok(()) => toast.show_toast("Sent", "Email invite queued", "success"),
+                                        Err(e) => toast.show_toast("Send failed", &e, "error"),
                                     }
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    { let _ = (&toast, url); }
-                                }
+                                    sending.set(false);
+                                });
                             }
-                        >"Copy"</button>
+                        }>"Send email"</button>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 space-y-3">
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 space-y-3">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Card pack QRs"</h3>
                 <p class="text-xs text-on-surface-variant/70">"Download landlord and vendor PNGs for print (25+25 packs)."</p>
                 <div class="flex flex-wrap gap-2">

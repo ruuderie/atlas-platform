@@ -1154,6 +1154,8 @@ pub struct AmbassadorModel {
     pub fulfillment_requests: serde_json::Value,
     pub landlord_url: String,
     pub vendor_url: String,
+    #[serde(default)]
+    pub refer_url: String,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -1223,6 +1225,30 @@ pub async fn create_ambassador_fulfillment(
 }
 
 /// Download QR PNG for an ambassador by audience (`landlord` | `vendor`).
+/// POST /api/admin/ambassadors/:id/send
+pub async fn send_ambassador_invite(
+    id: uuid::Uuid,
+    channel: &str,
+    to: &str,
+    app_slug: &str,
+) -> Result<(), String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/ambassadors/{}/send", id));
+    let payload = serde_json::json!({
+        "channel": channel,
+        "to": to,
+        "app_slug": app_slug,
+    });
+    let req = with_credentials(client.post(&url)).json(&payload);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+/// GET /api/admin/ambassadors/:id/qr?audience= — download PNG (unified /refer URL).
 pub async fn download_ambassador_qr(id: uuid::Uuid, audience: &str) -> Result<(), String> {
     let client = create_client();
     let url = api_url(&format!(

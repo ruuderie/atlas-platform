@@ -13,7 +13,6 @@ use crate::pages::marketing::founding_member_page::FoundingMemberPage;
 use crate::pages::marketing::market_landing_page::MarketLandingPage;
 use crate::pages::marketing::property_manager_landing_page::PropertyManagerLandingPage;
 use crate::pages::marketing::referral_landing_page::ReferralLandingPage;
-use crate::pages::marketing::referral_vendor_landing_page::ReferralVendorLandingPage;
 use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
 
 // Landlord pages
@@ -28,7 +27,8 @@ use crate::pages::landlord::{
     map_portfolio::MapPortfolio, meridian_config::MeridianConfigurator,
     notifications::NotificationsPage, portfolio::Portfolio, ratings::LandlordRatings,
     reservations::LandlordReservations, str_compliance::StrCompliance,
-    syndication::LandlordSyndication, team::LandlordTeam, tenant_profile::TenantProfile,
+    syndication::LandlordSyndication, team::LandlordTeam, referrals::LandlordReferrals,
+    tenant_profile::TenantProfile,
     unit_appliances::UnitAppliances, vendors::Vendors, violations::Violations,
     wholesaling::LandlordWholesaling,
 };
@@ -184,12 +184,13 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/founding")             view=FoundingMemberPage/>
                 // /beta → Beta program application page
                 <Route path=path!("/beta")                 view=BetaProgramPage/>
-                // /refer/vendors → Friends & Family Vendors (+ optional :code) — BEFORE /refer/:code
-                <Route path=path!("/refer/vendors")        view=ReferralVendorLandingPage/>
-                <Route path=path!("/refer/vendors/:code")  view=ReferralVendorLandingPage/>
-                // /refer → Friends & Family referral capture (+ optional :code)
+                // /refer/vendors → unified /refer (persona picker includes vendor)
+                <Route path=path!("/refer/vendors") view=|| view! { <Redirect path="/refer"/> }/>
+                <Route path=path!("/refer/vendors/:code") view=ReferralVendorRedirect/>
+                // /refer → Friends & Family invitee landing (+ optional :code)
                 <Route path=path!("/refer")                view=ReferralLandingPage/>
                 <Route path=path!("/refer/:code")          view=ReferralLandingPage/>
+                <Route path=path!("/onboard/landlord")     view=|| view! { <Redirect path="/onboarding"/> }/>
 
                 // ── Home dispatch: / → marketing page (unauth) or role portal (auth) ──
                 <Route path=path!("/") view=HomeDispatch/>
@@ -231,6 +232,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
                     <Route path=path!("/ratings") view=LandlordRatings/>
                     <Route path=path!("/team")           view=LandlordTeam/>
+                    <Route path=path!("/referrals")      view=LandlordReferrals/>
                 </ParentRoute>
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────
@@ -261,6 +263,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/schedule")     view=VendorSchedule/>
                     <Route path=path!("/profile")      view=VendorNetworkProfile/>
                     <Route path=path!("/onboard")      view=VendorOnboard/>
+                    <Route path=path!("/referrals")    view=LandlordReferrals/>
                 </ParentRoute>
 
                 // ── STR Host namespace /s/** ───────────────────────────────────
@@ -278,6 +281,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/violations/new")   view=StrViolationFiling/>
                     <Route path=path!("/listings")         view=StrListingIndex/>      // index — nav target
                     <Route path=path!("/syndication")      view=StrSyndication/>       // per-listing channel distribution
+                    <Route path=path!("/referrals")        view=LandlordReferrals/>
                     // /s/listings/:id  — detail, linked from cards (no shell nav item)
                 </ParentRoute>
 
@@ -291,6 +295,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/maintenance") view=PmcMaintenanceDispatch/>
                     <Route path=path!("/statements")  view=PmcOwnerStatements/>
                     <Route path=path!("/map")         view=PmcPortfolioMap/>
+                    <Route path=path!("/referrals")   view=LandlordReferrals/>
                 </ParentRoute>
 
                 // ── Owner namespace /o/** ──────────────────────────────────────
@@ -364,6 +369,18 @@ pub fn App() -> impl IntoView {
             </Routes>
         </Router>
     }
+}
+
+#[component]
+fn ReferralVendorRedirect() -> impl IntoView {
+    let params = leptos_router::hooks::use_params_map();
+    let code = params.get().get("code").unwrap_or_default();
+    let target = if code.trim().is_empty() {
+        "/refer".to_string()
+    } else {
+        format!("/refer/{}", code.trim())
+    };
+    view! { <Redirect path=target/> }
 }
 
 // ── Per-role shell components ─────────────────────────────────────────────────

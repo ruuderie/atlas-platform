@@ -19,9 +19,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::{atlas_ambassador, atlas_ambassador_campaign, atlas_campaign};
+use crate::handlers::folio::referrals::{deliver_referral_invite, public_base_for_app, refer_url_for};
 use crate::types::pm::{
     AmbassadorFulfillmentKind, AmbassadorFulfillmentStatus, AmbassadorPartnerType,
-    AmbassadorStatus, ReferAudience,
+    AmbassadorStatus, ReferAudience, ReferralInviteChannel,
 };
 
 const SENTINEL_TENANT: Uuid = Uuid::nil();
@@ -70,6 +71,8 @@ pub struct AmbassadorDto {
     pub fulfillment_requests: serde_json::Value,
     pub landlord_url: String,
     pub vendor_url: String,
+    /// Unified invitee landing (preferred).
+    pub refer_url: String,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -77,11 +80,13 @@ pub struct AmbassadorDto {
 impl AmbassadorDto {
     fn from_model(m: atlas_ambassador::Model, campaign_ids: Vec<Uuid>) -> Self {
         let base = folio_public_base().trim_end_matches('/').to_string();
+        let refer_url = format!("{base}/refer/{}", m.code);
         Self {
             id: m.id,
             tenant_id: m.tenant_id,
-            landlord_url: format!("{base}/refer/{}", m.code),
-            vendor_url: format!("{base}/refer/vendors/{}", m.code),
+            landlord_url: refer_url.clone(),
+            vendor_url: refer_url.clone(),
+            refer_url,
             code: m.code,
             display_name: m.display_name,
             partner_type: m.partner_type,
@@ -315,10 +320,9 @@ pub async fn ambassador_qr_png(
     }
 
     let base = folio_public_base().trim_end_matches('/').to_string();
-    let url = match q.audience {
-        ReferAudience::Landlord => format!("{base}/refer/{}", m.code),
-        ReferAudience::Vendor => format!("{base}/refer/vendors/{}", m.code),
-    };
+    // Unified /refer/:code for all audiences (persona chosen on landing).
+    let url = format!("{base}/refer/{}", m.code);
+    let _ = (q.audience, ReferAudience::Landlord); // keep query for API compat
 
     let code = qrcode::QrCode::new(url.as_bytes())
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -396,6 +400,64 @@ pub async fn create_fulfillment(
     Ok(Json(dto_for(&db, updated).await?))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SendAmbassadorInvitePayload {
+    pub channel: ReferralInviteChannel,
+    pub to: String,
+    /// App slug for public base (folio, folio-broker, folio-pm, folio-vendor, network, anchor).
+    #[serde(default = "default_app_slug")]
+    pub app_slug: String,
+}
+
+fn default_app_slug() -> String {
+    "folio".into()
+}
+
+/// POST /api/admin/ambassadors/:id/send — SMS or email invite-out for any app.
+pub async fn send_ambassador_invite(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<Uuid>,
+    Json(payload): Json<SendAmbassadorInvitePayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let m = atlas_ambassador::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Ambassador not found".into()))?;
+
+    if m.status != AmbassadorStatus::Active.to_string() {
+        return Err((StatusCode::BAD_REQUEST, "ambassador is not active".into()));
+    }
+
+    let url = refer_url_for(&payload.app_slug, &m.code);
+    let _ = public_base_for_app(&payload.app_slug);
+    let app_label = match payload.app_slug.to_lowercase().as_str() {
+        "folio-broker" | "broker" => "Folio Broker",
+        "folio-pm" | "pmc" | "pm" => "Folio Property Manager",
+        "folio-vendor" | "vendor" => "Folio Vendor",
+        "network" => "Network",
+        "anchor" => "Anchor",
+        _ => "Folio",
+    };
+
+    deliver_referral_invite(
+        payload.channel,
+        &payload.to,
+        &url,
+        &m.display_name,
+        app_label,
+    )
+    .await
+    .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "refer_url": url,
+        "app_slug": payload.app_slug,
+        "channel": payload.channel.to_string(),
+    })))
+}
+
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route(
@@ -411,5 +473,9 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
         .route(
             "/api/admin/ambassadors/{id}/fulfillments",
             post(create_fulfillment),
+        )
+        .route(
+            "/api/admin/ambassadors/{id}/send",
+            post(send_ambassador_invite),
         )
 }

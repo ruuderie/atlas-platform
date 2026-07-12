@@ -27,6 +27,7 @@ pub mod programs; // G-36 atlas_programs NetworkInvite API
 pub mod property_value; // G-10 ext — POST/GET /api/folio/properties/:id/value[-history]
 pub mod provision; // POST /api/folio/provision/invite — unified all-persona provisioning
 pub mod quotes; // Phase 6 — Pre-purchase pricing proposals (G24)
+pub mod referrals; // G-37 persona self-serve referrals + invite-out + attribution
 pub mod relationships; // Phase 6 — Universal M:M junction table (G22)
 pub mod reporting; // Cross-table — Tenant reports + landlord/vendor analytics
 pub mod reservations; // Phase 6 — STR booking lifecycle (G23 atlas_reservations)

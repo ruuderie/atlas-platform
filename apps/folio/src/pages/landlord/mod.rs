@@ -22,6 +22,7 @@ pub mod meridian_config;
 pub mod notifications;
 pub mod portfolio;
 pub mod ratings;
+pub mod referrals;
 pub mod reservations;
 pub mod str_compliance;
 pub mod syndication;
