@@ -36,6 +36,45 @@ pub fn forward_client_ip(incoming: &axum::http::HeaderMap) -> reqwest::header::H
     out
 }
 
+/// Headers Folio SSR should forward when proxying authenticated calls to Atlas.
+///
+/// Includes client IP plus `X-Forwarded-Host` so Atlas can resolve the Folio
+/// app instance / tenant from `app_domains` (needed to provision landlord
+/// workspaces for fresh magic-link users who have no `user_account` yet).
+#[cfg(feature = "ssr")]
+pub fn folio_proxy_headers(incoming: &axum::http::HeaderMap) -> reqwest::header::HeaderMap {
+    let mut out = forward_client_ip(incoming);
+
+    let host = incoming
+        .get("x-forwarded-host")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            incoming
+                .get(axum::http::header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        })
+        .or_else(|| {
+            incoming
+                .get(axum::http::header::ORIGIN)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|o| url::Url::parse(o).ok())
+                .and_then(|u| u.host_str().map(|h| h.to_string()))
+        });
+
+    if let Some(h) = host {
+        // Strip port if present (folio1.atlas.oply.co:443 → folio1.atlas.oply.co)
+        let host_only = h.split(':').next().unwrap_or(&h);
+        if let Ok(val) = reqwest::header::HeaderValue::from_str(host_only) {
+            out.insert("x-forwarded-host", val);
+        }
+    }
+    out
+}
+
 /// Unauthenticated GET — for public endpoints (health, etc.)
 pub async fn fetch<T: DeserializeOwned>(path: &str) -> Result<T, String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
@@ -131,16 +170,30 @@ pub async fn authenticated_get<T: DeserializeOwned>(
     session_token: &str,
     tenant_id: Option<uuid::Uuid>,
 ) -> Result<T, String> {
+    authenticated_get_with_headers(path, session_token, tenant_id, reqwest::header::HeaderMap::new())
+        .await
+}
+
+/// Like [`authenticated_get`], with extra proxy headers (e.g. `X-Forwarded-Host`).
+pub async fn authenticated_get_with_headers<T: DeserializeOwned>(
+    path: &str,
+    session_token: &str,
+    tenant_id: Option<uuid::Uuid>,
+    extra: reqwest::header::HeaderMap,
+) -> Result<T, String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
     let mut req = CLIENT
         .get(&url)
-        .header("Authorization", format!("Bearer {}", session_token));
+        .header("Authorization", format!("Bearer {}", session_token))
+        .headers(extra);
     if let Some(tid) = tenant_id {
         req = req.header("x-tenant-id", tid.to_string());
     }
     let res = req.send().await.map_err(|e| e.to_string())?;
     if !res.status().is_success() {
-        return Err(format!("API {}", res.status()));
+        let status = res.status();
+        let msg = res.text().await.unwrap_or_default();
+        return Err(format!("API {status}: {msg}"));
     }
     res.json::<T>().await.map_err(|e| e.to_string())
 }
@@ -152,17 +205,38 @@ pub async fn authenticated_post<B: Serialize, T: DeserializeOwned>(
     tenant_id: Option<uuid::Uuid>,
     body: &B,
 ) -> Result<T, String> {
+    authenticated_post_with_headers(
+        path,
+        session_token,
+        tenant_id,
+        body,
+        reqwest::header::HeaderMap::new(),
+    )
+    .await
+}
+
+/// Like [`authenticated_post`], with extra proxy headers (e.g. `X-Forwarded-Host`).
+pub async fn authenticated_post_with_headers<B: Serialize, T: DeserializeOwned>(
+    path: &str,
+    session_token: &str,
+    tenant_id: Option<uuid::Uuid>,
+    body: &B,
+    extra: reqwest::header::HeaderMap,
+) -> Result<T, String> {
     let url = format!("{}{}", get_atlas_api_url(), path);
     let mut req = CLIENT
         .post(&url)
         .header("Authorization", format!("Bearer {}", session_token))
+        .headers(extra)
         .json(body);
     if let Some(tid) = tenant_id {
         req = req.header("x-tenant-id", tid.to_string());
     }
     let res = req.send().await.map_err(|e| e.to_string())?;
     if !res.status().is_success() {
-        return Err(format!("API {}", res.status()));
+        let status = res.status();
+        let msg = res.text().await.unwrap_or_default();
+        return Err(format!("API {status}: {msg}"));
     }
     res.json::<T>().await.map_err(|e| e.to_string())
 }

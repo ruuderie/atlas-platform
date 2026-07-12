@@ -58,6 +58,7 @@ pub async fn save_landlord_profile(
     phone: String,
     jurisdiction_code: String,
     license_number: String,
+    whatsapp_opt_in: bool,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -68,12 +69,15 @@ pub async fn save_landlord_profile(
         "first_name": first_name, "last_name": last_name,
         "phone": phone, "jurisdiction_code": jurisdiction_code,
         "license_number": license_number, "step": "profile",
+        "whatsapp_opt_in": whatsapp_opt_in,
     });
-    crate::atlas_client::authenticated_post::<_, serde_json::Value>(
+    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
+    crate::atlas_client::authenticated_post_with_headers::<_, serde_json::Value>(
         "/api/folio/onboarding/submit",
         &token,
         None,
         &payload,
+        proxy,
     )
     .await
     .map(|_| ())
@@ -215,6 +219,7 @@ pub fn LandlordWizard() -> impl IntoView {
     let last_name = RwSignal::new(String::new());
     let display_name = RwSignal::new(String::new());
     let phone = RwSignal::new(String::new());
+    let whatsapp_opt_in = RwSignal::new(false);
     let account_type = RwSignal::new("individual".to_string());
 
     // Portfolio
@@ -256,7 +261,9 @@ pub fn LandlordWizard() -> impl IntoView {
                 display_name.update(|dn| { if dn.is_empty() { *dn = v; } });
             }
             if let Some(v) = d.last_name { last_name.set(v); }
-            if let Some(v) = d.phone { phone.set(v); }
+            if let Some(v) = d.phone {
+                phone.set(crate::utils::phone::format_nanp_input(&v));
+            }
         }
     });
 
@@ -265,12 +272,19 @@ pub fn LandlordWizard() -> impl IntoView {
         if idx == 0 {
             let f = first_name.get();
             let l = last_name.get();
-            let ph = phone.get();
+            let ph = match crate::utils::phone::to_e164_us(&phone.get()) {
+                Ok(v) => v,
+                Err(msg) => {
+                    save_error.set(Some(msg.to_string()));
+                    return;
+                }
+            };
+            let wa = whatsapp_opt_in.get();
             let j = country_to_jurisdiction(&country.get());
             saving.set(true);
             save_error.set(None);
             leptos::task::spawn_local(async move {
-                match save_landlord_profile(f, l, ph, j, String::new()).await {
+                match save_landlord_profile(f, l, ph, j, String::new(), wa).await {
                     Ok(_) => { saving.set(false); current_idx.set(idx + 1); }
                     Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
                 }
@@ -280,12 +294,19 @@ pub fn LandlordWizard() -> impl IntoView {
         if idx == 1 {
             let f = first_name.get();
             let l = last_name.get();
-            let ph = phone.get();
+            let ph = match crate::utils::phone::to_e164_us(&phone.get()) {
+                Ok(v) => v,
+                Err(msg) => {
+                    save_error.set(Some(msg.to_string()));
+                    return;
+                }
+            };
+            let wa = whatsapp_opt_in.get();
             let j = country_to_jurisdiction(&country.get());
             saving.set(true);
             save_error.set(None);
             leptos::task::spawn_local(async move {
-                match save_landlord_profile(f, l, ph, j, String::new()).await {
+                match save_landlord_profile(f, l, ph, j, String::new(), wa).await {
                     Ok(_) => { saving.set(false); current_idx.set(idx + 1); }
                     Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
                 }
@@ -396,13 +417,13 @@ pub fn LandlordWizard() -> impl IntoView {
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
                                 <label class="wiz-label">"First Name"</label>
-                                <input class="wiz-inp" type="text" placeholder="Ruud"
+                                <input class="wiz-inp" type="text" placeholder="Alex"
                                     prop:value=move || first_name.get()
                                     on:input=move |e| first_name.set(event_target_value(&e))/>
                             </div>
                             <div class="wiz-f">
                                 <label class="wiz-label">"Last Name"</label>
-                                <input class="wiz-inp" type="text" placeholder="Erie"
+                                <input class="wiz-inp" type="text" placeholder="Morgan"
                                     prop:value=move || last_name.get()
                                     on:input=move |e| last_name.set(event_target_value(&e))/>
                             </div>
@@ -412,15 +433,29 @@ pub fn LandlordWizard() -> impl IntoView {
                                 "Display Name "
                                 <span class="wiz-label-hint">"(visible to tenants & vendors)"</span>
                             </label>
-                            <input class="wiz-inp" type="text" placeholder="e.g. Ruud Erie or Meridian Property Group"
+                            <input class="wiz-inp" type="text" placeholder="e.g. Alex Morgan or Meridian Property Group"
                                 prop:value=move || display_name.get()
                                 on:input=move |e| display_name.set(event_target_value(&e))/>
                         </div>
                         <div class="wiz-f">
-                            <label class="wiz-label">"Phone"</label>
-                            <input class="wiz-inp" type="tel" placeholder="+1 (555) 000-0000"
+                            <label class="wiz-label">
+                                "Phone "
+                                <span class="wiz-label-hint">"(required)"</span>
+                            </label>
+                            <input class="wiz-inp" type="tel" inputmode="tel"
+                                placeholder="(555) 000-0000" autocomplete="tel" required
                                 prop:value=move || phone.get()
-                                on:input=move |e| phone.set(event_target_value(&e))/>
+                                on:input=move |e| {
+                                    phone.set(crate::utils::phone::format_nanp_input(
+                                        &event_target_value(&e),
+                                    ));
+                                }/>
+                            <label class="wiz-check-row" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:#4b5563;cursor:pointer;">
+                                <input type="checkbox"
+                                    prop:checked=move || whatsapp_opt_in.get()
+                                    on:change=move |e| whatsapp_opt_in.set(event_target_checked(&e))/>
+                                "I use WhatsApp on this number"
+                            </label>
                         </div>
                         <VerifiedEmailField/>
                     </div>

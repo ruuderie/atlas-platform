@@ -349,10 +349,11 @@ pub async fn peek_auth_session() -> Result<AuthPeek, ServerFnError> {
             user: Option<ValidateUser>,
         }
 
-        let resp = crate::atlas_client::authenticated_get::<ValidateResp>(
+        let resp = crate::atlas_client::authenticated_get_with_headers::<ValidateResp>(
             "/api/auth/session/validate",
             &token,
             None,
+            crate::atlas_client::folio_proxy_headers(&headers),
         )
         .await
         .map_err(|e| ServerFnError::new(format!("Session peek failed: {e}")))?;
