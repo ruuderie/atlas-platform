@@ -21,6 +21,10 @@
 .env.local
 .env.production.local
 .env.test.local
+# atlas-local / Compose local overrides (keep .env.local.example tracked)
+!.env.local.example
+/target/
+/tools/atlas-local/target/
 .eslintcache
 .fusebox/
 .idea
@@ -63,7 +67,9 @@
 /target
 /target/*
 /workspace.xml
+# Ignore nested locks by path above; keep root workspace lock for atlas-local
 Cargo.lock
+!/Cargo.lock
 Thumbs.db
 debug/
 dist

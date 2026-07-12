@@ -1,16 +1,23 @@
-# Caddyfile for local multi-tenant development
+# Caddyfile for local multi-tenant development (atlas-local / Docker Compose)
+# Wildcard hosts so newly provisioned tenants route without editing this file:
+#   {slug}.anchor.localhost | {slug}.network.localhost | {slug}.folio.localhost
 
-# Route any subdomain of network.localhost to the network instances
-http://*.network.localhost, http://network.localhost {
-    reverse_proxy network-instance:8080
-}
-
-# Route admin.localhost to the Platform Admin app
-http://admin.localhost {
-    reverse_proxy platform-admin:8081
-}
-
-# Route api.localhost to the backend
 http://api.localhost {
-    reverse_proxy backend:8000
+	reverse_proxy backend:8000
+}
+
+http://admin.localhost {
+	reverse_proxy platform-admin:8081
+}
+
+http://*.network.localhost, http://network.localhost, http://directory.network.localhost {
+	reverse_proxy network-instance:8080
+}
+
+http://*.folio.localhost, http://folio.localhost, http://ruuderie.localhost {
+	reverse_proxy folio:3100
+}
+
+http://*.anchor.localhost, http://anchor.localhost, http://buildwithruud.localhost, http://oplystusa.localhost {
+	reverse_proxy anchor:3000
 }

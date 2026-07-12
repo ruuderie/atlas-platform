@@ -1,10 +1,12 @@
-
 services:
   postgres:
     image: postgres:15
     container_name: atlas-platform-db
     env_file:
-      - .env
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
@@ -30,7 +32,10 @@ services:
       target: ${DOCKER_TARGET:-development}
     container_name: atlas-platform-backend
     env_file:
-      - .env
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     volumes:
       - ./backend:/app
       - backend_cargo_cache:/usr/local/cargo/registry
@@ -50,15 +55,16 @@ services:
           action: rebuild
     environment:
       RUST_LOG: debug
-      # RUSTFLAGS: -D warnings
-      USE_LOCAL_DB: false
+      USE_LOCAL_DB: "false"
       DATABASE_URL: postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
       HOST: 0.0.0.0
-      PORT: 8000
+      PORT: "8000"
       FRONTEND_URL: ${FRONTEND_URL}
       ADMIN_URL: ${ADMIN_URL}
       ENVIRONMENT: ${ENVIRONMENT}
       ADDITIONAL_ALLOWED_ORIGINS: ${ADDITIONAL_ALLOWED_ORIGINS}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://admin.localhost}
+      RP_ID: ${RP_ID:-localhost}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -74,7 +80,10 @@ services:
       target: ${DOCKER_TARGET:-development}
     container_name: atlas-platform-instance
     env_file:
-      - .env
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     volumes:
       - ./apps/network-instance:/app
       - ./apps/shared-ui:/shared-ui
@@ -94,6 +103,8 @@ services:
           action: rebuild
     environment:
       - API_URL=http://backend:8000
+      - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL:-http://api.localhost}
+      - BROWSER_API_URL=${BROWSER_API_URL:-http://api.localhost}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
@@ -109,7 +120,10 @@ services:
       target: ${DOCKER_TARGET:-development}
     container_name: atlas-platform-admin
     env_file:
-      - .env
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     volumes:
       - ./apps/platform-admin:/app
       - ./apps/shared-ui:/shared-ui
@@ -132,6 +146,7 @@ services:
           action: rebuild
     environment:
       - API_URL=http://backend:8000
+      - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL:-http://api.localhost}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/"]
@@ -148,7 +163,10 @@ services:
       target: runner
     container_name: atlas-platform-folio
     env_file:
-      - .env
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
     ports:
       - "3100:3100"
     depends_on:
@@ -163,12 +181,45 @@ services:
           action: rebuild
     environment:
       - ATLAS_API_URL=http://backend:8000
+      - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL:-http://api.localhost}
       - LEPTOS_SITE_ADDR=0.0.0.0:3100
       - LEPTOS_SITE_ROOT=site
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3100/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+  anchor:
+    build:
+      context: .
+      dockerfile: apps/anchor/Dockerfile
+      target: runner
+      args:
+        BUILD_PROFILE: ${ANCHOR_BUILD_PROFILE:-debug}
+    container_name: atlas-platform-anchor
+    env_file:
+      - path: .env
+        required: true
+      - path: .env.local
+        required: false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - ATLAS_API_URL=http://backend:8000
+      - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL:-http://api.localhost}
+      - LEPTOS_SITE_ADDR=0.0.0.0:3000
+      - LEPTOS_SITE_ROOT=site
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -186,6 +237,7 @@ services:
       - network-instance
       - platform-admin
       - folio
+      - anchor
       - backend
     restart: unless-stopped
     networks:
@@ -198,4 +250,4 @@ networks:
 volumes:
   postgres_data:
   backend_cargo_cache:
-  backend_target_cache: 
+  backend_target_cache:

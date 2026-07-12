@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::entities::{passkey, user, webauthn_challenge};
-use crate::handlers::sessions::session_cookie_header;
+use crate::handlers::sessions::{cookie_secure_attribute_required, session_cookie_header};
 use crate::metrics;
 use crate::webauthn_registry::WebauthnRegistry;
 use axum::{
@@ -335,9 +335,14 @@ pub async fn login_start(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
+    let secure = if cookie_secure_attribute_required() {
+        "; Secure"
+    } else {
+        ""
+    };
     let cookie = format!(
-        "passkey_session={}; Path=/api/passkeys; HttpOnly; Secure; Max-Age=300; SameSite=Strict",
-        session_id
+        "passkey_session={}; Path=/api/passkeys; HttpOnly{}; Max-Age=300; SameSite=Strict",
+        session_id, secure
     );
 
     tracing::info!(

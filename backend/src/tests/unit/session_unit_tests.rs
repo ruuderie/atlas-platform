@@ -25,10 +25,16 @@ mod tests {
         );
     }
 
-    // T3: Required security attributes must always be present.
-    // Any removal of HttpOnly, Secure, or SameSite=Strict is a security regression.
+    // T3: Required security attributes must always be present in non-dev.
+    // In development/local, Secure is omitted so HTTP *.localhost cookies work.
     #[test]
     fn session_cookie_has_required_security_attributes() {
+        // Default ENVIRONMENT (unset → production semantics in cookie helper)
+        // Tests may inherit ENVIRONMENT=development from the shell — pin it.
+        // SAFETY: unit test process; we restore after.
+        let prev = std::env::var("ENVIRONMENT").ok();
+        unsafe { std::env::set_var("ENVIRONMENT", "production") };
+
         let cookie = session_cookie_header("tok", 3600);
         assert!(
             cookie.contains("session=tok"),
@@ -48,6 +54,30 @@ mod tests {
             cookie.contains("Max-Age=3600"),
             "Max-Age must match argument; got: {cookie}"
         );
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("ENVIRONMENT", v) },
+            None => unsafe { std::env::remove_var("ENVIRONMENT") },
+        }
+    }
+
+    #[test]
+    fn session_cookie_omits_secure_in_development() {
+        let prev = std::env::var("ENVIRONMENT").ok();
+        unsafe { std::env::set_var("ENVIRONMENT", "development") };
+
+        let cookie = session_cookie_header("tok", 3600);
+        assert!(
+            !cookie.contains("Secure"),
+            "development cookies must omit Secure for HTTP localhost; got: {cookie}"
+        );
+        assert!(cookie.contains("HttpOnly"));
+        assert!(cookie.contains("SameSite=Strict"));
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("ENVIRONMENT", v) },
+            None => unsafe { std::env::remove_var("ENVIRONMENT") },
+        }
     }
 
     // T3: Logout cookie must zero out the session and immediately expire it.

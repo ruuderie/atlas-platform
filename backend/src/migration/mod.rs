@@ -348,6 +348,7 @@ pub mod m20261027_atlas_flag_instance_enablements; // Per-app-instance feature f
 pub mod m20261028_g06_verification_reviewer_notes; // G-06: request_type + reviewer_notes
 pub mod m20261029_friends_family_referral_campaign; // Friends & Family referral campaign + UTM preset
 pub mod m20261030_campaign_global_name_ff_vendors_g37_ambassadors; // global_name + F&F vendors + G-37 ambassadors
+pub mod m20261101_seed_local_dev_domain_aliases; // *.localhost aliases for atlas-local / Compose
 
 pub struct Migrator;
 
@@ -664,6 +665,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261028_g06_verification_reviewer_notes::Migration),
             Box::new(m20261029_friends_family_referral_campaign::Migration),
             Box::new(m20261030_campaign_global_name_ff_vendors_g37_ambassadors::Migration),
+            Box::new(m20261101_seed_local_dev_domain_aliases::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

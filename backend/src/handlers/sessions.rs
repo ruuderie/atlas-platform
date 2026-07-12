@@ -15,17 +15,43 @@ use serde::Deserialize;
 use std::time::Instant;
 use uuid::Uuid;
 
+/// True when cookies may be set without the `Secure` flag (local HTTP only).
+/// Production / UAT / DEV server envs must keep `Secure`.
+pub fn cookie_secure_attribute_required() -> bool {
+    match std::env::var("ENVIRONMENT")
+        .unwrap_or_else(|_| "production".to_string())
+        .to_lowercase()
+        .as_str()
+    {
+        "development" | "dev" | "local" => false,
+        _ => true,
+    }
+}
+
+fn secure_cookie_fragment() -> &'static str {
+    if cookie_secure_attribute_required() {
+        "; Secure"
+    } else {
+        ""
+    }
+}
+
 /// Builds the `Set-Cookie` header value for the session token.
 pub fn session_cookie_header(token: &str, max_age_secs: i64) -> String {
     format!(
-        "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age={}",
-        token, max_age_secs
+        "session={}; HttpOnly{}; SameSite=Strict; Path=/; Max-Age={}",
+        token,
+        secure_cookie_fragment(),
+        max_age_secs
     )
 }
 
 /// Clears the session cookie (used on logout / revoke).
 pub fn clear_session_cookie_header() -> String {
-    "session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0".to_string()
+    format!(
+        "session=; HttpOnly{}; SameSite=Strict; Path=/; Max-Age=0",
+        secure_cookie_fragment()
+    )
 }
 
 /// Extracts the session token from either cookie or Authorization header.

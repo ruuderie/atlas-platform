@@ -10,6 +10,7 @@ This repository contains the Atlas Platform — a multi-tenant application platf
 ## Important Documentation
 
 - **[`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md)** — Start here. Ground-truth architecture and status (Rev 11+).
+- **[`docs/architecture/local_development.md`](docs/architecture/local_development.md)** — `atlas-local` CLI, Compose/Caddy, WebAuthn isolation, sandbox `db pull`, CLI extension policy.
 - **[`docs/architecture/generic_fitness_test.md`](docs/architecture/generic_fitness_test.md)** — Rule 7 before new tables / G-numbers.
 - **[`docs/architecture/platform_generics_v3.md`](docs/architecture/platform_generics_v3.md)** — Canonical generics design doc (G01–G37+). Status columns must match CURRENT_STATE.
 - [`docs/architecture/platform_generics_v2.md`](docs/architecture/platform_generics_v2.md) — Historical G01–G31 design record (superseded by v3 for G32+).
@@ -32,19 +33,30 @@ Monorepo workspace:
 3. **`k8s/`**
    - Kustomize manifests for Kubernetes deployments
 
-## Local Development (Docker & Caddy)
+## Local Development (`atlas-local`)
 
-The easiest way to develop locally is using the included Docker Compose configuration, which automatically sets up the database, backend, frontends, and a local reverse proxy for simulating multi-tenant networks:
+Use the Rust CLI — do **not** invent one-off shell scripts for local ops (extend `tools/atlas-local` instead). Architecture: [`docs/architecture/local_development.md`](docs/architecture/local_development.md).
 
-1. Ensure ports 80, 8080, 8081, and 8000 are free.
-2. Run standard Docker Compose in the root network:
-   ```bash
-   docker compose up --build
-   ```
-3. **Accessing the applications:**
-   - **Backend API:** `http://api.localhost`
-   - **Platform Admin:** `http://admin.localhost`
-   - **Network Instances:** You can simulate any multi-tenant network by navigating to a `.network.localhost` subdomain (e.g., `http://my-first-dir.network.localhost`). The Caddy proxy will automatically route it to the instance, and the app will dynamically fetch the correct configurations!
+```bash
+cargo run -p atlas-local -- --help
+cargo run -p atlas-local -- up
+
+# optional: cargo install --path tools/atlas-local
+atlas-local up
+atlas-local db pull --from dev   # optional sandbox from atlas_dev
+```
+
+**URLs (after `up`):**
+
+| App | URL |
+|-----|-----|
+| Backend API | `http://api.localhost` |
+| Platform Admin | `http://admin.localhost` |
+| Network | `http://directory.network.localhost` (or any `*.network.localhost`) |
+| Folio | `http://folio.localhost` |
+| Anchor | `http://buildwithruud.localhost` / `http://oplystusa.localhost` |
+
+Local WebAuthn uses `RP_ID=localhost` (via `.env.local`). Register a **new** local passkey; server passkeys will not work here. Never copy local WebAuthn env into K8s overlays.
 
 ## Deployment & CI/CD
 

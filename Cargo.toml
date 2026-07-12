@@ -1,0 +1,5 @@
+[workspace]
+resolver = "2"
+members = ["tools/atlas-local"]
+# Intentionally does not include backend/ or apps/ — those have their own workspaces.
+# Use: cargo run -p atlas-local -- <command>

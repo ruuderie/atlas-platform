@@ -765,6 +765,29 @@ steps:
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
 
+  # ── Advisory: atlas-local CLI health (does NOT block deploy) ────────────────
+  # Runs only after a successful deploy. failure: ignore so a broken local CLI
+  # never rolls back or fails the pipeline — it only surfaces awareness.
+  # See docs/architecture/local_development.md § CI advisory.
+  validate_atlas_local_cli:
+    image: rust:1.94-slim
+    commands:
+      - apt-get update -qq && apt-get install -y -qq pkg-config libssl-dev >/dev/null
+      - |
+        set -euo pipefail
+        echo "==> Advisory check: atlas-local CLI (non-blocking)"
+        cargo test -p atlas-local -- --nocapture
+        cargo build -p atlas-local
+        ./target/debug/atlas-local --help >/tmp/atlas-local-help.txt
+        ./target/debug/atlas-local db pull --help >/tmp/atlas-local-db-help.txt
+        grep -q "up" /tmp/atlas-local-help.txt
+        grep -q "db pull" /tmp/atlas-local-db-help.txt || grep -q "Pull" /tmp/atlas-local-db-help.txt
+        echo "✓ atlas-local unit tests + --help OK"
+    failure: ignore
+    when:
+      - status: [success]
+        branch: [dev, uat]
+
   # ── Post-Deploy Smoke Test ──────────────────────────────────────────────────
   # Hits the /health endpoint on each environment after deploy and fails the
   # pipeline if the new pod is not serving a 200. This catches a new image
