@@ -2484,6 +2484,34 @@ label.ft input:checked ~ .ft-track .ft-thumb {
 .form-input:focus,.form-select:focus{border-color:var(--cobalt);}
 .form-input::placeholder{color:var(--text-muted);}
 .form-hint{font-size:10.5px;color:var(--text-muted);margin-top:4px;}
+
+/* In-card filter bar (Team, Flags, Logs) — never use form-select here (width:100% stacks) */
+.filter-bar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 12px;border-bottom:1px solid var(--border-default);background:var(--bg-base);
+}
+.f-input,.f-select{
+  background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:4px;
+  padding:5px 9px;color:var(--text-primary);font-size:11.5px;font-family:inherit;outline:none;
+  width:auto;max-width:none;
+}
+.f-input{flex:1;min-width:160px;max-width:240px;}
+.f-select{flex:0 0 auto;min-width:120px;}
+.f-input:focus,.f-select:focus{border-color:var(--cobalt);}
+.user-avatar{
+  width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;flex-shrink:0;background:var(--cobalt-dim);color:var(--cobalt);
+}
+.role-row,.team-stat-row{
+  display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border-subtle);
+}
+.role-row:last-child,.team-stat-row:last-child{border-bottom:none;}
+.role-name{font-size:12px;font-weight:600;width:110px;flex-shrink:0;}
+.role-desc{font-size:11.5px;color:var(--text-muted);flex:1;line-height:1.5;}
+.role-count{font-size:11px;color:var(--text-muted);flex-shrink:0;}
+.n-empty{padding:36px 24px;text-align:center;}
+.n-empty-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:6px;}
+.n-empty-sub{font-size:12px;color:var(--text-muted);max-width:360px;margin:0 auto 14px;line-height:1.5;}
 .toggle{width:36px;height:20px;background:var(--cobalt);border-radius:10px;position:relative;cursor:pointer;flex-shrink:0;transition:background 0.2s;}
 .toggle::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:3px;right:4px;transition:right 0.2s;}
 .toggle.off{background:var(--bg-elevated);}
