@@ -19,10 +19,16 @@ RUN ARCH=$(uname -m) && \
 
 WORKDIR /app
 
-# Development stage
+# Development stage — refuse known-stale dist; prefer host trunk build + SPA serve
+# (in-container rust-lld often SIGSEGVs on this WASM size).
 FROM base AS development
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker-dev-entrypoint.sh /docker-dev-entrypoint.sh
+COPY spa_static_server.py /spa_static_server.py
+RUN chmod +x /docker-dev-entrypoint.sh /spa_static_server.py
 EXPOSE 8081
-CMD ["trunk", "serve", "--port", "8081", "--address", "0.0.0.0"]
+ENTRYPOINT ["/docker-dev-entrypoint.sh"]
 
 # Build stage
 FROM base AS builder

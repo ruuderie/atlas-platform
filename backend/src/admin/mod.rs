@@ -14,5 +14,6 @@ pub mod provision;
 pub mod routes;
 pub mod setup;
 pub mod support_inbox;
+pub mod system_status; // Deploy-safe ops dashboard: hierarchy + health + sanitized metrics
 pub mod upload; // Admin-scoped R2 presigned upload URL (avatars, transcripts)
 pub mod users; // G-07 — Platform support inbox: cross-tenant platform_support room management

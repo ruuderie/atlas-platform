@@ -37,15 +37,25 @@ Monorepo workspace:
 
 Use the Rust CLI — do **not** invent one-off shell scripts for local ops (extend `tools/atlas-local` instead). Architecture: [`docs/architecture/local_development.md`](docs/architecture/local_development.md).
 
+**Parity by default** (baked backend ≈ K8s). Use `--hot` only for volume-mounted cargo iteration.
+
 ```bash
 cargo run -p atlas-local -- --help
-cargo run -p atlas-local -- up
+cargo run -p atlas-local -- up                 # PARITY — preferred
+cargo run -p atlas-local -- status             # dashboard + Next steps
+cargo run -p atlas-local -- refresh backend    # after code changes (parity)
+cargo run -p atlas-local -- env smtp           # why magic links don't send
+cargo run -p atlas-local -- env set KEY=value  # writes .env.local
+cargo run -p atlas-local -- db info            # DBeaver: 127.0.0.1:5433
+
+# optional hot loop (diverges from server; slow cold boot):
+# cargo run -p atlas-local -- up --hot && cargo run -p atlas-local -- watch
 
 # optional: cargo install --path tools/atlas-local
 atlas-local up
-atlas-local db pull --from dev   # optional sandbox from atlas_dev
 ```
 
+**Stuck?** `atlas-local status` prints copy-paste Next steps (`refresh` → `down && up` → `reset-db`).
 **URLs (after `up`):**
 
 | App | URL |

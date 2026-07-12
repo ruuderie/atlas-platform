@@ -45,7 +45,7 @@ struct Args {
     #[arg(long)]
     niche: Option<String>,
 
-    /// Type of report to generate: 'market_analysis' or 'sales'
+    /// Type of report to generate: 'market_analysis', 'sales', or 'gtm'
     #[arg(long)]
     report_type: Option<String>,
 
@@ -249,6 +249,7 @@ fn check_pdf_status(directory: &Path, filename_stem: &str) -> (String, Option<St
 fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let market_dir = docs_root.join("reports").join("market-analysis");
     let sales_dir = docs_root.join("reports").join("sales");
+    let gtm_dir = docs_root.join("reports").join("gtm");
     let output_path = docs_root.join("reports").join("niches_tracked.md");
 
     if !market_dir.exists() || !sales_dir.exists() {
@@ -313,6 +314,36 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Scan GTM beachhead strategies
+    if gtm_dir.exists() {
+        if let Ok(entries) = fs::read_dir(&gtm_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
+                    let name = path.file_name().unwrap().to_str().unwrap();
+                    if name.to_lowercase() != "readme.md" {
+                        let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
+                        let (pdf_status, pdf_file) = check_pdf_status(&gtm_dir, &stem);
+                        let title = format_title_case(&stem);
+                        let sector = get_sector(&stem).to_string();
+                        let geo = parse_geo(&stem);
+
+                        reports.push(ReportItem {
+                            filename: name.to_string(),
+                            title,
+                            sector,
+                            geo,
+                            pdf_status,
+                            pdf_file,
+                            report_type: "GTM Strategy".to_string(),
+                            rel_path: format!("gtm/{}", name),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     // Sort alphabetically by title
     reports.sort_by(|a, b| a.title.cmp(&b.title));
 
@@ -336,7 +367,12 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         .flatten()
         .filter(|r| r.report_type == "Technical Sales")
         .count();
-    let total_all = total_market + total_sales;
+    let total_gtm = sectors
+        .values()
+        .flatten()
+        .filter(|r| r.report_type == "GTM Strategy")
+        .count();
+    let total_all = total_market + total_sales + total_gtm;
 
     let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
@@ -344,8 +380,8 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     md.push("# 📋 Strategic Niches & Go-To-Market Reports Catalog".to_string());
     md.push(format!("**Last Scanned:** {}  ", now));
     md.push(format!(
-        "**Total Reports Scanned:** {} ({} Market Analyses, {} Sales Analyses)  ",
-        total_all, total_market, total_sales
+        "**Total Reports Scanned:** {} ({} Market Analyses, {} Sales Analyses, {} GTM Strategies)  ",
+        total_all, total_market, total_sales, total_gtm
     ));
     md.push("".to_string());
     md.push("This dynamic catalog indexes every vertical niche we are currently tracking, mapping them to major economic sectors, geographic scopes, and compiled PDF version-controlled assets.".to_string());
@@ -353,8 +389,8 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     md.push("## 📊 Sector Summary Breakdown".to_string());
     md.push("".to_string());
-    md.push("| Economic Sector | Active Reports | Market Analyses | Sales Analyses | PDF Compiled Ratio |".to_string());
-    md.push("|-----------------|----------------|-----------------|----------------|--------------------|".to_string());
+    md.push("| Economic Sector | Active Reports | Market Analyses | Sales Analyses | GTM Strategies | PDF Compiled Ratio |".to_string());
+    md.push("|-----------------|----------------|-----------------|----------------|----------------|--------------------|".to_string());
 
     for (sec, items) in &sectors {
         let m_count = items
@@ -364,6 +400,10 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         let s_count = items
             .iter()
             .filter(|r| r.report_type == "Technical Sales")
+            .count();
+        let g_count = items
+            .iter()
+            .filter(|r| r.report_type == "GTM Strategy")
             .count();
         let compiled = items
             .iter()
@@ -376,11 +416,12 @@ fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
             (compiled * 100) / items.len()
         );
         md.push(format!(
-            "| {} | **{}** | {} | {} | {} |",
+            "| {} | **{}** | {} | {} | {} | {} |",
             sec,
             items.len(),
             m_count,
             s_count,
+            g_count,
             ratio
         ));
     }
@@ -645,6 +686,20 @@ fn run_sync(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
         Think of Atlas as the operating system your business runs on — not a tool you add to your stack, but the stack itself.";
     update_prompt_file(&sales_prompt_path, sales_header, &shared_markdown)?;
 
+    let gtm_prompt_path = docs_root.join("prompts").join("gtm_strategy_prompt.md");
+    if gtm_prompt_path.exists() {
+        update_prompt_file(
+            &gtm_prompt_path,
+            "## PLATFORM ARCHITECTURE",
+            &shared_markdown,
+        )?;
+    } else {
+        println!(
+            "Note: gtm_strategy_prompt.md not found at {} — skipped sync for GTM template.",
+            gtm_prompt_path.display()
+        );
+    }
+
     println!("All template prompts are now synchronized natively in Rust!");
     Ok(())
 }
@@ -728,6 +783,84 @@ fn format_target_block_sales(profile: &Value) -> String {
         params["pain_points"].as_str().unwrap_or("N/A"),
         params["revenue_model"].as_str().unwrap_or("N/A"),
         params["core_workflows"].as_str().unwrap_or("N/A")
+    )
+}
+
+fn format_target_block_gtm(profile: &Value) -> String {
+    let params = &profile["parameters"];
+    let app_slug = profile["app_slug"]
+        .as_str()
+        .or_else(|| params["app_slug"].as_str())
+        .unwrap_or("folio");
+    let app_name = params["app_name"].as_str().unwrap_or("Atlas App");
+
+    format!(
+        "## TARGET GTM INFORMATION\n\n\
+        TARGET GTM PACK: {}\n\n\
+        Produce an App Beachhead GTM Strategy using these parameters:\n\
+        - **App name**: {}\n\
+        - **App slug**: {}\n\
+        - **Vertical / niche**: {}\n\
+        - **Geography**: {}\n\
+        - **Beachheads**: {}\n\
+        - **Primary ICP**: {}\n\
+        - **Secondary ICP**: {}\n\
+        - **Disqualifiers**: {}\n\
+        - **Primary JTBD (per beachhead)**: {}\n\
+        - **Size / sweet spot**: {}\n\
+        - **Property / asset types**: {}\n\
+        - **Legal & regulatory**: {}\n\
+        - **Core wedge workflows**: {}\n\
+        - **Incumbents / current stack**: {}\n\
+        - **Cross-border / rails**: {}\n\
+        - **ICP revenue model**: {}\n\
+        - **Budget / WTP**: {}\n\
+        - **Paid channels**: {}\n\
+        - **Flywheel**: {}\n\
+        - **Founder advantage**: {}\n\
+        - **Existing product slugs / public paths**: {}\n\
+        - **platform-admin surfaces**: {}\n\
+        - **Pain points**: {}\n\
+        - **7-day success / activation**: {}\n\
+        - **Open constraints**: {}\n\
+        - **Staff / team shape**: {}\n\
+        - **Volume / scale notes**: {}\n\
+        - **Key relationships**: {}\n\
+        - **Exemplar operating pack (if any)**: {}\n",
+        profile["target_market"]
+            .as_str()
+            .unwrap_or("Undefined GTM Target"),
+        app_name,
+        app_slug,
+        profile["vertical"].as_str().unwrap_or("Unknown"),
+        profile["geography"].as_str().unwrap_or("Global"),
+        params["beachheads"].as_str().unwrap_or("N/A"),
+        params["primary_icp"].as_str().unwrap_or("N/A"),
+        params["secondary_icp"].as_str().unwrap_or("N/A"),
+        params["disqualifiers"].as_str().unwrap_or("N/A"),
+        params["primary_jtbd"].as_str().unwrap_or("N/A"),
+        params["size_and_sweet_spot"].as_str().unwrap_or("N/A"),
+        params["property_types"].as_str().unwrap_or("N/A"),
+        params["legal_and_regulatory"].as_str().unwrap_or("N/A"),
+        params["core_workflows"].as_str().unwrap_or("N/A"),
+        params["incumbents"].as_str().unwrap_or("N/A"),
+        params["cross_border_cases"].as_str().unwrap_or("N/A"),
+        params["revenue_model"].as_str().unwrap_or("N/A"),
+        params["budget_spend"].as_str().unwrap_or("N/A"),
+        params["paid_channels"].as_str().unwrap_or("meta, x"),
+        params["flywheel"].as_str().unwrap_or("none"),
+        params["founder_advantage"].as_str().unwrap_or("N/A"),
+        params["existing_product_slugs"].as_str().unwrap_or("N/A"),
+        params["platform_admin_surfaces"]
+            .as_str()
+            .unwrap_or("landing-pages, products, campaigns, ambassadors"),
+        params["pain_points"].as_str().unwrap_or("N/A"),
+        params["success_7_days"].as_str().unwrap_or("N/A"),
+        params["open_constraints"].as_str().unwrap_or("N/A"),
+        params["staff_headcount"].as_str().unwrap_or("N/A"),
+        params["volume_scale"].as_str().unwrap_or("N/A"),
+        params["key_relationships"].as_str().unwrap_or("N/A"),
+        params["exemplar_operating_pack"].as_str().unwrap_or("N/A")
     )
 }
 
@@ -840,10 +973,17 @@ async fn run_generate(
     let profile_str = fs::read_to_string(&profile_path)?;
     let profile: Value = serde_json::from_str(&profile_str)?;
 
-    let prompt_file = if report_type == "market_analysis" {
-        "market_analysis_prompt.md"
-    } else {
-        "technical_sales_analysis_prompt.md"
+    let prompt_file = match report_type {
+        "market_analysis" => "market_analysis_prompt.md",
+        "sales" | "sales-analysis" => "technical_sales_analysis_prompt.md",
+        "gtm" | "gtm_strategy" | "beachhead_gtm" => "gtm_strategy_prompt.md",
+        other => {
+            return Err(format!(
+                "Error: unsupported --report-type '{}'. Use market_analysis | sales | gtm",
+                other
+            )
+            .into());
+        }
     };
     let prompt_path = docs_root.join("prompts").join(prompt_file);
     if !prompt_path.exists() {
@@ -852,16 +992,19 @@ async fn run_generate(
 
     let template = fs::read_to_string(&prompt_path)?;
 
-    let (niche_block, placeholder) = if report_type == "market_analysis" {
-        (
+    let (niche_block, placeholder) = match report_type {
+        "market_analysis" => (
             format_target_block_market(&profile),
             "[TARGET MARKET BLOCK GOES HERE]",
-        )
-    } else {
-        (
+        ),
+        "gtm" | "gtm_strategy" | "beachhead_gtm" => (
+            format_target_block_gtm(&profile),
+            "[TARGET GTM BLOCK GOES HERE]",
+        ),
+        _ => (
             format_target_block_sales(&profile),
             "[CUSTOMER PROFILE BLOCK GOES HERE]",
-        )
+        ),
     };
 
     let final_prompt = if template.contains(placeholder) {
@@ -905,10 +1048,10 @@ async fn run_generate(
         return Err("Error: No API key found. Please export GEMINI_API_KEY or ANTHROPIC_API_KEY in your terminal session or .env file.".into());
     };
 
-    let out_dir = if report_type == "market_analysis" {
-        docs_root.join("reports").join("market-analysis")
-    } else {
-        docs_root.join("reports").join("sales")
+    let out_dir = match report_type {
+        "market_analysis" => docs_root.join("reports").join("market-analysis"),
+        "gtm" | "gtm_strategy" | "beachhead_gtm" => docs_root.join("reports").join("gtm"),
+        _ => docs_root.join("reports").join("sales"),
     };
 
     fs::create_dir_all(&out_dir)?;
@@ -956,7 +1099,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 4. Handle generation flag
     if let Some(ref niche) = args.niche {
         let report_type = args.report_type.as_ref().ok_or_else(|| {
-            "Error: --report-type <market_analysis|sales> is required when --niche is specified."
+            "Error: --report-type <market_analysis|sales|gtm> is required when --niche is specified."
         })?;
 
         run_generate(&docs_root, niche, report_type, args.dry_run, &args.output).await?;

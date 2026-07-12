@@ -847,11 +847,22 @@ steps:
       to:
         from_secret: TELEGRAM_CHAT_ID
       format: markdown
-      message: >
-        🎉 *Atlas Platform Deployment SUCCESS* 🎉
-        Pipeline #${CI_PIPELINE_NUMBER} completed successfully!
-        Branch: `${CI_COMMIT_BRANCH}` | Commit: `${CI_COMMIT_SHA}`
+      message: |
+        🎉 *Atlas Platform Deployment SUCCESS*
+        Pipeline #${CI_PIPELINE_NUMBER} · `${CI_COMMIT_BRANCH}` · `${CI_COMMIT_SHA}`
         [View Logs](${CI_PIPELINE_URL})
+
+        *Local test (`atlas-local`)* — parity matches server:
+        ```
+        cd atlas-platform
+        cargo run -p atlas-local -- up              # baked backend ≈ K8s
+        cargo run -p atlas-local -- status          # Next steps if stuck
+        cargo run -p atlas-local -- refresh backend # after code changes
+        cargo run -p atlas-local -- db info         # DBeaver 127.0.0.1:5433
+        ```
+        Hot loop only if needed: `up --hot` then `watch` (slow cold compile)
+        List targets: `atlas-local services`
+        Optional: `cargo install --path tools/atlas-local` then `atlas-local …`
     when:
       - status: [success]
         event: [push]
@@ -864,11 +875,22 @@ steps:
       to:
         from_secret: TELEGRAM_CHAT_ID
       format: markdown
-      message: >
-        🚨 💥 *Atlas Platform Deployment FAILED* 💥 🚨
-        Pipeline #${CI_PIPELINE_NUMBER} failed.
-        Branch: `${CI_COMMIT_BRANCH}` | Commit: `${CI_COMMIT_SHA}`
+      message: |
+        🚨 *Atlas Platform Deployment FAILED*
+        Pipeline #${CI_PIPELINE_NUMBER} · `${CI_COMMIT_BRANCH}` · `${CI_COMMIT_SHA}`
         [View Logs](${CI_PIPELINE_URL})
+
+        *Reproduce locally (`atlas-local`)* — parity first:
+        ```
+        cd atlas-platform
+        cargo run -p atlas-local -- up
+        cargo run -p atlas-local -- status          # Next steps (copy-paste)
+        cargo run -p atlas-local -- logs -f backend
+        cargo run -p atlas-local -- refresh backend
+        ```
+        Open: http://admin.localhost · http://api.localhost
+        DB: `atlas-local db info` · List: `atlas-local services`
+        Ladder: refresh → down&&up → reset-db → up
     when:
       - status: [failure]
         event: [push]
@@ -907,6 +929,21 @@ steps:
 
           <div style="margin-top: 25px; padding: 15px; border-radius: 3px; background-color: #dcffe4; color: #1a7f37;">
             <strong>✅ Deployment completed successfully! All systems are go. 🚀</strong>
+          </div>
+
+          <div style="margin-top: 20px; padding: 15px; border-radius: 3px; background-color: #f6f8fa; border: 1px solid #e1e4e8;">
+            <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #24292e;">Local test — <code>atlas-local</code> (parity ≈ server)</h3>
+            <p style="margin: 0 0 10px 0; color: #586069; font-size: 13px;">Default <code>up</code> uses a baked backend binary (like K8s). Use <code>status</code> for Next steps when stuck. Hot mode (<code>up --hot</code>) is optional and slow on cold compile.</p>
+            <pre style="margin: 0; padding: 12px; background: #24292e; color: #e1e4e8; border-radius: 4px; font-size: 12px; overflow-x: auto; line-height: 1.45;">cd atlas-platform
+cargo run -p atlas-local -- up
+cargo run -p atlas-local -- status
+cargo run -p atlas-local -- refresh backend
+cargo run -p atlas-local -- db info</pre>
+            <p style="margin: 12px 0 0 0; font-size: 13px; color: #24292e;">
+              <strong>Open:</strong> <a href="http://admin.localhost">admin.localhost</a> · <a href="http://api.localhost">api.localhost</a><br>
+              <strong>Stuck:</strong> <code>atlas-local status</code> → Next steps (<code>refresh</code> → <code>down&&up</code> → <code>reset-db</code>)<br>
+              <strong>Install:</strong> <code>cargo install --path tools/atlas-local</code>
+            </p>
           </div>
         </div>
     when:
@@ -947,6 +984,21 @@ steps:
 
           <div style="margin-top: 25px; padding: 15px; border-radius: 3px; background-color: #ffeef0; color: #b31d28;">
             <strong>❌ Deployment FAILED. Please investigate immediately! 🛠️</strong>
+          </div>
+
+          <div style="margin-top: 20px; padding: 15px; border-radius: 3px; background-color: #f6f8fa; border: 1px solid #e1e4e8;">
+            <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #24292e;">Reproduce locally — <code>atlas-local</code></h3>
+            <p style="margin: 0 0 10px 0; color: #586069; font-size: 13px;">Start in parity mode, then use <code>status</code> for copy-paste Next steps. Do not assume a hung <code>--hot</code> compile means the app is broken on the server.</p>
+            <pre style="margin: 0; padding: 12px; background: #24292e; color: #e1e4e8; border-radius: 4px; font-size: 12px; overflow-x: auto; line-height: 1.45;">cd atlas-platform
+cargo run -p atlas-local -- up
+cargo run -p atlas-local -- status
+cargo run -p atlas-local -- logs -f backend
+cargo run -p atlas-local -- refresh backend</pre>
+            <p style="margin: 12px 0 0 0; font-size: 13px; color: #24292e;">
+              <strong>Open:</strong> <a href="http://admin.localhost">admin.localhost</a> · <a href="http://api.localhost">api.localhost</a><br>
+              <strong>Ladder:</strong> <code>refresh</code> → <code>down && up</code> → <code>reset-db</code> → <code>up</code><br>
+              <strong>DB:</strong> <code>atlas-local db info</code> — <code>127.0.0.1:5433</code>, SSL off
+            </p>
           </div>
         </div>
     when:

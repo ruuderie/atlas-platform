@@ -1,6 +1,6 @@
 # Platform Admin — Style Guide
 
-> **Reference standard**: `apps/platform-admin/src/pages/dashboard.rs` (Command Center)
+> **Reference standard**: `apps/platform-admin/src/pages/command_center.rs` (Command Center)
 > **Token source**: `apps/platform-admin/style/index.css`
 
 ---

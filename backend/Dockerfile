@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y \
     libssl3 \
     libpq5 \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/* && \
     useradd -m appuser
 WORKDIR /app

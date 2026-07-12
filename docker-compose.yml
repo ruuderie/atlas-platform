@@ -29,32 +29,25 @@ services:
   backend:
     build:
       context: ./backend
-      target: ${DOCKER_TARGET:-development}
+      # Default = server parity: baked binary (same shape as K8s), not `cargo run`.
+      # Opt into compile-in-container with: atlas-local up --hot  (docker-compose.hot.yml)
+      target: ${BACKEND_TARGET:-production}
+      args:
+        # debug is much faster to build locally; release matches CI (BACKEND_BUILD_PROFILE=release)
+        BUILD_PROFILE: ${BACKEND_BUILD_PROFILE:-debug}
     container_name: atlas-platform-backend
     env_file:
       - path: .env
         required: true
       - path: .env.local
         required: false
-    volumes:
-      - ./backend:/app
-      - backend_cargo_cache:/usr/local/cargo/registry
-      - backend_target_cache:/app/target
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
-    develop:
-      watch:
-        - path: ./backend/src
-          target: /app/src
-          action: rebuild
-        - path: ./backend/Cargo.toml
-          target: /app/Cargo.toml
-          action: rebuild
     environment:
-      RUST_LOG: debug
+      RUST_LOG: ${RUST_LOG:-info}
       USE_LOCAL_DB: "false"
       DATABASE_URL: postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
       HOST: 0.0.0.0
@@ -65,12 +58,20 @@ services:
       ADDITIONAL_ALLOWED_ORIGINS: ${ADDITIONAL_ALLOWED_ORIGINS}
       WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://admin.localhost}
       RP_ID: ${RP_ID:-localhost}
+      METRICS_TOKEN: ${METRICS_TOKEN:-local-dev-metrics}
+      # From .env.local via compose --env-file (atlas-local env set …). Empty/localhost = mock email.
+      SMTP_SERVER: ${SMTP_SERVER:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_TOKEN: ${SMTP_TOKEN:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
     networks:
       - app-network
 
@@ -211,6 +212,14 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    develop:
+      watch:
+        - path: ./apps/anchor/src
+          action: rebuild
+        - path: ./apps/anchor/Cargo.toml
+          action: rebuild
+        - path: ./apps/shared-ui/src
+          action: rebuild
     environment:
       - ATLAS_API_URL=http://backend:8000
       - PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL:-http://api.localhost}

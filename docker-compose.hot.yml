@@ -1,0 +1,31 @@
+# Hot-reload overlay — NOT the default.
+# Applied by: atlas-local up --hot
+#
+# This intentionally diverges from server (K8s) so you can iterate with
+# volume mounts + cargo/trunk. Prefer default `atlas-local up` (parity) for
+# confidence that matches deployed behavior.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: development
+    volumes:
+      - ./backend:/app
+      - backend_cargo_cache:/usr/local/cargo/registry
+      - backend_target_cache:/app/target
+    environment:
+      RUST_LOG: debug
+    develop:
+      watch:
+        - path: ./backend/src
+          target: /app/src
+          action: rebuild
+        - path: ./backend/Cargo.toml
+          target: /app/Cargo.toml
+          action: rebuild
+    healthcheck:
+      # First `cargo run` compile can take many minutes — do not mark unhealthy early
+      start_period: 600s
+      interval: 15s
+      retries: 40

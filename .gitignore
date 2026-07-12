@@ -23,6 +23,7 @@
 .env.test.local
 # atlas-local / Compose local overrides (keep .env.local.example tracked)
 !.env.local.example
+.atlas-local-mode
 /target/
 /tools/atlas-local/target/
 .eslintcache

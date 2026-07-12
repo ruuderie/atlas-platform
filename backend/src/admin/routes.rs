@@ -306,6 +306,8 @@ pub fn admin_routes_raw() -> Router<DatabaseConnection> {
                 "/api/admin/analytics/billing_summary",
                 get(crate::admin::analytics::get_billing_summary),
             )
+            // Deploy-safe system status (hierarchy + health + sanitized metrics)
+            .merge(crate::admin::system_status::routes_raw())
             // Billing & Monetization
             .route(
                 "/api/admin/billing/plans",

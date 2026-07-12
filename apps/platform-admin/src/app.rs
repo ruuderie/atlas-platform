@@ -23,7 +23,7 @@ use crate::pages::crm::accounts::AccountsPage;
 use crate::pages::crm::contacts::ContactsPage;
 use crate::pages::crm::leads::LeadsPage;
 use crate::pages::crm::opportunities::OpportunitiesPage;
-use crate::pages::dashboard::Dashboard;
+use crate::pages::command_center::CommandCenter;
 use crate::pages::network::create::NetworkCreate;
 use crate::pages::network::detail::NetworkDetail;
 use crate::pages::network::syndication::SyndicationManager;
@@ -226,7 +226,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
 
     let show_intel_sidebar = Signal::derive(move || {
         let p = current_path.get();
-        p == "/" || p == "/dashboard"
+        p == "/"
     });
 
     // Mobile sidebar drawer state
@@ -516,6 +516,13 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Operations"</span>
+                    <a href="/ops/status" data-label="System Status" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/ops/status") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-7 3 4 3-6 3 9"/><circle cx="13" cy="4" r="1.2" fill="currentColor"/></svg>
+                        "System Status"
+                    </a>
                     <a href="/internal-instances" data-label="App Instances" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/internal-instances") { "nav-item active" } else { "nav-item" }
@@ -575,7 +582,11 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 // ── Main Content ──
                 <main class="main-content-layout">
                     <Routes fallback=|| "Not found.">
-                        <Route path=path!("/") view=Dashboard />
+                        <Route path=path!("/") view=CommandCenter />
+                        <Route path=path!("/dashboard") view=|| view! {
+                            <crate::components::redirect::Redirect to="/" />
+                        } />
+                        <Route path=path!("/ops/status") view=crate::pages::ops::system_status::SystemStatusPage />
                         <Route path=path!("/analytics") view=Analytics />
                         <Route path=path!("/map") view=crate::pages::map::index::PlatformMap />
                         // /apps → redirect to /tenants for backward compat

@@ -25,7 +25,7 @@ fn app_type_label(slug: &str) -> &'static str {
 }
 
 #[component]
-pub fn Dashboard() -> impl IntoView {
+pub fn CommandCenter() -> impl IntoView {
     let kpis_res =
         LocalResource::new(|| async move { get_business_kpis().await.unwrap_or_default() });
     let engagement_res =

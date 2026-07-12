@@ -227,16 +227,133 @@ pub fn pull(
     Ok(())
 }
 
-fn local_database_url(root: &Path) -> Result<String> {
-    if let Some(url) = repo::read_dotenv_value(root, "LOCAL_DATABASE_URL") {
-        return Ok(url);
+/// Host-side connection details for Compose Postgres (port published as 5433).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalDbConn {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub password: String,
+    pub database: String,
+}
+
+impl LocalDbConn {
+    /// Resolve from `.env` / `.env.local`. Prefer `LOCAL_DATABASE_URL` (host → container
+    /// mapping). Fall back to `PG*` vars with host defaults suitable for DBeaver on the Mac.
+    pub fn resolve(root: &Path) -> Self {
+        if let Some(url) = repo::read_dotenv_value(root, "LOCAL_DATABASE_URL") {
+            if let Some(parsed) = parse_postgres_url(&url) {
+                return parsed.for_host_client();
+            }
+        }
+
+        let user = repo::read_dotenv_value(root, "PGUSER").unwrap_or_else(|| "postgres".into());
+        let password =
+            repo::read_dotenv_value(root, "PGPASSWORD").unwrap_or_else(|| "postgres".into());
+        let database = repo::read_dotenv_value(root, "PGDB").unwrap_or_else(|| "oplydb".into());
+
+        Self {
+            host: "127.0.0.1".into(),
+            port: 5433,
+            user,
+            password,
+            database,
+        }
+        .for_host_client()
     }
-    let user = repo::read_dotenv_value(root, "PGUSER").unwrap_or_else(|| "postgres".into());
-    let pass = repo::read_dotenv_value(root, "PGPASSWORD").unwrap_or_else(|| "postgres".into());
-    let db = repo::read_dotenv_value(root, "PGDB").unwrap_or_else(|| "oplydb".into());
-    Ok(format!(
-        "postgresql://{user}:{pass}@127.0.0.1:5433/{db}"
-    ))
+
+    /// Rewrite Compose-internal hostnames so GUI tools on the host work.
+    pub fn for_host_client(mut self) -> Self {
+        if self.host == "postgres" || self.host == "localhost" {
+            self.host = "127.0.0.1".into();
+        }
+        // Inside Compose the DB listens on 5432; on the host it is published as 5433.
+        if self.port == 5432 && (self.host == "127.0.0.1" || self.host == "localhost") {
+            self.port = 5433;
+        }
+        self
+    }
+
+    pub fn url(&self) -> String {
+        format!(
+            "postgresql://{}:{}@{}:{}/{}",
+            self.user, self.password, self.host, self.port, self.database
+        )
+    }
+
+    pub fn jdbc_url(&self) -> String {
+        format!(
+            "jdbc:postgresql://{}:{}/{}",
+            self.host, self.port, self.database
+        )
+    }
+
+    pub fn print_guide(&self) {
+        println!("Database (Compose Postgres — connect from DBeaver / TablePlus / psql):");
+        println!("  Host:     {}", self.host);
+        println!("  Port:     {}", self.port);
+        println!("  Database: {}", self.database);
+        println!("  User:     {}", self.user);
+        println!("  Password: {}", self.password);
+        println!("  URL:      {}", self.url());
+        println!("  JDBC:     {}", self.jdbc_url());
+        println!();
+        println!("  DBeaver: Database → New Connection → PostgreSQL → fill Host/Port/Database/User/Password above.");
+        println!("  Tip: SSL mode = disable (local Compose has no TLS).");
+        println!("  Re-print anytime: atlas-local db info");
+    }
+}
+
+/// Print connection info for GUI clients (no Docker required).
+pub fn info(root: &Path) -> Result<()> {
+    let conn = LocalDbConn::resolve(root);
+    println!();
+    conn.print_guide();
+    println!();
+    println!("Stack must be up (`atlas-local up`) for the port to accept connections.");
+    Ok(())
+}
+
+fn local_database_url(root: &Path) -> Result<String> {
+    Ok(LocalDbConn::resolve(root).url())
+}
+
+/// Minimal `postgresql://user:pass@host:port/db` parser (no extra deps).
+pub fn parse_postgres_url(url: &str) -> Option<LocalDbConn> {
+    let rest = url
+        .strip_prefix("postgresql://")
+        .or_else(|| url.strip_prefix("postgres://"))?;
+
+    let (creds, host_part) = rest.split_once('@')?;
+    let (user, password) = match creds.split_once(':') {
+        Some((u, p)) => (u.to_string(), p.to_string()),
+        None => (creds.to_string(), String::new()),
+    };
+
+    let (host_port, database) = match host_part.split_once('/') {
+        Some((hp, db)) => (hp, db.split('?').next().unwrap_or(db).to_string()),
+        None => (host_part, String::new()),
+    };
+
+    let (host, port) = if let Some((h, p)) = host_port.rsplit_once(':') {
+        let port: u16 = p.parse().ok()?;
+        // IPv6 in brackets not supported — fine for local Compose.
+        (h.to_string(), port)
+    } else {
+        (host_port.to_string(), 5432)
+    };
+
+    if user.is_empty() || database.is_empty() {
+        return None;
+    }
+
+    Some(LocalDbConn {
+        host,
+        port,
+        user,
+        password,
+        database,
+    })
 }
 
 fn require_bin(name: &str) -> Result<()> {

@@ -24,6 +24,7 @@ pub mod search;
 pub mod seeds;
 pub mod setup;
 pub mod syndication;
+pub mod system_status;
 pub mod templates;
 pub mod version;
 
