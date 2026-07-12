@@ -63,6 +63,10 @@ pub fn syndication_admin_routes() -> Router<DatabaseConnection> {
             get(list_links).post(create_link),
         )
         .route("/api/admin/syndication/links/{id}", delete(revoke_link))
+        .route(
+            "/api/admin/syndication/outbox/{id}/replay",
+            post(replay_outbox),
+        )
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
@@ -498,4 +502,20 @@ pub async fn auto_provision_mandatory_links(
         "offer_id": offer_id,
         "mandatory_tiers": mandatory_tiers,
     })))
+}
+
+/// POST /api/admin/syndication/outbox/{id}/replay — reset dead-letter for worker pickup.
+async fn replay_outbox(
+    State(db): State<DatabaseConnection>,
+    Path(outbox_id): Path<Uuid>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    crate::services::syndication_event_bus::SyndicationEventBus::replay(&db, outbox_id)
+        .await
+        .map_err(|e| match e {
+            sea_orm::DbErr::RecordNotFound(_) => {
+                (StatusCode::NOT_FOUND, format!("Outbox row {outbox_id} not found"))
+            }
+            other => (StatusCode::INTERNAL_SERVER_ERROR, other.to_string()),
+        })?;
+    Ok(StatusCode::NO_CONTENT)
 }

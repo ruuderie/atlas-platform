@@ -2,32 +2,51 @@ use super::client::{api_request, api_url, create_client, with_credentials};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// --- Models ---
+// --- Models (aligned to backend developer_console + api_token entity) ---
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ApiToken {
     pub id: Uuid,
     pub tenant_id: Uuid,
-    /// Human-readable label set at creation time
-    pub name: Option<String>,
-    /// First 8 chars of the token, shown as a hint (e.g. "atls_sk_l")
-    pub prefix: Option<String>,
     pub scopes: serde_json::Value,
-    pub is_active: bool,
     pub expires_at: Option<String>,
     pub created_at: Option<String>,
+    /// Not persisted on backend today — optional for forward compat.
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+impl ApiToken {
+    pub fn display_label(&self) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| format!("Token · {}", &self.id.to_string()[..8]))
+    }
+
+    pub fn scopes_display(&self) -> String {
+        match &self.scopes {
+            serde_json::Value::Array(arr) => arr
+                .iter()
+                .filter_map(|v| v.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+            other => other.to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateApiTokenRequest {
-    pub name: String,
-    pub scopes: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    pub scopes: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateApiTokenResponse {
     pub id: Uuid,
-    /// Full secret — only returned at creation time, store securely
+    /// Full secret — only returned at creation time (`token` from backend).
+    #[serde(alias = "token")]
     pub secret: String,
     pub scopes: serde_json::Value,
     pub expires_at: Option<String>,
@@ -44,11 +63,23 @@ pub struct WebhookEndpoint {
     pub created_at: Option<String>,
 }
 
+impl WebhookEndpoint {
+    pub fn events_display(&self) -> String {
+        match &self.subscribed_events {
+            serde_json::Value::Array(arr) => arr
+                .iter()
+                .filter_map(|v| v.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+            other => other.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateWebhookRequest {
     pub target_url: String,
-    pub events: Vec<String>,
-    pub secret: Option<String>,
+    pub subscribed_events: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -74,7 +105,7 @@ pub async fn list_api_tokens(tenant_id: Uuid) -> Result<Vec<ApiToken>, String> {
         tenant_id
     ));
     let client = create_client();
-    let req = client.get(&url);
+    let req = with_credentials(client.get(&url));
     api_request(req).await
 }
 
@@ -87,7 +118,7 @@ pub async fn create_api_token(
         tenant_id
     ));
     let client = create_client();
-    let req = client.post(&url).json(&request);
+    let req = with_credentials(client.post(&url).json(&request));
     api_request(req).await
 }
 
@@ -112,7 +143,7 @@ pub async fn list_webhook_endpoints(tenant_id: Uuid) -> Result<Vec<WebhookEndpoi
         tenant_id
     ));
     let client = create_client();
-    let req = client.get(&url);
+    let req = with_credentials(client.get(&url));
     api_request(req).await
 }
 
@@ -125,7 +156,7 @@ pub async fn create_webhook_endpoint(
         tenant_id
     ));
     let client = create_client();
-    let req = client.post(&url).json(&request);
+    let req = with_credentials(client.post(&url).json(&request));
     api_request(req).await
 }
 
@@ -150,6 +181,6 @@ pub async fn list_webhook_deliveries(tenant_id: Uuid) -> Result<Vec<WebhookDeliv
         tenant_id
     ));
     let client = create_client();
-    let req = client.get(&url);
+    let req = with_credentials(client.get(&url));
     api_request(req).await
 }

@@ -19,6 +19,9 @@ use crate::entities::{api_token, webhook_delivery, webhook_endpoint};
 
 #[derive(Deserialize)]
 pub struct CreateApiTokenRequest {
+    /// Optional label — not persisted on `api_tokens` yet; accepted for forward compat.
+    #[serde(default)]
+    pub name: Option<String>,
     pub scopes: serde_json::Value,
     // e.g., ["crm:read", "listing:write"]
 }
@@ -106,6 +109,7 @@ pub async fn revoke_api_token(
 #[derive(Deserialize)]
 pub struct CreateWebhookRequest {
     pub target_url: String,
+    #[serde(alias = "events")]
     pub subscribed_events: serde_json::Value,
 }
 
