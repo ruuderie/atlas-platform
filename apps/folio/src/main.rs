@@ -39,6 +39,11 @@ async fn main() {
     let public_api_base_url =
         std::env::var("PUBLIC_API_BASE_URL").unwrap_or_else(|_| atlas_api_url.clone());
 
+    // Warm the container→API path before accepting traffic. Uses the env-provided
+    // ATLAS_API_URL only (Compose `backend` / K8s Service DNS) — no URL overrides.
+    // Avoids magic-link /verify racing a still-settling Docker DNS route after refresh.
+    wait_for_atlas_api(&atlas_api_url).await;
+
     let app_state = AppState {
         leptos_options: leptos_options.clone(),
         atlas_api_url: AtlasApiUrl(atlas_api_url.clone()),
@@ -114,6 +119,45 @@ async fn main() {
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
+}
+
+/// Poll `ATLAS_API_URL/health` until it responds (or we exhaust attempts).
+///
+/// Does not rewrite the URL — only confirms the already-configured API base is
+/// reachable from this process (Docker DNS / cluster Service DNS as set by env).
+#[cfg(feature = "ssr")]
+async fn wait_for_atlas_api(atlas_api_url: &str) {
+    let health = format!("{}/health", atlas_api_url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    for attempt in 1..=20u8 {
+        match client.get(&health).send().await {
+            Ok(res) if res.status().is_success() => {
+                if attempt > 1 {
+                    eprintln!(
+                        "[folio] atlas api ready at {health} (after {attempt} attempts)"
+                    );
+                } else {
+                    eprintln!("[folio] atlas api ready at {health}");
+                }
+                return;
+            }
+            Ok(res) => {
+                eprintln!(
+                    "[folio] atlas api {health} returned {} (attempt {attempt}/20)",
+                    res.status()
+                );
+            }
+            Err(e) => {
+                eprintln!(
+                    "[folio] atlas api not reachable yet ({health}, attempt {attempt}/20): {e}"
+                );
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+    eprintln!(
+        "[folio] warning: atlas api still unreachable at {health} — continuing; /verify may fail until DNS/API settles"
+    );
 }
 
 #[cfg(feature = "ssr")]
@@ -220,7 +264,7 @@ async fn verify_handler(
     let backend_res = {
         let mut last_err = None;
         let mut ok_res = None;
-        for attempt in 1..=3u8 {
+        for attempt in 1..=5u8 {
             match client
                 .post(&url)
                 .json(&serde_json::json!({ "token": token }))
@@ -228,17 +272,22 @@ async fn verify_handler(
                 .await
             {
                 Ok(r) => {
+                    if attempt > 1 {
+                        eprintln!(
+                            "[folio] verify: backend reachable on attempt {attempt}/5"
+                        );
+                    }
                     ok_res = Some(r);
                     break;
                 }
                 Err(e) => {
                     eprintln!(
-                        "[folio] verify: backend unreachable (attempt {attempt}/3): {e}"
+                        "[folio] verify: backend unreachable (attempt {attempt}/5): {e}"
                     );
                     last_err = Some(e);
-                    if attempt < 3 {
+                    if attempt < 5 {
                         tokio::time::sleep(std::time::Duration::from_millis(
-                            150 * u64::from(attempt),
+                            200 * u64::from(attempt),
                         ))
                         .await;
                     }
@@ -401,7 +450,7 @@ async fn verify_handler(
     let me_res = {
         let mut last_err = None;
         let mut ok_res = None;
-        for attempt in 1..=3u8 {
+        for attempt in 1..=5u8 {
             match client
                 .get(&me_url)
                 .header("Authorization", format!("Bearer {}", token))
@@ -409,17 +458,22 @@ async fn verify_handler(
                 .await
             {
                 Ok(r) => {
+                    if attempt > 1 {
+                        eprintln!(
+                            "[folio] verify: /api/folio/me reachable on attempt {attempt}/5"
+                        );
+                    }
                     ok_res = Some(r);
                     break;
                 }
                 Err(e) => {
                     eprintln!(
-                        "[folio] verify: /api/folio/me unreachable (attempt {attempt}/3): {e}"
+                        "[folio] verify: /api/folio/me unreachable (attempt {attempt}/5): {e}"
                     );
                     last_err = Some(e);
-                    if attempt < 3 {
+                    if attempt < 5 {
                         tokio::time::sleep(std::time::Duration::from_millis(
-                            150 * u64::from(attempt),
+                            200 * u64::from(attempt),
                         ))
                         .await;
                     }
