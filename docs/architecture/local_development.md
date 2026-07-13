@@ -133,6 +133,15 @@ When something fails, **Next steps** picks commands from stack state (down → `
 
 Folio used to build `https://folio.localhost/…` because `folio.localhost` does not start with the string `localhost`; that is fixed to treat `*.localhost` as HTTP.
 
+### Why `refresh folio` used to take forever
+
+Two bugs made a Folio-only refresh look like a full-stack rebuild:
+
+1. **Build context ~200GB** — Folio’s Dockerfile uses repo-root context (`COPY . .`) but `.dockerignore` did not exclude `backend/target` / `apps/target` (100GB+ of host cargo artifacts). Fixed in root `.dockerignore` (+ `backend/.dockerignore`).
+2. **`docker compose up --build folio` also rebuilt `backend`** (depends_on). `atlas-local refresh <service>` now passes `--no-deps` so only the named service is rebuilt/recreated.
+
+Expect Folio image builds to still take several minutes for `cargo leptos build --release` — but context transfer should be megabytes, not hundreds of gigabytes.
+
 ---
 
 ## Host / tenant routing

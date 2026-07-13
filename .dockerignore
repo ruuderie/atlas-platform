@@ -1,5 +1,32 @@
-target/
-**/.env
+# Folio/Anchor (and any other Dockerfile with context=.) copy the monorepo.
+# Without these excludes, Docker transfers 100GB+ of host cargo targets
+# (backend/target, apps/target) and refresh feels like "rebuilding everything".
+
 .git/
-.gitignore
+.github/
+.agents/
 .woodpecker.yml
+.gitignore
+
+**/target/
+**/dist/
+**/node_modules/
+**/.env
+**/.env.local
+**/*.rs.bk
+
+# Not needed inside Folio/Anchor images (context is repo root for shared-ui)
+backend/
+docs/
+tools/
+k8s/
+seeds/
+scripts/
+init-scripts/
+designs/
+
+# Host cargo/leptos caches at repo root
+target/
+node_modules/
+*.md
+!apps/**/README.md

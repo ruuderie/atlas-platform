@@ -253,9 +253,7 @@ async fn verify_handler(
         return error_html(title, detail);
     }
 
-    // Extract the session token from `Set-Cookie: session=TOKEN; ...`
-    // The verify endpoint returns it here; we need it both to forward to the
-    // browser AND to call /api/folio/me for routing info.
+    // Capture Set-Cookie before consuming the body.
     let session_token = backend_res
         .headers()
         .get_all(reqwest::header::SET_COOKIE)
@@ -268,7 +266,6 @@ async fn verify_handler(
                 .map(|t| t.to_string())
         });
 
-    // Rebuild the full Set-Cookie string to forward to the browser
     let cookie_header = backend_res
         .headers()
         .get_all(reqwest::header::SET_COOKIE)
@@ -282,6 +279,27 @@ async fn verify_handler(
             }
         });
 
+    // Session JSON (tokens are skip_serializing — only `user` is present).
+    // Email handoff: Axum /verify cannot write sessionStorage, so set a short-lived
+    // readable cookie for WizardShell to skip OTP when /api/folio/me is still 403.
+    let verify_json: serde_json::Value = match backend_res.json().await {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("[folio] verify: response parse error: {e}");
+            return error_html(
+                "Login link invalid or expired.",
+                "Unexpected response from the authentication server.",
+            );
+        }
+    };
+    let verified_email = verify_json
+        .get("user")
+        .and_then(|u| u.get("email"))
+        .and_then(|e| e.as_str())
+        .map(str::trim)
+        .filter(|e| !e.is_empty())
+        .map(str::to_string);
+
     let token = match session_token {
         Some(t) => t,
         None => {
@@ -291,6 +309,54 @@ async fn verify_handler(
             );
         }
     };
+
+    /// 302 with session (+ optional folio_verified_email) cookies.
+    fn redirect_authed(
+        dest: &str,
+        session_cookie: Option<String>,
+        email: Option<&str>,
+    ) -> Response {
+        let secure = session_cookie
+            .as_deref()
+            .map(|c| c.contains("Secure"))
+            .unwrap_or(true);
+        let mut res = Response::builder()
+            .status(StatusCode::FOUND)
+            .header(header::LOCATION, dest)
+            .body(axum::body::Body::empty())
+            .unwrap();
+        if let Some(cookie) = session_cookie {
+            if let Ok(val) = axum::http::HeaderValue::from_str(&cookie) {
+                res.headers_mut().append(header::SET_COOKIE, val);
+            }
+        }
+        if let Some(email) = email.filter(|e| !e.is_empty()) {
+            // Not HttpOnly — client WizardShell reads this as same-browser handoff.
+            // Encode cookie-unsafe chars; emails are mostly safe already.
+            let encoded: String = email
+                .bytes()
+                .flat_map(|b| match b {
+                    b'A'..=b'Z'
+                    | b'a'..=b'z'
+                    | b'0'..=b'9'
+                    | b'-'
+                    | b'.'
+                    | b'_'
+                    | b'@'
+                    | b'+' => vec![b as char],
+                    _ => format!("%{b:02X}").chars().collect(),
+                })
+                .collect();
+            let secure_flag = if secure { "; Secure" } else { "" };
+            let handoff = format!(
+                "folio_verified_email={encoded}; Path=/; Max-Age=900; SameSite=Lax{secure_flag}"
+            );
+            if let Ok(val) = axum::http::HeaderValue::from_str(&handoff) {
+                res.headers_mut().append(header::SET_COOKIE, val);
+            }
+        }
+        res
+    }
 
     // Second call: GET /api/folio/me with the session token.
     // This is the Folio-specific endpoint that returns has_passkey and
@@ -324,15 +390,11 @@ async fn verify_handler(
     if !me_res.status().is_success() {
         let status = me_res.status();
         eprintln!("[folio] verify: /api/folio/me returned {status} — redirecting to /onboarding");
-        let mut builder = Response::builder()
-            .status(StatusCode::FOUND)
-            .header(header::LOCATION, "/onboarding");
-        if let Some(cookie) = cookie_header {
-            if let Ok(val) = axum::http::HeaderValue::from_str(&cookie) {
-                builder = builder.header(header::SET_COOKIE, val);
-            }
-        }
-        return builder.body(axum::body::Body::empty()).unwrap();
+        return redirect_authed(
+            "/onboarding",
+            cookie_header,
+            verified_email.as_deref(),
+        );
     }
 
     let me: FolioMe = match me_res.json().await {
@@ -354,18 +416,7 @@ async fn verify_handler(
         "/dashboard"
     };
 
-    // Build redirect with the session cookie attached so the browser is authenticated
-    let mut builder = Response::builder()
-        .status(StatusCode::FOUND)
-        .header(header::LOCATION, dest);
-
-    if let Some(cookie) = cookie_header {
-        if let Ok(val) = axum::http::HeaderValue::from_str(&cookie) {
-            builder = builder.header(header::SET_COOKIE, val);
-        }
-    }
-
-    builder.body(axum::body::Body::empty()).unwrap()
+    redirect_authed(dest, cookie_header, verified_email.as_deref())
 }
 
 #[cfg(not(feature = "ssr"))]

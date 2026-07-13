@@ -40,7 +40,7 @@ url        = "2.5.8"
 futures    = "0.3"
 gloo-net   = "0.6.0"
 web-sys    = { version = "0.3.91", features = [
-    "HtmlElement", "Document", "Window",
+    "HtmlElement", "Document", "HtmlDocument", "Window",
     "HtmlAnchorElement", "HtmlInputElement",
     "Storage", "Location", "Navigator",
 ] }

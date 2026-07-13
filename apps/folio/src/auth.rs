@@ -124,8 +124,8 @@ fn default_wizard_total() -> usize {
     7
 }
 
-/// sessionStorage key written after magic-link / OTP so onboarding can skip
-/// re-asking for email in the same browser tab.
+/// sessionStorage / cookie key written after magic-link / OTP so onboarding can
+/// skip re-asking for email in the same browser.
 pub const FOLIO_VERIFIED_EMAIL_KEY: &str = "folio_verified_email";
 
 /// Persist verified email for same-tab handoff into onboarding wizards.
@@ -149,23 +149,67 @@ pub fn stash_verified_email(email: &str) {
 }
 
 /// Read stashed verified email (same-tab assist after magic-link verify).
+///
+/// Prefers `sessionStorage`, then the `folio_verified_email` cookie set by the
+/// Axum `/verify` handler (which cannot write sessionStorage on redirect).
 pub fn read_stashed_verified_email() -> Option<String> {
     #[cfg(target_arch = "wasm32")]
     {
         let window = web_sys::window()?;
-        let storage = window.session_storage().ok()??;
-        let email = storage.get_item(FOLIO_VERIFIED_EMAIL_KEY).ok()??;
-        let email = email.trim().to_string();
-        if email.is_empty() {
-            None
-        } else {
-            Some(email)
+        if let Ok(Some(storage)) = window.session_storage() {
+            if let Ok(Some(email)) = storage.get_item(FOLIO_VERIFIED_EMAIL_KEY) {
+                let email = email.trim().to_string();
+                if !email.is_empty() {
+                    return Some(email);
+                }
+            }
         }
+        // Cookie handoff from SSR /verify → /onboarding
+        use wasm_bindgen::JsCast;
+        let doc = window.document()?.dyn_into::<web_sys::HtmlDocument>().ok()?;
+        let cookie_str = doc.cookie().ok()?;
+        for part in cookie_str.split(';') {
+            let part = part.trim();
+            if let Some(raw) = part.strip_prefix("folio_verified_email=") {
+                let decoded = percent_decode_email(raw);
+                if !decoded.is_empty() {
+                    // Promote into sessionStorage and drop the short-lived cookie.
+                    stash_verified_email(&decoded);
+                    let _ = doc.set_cookie("folio_verified_email=; Path=/; Max-Age=0");
+                    return Some(decoded);
+                }
+            }
+        }
+        None
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
         None
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn percent_decode_email(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let bytes = raw.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let h = || -> Option<u8> {
+                let hi = (bytes[i + 1] as char).to_digit(16)? as u8;
+                let lo = (bytes[i + 2] as char).to_digit(16)? as u8;
+                Some((hi << 4) | lo)
+            };
+            if let Some(b) = h() {
+                out.push(b as char);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out.trim().to_string()
 }
 
 /// Resolve verified email for WizardShell pre-auth skip.

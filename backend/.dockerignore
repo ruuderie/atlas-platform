@@ -1,0 +1,7 @@
+# Backend build context is ./backend — host `target/` is 100GB+ of cargo artifacts
+# and must never be sent as Docker build context.
+target/
+**/.env
+**/.env.local
+.git/
+*.md

@@ -276,35 +276,28 @@ pub fn WizardShell(
     let otp_verifying: RwSignal<bool> = RwSignal::new(false);
     let otp_error: RwSignal<Option<String>> = RwSignal::new(None);
 
-    // Client-only session probe. Fresh magic-link users often have a valid cookie
-    // while /api/folio/me is still 403 — peek_auth_session covers that case.
-    // sessionStorage is a same-tab assist after magic-link verify (never alone).
+    // Client-only session probe. Prefer peek (no Folio RBAC) — /api/folio/me is
+    // often 403 for fresh magic-link users and surfaces as a noisy check_session 500.
+    // Cookie handoff from Axum /verify covers the same-tab case when peek is slow.
     let session_email_sig = session_email;
     let session_probe = LocalResource::new(|| async {
-        let session = match crate::auth::get_session().await {
-            Ok(info) => Some(info.email),
-            Err(_) => None,
+        let stash = crate::auth::read_stashed_verified_email();
+        let peek = match crate::auth::peek_auth_session().await {
+            Ok(peek) => Some(peek.email),
+            Err(_) => match crate::auth::peek_auth_session().await {
+                Ok(peek) => Some(peek.email),
+                Err(_) => None,
+            },
         };
-        let peek = if session.is_some() {
+        let session = if peek.is_some() || stash.is_some() {
             None
         } else {
-            match crate::auth::peek_auth_session().await {
-                Ok(peek) => Some(peek.email),
-                Err(_) => {
-                    // Brief retry — cookie from Set-Cookie may not be on the first
-                    // server-fn round-trip after magic-link redirect.
-                    match crate::auth::peek_auth_session().await {
-                        Ok(peek) => Some(peek.email),
-                        Err(_) => None,
-                    }
-                }
+            match crate::auth::get_session().await {
+                Ok(info) => Some(info.email),
+                Err(_) => None,
             }
         };
-        crate::auth::resolve_verified_email_probe(
-            session,
-            peek,
-            crate::auth::read_stashed_verified_email(),
-        )
+        crate::auth::resolve_verified_email_probe(session, peek, stash)
     });
     Effect::new(move |_| {
         if let Some(Some(email)) = session_probe.get() {
@@ -735,15 +728,16 @@ pub fn WizardShell(
                             }.into_any()
                         } else {
                             // Cold: stable placeholder until Effect navigates or session probe skips OTP.
+                            // Keep this DOM minimal and SSR-identical to avoid tachys hydration panics.
                             view! {
                                 <div class="wiz-fi wiz-anim">
-                                    <p class="wiz-s-sub">"Checking your session…"</p>
+                                    <p class="wiz-s-sub">"Checking your session..."</p>
                                     <p class="wiz-s-sub" style="margin-top:8px;font-size:13px;color:#9ca3af;">
-                                        "If you’re signed in, your setup will continue automatically."
+                                        "If you are signed in, your setup will continue automatically."
                                     </p>
                                     <p class="pre-auth-footer-note" style="margin-top:24px;">
-                                        <a href=move || login_redirect.get() class="pre-auth-link-inline">
-                                            "Sign in →"
+                                        <a href="/login" class="pre-auth-link-inline">
+                                            "Sign in"
                                         </a>
                                     </p>
                                 </div>

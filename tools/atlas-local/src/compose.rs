@@ -50,9 +50,14 @@ fn run_compose(root: &Path, args: &[&str]) -> Result<()> {
 
 /// Rebuild (optional) and recreate services so containers match the working tree.
 pub fn refresh(root: &Path, services: &[&str], build: bool) -> Result<()> {
-    wipe_stale_frontend_dist(root);
+    wipe_stale_frontend_dist(root, services);
     maybe_host_build_platform_admin(root, services)?;
+    // Named services only: do not rebuild/recreate depends_on (e.g. `refresh folio`
+    // must not rebuild backend). Empty list = full app refresh — keep dependency order.
     let mut args: Vec<String> = vec!["up".into(), "-d".into(), "--force-recreate".into()];
+    if !services.is_empty() {
+        args.push("--no-deps".into());
+    }
     if build {
         args.push("--build".into());
     }
@@ -120,7 +125,7 @@ fn which_trunk() -> Option<std::path::PathBuf> {
 }
 
 pub fn up(root: &Path, build: bool) -> Result<()> {
-    wipe_stale_frontend_dist(root);
+    wipe_stale_frontend_dist(root, &[]);
     // Full stack up includes admin — rebuild WASM on host when possible.
     maybe_host_build_platform_admin(root, &["platform-admin"])?;
     let mut args: Vec<&str> = vec!["up", "-d"];
@@ -133,9 +138,21 @@ pub fn up(root: &Path, build: bool) -> Result<()> {
 /// Remove host-mounted Trunk/cargo-leptos `dist/` folders so Compose never
 /// serves a months-old WASM (admin.localhost showed a June login while source
 /// matched origin/dev). Safe: `apps/*/dist/` is gitignored.
-pub fn wipe_stale_frontend_dist(root: &Path) {
+///
+/// When `services` is non-empty, only wipe dists for those app services
+/// (avoids "wiped platform-admin" noise on `refresh folio`).
+pub fn wipe_stale_frontend_dist(root: &Path, services: &[&str]) {
     const APPS: &[&str] = &["platform-admin", "folio", "anchor", "network-instance"];
-    for app in APPS {
+    let targets: Vec<&str> = if services.is_empty() {
+        APPS.to_vec()
+    } else {
+        services
+            .iter()
+            .copied()
+            .filter(|s| APPS.contains(s))
+            .collect()
+    };
+    for app in targets {
         let dist = root.join("apps").join(app).join("dist");
         if dist.is_dir() {
             match std::fs::remove_dir_all(&dist) {
