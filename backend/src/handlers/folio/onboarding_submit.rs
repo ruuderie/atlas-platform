@@ -22,7 +22,7 @@ use axum::{Extension, Json, Router, http::HeaderMap, http::StatusCode};
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
-    QueryFilter, Set, Statement,
+    QueryFilter, QueryOrder, Set, Statement,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -55,8 +55,22 @@ pub struct OnboardingSubmitInput {
     pub property_name: Option<String>,
     pub property_address: Option<String>,
     pub property_city: Option<String>,
+    /// Optional — stored on the asset when provided
+    pub property_state: Option<String>,
     /// Defaults to `"residential_unit"` if omitted
     pub property_type: Option<String>,
+    /// Optional unit count for multi-family (informational / future unit stacking)
+    pub unit_count: Option<String>,
+    /// Optional per-unit drafts (apartment number, beds, rent) for multi-unit buildings
+    pub units: Option<Vec<OnboardingUnitDraft>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OnboardingUnitDraft {
+    /// Apartment / unit label (e.g. "2A", "Unit 3")
+    pub unit_number: Option<String>,
+    pub beds: Option<String>,
+    pub rent: Option<String>,
 }
 
 // ── Output ────────────────────────────────────────────────────────────────────
@@ -201,10 +215,22 @@ pub async fn submit_onboarding(
             _ => "US",
         };
 
-        // 4c. Parse property type (default: residential_unit)
         let pt_str = input.property_type.as_deref().unwrap_or("residential_unit");
         let property_type =
             PropertyType::try_from(pt_str.to_string()).unwrap_or(PropertyType::SingleFamily);
+        let unit_drafts = input.units.as_deref().unwrap_or(&[]);
+        let is_multi = matches!(property_type, PropertyType::MultiFamily);
+        // Single condo/apt: fold apartment # onto the property address line 2.
+        let address_line_2 = if !is_multi {
+            unit_drafts
+                .first()
+                .and_then(|u| u.unit_number.as_deref())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+        } else {
+            None
+        };
 
         let aid = AssetService::create_unit(
             &db,
@@ -214,12 +240,17 @@ pub async fn submit_onboarding(
                 parent_asset_id: None,
                 name: prop_name.to_string(),
                 address_line_1: prop_addr.to_string(),
-                address_line_2: None,
+                address_line_2,
                 city: prop_city.to_string(),
-                state_province: String::new(),
+                state_province: input
+                    .property_state
+                    .as_deref()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string(),
                 postal_code: String::new(),
                 country_code: country_code.to_string(),
-                property_type,
+                property_type: property_type.clone(),
                 folio_number: None,
                 latitude: None,
                 longitude: None,
@@ -230,6 +261,48 @@ pub async fn submit_onboarding(
             tracing::error!("onboarding/submit: create_unit failed: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+        // Multi-unit buildings: stack child units with apartment numbers.
+        if is_multi {
+            for (idx, u) in unit_drafts.iter().enumerate() {
+                let label = u
+                    .unit_number
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| format!("Unit {}", idx + 1));
+                AssetService::create_unit(
+                    &db,
+                    tenant_id,
+                    CreateUnitInput {
+                        portfolio_id: pid,
+                        parent_asset_id: Some(aid),
+                        name: label.clone(),
+                        address_line_1: prop_addr.to_string(),
+                        address_line_2: Some(label),
+                        city: prop_city.to_string(),
+                        state_province: input
+                            .property_state
+                            .as_deref()
+                            .unwrap_or("")
+                            .trim()
+                            .to_string(),
+                        postal_code: String::new(),
+                        country_code: country_code.to_string(),
+                        property_type: property_type.clone(),
+                        folio_number: None,
+                        latitude: None,
+                        longitude: None,
+                    },
+                )
+                .await
+                .map_err(|e| {
+                    tracing::error!("onboarding/submit: create child unit failed: {e:#}");
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
+            }
+        }
 
         asset_id = Some(aid);
         applied.push("first_property".to_string());
@@ -723,18 +796,18 @@ async fn find_or_create_default_portfolio(
     tenant_id: Uuid,
     owner_user_id: Uuid,
 ) -> Result<Uuid, StatusCode> {
-    // Look for the oldest portfolio for this tenant
-    let existing = db
-        .query_one(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            r#"SELECT id FROM atlas_portfolio
-               WHERE tenant_id = $1
-               ORDER BY created_at ASC LIMIT 1"#,
-            [tenant_id.into()],
-        ))
+    // Table is `atlas_portfolios` (entity); raw SQL must match — `atlas_portfolio`
+    // does not exist and caused silent 500s on first-property submit.
+    let existing = crate::entities::atlas_portfolio::Entity::find()
+        .filter(crate::entities::atlas_portfolio::Column::TenantId.eq(tenant_id))
+        .order_by_asc(crate::entities::atlas_portfolio::Column::CreatedAt)
+        .one(db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .and_then(|r| r.try_get::<Uuid>("", "id").ok());
+        .map_err(|e| {
+            tracing::error!("onboarding/submit: portfolio lookup failed: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .map(|p| p.id);
 
     if let Some(id) = existing {
         return Ok(id);

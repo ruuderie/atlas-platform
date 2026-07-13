@@ -849,10 +849,6 @@ pub async fn verify_magic_link(
             .await;
     }
 
-    let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
-    ml_active.is_used = Set(true);
-    let _ = ml_active.update(&db).await;
-
     // ── Seed RBAC role from platform invite (if any) ──────────────────────────
     // When a platform-admin invite has an `app_role` (e.g. "landlord"), we need
     // to insert the user into `atlas_user_app_roles` so `/api/folio/me` returns
@@ -1019,6 +1015,17 @@ pub async fn verify_magic_link(
     let session_response = crate::handlers::sessions::create_session_for_user(&db, &user_mod)
         .await
         .map_err(|e| (e, "Failed to create session".to_string()))?;
+
+    // Consume the one-time token only after a session is issued. Marking earlier
+    // burned tokens when JWT signing / session insert failed mid-request.
+    let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
+    ml_active.is_used = Set(true);
+    ml_active.update(&db).await.map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to consume magic link".to_string(),
+        )
+    })?;
 
     use crate::handlers::sessions::session_cookie_header;
     let cookie = session_cookie_header(&session_response.token, 86_400);

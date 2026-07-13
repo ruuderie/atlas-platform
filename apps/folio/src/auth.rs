@@ -435,10 +435,14 @@ pub async fn check_session() -> Result<SessionInfo, ServerFnError> {
             return Ok(info);
         }
 
-        let info =
-            crate::atlas_client::authenticated_get::<SessionInfo>("/api/folio/me", &token, None)
-                .await
-                .map_err(|e| ServerFnError::new(format!("Session check failed: {e}")))?;
+        let info = crate::atlas_client::authenticated_get_with_headers::<SessionInfo>(
+            "/api/folio/me",
+            &token,
+            None,
+            crate::atlas_client::folio_proxy_headers(&headers),
+        )
+        .await
+        .map_err(|e| ServerFnError::new(format!("Session check failed: {e}")))?;
 
         cache.insert(token, info.clone()).await;
         Ok(info)

@@ -93,23 +93,79 @@ pub async fn save_landlord_property(
     property_type: String,
     unit_count: String,
     str_eligible: bool,
+    /// JSON array of `{unit_number, beds, rent}` for multi-unit (may be empty).
+    units_json: String,
 ) -> Result<(), server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = crate::auth::extract_bearer_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    // Map wizard UI values → backend PropertyType wire names.
+    let property_type = match property_type.as_str() {
+        "apartment" => "condo",
+        "house" => "single_family",
+        "multi_unit" => "multi_family",
+        "villa" => "str",
+        "industrial" => "commercial",
+        other => other,
+    }
+    .to_string();
+    let units: serde_json::Value = serde_json::from_str(&units_json).unwrap_or(serde_json::json!([]));
     let payload = serde_json::json!({
         "property_name": property_name, "property_address": property_address,
         "property_city": property_city, "property_state": property_state,
         "property_type": property_type, "unit_count": unit_count,
         "str_eligible": str_eligible, "step": "first_property",
+        "units": units,
     });
-    crate::atlas_client::authenticated_post::<_, serde_json::Value>(
+    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
+    // #region agent log
+    {
+        let xfh = proxy
+            .get("x-forwarded-host")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        let payload_dbg = serde_json::json!({
+            "sessionId": "9e88fc",
+            "runId": "post-fix",
+            "hypothesisId": "HOST",
+            "location": "landlord_wizard.rs:save_landlord_property",
+            "message": "property_submit",
+            "data": {
+                "xfh_present": !xfh.is_empty(),
+                "xfh": xfh,
+                "unit_count": unit_count,
+                "property_type": property_type,
+                "units_len": units.as_array().map(|a| a.len()).unwrap_or(0),
+            },
+            "timestamp": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0)
+        });
+        eprintln!("[folio][dbg] {payload_dbg}");
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                let client = crate::atlas_client::http_client();
+                let _ = client
+                    .post("http://host.docker.internal:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded")
+                    .header("Content-Type", "application/json")
+                    .header("X-Debug-Session-Id", "9e88fc")
+                    .json(&payload_dbg)
+                    .send()
+                    .await;
+            });
+        }
+    }
+    // #endregion
+    crate::atlas_client::authenticated_post_with_headers::<_, serde_json::Value>(
         "/api/folio/onboarding/submit",
         &token,
         None,
         &payload,
+        proxy,
     )
     .await
     .map(|_| ())
@@ -130,10 +186,18 @@ fn country_to_jurisdiction(country: &str) -> String {
 const STEPS: &[WizardStepDesc] = &[
     WizardStepDesc { id: "profile", label: "Your Profile", skippable: false },
     WizardStepDesc { id: "portfolio", label: "Portfolio Setup", skippable: false },
-    WizardStepDesc { id: "property", label: "First Property", skippable: false },
+    WizardStepDesc { id: "property", label: "First Property", skippable: true },
     WizardStepDesc { id: "workspace", label: "Workspace & Invites", skippable: true },
     WizardStepDesc { id: "launch", label: "Ready to Launch", skippable: false },
 ];
+
+#[derive(Clone, PartialEq)]
+struct UnitDraft {
+    /// Apartment / unit label (e.g. "2A", "3")
+    unit_number: String,
+    beds: String,
+    rent: String,
+}
 
 /// Left-rail copy from stitch `wiz_landlord_onboard` `ctx` array.
 const CTX_STEPS: &[WizardCtxStep] = &[
@@ -233,6 +297,7 @@ pub fn LandlordWizard() -> impl IntoView {
 
     // Property
     let prop_address = RwSignal::new(String::new());
+    let prop_unit = RwSignal::new(String::new());
     let prop_city = RwSignal::new(String::new());
     let prop_state = RwSignal::new(String::new());
     let prop_postal = RwSignal::new(String::new());
@@ -241,6 +306,12 @@ pub fn LandlordWizard() -> impl IntoView {
     let unit_count = RwSignal::new("1".to_string());
     let beds = RwSignal::new("2".to_string());
     let monthly_rent = RwSignal::new(String::new());
+    // Multi-unit: each unit can have its own beds + rent. Start with one row.
+    let units: RwSignal<Vec<UnitDraft>> = RwSignal::new(vec![UnitDraft {
+        unit_number: String::new(),
+        beds: "2".to_string(),
+        rent: String::new(),
+    }]);
 
     // Workspace
     let notify_maint = RwSignal::new(true);
@@ -320,15 +391,47 @@ pub fn LandlordWizard() -> impl IntoView {
                 else { format!("{city} property") }
             };
             let a = prop_address.get();
+            let unit_label = prop_unit.get();
             let c = prop_city.get();
             let s = prop_state.get();
             let t = prop_type.get();
-            let u = unit_count.get();
+            let u = if t == "multi_unit" {
+                units.get().len().max(1).to_string()
+            } else {
+                unit_count.get()
+            };
             let st = type_str.get() || enable_str.get();
+            let units_json = if t == "multi_unit" {
+                let arr: Vec<serde_json::Value> = units
+                    .get()
+                    .into_iter()
+                    .map(|d| {
+                        serde_json::json!({
+                            "unit_number": d.unit_number,
+                            "beds": d.beds,
+                            "rent": d.rent,
+                        })
+                    })
+                    .collect();
+                serde_json::to_string(&arr).unwrap_or_else(|_| "[]".into())
+            } else if !unit_label.trim().is_empty() {
+                serde_json::to_string(&vec![serde_json::json!({
+                    "unit_number": unit_label.trim(),
+                    "beds": beds.get(),
+                    "rent": monthly_rent.get(),
+                })])
+                .unwrap_or_else(|_| "[]".into())
+            } else {
+                "[]".into()
+            };
+            if a.trim().is_empty() {
+                save_error.set(Some("Add a street address, or choose Do this later.".into()));
+                return;
+            }
             saving.set(true);
             save_error.set(None);
             leptos::task::spawn_local(async move {
-                match save_landlord_property(n, a, c, s, t, u, st).await {
+                match save_landlord_property(n, a, c, s, t, u, st, units_json).await {
                     Ok(_) => { saving.set(false); current_idx.set(idx + 1); }
                     Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
                 }
@@ -597,6 +700,14 @@ pub fn LandlordWizard() -> impl IntoView {
                                 prop:value=move || prop_address.get()
                                 on:input=move |e| prop_address.set(event_target_value(&e))/>
                         </div>
+                        <Show when=move || prop_type.get() != "multi_unit">
+                            <div class="wiz-f">
+                                <label class="wiz-label">"Apartment / unit number"</label>
+                                <input class="wiz-inp" type="text" placeholder="e.g. 2A, Apt 4 (optional)"
+                                    prop:value=move || prop_unit.get()
+                                    on:input=move |e| prop_unit.set(event_target_value(&e))/>
+                            </div>
+                        </Show>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
                                 <label class="wiz-label">"City"</label>
@@ -658,33 +769,130 @@ pub fn LandlordWizard() -> impl IntoView {
 
                     <div class="wiz-card">
                         <div class="wiz-ct">"Unit Info"</div>
-                        <div class="wiz-inp-row">
-                            <div class="wiz-f">
-                                <label class="wiz-label">"Number of Units"</label>
-                                <input class="wiz-inp" type="number" min="1"
-                                    prop:value=move || unit_count.get()
-                                    on:input=move |e| unit_count.set(event_target_value(&e))/>
+                        <Show when=move || prop_type.get() != "multi_unit">
+                            <div class="wiz-inp-row">
+                                <div class="wiz-f">
+                                    <label class="wiz-label">"Number of Units"</label>
+                                    <input class="wiz-inp" type="number" min="1"
+                                        prop:value=move || unit_count.get()
+                                        on:input=move |e| unit_count.set(event_target_value(&e))/>
+                                </div>
+                                <div class="wiz-f">
+                                    <label class="wiz-label">"Beds"</label>
+                                    <select class="wiz-inp"
+                                        prop:value=move || beds.get()
+                                        on:change=move |e| beds.set(event_target_value(&e))>
+                                        <option value="studio">"Studio"</option>
+                                        <option value="1">"1"</option>
+                                        <option value="2">"2"</option>
+                                        <option value="3">"3"</option>
+                                        <option value="4+">"4+"</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="wiz-f">
-                                <label class="wiz-label">"Beds per Unit"</label>
-                                <select class="wiz-inp"
-                                    prop:value=move || beds.get()
-                                    on:change=move |e| beds.set(event_target_value(&e))>
-                                    <option value="studio">"Studio"</option>
-                                    <option value="1">"1"</option>
-                                    <option value="2">"2"</option>
-                                    <option value="3">"3"</option>
-                                    <option value="4+">"4+"</option>
-                                </select>
+                                <label class="wiz-label">"Monthly Rent"</label>
+                                <input class="wiz-inp" type="text" placeholder="$2,500"
+                                    prop:value=move || monthly_rent.get()
+                                    on:input=move |e| monthly_rent.set(event_target_value(&e))/>
                             </div>
-                        </div>
-                        <div class="wiz-f">
-                            <label class="wiz-label">"Monthly Rent"</label>
-                            <input class="wiz-inp" type="text" placeholder="$2,500"
-                                prop:value=move || monthly_rent.get()
-                                on:input=move |e| monthly_rent.set(event_target_value(&e))/>
-                        </div>
+                        </Show>
+                        <Show when=move || prop_type.get() == "multi_unit">
+                            <p class="wiz-s-sub" style="margin:0 0 12px; font-size:13px;">
+                                "Add each apartment number, beds, and rent. Stack more units, or finish later."
+                            </p>
+                            {move || {
+                                let list = units.get();
+                                list.into_iter().enumerate().map(|(i, _)| {
+                                    view! {
+                                        <div class="wiz-card" style="margin:0 0 10px; padding:12px; box-shadow:none; border:1px solid #e5e7eb;">
+                                            <div class="wiz-ct" style="margin-bottom:8px;">
+                                                {format!("Unit {}", i + 1)}
+                                            </div>
+                                            <div class="wiz-f" style="margin-bottom:8px;">
+                                                <label class="wiz-label">"Apartment / unit number"</label>
+                                                <input class="wiz-inp" type="text"
+                                                    placeholder="e.g. 2A, Unit 3, Rear"
+                                                    prop:value=move || units.with(|u| u.get(i).map(|d| d.unit_number.clone()).unwrap_or_default())
+                                                    on:input=move |e| {
+                                                        let v = event_target_value(&e);
+                                                        units.update(|u| {
+                                                            if let Some(row) = u.get_mut(i) { row.unit_number = v; }
+                                                        });
+                                                    }/>
+                                            </div>
+                                            <div class="wiz-inp-row">
+                                                <div class="wiz-f">
+                                                    <label class="wiz-label">"Beds"</label>
+                                                    <select class="wiz-inp"
+                                                        prop:value=move || units.with(|u| u.get(i).map(|d| d.beds.clone()).unwrap_or_else(|| "2".into()))
+                                                        on:change=move |e| {
+                                                            let v = event_target_value(&e);
+                                                            units.update(|u| {
+                                                                if let Some(row) = u.get_mut(i) { row.beds = v; }
+                                                            });
+                                                        }>
+                                                        <option value="studio">"Studio"</option>
+                                                        <option value="1">"1"</option>
+                                                        <option value="2">"2"</option>
+                                                        <option value="3">"3"</option>
+                                                        <option value="4+">"4+"</option>
+                                                    </select>
+                                                </div>
+                                                <div class="wiz-f">
+                                                    <label class="wiz-label">"Monthly Rent"</label>
+                                                    <input class="wiz-inp" type="text" placeholder="$1,100"
+                                                        prop:value=move || units.with(|u| u.get(i).map(|d| d.rent.clone()).unwrap_or_default())
+                                                        on:input=move |e| {
+                                                            let v = event_target_value(&e);
+                                                            units.update(|u| {
+                                                                if let Some(row) = u.get_mut(i) { row.rent = v; }
+                                                            });
+                                                        }/>
+                                                </div>
+                                            </div>
+                                            <Show when=move || units.with(|u| u.len() > 1)>
+                                                <button type="button" class="wiz-btn wiz-btn-ghost"
+                                                    style="margin-top:8px;"
+                                                    on:click=move |_| {
+                                                        units.update(|u| { if u.len() > 1 { u.remove(i); } });
+                                                    }>
+                                                    "Remove unit"
+                                                </button>
+                                            </Show>
+                                        </div>
+                                    }
+                                }).collect_view()
+                            }}
+                            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
+                                <button type="button" class="wiz-btn wiz-btn-ghost"
+                                    on:click=move |_| {
+                                        units.update(|u| {
+                                            if u.len() < 24 {
+                                                u.push(UnitDraft {
+                                                    unit_number: String::new(),
+                                                    beds: "2".into(),
+                                                    rent: String::new(),
+                                                });
+                                            }
+                                        });
+                                    }>
+                                    <span class="ms">"add"</span>
+                                    "Add another unit"
+                                </button>
+                            </div>
+                        </Show>
                     </div>
+
+                    <button type="button" class="wiz-btn wiz-btn-ghost"
+                        style="margin-top:8px; width:100%; justify-content:center;"
+                        on:click=move |_| {
+                            save_error.set(None);
+                            current_idx.set(3);
+                        }>
+                        "Do this later"
+                        <span class="ms">"arrow_forward"</span>
+                    </button>
                 </div>
             </Show>
 

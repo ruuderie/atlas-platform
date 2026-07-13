@@ -67,16 +67,28 @@ async fn main() {
             "/api/{*fn_name}",
             axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
         )
-        // Static assets — versioned filename is the cache-bust key.
-        // max-age=31536000,immutable → browser caches indefinitely; never re-requests
-        // until the filename changes (which cargo-leptos handles via output-name versioning).
-        // CompressionLayer below handles brotli/gzip for WASM, JS, and CSS on the wire.
+        // Static assets — long-lived immutable cache is only safe when the
+        // hashed/versioned filename changes on every deploy. Locally the name
+        // stays `folio-v1.*`, so immutable caching traps browsers on stale WASM
+        // across `atlas-local refresh folio` (hard refresh still keeps it).
         .nest_service(
             "/pkg",
             ServiceBuilder::new()
                 .layer(SetResponseHeaderLayer::overriding(
                     header::CACHE_CONTROL,
-                    HeaderValue::from_static("public, max-age=31536000, immutable"),
+                    {
+                        let env = std::env::var("ENVIRONMENT").unwrap_or_default();
+                        let local = env.is_empty()
+                            || matches!(
+                                env.to_lowercase().as_str(),
+                                "local" | "development" | "dev"
+                            );
+                        if local {
+                            HeaderValue::from_static("no-cache, must-revalidate")
+                        } else {
+                            HeaderValue::from_static("public, max-age=31536000, immutable")
+                        }
+                    },
                 ))
                 .service(ServeDir::new(format!("{}/pkg", site_root))),
         )
@@ -170,6 +182,65 @@ pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoVi
         public_api_base_url.trim_end_matches('/')
     );
 
+    // #region agent log
+    let debug_prehydrate_script = r#"(function(){
+  function dump(reason){
+    var styles=[].slice.call(document.querySelectorAll('style'));
+    var wizStyle=styles.filter(function(s){return (s.textContent||'').indexOf('.wiz-nav')!==-1;})[0]||null;
+    var header=document.querySelector('header.wiz-nav');
+    var nav=document.querySelector('.wiz-nav-center');
+    var shell=document.querySelector('.wiz-shell');
+    var bodyEl=document.body;
+    var firstEl=bodyEl && bodyEl.firstElementChild;
+    var leadingComments=[];
+    if(bodyEl){
+      for(var n=bodyEl.firstChild;n && n.nodeType===8;n=n.nextSibling){
+        leadingComments.push(String(n.nodeValue||'').slice(0,40));
+      }
+    }
+    var cssHref=!!document.querySelector('link#folio[rel=stylesheet]');
+    var authEmail=document.getElementById('auth-email');
+    var data={
+      reason:reason,
+      path: location.pathname,
+      styleParent: wizStyle && wizStyle.parentElement ? wizStyle.parentElement.tagName : null,
+      cssHref:cssHref,
+      leadingBodyComments:leadingComments,
+      firstBodyEl: firstEl ? (firstEl.className||firstEl.tagName) : null,
+      shellKids:shell?[].map.call(shell.childNodes,function(n){return n.nodeType+':'+(n.nodeName||'');}).slice(0,8):[],
+      headerKids: header ? [].map.call(header.childNodes,function(n){return n.nodeType+':'+(n.nodeName||'')}).slice(0,12) : [],
+      navInner: nav ? String(nav.innerHTML||'').slice(0,160) : null,
+      hasShell:!!shell,
+      authEmail: authEmail ? {tag:authEmail.tagName,type:authEmail.getAttribute('type'),ph:authEmail.getAttribute('placeholder')||''} : null
+    };
+    fetch('http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e88fc'},
+      body:JSON.stringify({
+        sessionId:'9e88fc',runId:'post-fix2',hypothesisId:'F',
+        location:'shell:pre-hydrate',message:'wizard_dom_probe',
+        data:data,timestamp:Date.now()
+      })
+    }).catch(function(){});
+    return !!header;
+  }
+  window.addEventListener('error',function(ev){
+    fetch('http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e88fc'},
+      body:JSON.stringify({
+        sessionId:'9e88fc',runId:'post-fix2',hypothesisId:'PANIC',
+        location:'shell:window.onerror',message:'window_error',
+        data:{msg:String((ev&&ev.message)||'').slice(0,280)},
+        timestamp:Date.now()
+      })
+    }).catch(function(){});
+  });
+  var tries=0,id=setInterval(function(){tries++; if(dump('poll-'+tries)||tries>40) clearInterval(id);},25);
+  document.addEventListener('DOMContentLoaded',function(){dump('domcontentloaded');});
+})();"#;
+    // #endregion
+
     let env = std::env::var("ENVIRONMENT").unwrap_or_default();
     let is_deployed = !env.is_empty() && env != "local";
     let reload = (!is_deployed).then(|| view! { <AutoReload options=options.clone() /> });
@@ -186,6 +257,9 @@ pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoVi
                 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f1a'/%3E%3Cpath d='M16 6 L27 14 L27 26 L19 26 L19 20 L13 20 L13 26 L5 26 L5 14 Z' fill='%2306d6a0'/%3E%3C/svg%3E"/>
                 // Inject API base URL before WASM loads
                 <script inner_html=env_script></script>
+                // #region agent log
+                <script inner_html=debug_prehydrate_script></script>
+                // #endregion
                 {reload}
                 <HydrationScripts options />
                 <MetaTags/>
@@ -193,6 +267,10 @@ pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoVi
                 // Leptos does NOT auto-inject the CSS link — it must be explicit.
                 // The href must match output-name in Cargo.toml + the pkg/ serve path.
                 <Stylesheet id="folio" href="/pkg/folio-v1.css"/>
+                // WizardShell CSS — SSR shell head only (not inside <App/>).
+                // Must not live in the hydrated component tree: leptos_meta::Style
+                // as a WizardShell sibling emits a body marker hydrate never consumes.
+                <style>{include_str!("../style/wizard_shell.css")}</style>
                 // Google Fonts + Material Symbols
                 <Link rel="preconnect" href="https://fonts.googleapis.com"/>
                 <Link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
@@ -218,9 +296,23 @@ pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoVi
 #[cfg(feature = "ssr")]
 async fn verify_handler(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+    headers: axum::http::HeaderMap,
 ) -> impl AxumIntoResponse {
     use axum::http::StatusCode;
     use axum::response::Response;
+
+    let forwarded_host = headers
+        .get("x-forwarded-host")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            headers
+                .get(axum::http::header::HOST)
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.split(':').next().unwrap_or(s).trim().to_string())
+                .filter(|s| !s.is_empty())
+        });
 
     /// Render a minimal error HTML page for the verify flow.
     fn error_html(title: &str, message: &str) -> Response {
@@ -255,71 +347,65 @@ async fn verify_handler(
     };
 
     // Uses whatever ATLAS_API_URL the environment already sets (Compose service
-    // name locally, cluster Service DNS in K8s). Shared client + retries soften
-    // Docker's consistent "first dial fails" blip without changing discovery.
+    // name locally, cluster Service DNS in K8s).
+    //
+    // IMPORTANT: magic-link verify is NOT idempotent. The backend marks the token
+    // used before returning the session. A transport error after the request is
+    // accepted + a client retry yields token_already_used and loses the Set-Cookie.
+    // Do not retry this POST. Preflight /health is safe to use for dial warmup.
     let atlas_url =
         std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
     let url = format!("{}/api/auth/magic-link/verify", atlas_url);
     let health_url = format!("{}/health", atlas_url.trim_end_matches('/'));
 
     let client = folio::atlas_client::http_client();
-    // Burn a possible dead keep-alive / first-connect failure on a cheap GET so
-    // the one-time magic-link POST is more likely to succeed on attempt 1.
-    let _ = client.get(&health_url).send().await;
 
-    let backend_res = {
-        let mut last_err = None;
-        let mut ok_res = None;
-        for attempt in 1..=5u8 {
-            match client
-                .post(&url)
-                .json(&serde_json::json!({ "token": token }))
-                .send()
-                .await
-            {
-                Ok(r) => {
-                    if attempt > 1 {
-                        eprintln!(
-                            "[folio] verify: backend reachable on attempt {attempt}/5"
-                        );
-                    }
-                    ok_res = Some(r);
-                    break;
-                }
-                Err(e) => {
-                    // Attempt 1 is a known Docker Desktop dial flake — only
-                    // escalate the log if it keeps failing.
-                    if attempt == 1 {
-                        eprintln!(
-                            "[folio] verify: backend dial retry ({e})"
-                        );
-                    } else {
-                        eprintln!(
-                            "[folio] verify: backend unreachable (attempt {attempt}/5): {e}"
-                        );
-                    }
-                    last_err = Some(e);
-                    if attempt < 5 {
-                        tokio::time::sleep(std::time::Duration::from_millis(
-                            100 * u64::from(attempt),
-                        ))
-                        .await;
-                    }
-                }
+    // Warm dial path only (idempotent). Retry health, never the verify POST.
+    let mut health_ok = false;
+    for health_attempt in 1..=3u8 {
+        match client.get(&health_url).send().await {
+            Ok(res) if res.status().is_success() => {
+                health_ok = true;
+                break;
             }
-        }
-        match ok_res {
-            Some(r) => r,
-            None => {
-                let detail = last_err
-                    .map(|e| e.to_string())
-                    .unwrap_or_else(|| "unknown".into());
-                eprintln!("[folio] verify: backend unreachable after retries: {detail}");
-                return error_html(
-                    "Could not reach the login service.",
-                    "The app server could not contact the API. Wait a moment and request a new login link.",
+            Ok(res) => {
+                eprintln!(
+                    "[folio] verify: preflight /health status {} (attempt {health_attempt}/3)",
+                    res.status()
                 );
             }
+            Err(e) => {
+                eprintln!(
+                    "[folio] verify: preflight /health failed (attempt {health_attempt}/3): {e}"
+                );
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100 * u64::from(health_attempt)))
+            .await;
+    }
+    if !health_ok {
+        eprintln!("[folio] verify: proceeding without healthy preflight");
+    }
+
+    let backend_res = match client
+        .post(&url)
+        .json(&serde_json::json!({ "token": token }))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!(
+                "[folio] verify: transport error (not retrying one-time token POST): connect={} timeout={} request={} body={} err={e}",
+                e.is_connect(),
+                e.is_timeout(),
+                e.is_request(),
+                e.is_body()
+            );
+            return error_html(
+                "Could not finish sign-in.",
+                "The login link may already have been used if the request reached the server. Open Folio and check if you are signed in, or request a new login link.",
+            );
         }
     };
 
@@ -411,8 +497,8 @@ async fn verify_handler(
     ) -> Response {
         let secure = session_cookie
             .as_deref()
-            .map(|c| c.contains("Secure"))
-            .unwrap_or(true);
+            .map(|c| c.split(';').any(|p| p.trim().eq_ignore_ascii_case("Secure")))
+            .unwrap_or(false);
         let mut res = Response::builder()
             .status(StatusCode::FOUND)
             .header(header::LOCATION, dest)
@@ -465,12 +551,15 @@ async fn verify_handler(
         let mut last_err = None;
         let mut ok_res = None;
         for attempt in 1..=5u8 {
-            match client
+            let mut req = client
                 .get(&me_url)
-                .header("Authorization", format!("Bearer {}", token))
-                .send()
-                .await
-            {
+                .header("Authorization", format!("Bearer {}", token));
+            // Atlas mounts Folio routes by Host / X-Forwarded-Host (app_domains).
+            // Without this, Host=backend:8000 returns 404 instead of 403/200.
+            if let Some(host) = forwarded_host.as_deref() {
+                req = req.header("x-forwarded-host", host);
+            }
+            match req.send().await {
                 Ok(r) => {
                     if attempt > 1 {
                         eprintln!(

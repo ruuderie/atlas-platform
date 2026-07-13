@@ -35,6 +35,36 @@ fn is_valid_email(email: &str) -> bool {
     !email.is_empty() && email.contains('@') && email.contains('.')
 }
 
+/// Read `#auth-email` into the signal so Continue works if the user typed
+/// before hydrate attached `on:input` (uncontrolled SSR input).
+fn sync_email_from_dom(email: RwSignal<String>) {
+    #[cfg(feature = "hydrate")]
+    {
+        use wasm_bindgen::JsCast;
+        let Some(v) = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.get_element_by_id("auth-email"))
+            .and_then(|el| el.dyn_into::<web_sys::HtmlInputElement>().ok())
+            .map(|input| input.value())
+        else {
+            return;
+        };
+        if !v.is_empty() {
+            email.set(v);
+        }
+    }
+    #[cfg(not(feature = "hydrate"))]
+    {
+        let _ = email;
+    }
+}
+
+// #region agent log
+#[cfg(feature = "hydrate")]
+static LOGIN_EMAIL_INPUT_LOGGED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+// #endregion
+
 // ── Brand panel ───────────────────────────────────────────────────────────────
 
 #[component]
@@ -202,6 +232,7 @@ fn AuthPanel() -> impl IntoView {
     };
 
     let continue_email = move || {
+        sync_email_from_dom(email);
         let e = email.get().trim().to_string();
         email.set(e.clone());
         if !is_valid_email(&e) {
@@ -258,14 +289,38 @@ fn AuthPanel() -> impl IntoView {
         format!("width:{}%", (s as f32 / 900.0) * 100.0)
     };
 
-    // Mount the email <input> only after hydrate. Password-manager / Apple
-    // "Hide My Email" extensions inject sibling nodes into type=email fields
-    // and break tachys if that input is in the SSR tree. Keep Continue (and the
-    // rest of the form) always present so login stays usable.
-    let email_field_ready = RwSignal::new(false);
+    // #region agent log
     Effect::new(move |_| {
-        email_field_ready.set(true);
+        #[cfg(feature = "hydrate")]
+        {
+            leptos::task::spawn_local(async move {
+                let Ok(req) = gloo_net::http::Request::post(
+                    "http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded",
+                )
+                .header("Content-Type", "application/json")
+                .header("X-Debug-Session-Id", "9e88fc")
+                .json(&serde_json::json!({
+                    "sessionId": "9e88fc",
+                    "runId": "login-email",
+                    "hypothesisId": "L1",
+                    "location": "login.rs:AuthPanel",
+                    "message": "auth_panel_hydrated_email_ssr",
+                    "data": { "gateRemoved": true, "inputType": "text" },
+                    "timestamp": js_sys::Date::now() as u64
+                })) else {
+                    return;
+                };
+                let _ = req.send().await;
+            });
+        }
     });
+    // #endregion
+
+    // Email <input> is always in the SSR tree (type=text + inputmode=email).
+    // A post-hydrate Show gate left an empty shell until WASM/Effect ran — users
+    // could not type until "you@example.com" appeared. type=text avoids Apple
+    // Hide-My-Email sibling injection that broke tachys on type=email SSR.
+    // Uncontrolled value (no prop:value) so pre-hydrate keystrokes are not wiped.
 
     view! {
         <main class="login-auth-panel">
@@ -303,39 +358,57 @@ fn AuthPanel() -> impl IntoView {
                             <div class="login-auth-form">
                                 <div class="login-field">
                                     <label class="login-field-label" for="auth-email">"Email address"</label>
-                                    <Show
-                                        when=move || email_field_ready.get()
-                                        fallback=|| view! {
-                                            <div
-                                                class="login-field-input"
-                                                style="min-height:2.75rem;box-sizing:border-box"
-                                                aria-hidden="true"
-                                            ></div>
+                                    <input
+                                        id="auth-email"
+                                        type="text"
+                                        inputmode="email"
+                                        class="login-field-input"
+                                        placeholder="you@example.com"
+                                        autocomplete="username"
+                                        spellcheck="false"
+                                        on:input=move |ev| {
+                                            // #region agent log
+                                            #[cfg(feature = "hydrate")]
+                                            {
+                                                if !LOGIN_EMAIL_INPUT_LOGGED.swap(
+                                                    true,
+                                                    std::sync::atomic::Ordering::Relaxed,
+                                                ) {
+                                                    let len = event_target_value(&ev).len();
+                                                    leptos::task::spawn_local(async move {
+                                                        let Ok(req) = gloo_net::http::Request::post(
+                                                            "http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded",
+                                                        )
+                                                        .header("Content-Type", "application/json")
+                                                        .header("X-Debug-Session-Id", "9e88fc")
+                                                        .json(&serde_json::json!({
+                                                            "sessionId": "9e88fc",
+                                                            "runId": "login-email",
+                                                            "hypothesisId": "L1",
+                                                            "location": "login.rs:email_input",
+                                                            "message": "first_email_input",
+                                                            "data": { "len": len },
+                                                            "timestamp": js_sys::Date::now() as u64
+                                                        })) else {
+                                                            return;
+                                                        };
+                                                        let _ = req.send().await;
+                                                    });
+                                                }
+                                            }
+                                            // #endregion
+                                            email.set(event_target_value(&ev));
+                                            if err.get().is_some() {
+                                                err.set(None);
+                                            }
                                         }
-                                    >
-                                        <input
-                                            id="auth-email"
-                                            type="text"
-                                            inputmode="email"
-                                            class="login-field-input"
-                                            placeholder="you@example.com"
-                                            autocomplete="username"
-                                            spellcheck="false"
-                                            prop:value=move || email.get()
-                                            on:input=move |ev| {
-                                                email.set(event_target_value(&ev));
-                                                if err.get().is_some() {
-                                                    err.set(None);
-                                                }
+                                        on:keydown=move |ev| {
+                                            if ev.key() == "Enter" {
+                                                ev.prevent_default();
+                                                continue_email();
                                             }
-                                            on:keydown=move |ev| {
-                                                if ev.key() == "Enter" {
-                                                    ev.prevent_default();
-                                                    continue_email();
-                                                }
-                                            }
-                                        />
-                                    </Show>
+                                        }
+                                    />
                                 </div>
                                 <Show when=move || err.get().is_some()>
                                     <p class="login-field-error login-field-error--show">
