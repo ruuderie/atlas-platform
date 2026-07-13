@@ -1,8 +1,27 @@
 use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Serialize};
+use std::time::Duration;
 
-static CLIENT: Lazy<Client> = Lazy::new(Client::new);
+/// Process-wide Atlas HTTP client (SSR).
+///
+/// Tuned for Docker Desktop's flaky first-connect behavior: short idle timeout
+/// so we don't reuse dead keep-alives, and an explicit connect timeout.
+/// Does not change ATLAS_API_URL / Service DNS — only how we dial it.
+static CLIENT: Lazy<Client> = Lazy::new(|| {
+    Client::builder()
+        .timeout(Duration::from_secs(30))
+        .connect_timeout(Duration::from_secs(5))
+        .pool_idle_timeout(Duration::from_secs(5))
+        .tcp_nodelay(true)
+        .build()
+        .unwrap_or_else(|_| Client::new())
+});
+
+/// Shared reqwest client for Folio → Atlas calls (verify, server fns, warmup).
+pub fn http_client() -> &'static Client {
+    &CLIENT
+}
 
 pub fn get_atlas_api_url() -> String {
     std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string())

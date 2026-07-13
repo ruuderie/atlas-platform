@@ -125,10 +125,11 @@ async fn main() {
 ///
 /// Does not rewrite the URL — only confirms the already-configured API base is
 /// reachable from this process (Docker DNS / cluster Service DNS as set by env).
+/// Uses the shared Atlas client so the keep-alive pool is warm before /verify.
 #[cfg(feature = "ssr")]
 async fn wait_for_atlas_api(atlas_api_url: &str) {
     let health = format!("{}/health", atlas_api_url.trim_end_matches('/'));
-    let client = reqwest::Client::new();
+    let client = folio::atlas_client::http_client();
     for attempt in 1..=20u8 {
         match client.get(&health).send().await {
             Ok(res) if res.status().is_success() => {
@@ -254,13 +255,18 @@ async fn verify_handler(
     };
 
     // Uses whatever ATLAS_API_URL the environment already sets (Compose service
-    // name locally, cluster Service DNS in K8s). Retries only soften transient
-    // connect blips — they do not change networking or discovery.
+    // name locally, cluster Service DNS in K8s). Shared client + retries soften
+    // Docker's consistent "first dial fails" blip without changing discovery.
     let atlas_url =
         std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
     let url = format!("{}/api/auth/magic-link/verify", atlas_url);
+    let health_url = format!("{}/health", atlas_url.trim_end_matches('/'));
 
-    let client = reqwest::Client::new();
+    let client = folio::atlas_client::http_client();
+    // Burn a possible dead keep-alive / first-connect failure on a cheap GET so
+    // the one-time magic-link POST is more likely to succeed on attempt 1.
+    let _ = client.get(&health_url).send().await;
+
     let backend_res = {
         let mut last_err = None;
         let mut ok_res = None;
@@ -281,13 +287,21 @@ async fn verify_handler(
                     break;
                 }
                 Err(e) => {
-                    eprintln!(
-                        "[folio] verify: backend unreachable (attempt {attempt}/5): {e}"
-                    );
+                    // Attempt 1 is a known Docker Desktop dial flake — only
+                    // escalate the log if it keeps failing.
+                    if attempt == 1 {
+                        eprintln!(
+                            "[folio] verify: backend dial retry ({e})"
+                        );
+                    } else {
+                        eprintln!(
+                            "[folio] verify: backend unreachable (attempt {attempt}/5): {e}"
+                        );
+                    }
                     last_err = Some(e);
                     if attempt < 5 {
                         tokio::time::sleep(std::time::Duration::from_millis(
-                            200 * u64::from(attempt),
+                            100 * u64::from(attempt),
                         ))
                         .await;
                     }
