@@ -122,10 +122,11 @@ When something fails, **Next steps** picks commands from stack state (down → `
 
 | What you changed | Mode | Command | What it does |
 |------------------|------|---------|--------------|
-| Backend Rust | **Parity** (default) | `refresh backend` | Rebuilds Docker image + recreates container (correct; can take minutes) |
+| Backend Rust | **Parity** (default) | `refresh backend` | Rebuilds Docker image + recreates container (local default: **debug** profile; set `BACKEND_BUILD_PROFILE=release` to match CI) |
 | `.env.local` / SMTP only | Parity or Hot | `refresh backend --no-build` | Recreates backend without image rebuild (TUI Env **`a`**) |
 | platform-admin UI (Leptos/WASM) | Either | `refresh platform-admin --no-build` | Wipes `dist/`, host `trunk build`, recreates (often the slow step) |
 | Backend + admin | Parity | `refresh platform-admin backend` | Trunk + backend image rebuild |
+| Folio / Anchor UI | Parity | `refresh folio` / `refresh anchor` | Local default: **debug** (`FOLIO_BUILD_PROFILE` / `ANCHOR_BUILD_PROFILE`); CI still builds **release** |
 | Backend Rust, tight loop | **Hot** | `up --hot` then `watch` | Compose Watch rebuilds on save (live; not server-like) |
 | Status panel only | Either | TUI **`r`** | Reloads probes — does **not** rebuild apps |
 

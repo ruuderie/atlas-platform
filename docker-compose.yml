@@ -162,6 +162,9 @@ services:
       context: .
       dockerfile: apps/folio/Dockerfile
       target: runner
+      args:
+        # debug is much faster locally; CI/Woodpecker passes BUILD_PROFILE=release
+        BUILD_PROFILE: ${FOLIO_BUILD_PROFILE:-debug}
     container_name: atlas-platform-folio
     env_file:
       - path: .env
@@ -201,6 +204,7 @@ services:
       dockerfile: apps/anchor/Dockerfile
       target: runner
       args:
+        # debug is much faster locally; CI/Woodpecker passes BUILD_PROFILE=release
         BUILD_PROFILE: ${ANCHOR_BUILD_PROFILE:-debug}
     container_name: atlas-platform-anchor
     env_file:
