@@ -71,6 +71,8 @@ pub async fn get_folio_me(
     // ── 4. Resolve tenant_id from user_account ────────────────────────────────
     use sea_orm::{ConnectionTrait, DbBackend, Statement};
 
+    // Prefer a real product tenant. The `__platform__` sentinel (nil UUID) is
+    // not a Folio workspace — using it made /me 403 after cold onboarding.
     let tenant_id: Option<Uuid> = db
         .query_one(Statement::from_sql_and_values(
             DbBackend::Postgres,
@@ -79,9 +81,10 @@ pub async fn get_folio_me(
                JOIN account a ON ua.account_id = a.id
                WHERE ua.user_id = $1
                  AND ua.is_active = true
+                 AND a.tenant_id <> $2
                ORDER BY ua.created_at ASC
                LIMIT 1"#,
-            [session_row.user_id.into()],
+            [session_row.user_id.into(), Uuid::nil().into()],
         ))
         .await
         .ok()
@@ -91,21 +94,28 @@ pub async fn get_folio_me(
     // ── 5. Resolve FolioRole via G-32 RbacService ────────────────────────────
     // No role assignment = 403. Defaulting to Landlord was a security gap:
     // any authenticated user without an explicit role silently got full PM access.
-    let tid = tenant_id.ok_or_else(|| {
-        tracing::warn!(user_id = %session_row.user_id, "folio/me: no tenant context");
-        StatusCode::FORBIDDEN
-    })?;
+    let tid = match tenant_id {
+        Some(tid) => tid,
+        None => {
+            tracing::warn!(user_id = %session_row.user_id, "folio/me: no tenant context");
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
 
-    let folio_role = RbacService::get_user_app_role(&db, session_row.user_id, tid, "folio")
-        .await
-        .and_then(|slug| FolioRole::try_from(slug).ok())
-        .ok_or_else(|| {
+    let role_slug = RbacService::get_user_app_role(&db, session_row.user_id, tid, "folio").await;
+    let folio_role = match role_slug
+        .as_ref()
+        .and_then(|slug| FolioRole::try_from(slug.as_str()).ok())
+    {
+        Some(role) => role,
+        None => {
             tracing::warn!(
                 user_id = %session_row.user_id, tenant_id = %tid,
                 "folio/me: no folio role assigned"
             );
-            StatusCode::FORBIDDEN
-        })?;
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
 
     let display_name = format!("{} {}", user_row.first_name, user_row.last_name)
         .trim()

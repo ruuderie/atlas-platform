@@ -59,12 +59,6 @@ fn sync_email_from_dom(email: RwSignal<String>) {
     }
 }
 
-// #region agent log
-#[cfg(feature = "hydrate")]
-static LOGIN_EMAIL_INPUT_LOGGED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-// #endregion
-
 // ── Brand panel ───────────────────────────────────────────────────────────────
 
 #[component]
@@ -289,33 +283,6 @@ fn AuthPanel() -> impl IntoView {
         format!("width:{}%", (s as f32 / 900.0) * 100.0)
     };
 
-    // #region agent log
-    Effect::new(move |_| {
-        #[cfg(feature = "hydrate")]
-        {
-            leptos::task::spawn_local(async move {
-                let Ok(req) = gloo_net::http::Request::post(
-                    "http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded",
-                )
-                .header("Content-Type", "application/json")
-                .header("X-Debug-Session-Id", "9e88fc")
-                .json(&serde_json::json!({
-                    "sessionId": "9e88fc",
-                    "runId": "login-email",
-                    "hypothesisId": "L1",
-                    "location": "login.rs:AuthPanel",
-                    "message": "auth_panel_hydrated_email_ssr",
-                    "data": { "gateRemoved": true, "inputType": "text" },
-                    "timestamp": js_sys::Date::now() as u64
-                })) else {
-                    return;
-                };
-                let _ = req.send().await;
-            });
-        }
-    });
-    // #endregion
-
     // Email <input> is always in the SSR tree (type=text + inputmode=email).
     // A post-hydrate Show gate left an empty shell until WASM/Effect ran — users
     // could not type until "you@example.com" appeared. type=text avoids Apple
@@ -367,36 +334,6 @@ fn AuthPanel() -> impl IntoView {
                                         autocomplete="username"
                                         spellcheck="false"
                                         on:input=move |ev| {
-                                            // #region agent log
-                                            #[cfg(feature = "hydrate")]
-                                            {
-                                                if !LOGIN_EMAIL_INPUT_LOGGED.swap(
-                                                    true,
-                                                    std::sync::atomic::Ordering::Relaxed,
-                                                ) {
-                                                    let len = event_target_value(&ev).len();
-                                                    leptos::task::spawn_local(async move {
-                                                        let Ok(req) = gloo_net::http::Request::post(
-                                                            "http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded",
-                                                        )
-                                                        .header("Content-Type", "application/json")
-                                                        .header("X-Debug-Session-Id", "9e88fc")
-                                                        .json(&serde_json::json!({
-                                                            "sessionId": "9e88fc",
-                                                            "runId": "login-email",
-                                                            "hypothesisId": "L1",
-                                                            "location": "login.rs:email_input",
-                                                            "message": "first_email_input",
-                                                            "data": { "len": len },
-                                                            "timestamp": js_sys::Date::now() as u64
-                                                        })) else {
-                                                            return;
-                                                        };
-                                                        let _ = req.send().await;
-                                                    });
-                                                }
-                                            }
-                                            // #endregion
                                             email.set(event_target_value(&ev));
                                             if err.get().is_some() {
                                                 err.set(None);

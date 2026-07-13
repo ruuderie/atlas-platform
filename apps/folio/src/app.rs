@@ -442,15 +442,16 @@ fn PropertyOwnerShell() -> impl IntoView {
 
 /// Shared guard logic for all role shells.
 ///
-/// Creates its own `get_session` Resource locally rather than reading
-/// from context. This is intentional — see App doc comment for the
-/// session strategy.
+/// Creates its own `get_session` Resource locally (not at App root — see
+/// App doc / leptos_architecture_decisions §5). Provides that Resource as
+/// context so role layouts and dashboards can `use_context` it.
 fn role_shell_view(
     required: FolioRole,
     layout: impl Fn() -> AnyView + Send + Sync + 'static,
 ) -> impl IntoView {
     use crate::auth::get_session;
     let session = Resource::new(|| (), |_| get_session());
+    provide_context(session);
 
     view! {
         <Suspense fallback=|| view! { <FullPageLoader/> }>

@@ -182,65 +182,6 @@ pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoVi
         public_api_base_url.trim_end_matches('/')
     );
 
-    // #region agent log
-    let debug_prehydrate_script = r#"(function(){
-  function dump(reason){
-    var styles=[].slice.call(document.querySelectorAll('style'));
-    var wizStyle=styles.filter(function(s){return (s.textContent||'').indexOf('.wiz-nav')!==-1;})[0]||null;
-    var header=document.querySelector('header.wiz-nav');
-    var nav=document.querySelector('.wiz-nav-center');
-    var shell=document.querySelector('.wiz-shell');
-    var bodyEl=document.body;
-    var firstEl=bodyEl && bodyEl.firstElementChild;
-    var leadingComments=[];
-    if(bodyEl){
-      for(var n=bodyEl.firstChild;n && n.nodeType===8;n=n.nextSibling){
-        leadingComments.push(String(n.nodeValue||'').slice(0,40));
-      }
-    }
-    var cssHref=!!document.querySelector('link#folio[rel=stylesheet]');
-    var authEmail=document.getElementById('auth-email');
-    var data={
-      reason:reason,
-      path: location.pathname,
-      styleParent: wizStyle && wizStyle.parentElement ? wizStyle.parentElement.tagName : null,
-      cssHref:cssHref,
-      leadingBodyComments:leadingComments,
-      firstBodyEl: firstEl ? (firstEl.className||firstEl.tagName) : null,
-      shellKids:shell?[].map.call(shell.childNodes,function(n){return n.nodeType+':'+(n.nodeName||'');}).slice(0,8):[],
-      headerKids: header ? [].map.call(header.childNodes,function(n){return n.nodeType+':'+(n.nodeName||'')}).slice(0,12) : [],
-      navInner: nav ? String(nav.innerHTML||'').slice(0,160) : null,
-      hasShell:!!shell,
-      authEmail: authEmail ? {tag:authEmail.tagName,type:authEmail.getAttribute('type'),ph:authEmail.getAttribute('placeholder')||''} : null
-    };
-    fetch('http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e88fc'},
-      body:JSON.stringify({
-        sessionId:'9e88fc',runId:'post-fix2',hypothesisId:'F',
-        location:'shell:pre-hydrate',message:'wizard_dom_probe',
-        data:data,timestamp:Date.now()
-      })
-    }).catch(function(){});
-    return !!header;
-  }
-  window.addEventListener('error',function(ev){
-    fetch('http://127.0.0.1:7494/ingest/f619b232-b29d-46cd-b4af-e422a2364ded',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e88fc'},
-      body:JSON.stringify({
-        sessionId:'9e88fc',runId:'post-fix2',hypothesisId:'PANIC',
-        location:'shell:window.onerror',message:'window_error',
-        data:{msg:String((ev&&ev.message)||'').slice(0,280)},
-        timestamp:Date.now()
-      })
-    }).catch(function(){});
-  });
-  var tries=0,id=setInterval(function(){tries++; if(dump('poll-'+tries)||tries>40) clearInterval(id);},25);
-  document.addEventListener('DOMContentLoaded',function(){dump('domcontentloaded');});
-})();"#;
-    // #endregion
-
     let env = std::env::var("ENVIRONMENT").unwrap_or_default();
     let is_deployed = !env.is_empty() && env != "local";
     let reload = (!is_deployed).then(|| view! { <AutoReload options=options.clone() /> });
@@ -257,9 +198,6 @@ pub fn shell(options: LeptosOptions, public_api_base_url: String) -> impl IntoVi
                 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f1a'/%3E%3Cpath d='M16 6 L27 14 L27 26 L19 26 L19 20 L13 20 L13 26 L5 26 L5 14 Z' fill='%2306d6a0'/%3E%3C/svg%3E"/>
                 // Inject API base URL before WASM loads
                 <script inner_html=env_script></script>
-                // #region agent log
-                <script inner_html=debug_prehydrate_script></script>
-                // #endregion
                 {reload}
                 <HydrationScripts options />
                 <MetaTags/>

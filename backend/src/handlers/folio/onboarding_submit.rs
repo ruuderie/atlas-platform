@@ -70,6 +70,7 @@ pub struct OnboardingUnitDraft {
     /// Apartment / unit label (e.g. "2A", "Unit 3")
     pub unit_number: Option<String>,
     pub beds: Option<String>,
+    pub baths: Option<String>,
     pub rent: Option<String>,
 }
 
@@ -441,23 +442,32 @@ pub async fn dismiss_onboarding(
 
 const LANDLORD_ROLE_PROFILE_ID: &str = "00000000-0000-0000-0001-000000000001";
 
-/// Resolves the tenant for onboarding — provisions a landlord workspace under
-/// the Folio host's tenant when the user has a valid session but no account yet
-/// (fresh magic-link / OTP signup).
+/// Resolves the tenant for onboarding — provisions (or remounts) a landlord
+/// workspace under the Folio host's tenant when the user has no real Folio
+/// tenant yet. The `__platform__` sentinel (nil UUID) is **not** a Folio
+/// workspace: treating it as one skipped role seeding and broke `/api/folio/me`.
 async fn resolve_or_provision_tenant(
     db: &DatabaseConnection,
     user: &user::Model,
     headers: &HeaderMap,
 ) -> Result<Uuid, StatusCode> {
     match resolve_tenant_id(db, user.id).await {
-        Ok(tid) => Ok(tid),
+        Ok(tid) => {
+            ensure_landlord_role(db, user.id, tid).await?;
+            Ok(tid)
+        }
         Err(StatusCode::FORBIDDEN) => {
             let tenant_id = resolve_tenant_from_host(db, headers).await?;
-            provision_landlord_workspace(db, user, tenant_id).await?;
+            let remounted = remount_platform_account_if_any(db, user, tenant_id).await?;
+            if !remounted {
+                provision_landlord_workspace(db, user, tenant_id).await?;
+                migrate_owner_data_off_platform_tenant(db, user.id, tenant_id).await;
+            }
             tracing::info!(
                 event = "onboarding.workspace_provisioned",
                 user_id = %user.id,
                 tenant_id = %tenant_id,
+                remounted,
             );
             Ok(tenant_id)
         }
@@ -493,7 +503,7 @@ async fn resolve_tenant_from_host(
             DbBackend::Postgres,
             r#"SELECT ai.tenant_id
                FROM app_domains ad
-               JOIN app_instance ai ON ai.id = ad.app_instance_id
+               JOIN app_instances ai ON ai.id = ad.app_instance_id
                WHERE lower(ad.domain_name) = $1
                LIMIT 1"#,
             [host.clone().into()],
@@ -514,22 +524,225 @@ async fn resolve_tenant_from_host(
     })
 }
 
+fn landlord_display_name(user: &user::Model) -> String {
+    let name = format!("{} {}", user.first_name.trim(), user.last_name.trim())
+        .trim()
+        .to_string();
+    if name.is_empty() {
+        user.email.clone()
+    } else {
+        name
+    }
+}
+
+/// Seed Folio landlord role (idempotent).
+async fn ensure_landlord_role(
+    db: &DatabaseConnection,
+    user_id: Uuid,
+    tenant_id: Uuid,
+) -> Result<(), StatusCode> {
+    let role_profile_id =
+        Uuid::parse_str(LANDLORD_ROLE_PROFILE_ID).expect("const landlord role profile uuid");
+
+    db.execute(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"INSERT INTO atlas_user_app_roles
+               (id, user_id, tenant_id, app_slug, role_profile_id, is_active, granted_at)
+           VALUES ($1, $2, $3, 'folio', $4, true, NOW())
+           ON CONFLICT (user_id, tenant_id, app_slug) DO NOTHING"#,
+        [
+            Uuid::new_v4().into(),
+            user_id.into(),
+            tenant_id.into(),
+            role_profile_id.into(),
+        ],
+    ))
+    .await
+    .map_err(|e| {
+        tracing::error!("onboarding/submit: landlord role seed failed: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(())
+}
+
+/// The platform sentinel account (`id = nil`) must never be remounted onto a
+/// product tenant — it is a shared seed row. Cold landlords always get a
+/// **new** Folio account via `provision_landlord_workspace`.
+///
+/// If a prior bug remounted the sentinel, restore it and return `false` so
+/// provisioning can create a real account.
+async fn remount_platform_account_if_any(
+    db: &DatabaseConnection,
+    user: &user::Model,
+    folio_tenant_id: Uuid,
+) -> Result<bool, StatusCode> {
+    // Heal accidental remount of the nil-UUID platform account.
+    let restored = db
+        .execute(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"UPDATE account
+               SET tenant_id = $1, name = '__platform__', updated_at = NOW()
+               WHERE id = $1 AND tenant_id = $2"#,
+            [Uuid::nil().into(), folio_tenant_id.into()],
+        ))
+        .await
+        .map_err(|e| {
+            tracing::error!("onboarding/submit: restore platform sentinel failed: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if restored.rows_affected() > 0 {
+        let _ = db
+            .execute(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                r#"UPDATE user_account
+                   SET role = 'PlatformSuperAdmin', updated_at = NOW()
+                   WHERE user_id = $1 AND account_id = $2"#,
+                [user.id.into(), Uuid::nil().into()],
+            ))
+            .await;
+        tracing::warn!(
+            user_id = %user.id,
+            folio_tenant_id = %folio_tenant_id,
+            "onboarding/submit: restored hijacked platform sentinel account; will provision Folio workspace"
+        );
+    }
+
+    // Optionally remount a *non-sentinel* account that somehow landed on the
+    // platform tenant (id ≠ nil). Skip the shared sentinel entirely.
+    let platform_account = db
+        .query_one(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"SELECT a.id AS account_id, ua.id AS user_account_id
+               FROM user_account ua
+               JOIN account a ON a.id = ua.account_id
+               WHERE ua.user_id = $1
+                 AND ua.is_active = true
+                 AND a.tenant_id = $2
+                 AND a.id <> $2
+               ORDER BY ua.created_at ASC
+               LIMIT 1"#,
+            [user.id.into(), Uuid::nil().into()],
+        ))
+        .await
+        .map_err(|e| {
+            tracing::error!("onboarding/submit: platform account lookup failed: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let Some(row) = platform_account else {
+        return Ok(false);
+    };
+    let account_id: Uuid = row.try_get("", "account_id").map_err(|_| {
+        tracing::error!("onboarding/submit: platform account_id missing");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let user_account_id: Uuid = row.try_get("", "user_account_id").map_err(|_| {
+        tracing::error!("onboarding/submit: platform user_account_id missing");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let display = landlord_display_name(user);
+
+    db.execute(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"UPDATE account
+           SET tenant_id = $1, name = $2, updated_at = NOW()
+           WHERE id = $3"#,
+        [
+            folio_tenant_id.into(),
+            display.clone().into(),
+            account_id.into(),
+        ],
+    ))
+    .await
+    .map_err(|e| {
+        tracing::error!("onboarding/submit: remount account failed: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    db.execute(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"UPDATE user_account
+           SET role = 'Owner', updated_at = NOW()
+           WHERE id = $1"#,
+        [user_account_id.into()],
+    ))
+    .await
+    .map_err(|e| {
+        tracing::error!("onboarding/submit: remount user_account role failed: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let _ = db
+        .execute(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"UPDATE profile
+               SET tenant_id = $1, display_name = $2, updated_at = NOW()
+               WHERE account_id = $3"#,
+            [
+                folio_tenant_id.into(),
+                display.into(),
+                account_id.into(),
+            ],
+        ))
+        .await;
+
+    migrate_owner_data_off_platform_tenant(db, user.id, folio_tenant_id).await;
+    ensure_landlord_role(db, user.id, folio_tenant_id).await?;
+    Ok(true)
+}
+
+/// Move portfolios/assets written under the platform sentinel tenant onto Folio.
+async fn migrate_owner_data_off_platform_tenant(
+    db: &DatabaseConnection,
+    user_id: Uuid,
+    folio_tenant_id: Uuid,
+) {
+    let _ = db
+        .execute(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"UPDATE atlas_portfolios
+               SET tenant_id = $1
+               WHERE owner_user_id = $2 AND tenant_id = $3"#,
+            [
+                folio_tenant_id.into(),
+                user_id.into(),
+                Uuid::nil().into(),
+            ],
+        ))
+        .await;
+
+    let _ = db
+        .execute(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"UPDATE atlas_assets
+               SET tenant_id = $1
+               WHERE tenant_id = $2
+                 AND (
+                   owner_user_id = $3
+                   OR portfolio_id IN (
+                     SELECT id FROM atlas_portfolios
+                     WHERE owner_user_id = $3 AND tenant_id = $1
+                   )
+                 )"#,
+            [
+                folio_tenant_id.into(),
+                Uuid::nil().into(),
+                user_id.into(),
+            ],
+        ))
+        .await;
+}
+
 /// Create account + user_account + profile + landlord Folio role for a new user.
 async fn provision_landlord_workspace(
     db: &DatabaseConnection,
     user: &user::Model,
     tenant_id: Uuid,
 ) -> Result<(), StatusCode> {
-    let display = {
-        let name = format!("{} {}", user.first_name.trim(), user.last_name.trim())
-            .trim()
-            .to_string();
-        if name.is_empty() {
-            user.email.clone()
-        } else {
-            name
-        }
-    };
+    let display = landlord_display_name(user);
 
     let account_id = Uuid::new_v4();
     account::ActiveModel {
@@ -590,32 +803,15 @@ async fn provision_landlord_workspace(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let role_profile_id =
-        Uuid::parse_str(LANDLORD_ROLE_PROFILE_ID).expect("const landlord role profile uuid");
-
-    db.execute(Statement::from_sql_and_values(
-        DbBackend::Postgres,
-        r#"INSERT INTO atlas_user_app_roles
-               (id, user_id, tenant_id, app_slug, role_profile_id, is_active, granted_at)
-           VALUES ($1, $2, $3, 'folio', $4, true, NOW())
-           ON CONFLICT (user_id, tenant_id, app_slug) DO NOTHING"#,
-        [
-            Uuid::new_v4().into(),
-            user.id.into(),
-            tenant_id.into(),
-            role_profile_id.into(),
-        ],
-    ))
-    .await
-    .map_err(|e| {
-        tracing::error!("onboarding/submit: landlord role seed failed: {e:#}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    ensure_landlord_role(db, user.id, tenant_id).await?;
 
     Ok(())
 }
 
 /// Upsert WhatsApp channel preference for the landlord (self-declared onboarding).
+///
+/// Note: `atlas_user_notification_pref.tenant_id` FK references `account(id)`,
+/// not `tenant(id)` — store the user's Folio account id in that column.
 async fn upsert_whatsapp_pref(
     db: &DatabaseConnection,
     user_id: Uuid,
@@ -623,6 +819,34 @@ async fn upsert_whatsapp_pref(
     phone_e164: &str,
     opt_in: bool,
 ) -> Result<(), StatusCode> {
+    let account_id = db
+        .query_one(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"SELECT a.id AS account_id
+               FROM user_account ua
+               JOIN account a ON a.id = ua.account_id
+               WHERE ua.user_id = $1
+                 AND ua.is_active = true
+                 AND a.tenant_id = $2
+               ORDER BY ua.created_at DESC
+               LIMIT 1"#,
+            [user_id.into(), tenant_id.into()],
+        ))
+        .await
+        .map_err(|e| {
+            tracing::error!("onboarding/submit: account lookup for whatsapp pref failed: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .and_then(|r| r.try_get::<Uuid>("", "account_id").ok())
+        .ok_or_else(|| {
+            tracing::error!(
+                user_id = %user_id,
+                tenant_id = %tenant_id,
+                "onboarding/submit: no Folio account for whatsapp pref"
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
     let config = serde_json::json!({
         "phone": phone_e164,
         "source": "onboarding_self_declare",
@@ -630,7 +854,7 @@ async fn upsert_whatsapp_pref(
 
     let existing = atlas_user_notification_pref::Entity::find()
         .filter(atlas_user_notification_pref::Column::UserId.eq(user_id))
-        .filter(atlas_user_notification_pref::Column::TenantId.eq(tenant_id))
+        .filter(atlas_user_notification_pref::Column::TenantId.eq(account_id))
         .filter(atlas_user_notification_pref::Column::Channel.eq("whatsapp"))
         .one(db)
         .await
@@ -654,7 +878,7 @@ async fn upsert_whatsapp_pref(
             atlas_user_notification_pref::ActiveModel {
                 id: Set(Uuid::new_v4()),
                 user_id: Set(user_id),
-                tenant_id: Set(tenant_id),
+                tenant_id: Set(account_id),
                 channel: Set("whatsapp".to_string()),
                 config: Set(config),
                 enabled: Set(opt_in),
@@ -674,16 +898,19 @@ async fn upsert_whatsapp_pref(
     Ok(())
 }
 
-/// Resolves the tenant_id for `user_id` via the first active `user_account → account` join.
+/// Resolves a **real** Folio tenant for `user_id` (excludes `__platform__` nil).
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     db.query_one(Statement::from_sql_and_values(
         DbBackend::Postgres,
         r#"SELECT a.tenant_id
            FROM user_account ua
            JOIN account a ON ua.account_id = a.id
-           WHERE ua.user_id = $1 AND ua.is_active = true
-           ORDER BY ua.created_at ASC LIMIT 1"#,
-        [user_id.into()],
+           WHERE ua.user_id = $1
+             AND ua.is_active = true
+             AND a.tenant_id <> $2
+           ORDER BY ua.created_at ASC
+           LIMIT 1"#,
+        [user_id.into(), Uuid::nil().into()],
     ))
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
