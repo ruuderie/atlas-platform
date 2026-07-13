@@ -209,24 +209,54 @@ async fn verify_handler(
         }
     };
 
+    // Uses whatever ATLAS_API_URL the environment already sets (Compose service
+    // name locally, cluster Service DNS in K8s). Retries only soften transient
+    // connect blips — they do not change networking or discovery.
     let atlas_url =
         std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
     let url = format!("{}/api/auth/magic-link/verify", atlas_url);
 
     let client = reqwest::Client::new();
-    let backend_res = match client
-        .post(&url)
-        .json(&serde_json::json!({ "token": token }))
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("[folio] verify: backend unreachable: {e}");
-            return error_html(
-                "Login link invalid or expired.",
-                "Unable to reach the authentication server. Please try again.",
-            );
+    let backend_res = {
+        let mut last_err = None;
+        let mut ok_res = None;
+        for attempt in 1..=3u8 {
+            match client
+                .post(&url)
+                .json(&serde_json::json!({ "token": token }))
+                .send()
+                .await
+            {
+                Ok(r) => {
+                    ok_res = Some(r);
+                    break;
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[folio] verify: backend unreachable (attempt {attempt}/3): {e}"
+                    );
+                    last_err = Some(e);
+                    if attempt < 3 {
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            150 * u64::from(attempt),
+                        ))
+                        .await;
+                    }
+                }
+            }
+        }
+        match ok_res {
+            Some(r) => r,
+            None => {
+                let detail = last_err
+                    .map(|e| e.to_string())
+                    .unwrap_or_else(|| "unknown".into());
+                eprintln!("[folio] verify: backend unreachable after retries: {detail}");
+                return error_html(
+                    "Could not reach the login service.",
+                    "The app server could not contact the API. Wait a moment and request a new login link.",
+                );
+            }
         }
     };
 
@@ -368,19 +398,49 @@ async fn verify_handler(
     }
 
     let me_url = format!("{}/api/folio/me", atlas_url);
-    let me_res = match client
-        .get(&me_url)
-        .header("Authorization", format!("Bearer {}", token))
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("[folio] verify: /api/folio/me unreachable: {e}");
-            return error_html(
-                "Login link invalid or expired.",
-                "Unable to reach the authentication server. Please try again.",
-            );
+    let me_res = {
+        let mut last_err = None;
+        let mut ok_res = None;
+        for attempt in 1..=3u8 {
+            match client
+                .get(&me_url)
+                .header("Authorization", format!("Bearer {}", token))
+                .send()
+                .await
+            {
+                Ok(r) => {
+                    ok_res = Some(r);
+                    break;
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[folio] verify: /api/folio/me unreachable (attempt {attempt}/3): {e}"
+                    );
+                    last_err = Some(e);
+                    if attempt < 3 {
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            150 * u64::from(attempt),
+                        ))
+                        .await;
+                    }
+                }
+            }
+        }
+        match ok_res {
+            Some(r) => r,
+            None => {
+                let detail = last_err
+                    .map(|e| e.to_string())
+                    .unwrap_or_else(|| "unknown".into());
+                eprintln!("[folio] verify: /api/folio/me unreachable after retries: {detail}");
+                // Session cookie may already be valid — send to onboarding rather
+                // than pretending the magic link itself was invalid.
+                return redirect_authed(
+                    "/onboarding",
+                    cookie_header,
+                    verified_email.as_deref(),
+                );
+            }
         }
     };
 

@@ -43,8 +43,10 @@ RUN if [ "$BUILD_PROFILE" = "release" ]; then \
 
 # ── Runtime ─────────────────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS runner
+# curl is for local Compose healthchecks only. K8s uses httpGet probes and does
+# not depend on this binary; ATLAS_API_URL / Service DNS are unchanged.
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends openssl ca-certificates && \
+    apt-get install -y --no-install-recommends openssl ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

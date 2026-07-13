@@ -173,8 +173,12 @@ services:
         required: false
     ports:
       - "3100:3100"
+    # Local Compose only — K8s uses its own probes / Service DNS; do not mirror this
+    # into server manifests. Wait for backend readiness so /verify does not race a
+    # still-warming API after `atlas-local refresh`.
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     develop:
       watch:
         - path: ./apps/folio/src
@@ -191,10 +195,12 @@ services:
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3100/"]
+      # Match K8s path (/api/health). Requires curl in the Folio runner image.
+      test: ["CMD", "curl", "-f", "http://localhost:3100/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 15s
     networks:
       - app-network
 
@@ -215,7 +221,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     develop:
       watch:
         - path: ./apps/anchor/src
@@ -232,10 +239,12 @@ services:
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      # Anchor runner ships wget (not curl). Compose-only; K8s uses httpGet probes.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 15s
     networks:
       - app-network
 
