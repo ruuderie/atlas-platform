@@ -258,6 +258,15 @@ fn AuthPanel() -> impl IntoView {
         format!("width:{}%", (s as f32 / 900.0) * 100.0)
     };
 
+    // Mount the email <input> only after hydrate. Password-manager / Apple
+    // "Hide My Email" extensions inject sibling nodes into type=email fields
+    // and break tachys if that input is in the SSR tree. Keep Continue (and the
+    // rest of the form) always present so login stays usable.
+    let email_field_ready = RwSignal::new(false);
+    Effect::new(move |_| {
+        email_field_ready.set(true);
+    });
+
     view! {
         <main class="login-auth-panel">
             <div class="login-auth-inner">
@@ -294,26 +303,39 @@ fn AuthPanel() -> impl IntoView {
                             <div class="login-auth-form">
                                 <div class="login-field">
                                     <label class="login-field-label" for="auth-email">"Email address"</label>
-                                    <input
-                                        id="auth-email"
-                                        type="email"
-                                        class="login-field-input"
-                                        placeholder="you@example.com"
-                                        autocomplete="email"
-                                        prop:value=move || email.get()
-                                        on:input=move |ev| {
-                                            email.set(event_target_value(&ev));
-                                            if err.get().is_some() {
-                                                err.set(None);
-                                            }
+                                    <Show
+                                        when=move || email_field_ready.get()
+                                        fallback=|| view! {
+                                            <div
+                                                class="login-field-input"
+                                                style="min-height:2.75rem;box-sizing:border-box"
+                                                aria-hidden="true"
+                                            ></div>
                                         }
-                                        on:keydown=move |ev| {
-                                            if ev.key() == "Enter" {
-                                                ev.prevent_default();
-                                                continue_email();
+                                    >
+                                        <input
+                                            id="auth-email"
+                                            type="text"
+                                            inputmode="email"
+                                            class="login-field-input"
+                                            placeholder="you@example.com"
+                                            autocomplete="username"
+                                            spellcheck="false"
+                                            prop:value=move || email.get()
+                                            on:input=move |ev| {
+                                                email.set(event_target_value(&ev));
+                                                if err.get().is_some() {
+                                                    err.set(None);
+                                                }
                                             }
-                                        }
-                                    />
+                                            on:keydown=move |ev| {
+                                                if ev.key() == "Enter" {
+                                                    ev.prevent_default();
+                                                    continue_email();
+                                                }
+                                            }
+                                        />
+                                    </Show>
                                 </div>
                                 <Show when=move || err.get().is_some()>
                                     <p class="login-field-error login-field-error--show">
@@ -365,7 +387,7 @@ fn AuthPanel() -> impl IntoView {
                                 <h1 class="login-auth-h1">"Authenticate with your passkey"</h1>
                                 <p class="login-auth-sub">
                                     {move || if err.get().is_some() {
-                                        "Authentication didn’t complete. Try again, or use a magic link."
+                                        "Authentication didn't complete. Try again, or use a magic link."
                                     } else {
                                         "Your device will prompt you for Face ID, Touch ID, or PIN."
                                     }}
@@ -390,7 +412,7 @@ fn AuthPanel() -> impl IntoView {
                                 on:click=retry_passkey
                             >
                                 <span class="material-symbols-outlined login-icon-fill" style="font-size:18px" aria-hidden="true">"fingerprint"</span>
-                                {move || if passkey_pending.get() { "Waiting for device…" } else { "Authenticate with Passkey" }}
+                                {move || if passkey_pending.get() { "Waiting for device..." } else { "Authenticate with Passkey" }}
                             </button>
                             <button type="button" class="login-btn-text" on:click=use_magic_instead>
                                 <span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:0.25rem" aria-hidden="true">"mail"</span>
@@ -444,7 +466,7 @@ fn AuthPanel() -> impl IntoView {
                                     fallback=|| view! {
                                         <span class="login-btn-content" style="display:inline-flex;align-items:center;gap:8px">
                                             <span class="login-btn-spinner"></span>
-                                            "Sending…"
+                                            "Sending..."
                                         </span>
                                     }
                                 >
