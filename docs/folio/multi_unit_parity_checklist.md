@@ -2,7 +2,7 @@
 
 Use before marking a P0b page `[x]` in [`page_queue.md`](page_queue.md). Compare against Stitch under `designs/stitch/project_pm/folio/`.
 
-**Quality bar:** implement plan § Production quality bar · [`stitch_to_leptos_prompt.md`](stitch_to_leptos_prompt.md) · AGENTS.md §13.
+**Quality bar:** implement plan § Production quality bar · `docs/private/prompts/stitch_to_leptos_prompt.md` · AGENTS.md §13.
 
 ## Global (every page)
 

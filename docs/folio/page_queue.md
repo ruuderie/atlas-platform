@@ -2,7 +2,7 @@
 
 > **How to use:** Pick up the next `[ ]` item. When done, mark `[x]` and commit.  
 > Ordering is by implementation priority (highest value to operator first).  
-> See [`stitch_to_leptos_prompt.md`](stitch_to_leptos_prompt.md) for the implementation workflow.
+> See `docs/private/prompts/stitch_to_leptos_prompt.md` for the implementation workflow.
 
 ---
 
@@ -48,7 +48,7 @@ _The primary operator. Nothing else works until this works._
 
 ## P0b — Multi-unit hub / Projects / G-27 (production bar)
 
-> Stitch is complete under `designs/stitch/project_pm/folio/`. Implement via [`stitch_to_leptos_prompt.md`](stitch_to_leptos_prompt.md): API mapping → token map → `Resource`/`Suspense`/skeleton → parity. No stubs, no CDN Tailwind ports, no mock data in `view!`. Quality bar: see implement plan **Production quality bar**.
+> Stitch is complete under `designs/stitch/project_pm/folio/`. Implement via `docs/private/prompts/stitch_to_leptos_prompt.md`: API mapping → token map → `Resource`/`Suspense`/skeleton → parity. No stubs, no CDN Tailwind ports, no mock data in `view!`. Quality bar: see implement plan **Production quality bar**.
 
 | Status | Page | Stitch dir | Leptos module | Route | Backend handler |
 |--------|------|-----------|---------------|-------|-----------------|

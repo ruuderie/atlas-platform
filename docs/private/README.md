@@ -8,7 +8,7 @@ Only these stay in the public `docs/` tree:
 
 | Path | Why public |
 |------|------------|
-| `docs/folio/` process files (`README`, `page_queue`, `stitch_to_leptos_prompt`, `multi_unit_parity_checklist`) | How we implement Folio from Stitch |
+| `docs/folio/` queue/checklist (`README`, `page_queue`, `multi_unit_parity_checklist`) | Public implementation queue only — **prompts stay private** |
 | `docs/contracts/` | Shipped platform contracts |
 | `docs/grafana/` | Ops dashboards |
 | `docs/architecture/` eng how-tos listed below | Build / operate the open codebase |
@@ -50,9 +50,9 @@ Only these stay in the public `docs/` tree:
 
 - Future products, UI specs, Stitch dumps
 - GTM / market / strategy / reports / backlog
-- Research prompts (`prompts/`)
+- Research / agent prompts (`docs/private/prompts/` — including stitch→leptos)
+- Folio product-surface specs (`docs/private/folio/`)
 - Product planning (`g27/` vertical plans, CRM unification plans, CURRENT_STATE dumps, Phase notes)
-- Folio product-surface specs (landing pages, design preview HTML, etc.)
 
 ## Rule for agents
 

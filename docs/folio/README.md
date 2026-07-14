@@ -1,7 +1,7 @@
 # Folio Documentation Index
 
-> **Public Folio process docs** (how we implement). Product-surface specs live under
-> [`docs/private/folio/`](../private/folio/) (local only, not on GitHub).
+> **Public Folio queue/checklist** only. Prompts and product-surface specs are
+> under [`docs/private/`](../private/) (local only, not on GitHub).
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Doc | Purpose | Read when |
 |---|---|---|
-| [stitch_to_leptos_prompt.md](stitch_to_leptos_prompt.md) | Stitch → Leptos workflow (API-first, tokens, no mocks) | Every page port |
 | [page_queue.md](page_queue.md) | Implementation queue | Picking the next page |
 | [multi_unit_parity_checklist.md](multi_unit_parity_checklist.md) | Hub / Projects / G-27 parity sign-off | Before marking P0b done |
 
 ---
 
-## Product specs (private)
+## Private (local only)
 
 | Doc | Path |
 |---|---|
+| Stitch → Leptos prompt | `docs/private/prompts/stitch_to_leptos_prompt.md` |
 | Folio vs Network Instance | `docs/private/folio/folio_vs_network_instance.md` |
 | Brokerage architecture | `docs/private/folio/brokerage_architecture.md` |
 | Tenant landing pages | `docs/private/folio/tenant_landing_pages.md` |
