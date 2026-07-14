@@ -184,12 +184,17 @@ pub async fn post_returning_session_with_headers<B: Serialize, T: DeserializeOwn
 }
 
 /// Authenticated GET — forwards session cookie and optional tenant-id header.
+///
+/// On SSR, automatically forwards `X-Forwarded-Host` / client IP from the
+/// incoming Leptos request so Atlas can resolve Folio via `app_domains`.
+/// Without that host header, Atlas sees `Host: backend:8000` and returns 404
+/// for every `/api/folio/*` route.
 pub async fn authenticated_get<T: DeserializeOwned>(
     path: &str,
     session_token: &str,
     tenant_id: Option<uuid::Uuid>,
 ) -> Result<T, String> {
-    authenticated_get_with_headers(path, session_token, tenant_id, reqwest::header::HeaderMap::new())
+    authenticated_get_with_headers(path, session_token, tenant_id, default_proxy_headers().await)
         .await
 }
 
@@ -229,7 +234,7 @@ pub async fn authenticated_post<B: Serialize, T: DeserializeOwned>(
         session_token,
         tenant_id,
         body,
-        reqwest::header::HeaderMap::new(),
+        default_proxy_headers().await,
     )
     .await
 }
@@ -269,7 +274,8 @@ pub async fn authenticated_delete(
     let url = format!("{}{}", get_atlas_api_url(), path);
     let mut req = CLIENT
         .delete(&url)
-        .header("Authorization", format!("Bearer {}", session_token));
+        .header("Authorization", format!("Bearer {}", session_token))
+        .headers(default_proxy_headers().await);
     if let Some(tid) = tenant_id {
         req = req.header("x-tenant-id", tid.to_string());
     }
@@ -290,6 +296,7 @@ pub async fn authenticated_patch<B: Serialize, T: DeserializeOwned>(
     let req = CLIENT
         .patch(&url)
         .header("Authorization", format!("Bearer {}", session_token))
+        .headers(default_proxy_headers().await)
         .json(&body);
     let res = req.send().await.map_err(|e| e.to_string())?;
     if !res.status().is_success() {
@@ -309,6 +316,7 @@ pub async fn authenticated_put<B: Serialize, T: serde::de::DeserializeOwned>(
     let mut req = CLIENT
         .put(&url)
         .header("Authorization", format!("Bearer {}", session_token))
+        .headers(default_proxy_headers().await)
         .json(body);
     if let Some(tid) = tenant_id {
         req = req.header("x-tenant-id", tid.to_string());
@@ -322,4 +330,40 @@ pub async fn authenticated_put<B: Serialize, T: serde::de::DeserializeOwned>(
         return serde_json::from_value::<T>(serde_json::Value::Null).map_err(|_| String::new());
     }
     res.json::<T>().await.map_err(|e| e.to_string())
+}
+
+/// Pull Folio proxy headers from the current SSR request, if any.
+async fn default_proxy_headers() -> reqwest::header::HeaderMap {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+        if let Ok(incoming) = extract::<HeaderMap>().await {
+            return folio_proxy_headers(&incoming);
+        }
+    }
+    reqwest::header::HeaderMap::new()
+}
+
+/// Read `session=` cookie from the current SSR request (for `#[server]` fns).
+#[cfg(feature = "ssr")]
+pub async fn session_token_from_request() -> Result<String, String> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    headers
+        .get("cookie")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| {
+            s.split(';').find_map(|p| {
+                let p = p.trim();
+                p.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
+        .ok_or_else(|| "No session token".to_string())
+}
+
+#[cfg(not(feature = "ssr"))]
+pub async fn session_token_from_request() -> Result<String, String> {
+    Err("session_token_from_request is SSR-only".into())
 }

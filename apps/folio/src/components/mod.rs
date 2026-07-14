@@ -1,10 +1,17 @@
+pub mod activity_rail;
+pub mod interruptible_sheet;
 pub mod lang;
 pub mod layouts;
 pub mod marketing_nav;
 pub mod nav;
 pub mod network_invite_panel;
 pub mod onboarding_banner;
+pub mod page_header;
+pub mod photo_lightbox;
+pub mod property_tab_bar;
 pub mod scorecard_nudge_host;
 pub mod sidebar;
+pub mod stat_card;
+pub mod status_pill;
 pub mod verified_email_field;
 pub mod wizard_shell;

@@ -31,17 +31,22 @@
 //!
 //! # Performance
 //!
-//! One query joins `user_account` + `profile` via account_id. The result
-//! is extracted once per request by Axum; all downstream extractors that
-//! also call `TenantContext::from_request_parts` share the same resolution
-//! path (Axum deduplicates via `Parts` extension insertion).
+//! One query joins `user_account` + `account` (tenant_id lives on account).
+//! Profile is optional — onboarding / invite paths may create account +
+//! user_account before a profile row exists. The result is extracted once
+//! per request by Axum; all downstream extractors that also call
+//! `TenantContext::from_request_parts` share the same resolution path
+//! (Axum deduplicates via `Parts` extension insertion).
 
 use axum::{
     Extension,
     extract::FromRequestParts,
     http::{StatusCode, request::Parts},
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait, QueryFilter,
+    Statement,
+};
 use uuid::Uuid;
 
 use crate::entities::user_account::UserRole;
@@ -49,7 +54,8 @@ use crate::entities::{user, user_account};
 
 /// Resolved tenant context for the current request.
 ///
-/// Extracted from the authenticated user's `user_account` → `profile` chain.
+/// Extracted from the authenticated user's `user_account` → `account` chain
+/// (profile is preferred when present, but not required).
 /// Available in handlers as `ctx: TenantContext`.
 #[derive(Clone, Debug)]
 pub struct TenantContext {
@@ -76,6 +82,33 @@ impl TenantContext {
     }
 }
 
+/// Resolve a real (non-platform) tenant_id for `user_id` via
+/// `user_account` → `account.tenant_id`.
+///
+/// Prefer this over profile lookups: profile rows are not always created
+/// during invite / partial onboarding, while account.tenant_id is.
+pub async fn resolve_tenant_id(
+    db: &DatabaseConnection,
+    user_id: Uuid,
+) -> Result<Uuid, StatusCode> {
+    db.query_one(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"SELECT a.tenant_id
+           FROM user_account ua
+           JOIN account a ON ua.account_id = a.id
+           WHERE ua.user_id = $1
+             AND ua.is_active = true
+             AND a.tenant_id <> $2
+           ORDER BY ua.created_at ASC
+           LIMIT 1"#,
+        [user_id.into(), Uuid::nil().into()],
+    ))
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok())
+    .ok_or(StatusCode::FORBIDDEN)
+}
+
 impl<S> FromRequestParts<S> for TenantContext
 where
     S: Send + Sync,
@@ -96,24 +129,38 @@ where
             .await
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-        // Single query: join user_account + profile to get tenant_id
-        // Takes the first active account (ordered by created_at ASC implicitly)
         let ua = user_account::Entity::find()
             .filter(user_account::Column::UserId.eq(current_user.id))
+            .filter(user_account::Column::IsActive.eq(true))
             .one(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .ok_or(StatusCode::FORBIDDEN)?;
 
-        let profile = crate::entities::profile::Entity::find()
+        // Prefer profile.tenant_id when present; otherwise account.tenant_id
+        // (matches GET /api/folio/me and onboarding submit).
+        let tenant_id = match crate::entities::profile::Entity::find()
             .filter(crate::entities::profile::Column::AccountId.eq(ua.account_id))
             .one(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-            .ok_or(StatusCode::FORBIDDEN)?;
+        {
+            Some(profile) if profile.tenant_id != Uuid::nil() => profile.tenant_id,
+            _ => {
+                let account = crate::entities::account::Entity::find_by_id(ua.account_id)
+                    .one(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                    .ok_or(StatusCode::FORBIDDEN)?;
+                if account.tenant_id == Uuid::nil() {
+                    return Err(StatusCode::FORBIDDEN);
+                }
+                account.tenant_id
+            }
+        };
 
         let ctx = TenantContext {
-            tenant_id: profile.tenant_id,
+            tenant_id,
             user_role: ua.role,
             account_id: ua.account_id,
             user_id: current_user.id,

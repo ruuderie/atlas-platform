@@ -7,7 +7,7 @@ use leptos_router::hooks::use_query_map;
 /// Routing after a successful verify:
 ///   1. No passkey yet          → /auth/passkey-setup  (first-ever login)
 ///   2. Passkey set, onboarding incomplete → /onboarding
-///   3. Fully set up            → /dashboard
+///   3. Fully set up            → role home (e.g. /l for landlords)
 #[component]
 pub fn Verify() -> impl IntoView {
     let query = use_query_map();
@@ -42,7 +42,7 @@ pub fn Verify() -> impl IntoView {
                             // Passkey set but wizard not finished.
                             "/onboarding"
                         } else {
-                            "/dashboard"
+                            info.folio_role.home_path()
                         };
                         view! { <Redirect path=dest/> }.into_any()
                     },

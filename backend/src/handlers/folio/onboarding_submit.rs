@@ -900,32 +900,21 @@ async fn upsert_whatsapp_pref(
 
 /// Resolves a **real** Folio tenant for `user_id` (excludes `__platform__` nil).
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
-    db.query_one(Statement::from_sql_and_values(
-        DbBackend::Postgres,
-        r#"SELECT a.tenant_id
-           FROM user_account ua
-           JOIN account a ON ua.account_id = a.id
-           WHERE ua.user_id = $1
-             AND ua.is_active = true
-             AND a.tenant_id <> $2
-           ORDER BY ua.created_at ASC
-           LIMIT 1"#,
-        [user_id.into(), Uuid::nil().into()],
-    ))
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok())
-    .ok_or(StatusCode::FORBIDDEN)
+    crate::extractors::tenant::resolve_tenant_id(db, user_id).await
 }
 
 /// Resolves the app_instance_id for the tenant's Folio deployment.
 /// Returns None if not yet provisioned (onboarding_progress write is best-effort).
 async fn resolve_app_instance_id(db: &DatabaseConnection, tenant_id: Uuid) -> Option<Uuid> {
+    // Must use `app_instances.id` — `onboarding_progress.app_instance_id` FKs
+    // that table. `atlas_app_deployment_config.id` is a different UUID space.
     db.query_one(Statement::from_sql_and_values(
         DbBackend::Postgres,
-        r#"SELECT id FROM atlas_app_deployment_config
+        r#"SELECT id FROM app_instances
            WHERE tenant_id = $1
-           ORDER BY created_at ASC LIMIT 1"#,
+             AND app_type = 'property_management'
+           ORDER BY created_at ASC
+           LIMIT 1"#,
         [tenant_id.into()],
     ))
     .await

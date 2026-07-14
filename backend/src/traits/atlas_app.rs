@@ -289,7 +289,6 @@ pub trait AtlasApp: Send + Sync {
         use std::collections::HashSet;
 
         let steps = self.onboarding_steps();
-        let required_steps: Vec<_> = steps.iter().filter(|s| s.is_required).collect();
 
         // ── Batch fetch: load all non-empty TenantSetting keys in a single query ──
         // This replaces the N+1 pattern (one COUNT query per TenantSettingExists step).
@@ -306,7 +305,9 @@ pub trait AtlasApp: Send + Sync {
 
         let mut incomplete: Vec<String> = Vec::new();
 
-        for step in &required_steps {
+        // Evaluate every declared step (required + optional). `is_ready` in
+        // build_status_response still only requires required steps to be complete.
+        for step in &steps {
             let done = match &step.completion_check {
                 StepCompletionCheck::TenantSettingExists { key } => {
                     // In-memory lookup — no additional DB roundtrip needed.
@@ -319,16 +320,17 @@ pub trait AtlasApp: Send + Sync {
                     .map(|c| c > 0)
                     .unwrap_or(false),
                 StepCompletionCheck::EntityCountGte { table, min } => {
-                    // Use sea_query to build a safe, idiomatic COUNT query.
-                    // `table` is &'static str so no injection is possible, but
-                    // using the query builder is the correct architectural pattern.
-                    use sea_orm::sea_query::{Alias, Expr, Query, SelectStatement};
+                    // Bind tenant_id as Uuid — comparing uuid = text fails in Postgres
+                    // prepared statements (`operator does not exist: uuid = text`),
+                    // which previously made this check always return incomplete even
+                    // when rows existed (e.g. folio first_property / atlas_assets).
+                    use sea_orm::sea_query::{Alias, Expr, Func, Query, SelectStatement};
                     use sea_orm::{ConnectionTrait, Statement};
 
                     let stmt: SelectStatement = Query::select()
-                        .expr(Expr::col(sea_orm::sea_query::Asterisk).count())
+                        .expr_as(Func::count(Expr::col(sea_orm::sea_query::Asterisk)), Alias::new("count"))
                         .from(Alias::new(*table))
-                        .and_where(Expr::col(Alias::new("tenant_id")).eq(tenant_id.to_string()))
+                        .and_where(Expr::col(Alias::new("tenant_id")).eq(tenant_id))
                         .to_owned();
 
                     let (sql, values) = stmt.build(sea_orm::sea_query::PostgresQueryBuilder);
@@ -344,7 +346,14 @@ pub trait AtlasApp: Send + Sync {
                             let count: i64 = row.try_get("", "count").unwrap_or(0);
                             count >= *min as i64
                         }
-                        _ => false,
+                        Ok(None) => false,
+                        Err(e) => {
+                            tracing::error!(
+                                table, %tenant_id, error = %e,
+                                "EntityCountGte onboarding check failed"
+                            );
+                            false
+                        }
                     }
                 }
                 StepCompletionCheck::Custom => {

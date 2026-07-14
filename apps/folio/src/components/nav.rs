@@ -156,7 +156,10 @@ pub enum FolioRoute {
     LandlordDashboard,
     LandlordPortfolio,
     LandlordAssets,
-    LandlordAssetDetail, // /l/assets/:id — not a nav item, but typed for use in pages
+    LandlordAssetDetail, // /l/assets/:id — hub | unit | leaf dispatch
+    LandlordAssetSystems, // /l/assets/:id/systems
+    LandlordAssetDocuments, // /l/assets/:id/documents
+    LandlordAssetPortal, // /l/assets/:id/portal — CMS stub
     LandlordLeases,
     LandlordLeaseDetail, // /l/leases/:id
     LandlordLeads,
@@ -168,6 +171,9 @@ pub enum FolioRoute {
     LandlordVendors,
     LandlordReservations,
     LandlordMaintenance,
+    LandlordMaintenanceNew, // /l/maintenance/new
+    LandlordMaintenanceDetail, // /l/maintenance/:id
+    LandlordProjectDetail, // /l/projects/:id
     LandlordSyndication,
     // LandlordMeridian removed — nav footer now uses LandlordMeridianConfig directly.
     // Kept as a comment to avoid future confusion about /l/meridian intent.
@@ -176,6 +182,7 @@ pub enum FolioRoute {
     LandlordAccountBilling,
     LandlordMap,
     LandlordVault,
+    LandlordSystems, // /l/systems — portfolio building systems
     LandlordInspections,
     LandlordViolations,
     LandlordTenantProfile, // /l/tenants/:id — landlord view of a counterparty tenant
@@ -284,6 +291,9 @@ impl FolioRoute {
             Self::LandlordPortfolio => "/l/portfolio",
             Self::LandlordAssets => "/l/assets",
             Self::LandlordAssetDetail => "/l/assets/:id",
+            Self::LandlordAssetSystems => "/l/assets/:id/systems",
+            Self::LandlordAssetDocuments => "/l/assets/:id/documents",
+            Self::LandlordAssetPortal => "/l/assets/:id/portal",
             Self::LandlordLeases => "/l/leases",
             Self::LandlordLeaseDetail => "/l/leases/:id",
             Self::LandlordLeads => "/l/leads",
@@ -295,6 +305,9 @@ impl FolioRoute {
             Self::LandlordVendors => "/l/vendors",
             Self::LandlordReservations => "/l/reservations",
             Self::LandlordMaintenance => "/l/maintenance",
+            Self::LandlordMaintenanceNew => "/l/maintenance/new",
+            Self::LandlordMaintenanceDetail => "/l/maintenance/:id",
+            Self::LandlordProjectDetail => "/l/projects/:id",
             Self::LandlordSyndication => "/l/syndication",
             // LandlordMeridian path removed (variant removed — was /l/meridian).
             Self::LandlordMeridianConfig => "/l/meridian/configure",
@@ -302,6 +315,7 @@ impl FolioRoute {
             Self::LandlordAccountBilling => "/l/account/billing",
             Self::LandlordMap => "/l/map",
             Self::LandlordVault => "/l/vault",
+            Self::LandlordSystems => "/l/systems",
             Self::LandlordInspections => "/l/inspections",
             Self::LandlordViolations => "/l/violations",
             Self::LandlordTenantProfile => "/l/tenants/:id",
@@ -620,7 +634,7 @@ pub struct NavConfig {
 // and designs/stitch/project_pm/folio/ROUTES.md
 
 pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
-    role_label: "Landlord",
+    role_label: "Landlord Portal",
     groups: &[
         NavGroup {
             label: None,

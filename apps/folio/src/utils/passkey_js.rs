@@ -211,7 +211,19 @@ async fn post_json(url: &str, body: &str) -> Result<String, String> {
         .map_err(|e| format!("Network error: {e}"))?;
 
     if !response.ok() {
-        return Err(format!("Server returned HTTP {}", response.status()));
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        let detail = body.trim();
+        if detail.is_empty() {
+            return Err(format!("Server returned HTTP {status}"));
+        }
+        // Keep the message short for UI; full body is still useful for debugging.
+        let clipped = if detail.len() > 180 {
+            format!("{}…", &detail[..180])
+        } else {
+            detail.to_string()
+        };
+        return Err(format!("Server returned HTTP {status}: {clipped}"));
     }
 
     response

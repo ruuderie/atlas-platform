@@ -141,7 +141,10 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Resolves the AppInstance entity and constructs the full OnboardingStatusResponse.
-async fn build_status_response(
+///
+/// Also used by `GET /api/folio/me` so login routing uses the same data-driven
+/// readiness checks as the platform onboarding status API.
+pub(crate) async fn build_status_response(
     db: &DatabaseConnection,
     app_instance_id: Uuid,
 ) -> Result<OnboardingStatusResponse, StatusCode> {

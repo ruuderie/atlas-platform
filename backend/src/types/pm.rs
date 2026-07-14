@@ -362,6 +362,9 @@ pub enum PmCaseType {
     /// history, full profile export). The generated file is attached to the case
     /// via `case_metadata.download_attachment_id` when ready.
     ReportRequest,
+    /// Renovation / cap-ex container. Child maintenance WOs link via G-22
+    /// `child_work_order`. Budget on parent; actual = Σ children.
+    RenovationProject,
 }
 
 impl fmt::Display for PmCaseType {
@@ -374,6 +377,7 @@ impl fmt::Display for PmCaseType {
             Self::MoveOut => "move_out",
             Self::ScheduledInspection => "scheduled_inspection",
             Self::ReportRequest => "report_request",
+            Self::RenovationProject => "renovation_project",
         })
     }
 }
@@ -389,9 +393,61 @@ impl TryFrom<String> for PmCaseType {
             "move_out" => Ok(Self::MoveOut),
             "scheduled_inspection" => Ok(Self::ScheduledInspection),
             "report_request" => Ok(Self::ReportRequest),
+            "renovation_project" => Ok(Self::RenovationProject),
             other => Err(format!("unknown PmCaseType: '{other}'")),
         }
     }
+}
+
+/// Folio G-22 relationship_type vocabulary (write-boundary enum).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PmRelationshipType {
+    /// Parent renovation_project case → child maintenance case.
+    ChildWorkOrder,
+    /// Asset → preferred service provider.
+    DefaultContractor,
+}
+
+impl fmt::Display for PmRelationshipType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::ChildWorkOrder => "child_work_order",
+            Self::DefaultContractor => "default_contractor",
+        })
+    }
+}
+
+impl TryFrom<String> for PmRelationshipType {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "child_work_order" => Ok(Self::ChildWorkOrder),
+            "default_contractor" => Ok(Self::DefaultContractor),
+            other => Err(format!("unknown PmRelationshipType: '{other}'")),
+        }
+    }
+}
+
+/// Composed project timeline event kinds (Folio read model).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectTimelineKind {
+    WorkOrder,
+    Milestone,
+    Expense,
+    G27Scored,
+    G27Pending,
+    ProjectOpened,
+}
+
+/// G-27 project rollup coverage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectG27Coverage {
+    None,
+    Pending,
+    Partial,
+    Complete,
 }
 
 // ── Entity type (for generic entity_id references) ────────────────────────────
@@ -1319,6 +1375,8 @@ mod tests {
 
         check_roundtrip!(PmCaseType::Maintenance);
         check_roundtrip!(PmCaseType::ComplianceViolation);
+        check_roundtrip!(PmCaseType::RenovationProject);
+        check_roundtrip!(PmRelationshipType::ChildWorkOrder);
         check_roundtrip!(AtlasEntityType::AtlasAsset);
         check_roundtrip!(AtlasEntityType::AtlasServiceProvider);
         check_roundtrip!(PmContractType::Lease);

@@ -102,15 +102,30 @@ async fn list_portfolios(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
+    let assets = crate::entities::atlas_asset::Entity::find()
+        .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id))
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_portfolios asset count error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
     let summaries: Vec<PortfolioSummary> = portfolios
         .into_iter()
-        .map(|p| PortfolioSummary {
-            id: p.id,
-            tenant_id: p.tenant_id,
-            name: p.name,
-            description: p.description,
-            asset_count: 0, // Phase 2: join with atlas_assets count
-            created_at: p.created_at,
+        .map(|p| {
+            let asset_count = assets
+                .iter()
+                .filter(|a| a.portfolio_id == Some(p.id))
+                .count() as i64;
+            PortfolioSummary {
+                id: p.id,
+                tenant_id: p.tenant_id,
+                name: p.name,
+                description: p.description,
+                asset_count,
+                created_at: p.created_at,
+            }
         })
         .collect();
 
@@ -186,22 +201,5 @@ async fn get_portfolio_nav(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
-    use sea_orm::QueryFilter;
-
-    let user_accounts = crate::entities::user_account::Entity::find()
-        .filter(crate::entities::user_account::Column::UserId.eq(user_id))
-        .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-
-    let profile = crate::entities::profile::Entity::find()
-        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
-        .one(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-
-    Ok(profile.tenant_id)
+    crate::extractors::tenant::resolve_tenant_id(db, user_id).await
 }

@@ -24,6 +24,7 @@ pub mod owner; // G-22 — Beneficial owner read-only portal + PMC link manageme
 pub mod pm; // G-33 — PMC routes: clients, client detail, analytics, app config
 pub mod portfolio;
 pub mod programs; // G-36 atlas_programs NetworkInvite API
+pub mod projects; // G-13 renovation_project + G-22 child_work_order
 pub mod property_value; // G-10 ext — POST/GET /api/folio/properties/:id/value[-history]
 pub mod provision; // POST /api/folio/provision/invite — unified all-persona provisioning
 pub mod quotes; // Phase 6 — Pre-purchase pricing proposals (G24)

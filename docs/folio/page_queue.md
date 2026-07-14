@@ -46,6 +46,29 @@ _The primary operator. Nothing else works until this works._
 
 ---
 
+## P0b — Multi-unit hub / Projects / G-27 (production bar)
+
+> Stitch is complete under `designs/stitch/project_pm/folio/`. Implement via [`stitch_to_leptos_prompt.md`](stitch_to_leptos_prompt.md): API mapping → token map → `Resource`/`Suspense`/skeleton → parity. No stubs, no CDN Tailwind ports, no mock data in `view!`. Quality bar: see implement plan **Production quality bar**.
+
+| Status | Page | Stitch dir | Leptos module | Route | Backend handler |
+|--------|------|-----------|---------------|-------|-----------------|
+| `[x]` | Property Hub | `l_property_hub` | `pages/landlord/property_hub.rs` | `/l/assets/:id` (parent dispatch) | `assets.rs`, `maintenance.rs`, `projects.rs` |
+| `[x]` | Unit Detail | `l_unit_detail` | `pages/landlord/property_hub.rs` (UnitDetailPage) | `/l/assets/:id` (unit dispatch) | `assets.rs` |
+| `[x]` | Nested Building Systems | `l_building_systems` | `pages/landlord/property_systems.rs` | `/l/assets/:id/systems` | `building_systems.rs` |
+| `[x]` | Property Documents | `l_property_documents` | `pages/landlord/property_documents.rs` | `/l/assets/:id/documents` | `assets.rs` (compose), `vault.rs` |
+| `[x]` | Work Order Create | `l_work_order_create` | `pages/landlord/work_order_create.rs` | `/l/maintenance/new` | `maintenance.rs` |
+| `[x]` | Work Order Detail | `l_work_order_detail` | `pages/landlord/work_order_detail.rs` | `/l/maintenance/:id` | `maintenance.rs` |
+| `[x]` | Project Detail | `l_project_detail` | `pages/landlord/project_detail.rs` | `/l/projects/:id` | `projects.rs` |
+| `[x]` | Landlord Ratings (full) | `l_ratings` | `pages/landlord/ratings.rs` | `/l/ratings` | `scorecards.rs` |
+| `[x]` | Maintenance Queue polish | `l_maintenance_queue` | `pages/landlord/maintenance_queue.rs` | `/l/maintenance` | `maintenance.rs` |
+| `[x]` | Tenant Portal stub | `l_tenant_portal_content` | `pages/landlord/tenant_portal_content.rs` | `/l/assets/:id/portal` | placeholder (CMS out of scope) |
+
+**Shared Folio components (before page ports):** `PropertyTabBar`, `ActivityRail`, `StatusPill`, `InterruptibleSheet`, `PhotoLightbox` — `apps/folio/src/components/` + `.hub-*` / `.proj-*` / `.ratings-*` in `style/main.css`.
+
+**Parity checklist:** [`docs/folio/multi_unit_parity_checklist.md`](multi_unit_parity_checklist.md)
+
+---
+
 ## P1 — Tenant Core (`/t/**`)
 _Tenant retention. Their UX determines renewal rates._
 
@@ -158,19 +181,20 @@ _Folio-hosted public surfaces (not Network Instance)._
 ## Progress Summary
 
 ```
-P0 Landlord:  31 done / 31 total   ████████████████████████ 100%  (+G27 Meridian Configurator)
+P0 Landlord:  31 done / 31 total   ████████████████████████ 100%
+P0b Multi-unit: 0 done / 10 total  ░░░░░░░░░░░░░░░░░░░░░░░░   0%  ← current epic
 P1 Tenant:    14 done / 14 total   ████████████████████████ 100%
 P2 Vendor:     6 done /  6 total   ████████████████████████ 100%
 P3 PMC:        6 done /  6 total   ████████████████████████ 100%
 P4 STR Host:  11 done / 11 total   ████████████████████████ 100%
 P5 Owner:      5 done /  5 total   ████████████████████████ 100%
 P6 Wizards:    4 done /  4 total   ████████████████████████ 100%
-P7 Public:     8 done /  8 total   ████████████████████████ 100%  (+LTR/STR listings, NI Signup)
+P7 Public:     8 done /  8 total   ████████████████████████ 100%
 ─────────────────────────────────────────────────────────
-Total:        85 done / 85 total   ████████████████████████ 100% 🎉
+Total:        85 done / 95 tracked (P0b in progress)
 ```
 
-*Last updated: 2026-06-28. All pages shipped.*
+*Last updated: 2026-07-14. P0b multi-unit hub / Projects / G-27 production bar opened.*
 
 <!-- session 2026-06-28: meridian_config.rs (G-27 dashboard/rules/surfaces), ltr_listings.rs, str_listings.rs, ni_signup.rs -->
 

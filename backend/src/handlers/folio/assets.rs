@@ -19,12 +19,12 @@
 
 use axum::{
     Router,
-    extract::{Extension, Json, Path},
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -42,6 +42,14 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         // Must be registered BEFORE /{id} to avoid route shadowing.
         .route("/api/folio/assets/map", get(list_assets_map))
         .route("/api/folio/assets/{id}", get(get_asset))
+        .route(
+            "/api/folio/assets/{id}/children",
+            get(list_asset_children),
+        )
+        .route(
+            "/api/folio/assets/{id}/documents",
+            get(list_property_documents),
+        )
         // Default contractor for this asset — backed by G-22 (atlas_record_relationships).
         // This is the preferred dispatch suggestion, not ownership.
         // Event/inspection history is served by:
@@ -60,6 +68,7 @@ struct AssetSummary {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub portfolio_id: Option<Uuid>,
+    pub parent_asset_id: Option<Uuid>,
     /// `asset_type` in the DB — property type string e.g. "residential_unit"
     pub asset_type: String,
     pub name: String,
@@ -112,6 +121,7 @@ struct AssetDetail {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub portfolio_id: Option<Uuid>,
+    pub parent_asset_id: Option<Uuid>,
     pub asset_type: String,
     pub name: String,
     pub serial_or_folio_number: Option<String>,
@@ -123,6 +133,9 @@ struct AssetDetail {
     pub country_code: Option<String>,
     pub postal_code: Option<String>,
     pub attributes: Option<serde_json::Value>,
+    /// Short-term rental eligible (asset trait from attributes / columns).
+    pub str_eligible: bool,
+    pub str_listing_active: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -150,6 +163,7 @@ async fn list_assets(
             id: a.id,
             tenant_id: a.tenant_id,
             portfolio_id: a.portfolio_id,
+            parent_asset_id: a.parent_asset_id,
             asset_type: a.asset_type,
             name: a.name,
             serial_or_folio_number: a.serial_or_folio_number,
@@ -232,6 +246,7 @@ async fn get_asset(
         id: asset.id,
         tenant_id: asset.tenant_id,
         portfolio_id: asset.portfolio_id,
+        parent_asset_id: asset.parent_asset_id,
         asset_type: asset.asset_type,
         name: asset.name,
         serial_or_folio_number: asset.serial_or_folio_number,
@@ -243,8 +258,203 @@ async fn get_asset(
         country_code: asset.country_code,
         postal_code: asset.postal_code,
         attributes: asset.attributes,
+        str_eligible: asset.str_eligible,
+        str_listing_active: asset.str_listing_active,
         created_at: asset.created_at,
     }))
+}
+
+/// GET /api/folio/assets/:id/children
+async fn list_asset_children(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    // Verify parent exists and belongs to tenant.
+    let _parent = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "list_asset_children parent error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    let children = crate::services::asset_service::AssetService::list_children(
+        &db, tenant_id, asset_id, 500,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "list_asset_children error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let summaries: Vec<AssetSummary> = children
+        .into_iter()
+        .map(|a| AssetSummary {
+            id: a.id,
+            tenant_id: a.tenant_id,
+            portfolio_id: a.portfolio_id,
+            parent_asset_id: a.parent_asset_id,
+            asset_type: a.asset_type,
+            name: a.name,
+            serial_or_folio_number: a.serial_or_folio_number,
+            status: a.status,
+            created_at: a.created_at,
+        })
+        .collect();
+
+    Ok(axum::response::Json(summaries))
+}
+
+#[derive(Debug, Deserialize)]
+struct PropertyDocumentsQuery {
+    /// Optional G-13 project id — only expenses from child WOs of that project.
+    project_id: Option<Uuid>,
+}
+
+/// Kind of row in the property documents compose feed.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum PropertyDocumentKind {
+    Vault,
+    Expense,
+}
+
+#[derive(Debug, Serialize)]
+struct PropertyDocumentRow {
+    pub id: Uuid,
+    pub kind: PropertyDocumentKind,
+    pub title: String,
+    pub category: String,
+    pub amount_cents: Option<i64>,
+    pub asset_id: Option<Uuid>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub project_id: Option<Uuid>,
+}
+
+/// GET /api/folio/assets/:id/documents
+///
+/// Composes G-14 vault docs for this asset (+ direct children) with paid WO
+/// costs (expense rows). Optional `?project_id=` filters expenses to that
+/// project's child work orders.
+async fn list_property_documents(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Query(query): Query<PropertyDocumentsQuery>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let _parent = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "list_property_documents parent error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    let children = crate::services::asset_service::AssetService::list_children(
+        &db, tenant_id, asset_id, 500,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "list_property_documents children error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let mut scope_ids: Vec<Uuid> = children.into_iter().map(|c| c.id).collect();
+    scope_ids.push(asset_id);
+
+    let mut rows: Vec<PropertyDocumentRow> = Vec::new();
+
+    // Vault docs attached to this property or its units.
+    let docs = crate::entities::atlas_document::Entity::find()
+        .filter(crate::entities::atlas_document::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_document::Column::AppNamespace.eq("folio"))
+        .filter(
+            crate::entities::atlas_document::Column::RelatedEntityId
+                .is_in(scope_ids.clone()),
+        )
+        .order_by_desc(crate::entities::atlas_document::Column::CreatedAt)
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %asset_id, "list_property_documents vault error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    for d in docs {
+        rows.push(PropertyDocumentRow {
+            id: d.id,
+            kind: PropertyDocumentKind::Vault,
+            title: d.document_category.clone(),
+            category: d.document_category,
+            amount_cents: None,
+            asset_id: d.related_entity_id,
+            created_at: d.created_at,
+            project_id: None,
+        });
+    }
+
+    // Paid / completed WO costs as expense rows.
+    let mut case_query = crate::entities::atlas_case::Entity::find()
+        .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_case::Column::AssetId.is_in(scope_ids))
+        .filter(crate::entities::atlas_case::Column::ActualCostCents.is_not_null())
+        .order_by_desc(crate::entities::atlas_case::Column::CreatedAt);
+
+    if let Some(project_id) = query.project_id {
+        // Restrict to G-22 children of the renovation project.
+        let rels = RecordRelationshipService::find_targets(
+            &db,
+            tenant_id,
+            "atlas_case",
+            project_id,
+            &crate::types::pm::PmRelationshipType::ChildWorkOrder.to_string(),
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %project_id, "list_property_documents rel error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        let child_ids: Vec<Uuid> = rels.into_iter().map(|r| r.target_entity_id).collect();
+        if child_ids.is_empty() {
+            return Ok(axum::response::Json(rows));
+        }
+        case_query =
+            case_query.filter(crate::entities::atlas_case::Column::Id.is_in(child_ids));
+    }
+
+    let cases = case_query.all(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "list_property_documents cases error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    for c in cases {
+        rows.push(PropertyDocumentRow {
+            id: c.id,
+            kind: PropertyDocumentKind::Expense,
+            title: c.subject.clone(),
+            category: "work_order_cost".into(),
+            amount_cents: c.actual_cost_cents,
+            asset_id: c.asset_id,
+            created_at: c.created_at,
+            project_id: query.project_id,
+        });
+    }
+
+    rows.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(axum::response::Json(rows))
 }
 
 /// GET /api/folio/assets/:id/contractor
@@ -334,22 +544,7 @@ async fn get_asset_contractor(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
-    let user_accounts = crate::entities::user_account::Entity::find()
-        .filter(crate::entities::user_account::Column::UserId.eq(user_id))
-        .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-
-    let profile = crate::entities::profile::Entity::find()
-        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
-        .one(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-
-    Ok(profile.tenant_id)
+    crate::extractors::tenant::resolve_tenant_id(db, user_id).await
 }
 // ── GET /api/folio/assets/map ─────────────────────────────────────────────────
 //

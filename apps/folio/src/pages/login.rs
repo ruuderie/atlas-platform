@@ -176,7 +176,7 @@ fn AuthPanel() -> impl IntoView {
                         } else if !info.onboarding_complete {
                             "/onboarding"
                         } else {
-                            "/dashboard"
+                            info.folio_role.home_path()
                         };
                         navigate.with_value(|n| n(dest, Default::default()));
                     }
@@ -208,7 +208,7 @@ fn AuthPanel() -> impl IntoView {
                         } else if !info.onboarding_complete {
                             "/onboarding"
                         } else {
-                            "/dashboard"
+                            info.folio_role.home_path()
                         };
                         navigate.with_value(|n| n(dest, Default::default()));
                     }

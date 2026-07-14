@@ -36,9 +36,11 @@ use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, patch, post},
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -56,6 +58,18 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route(
             "/api/folio/maintenance",
             get(list_tickets).post(create_ticket),
+        )
+        .route(
+            "/api/folio/maintenance/log-paid",
+            post(log_paid_ticket),
+        )
+        .route(
+            "/api/folio/maintenance/{id}",
+            get(get_ticket).patch(patch_ticket),
+        )
+        .route(
+            "/api/folio/maintenance/{id}/complete",
+            post(complete_ticket),
         )
         // Inspection scheduling routes
         .route(
@@ -123,6 +137,50 @@ pub struct CreateTicketHttpInput {
 #[derive(Debug, Serialize)]
 struct CreateTicketResponse {
     pub id: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+struct MaintenanceDetail {
+    pub id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub case_type: String,
+    pub subject: String,
+    pub description: Option<String>,
+    pub status: String,
+    pub priority: String,
+    pub estimated_cost_cents: Option<i64>,
+    pub actual_cost_cents: Option<i64>,
+    pub assigned_service_provider_id: Option<Uuid>,
+    pub assigned_user_id: Option<Uuid>,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    /// Parent renovation project when linked via G-22 child_work_order.
+    pub project_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompleteTicketInput {
+    actual_cost_cents: Option<i64>,
+    note: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PatchTicketInput {
+    actual_cost_cents: Option<i64>,
+    estimated_cost_cents: Option<i64>,
+    description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LogPaidInput {
+    asset_id: Uuid,
+    subject: String,
+    description: Option<String>,
+    actual_cost_cents: i64,
+    service_provider_id: Option<Uuid>,
+    /// Optional renovation project to link via G-22.
+    project_id: Option<Uuid>,
 }
 
 /// HTTP input for scheduling an inspection (maps to ScheduleInspectionInput).
@@ -195,7 +253,7 @@ async fn create_ticket(
         tenant_id,
         CreateMaintenanceTicketInput {
             asset_id: input.asset_id,
-            reported_by_user_id: input.reported_by_user_id,
+            reported_by_user_id: current_user.id,
             category,
             description: input.description,
             is_emergency: input.is_emergency,
@@ -212,6 +270,254 @@ async fn create_ticket(
         StatusCode::CREATED,
         axum::response::Json(CreateTicketResponse { id }),
     ))
+}
+
+/// GET /api/folio/maintenance/:id
+async fn get_ticket(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::types::pm::{PmCaseType, PmRelationshipType};
+
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let c = crate::entities::atlas_case::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    if c.tenant_id != tenant_id {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let sources = crate::services::pm::record_relationship::RecordRelationshipService::find_sources(
+        &db,
+        tenant_id,
+        "atlas_case",
+        id,
+        &PmRelationshipType::ChildWorkOrder.to_string(),
+    )
+    .await
+    .unwrap_or_default();
+
+    let mut project_id = None;
+    for r in sources {
+        if let Some(p) = crate::entities::atlas_case::Entity::find_by_id(r.source_entity_id)
+            .one(&db)
+            .await
+            .ok()
+            .flatten()
+        {
+            if p.case_type == PmCaseType::RenovationProject.to_string() {
+                project_id = Some(p.id);
+                break;
+            }
+        }
+    }
+
+    Ok(axum::response::Json(MaintenanceDetail {
+        id: c.id,
+        asset_id: c.asset_id,
+        case_type: c.case_type,
+        subject: c.subject,
+        description: c.description,
+        status: c.status,
+        priority: c.priority,
+        estimated_cost_cents: c.estimated_cost_cents,
+        actual_cost_cents: c.actual_cost_cents,
+        assigned_service_provider_id: c.assigned_service_provider_id,
+        assigned_user_id: c.assigned_user_id,
+        scheduled_at: c.scheduled_at,
+        completed_at: c.completed_at,
+        created_at: c.created_at,
+        project_id,
+    }))
+}
+
+/// PATCH /api/folio/maintenance/:id
+async fn patch_ticket(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+    Json(input): Json<PatchTicketInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let c = crate::entities::atlas_case::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    if c.tenant_id != tenant_id {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let mut am: crate::entities::atlas_case::ActiveModel = c.into();
+    if let Some(v) = input.actual_cost_cents {
+        am.actual_cost_cents = Set(Some(v));
+    }
+    if let Some(v) = input.estimated_cost_cents {
+        am.estimated_cost_cents = Set(Some(v));
+    }
+    if let Some(d) = input.description {
+        am.description = Set(Some(d));
+    }
+    am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %id, "patch_ticket: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// POST /api/folio/maintenance/:id/complete
+async fn complete_ticket(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+    Json(input): Json<CompleteTicketInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let c = crate::entities::atlas_case::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    if c.tenant_id != tenant_id {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let mut am: crate::entities::atlas_case::ActiveModel = c.clone().into();
+    am.status = Set("closed".into());
+    am.completed_at = Set(Some(chrono::Utc::now()));
+    if let Some(cost) = input.actual_cost_cents {
+        am.actual_cost_cents = Set(Some(cost));
+    }
+    if c.assigned_user_id.is_none() {
+        am.assigned_user_id = Set(Some(current_user.id));
+    }
+    if let Some(note) = input.note {
+        let mut meta = c.case_metadata.clone().unwrap_or_else(|| serde_json::json!({}));
+        if let Some(obj) = meta.as_object_mut() {
+            obj.insert(
+                "landlord_complete_note".into(),
+                serde_json::Value::String(note),
+            );
+        }
+        am.case_metadata = Set(Some(meta));
+    }
+    let updated = am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %id, "complete_ticket: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if let Err(e) = trigger_landlord_case_resolved(&db, &updated).await {
+        tracing::warn!(case_id = %updated.id, "landlord case_resolved: {e:#}");
+    }
+
+    Ok(axum::response::Json(serde_json::json!({
+        "id": updated.id,
+        "status": updated.status,
+        "completed_at": updated.completed_at,
+    })))
+}
+
+/// POST /api/folio/maintenance/log-paid
+async fn log_paid_ticket(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<LogPaidInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::types::pm::{PmCaseType, PmRelationshipType};
+
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    if input.subject.trim().is_empty() {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    let id = Uuid::new_v4();
+    let am = crate::entities::atlas_case::ActiveModel {
+        id: Set(id),
+        tenant_id: Set(tenant_id),
+        asset_id: Set(Some(input.asset_id)),
+        case_type: Set(PmCaseType::Maintenance.to_string()),
+        subject: Set(input.subject.trim().to_string()),
+        description: Set(input.description),
+        status: Set("closed".into()),
+        priority: Set("normal".into()),
+        actual_cost_cents: Set(Some(input.actual_cost_cents)),
+        assigned_service_provider_id: Set(input.service_provider_id),
+        assigned_user_id: Set(Some(current_user.id)),
+        completed_at: Set(Some(chrono::Utc::now())),
+        case_metadata: Set(Some(serde_json::json!({ "ticket_source": "off_platform" }))),
+        created_at: Set(chrono::Utc::now()),
+        ..Default::default()
+    };
+    let created = am.insert(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, "log_paid insert: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if let Some(project_id) = input.project_id {
+        let _ = crate::services::pm::record_relationship::RecordRelationshipService::create(
+            &db,
+            tenant_id,
+            crate::services::pm::record_relationship::CreateRelationshipPayload {
+                source_entity_type: "atlas_case".into(),
+                source_entity_id: project_id,
+                target_entity_type: "atlas_case".into(),
+                target_entity_id: id,
+                relationship_type: PmRelationshipType::ChildWorkOrder.to_string(),
+                inverse_label: Some("parent_project".into()),
+                relationship_metadata: None,
+                created_by_user_id: Some(current_user.id),
+            },
+        )
+        .await;
+    }
+
+    if let Err(e) = trigger_landlord_case_resolved(&db, &created).await {
+        tracing::warn!(case_id = %created.id, "log_paid case_resolved: {e:#}");
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateTicketResponse { id }),
+    ))
+}
+
+async fn trigger_landlord_case_resolved(
+    db: &DatabaseConnection,
+    case: &crate::entities::atlas_case::Model,
+) -> anyhow::Result<()> {
+    let Some(provider_id) = case.assigned_service_provider_id else {
+        return Ok(());
+    };
+    let Some(rater_user_id) = case.assigned_user_id else {
+        return Ok(());
+    };
+    let app_instance_id = crate::entities::app_instance::Entity::find()
+        .filter(crate::entities::app_instance::Column::TenantId.eq(case.tenant_id))
+        .filter(crate::entities::app_instance::Column::AppType.eq("property_management"))
+        .order_by_asc(crate::entities::app_instance::Column::CreatedAt)
+        .one(db)
+        .await?
+        .map(|i| i.id);
+    let Some(app_instance_id) = app_instance_id else {
+        return Ok(());
+    };
+    let opened = crate::services::scorecard_triggers::on_case_resolved(
+        db,
+        case.tenant_id,
+        app_instance_id,
+        case.id,
+        provider_id,
+        rater_user_id,
+    )
+    .await?;
+    tracing::info!(
+        case_id = %case.id,
+        sessions = opened.len(),
+        "landlord case_resolved: sessions opened"
+    );
+    Ok(())
 }
 
 /// GET /api/folio/inspections
@@ -380,20 +686,5 @@ async fn list_inspections_for_asset(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
-    let user_accounts = crate::entities::user_account::Entity::find()
-        .filter(crate::entities::user_account::Column::UserId.eq(user_id))
-        .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-
-    let profile = crate::entities::profile::Entity::find()
-        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
-        .one(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-
-    Ok(profile.tenant_id)
+    crate::extractors::tenant::resolve_tenant_id(db, user_id).await
 }

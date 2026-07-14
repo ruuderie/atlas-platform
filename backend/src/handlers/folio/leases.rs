@@ -307,20 +307,5 @@ async fn list_lease_invoices(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
-    let user_accounts = crate::entities::user_account::Entity::find()
-        .filter(crate::entities::user_account::Column::UserId.eq(user_id))
-        .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-
-    let profile = crate::entities::profile::Entity::find()
-        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
-        .one(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-
-    Ok(profile.tenant_id)
+    crate::extractors::tenant::resolve_tenant_id(db, user_id).await
 }

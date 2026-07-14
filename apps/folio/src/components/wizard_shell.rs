@@ -427,7 +427,7 @@ pub fn WizardShell(
             <div class="wiz-nav-center">
                 <span>{move || nav_title.get()}</span>
             </div>
-            <a href="/dashboard" class="wiz-exit">
+            <a href="/" class="wiz-exit">
                 <span class="ms">"close"</span>
                 <span>"Exit"</span>
             </a>

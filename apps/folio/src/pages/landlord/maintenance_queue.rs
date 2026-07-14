@@ -12,7 +12,7 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::components::nav::NavIcon;
+use crate::components::nav::{FolioRoute, NavIcon};
 
 // ── Response types (mirror backend MaintenanceSummary + InspectionDetail) ─────
 
@@ -273,6 +273,26 @@ pub fn MaintenanceQueue() -> impl IntoView {
                 <div>
                     <h1 class="mq-title">"Maintenance"</h1>
                     <p class="mq-subtitle">"Work orders and scheduled inspections across your portfolio."</p>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
+                        <a class="folio-btn folio-btn--primary" href=FolioRoute::LandlordMaintenanceNew.path()>
+                            "New work order"
+                        </a>
+                        <a
+                            class="folio-btn folio-btn--ghost"
+                            href=format!("{}?mode=paid", FolioRoute::LandlordMaintenanceNew.path())
+                        >
+                            "Log paid"
+                        </a>
+                        <a
+                            class="folio-btn folio-btn--ghost"
+                            href=format!("{}?mode=schedule", FolioRoute::LandlordMaintenanceNew.path())
+                        >
+                            "Schedule"
+                        </a>
+                        <a class="folio-btn folio-btn--ghost" href=FolioRoute::LandlordRatings.path()>
+                            "G-27 ratings"
+                        </a>
+                    </div>
                 </div>
                 // KPI badges
                 <div class="mq-kpi-strip">
@@ -508,6 +528,9 @@ fn WorkOrderTable(tickets: Vec<MaintenanceSummary>) -> impl IntoView {
                         } else {
                             "mq-row"
                         };
+                        let href = FolioRoute::LandlordMaintenanceDetail
+                            .path()
+                            .replace(":id", &t.id.to_string());
                         view! {
                             <tr class=row_class>
                                 <td class="mq-td">
@@ -526,7 +549,9 @@ fn WorkOrderTable(tickets: Vec<MaintenanceSummary>) -> impl IntoView {
                                         {status.as_str()}
                                     </span>
                                 </td>
-                                <td class="mq-td mq-td--subject">{t.subject}</td>
+                                <td class="mq-td mq-td--subject">
+                                    <a class="hub-activity-rail__all" href=href>{t.subject}</a>
+                                </td>
                                 <td class="mq-td mq-td--mono">{asset}</td>
                                 <td class="mq-td">{opened}</td>
                             </tr>
@@ -622,23 +647,7 @@ fn MqSkeleton(rows: usize) -> impl IntoView {
 
 #[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|s| s.to_string())
-        .or_else(|| {
-            headers
-                .get(axum::http::header::COOKIE)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|cookies| {
-                    cookies.split(';').find_map(|part| {
-                        part.trim()
-                            .strip_prefix("atlas_session=")
-                            .map(|t| t.to_string())
-                    })
-                })
-        })
+    crate::auth::extract_bearer_token(headers)
 }
 
 /// GET /api/folio/maintenance

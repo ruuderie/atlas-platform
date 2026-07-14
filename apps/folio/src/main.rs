@@ -63,6 +63,18 @@ async fn main() {
         // sets the session cookie directly on the HTTP 302 response.
         // The Leptos Verify component only handles the error-state UI.
         .route("/verify", axum::routing::get(verify_handler))
+        // ── Passkeys: proxy to Atlas (must be BEFORE Leptos /api/{*fn_name}) ───
+        // Browser WebAuthn posts same-origin `/api/passkeys/*` with the session
+        // cookie. Without this proxy, Leptos treats the path as a missing server
+        // fn and returns HTTP 400 ("Could not find a server function…").
+        .route(
+            "/api/passkeys",
+            axum::routing::any(proxy_passkeys_to_atlas),
+        )
+        .route(
+            "/api/passkeys/{*path}",
+            axum::routing::any(proxy_passkeys_to_atlas),
+        )
         .route(
             "/api/{*fn_name}",
             axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
@@ -131,6 +143,116 @@ async fn main() {
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
+}
+
+/// Reverse-proxy `/api/passkeys` (+ optional `/{*path}`) to Atlas so browser
+/// WebAuthn stays same-origin (session cookie + Origin: folio.localhost).
+#[cfg(feature = "ssr")]
+async fn proxy_passkeys_to_atlas(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    req: axum::http::Request<axum::body::Body>,
+) -> axum::response::Response {
+    let method = req.method().clone();
+    let headers = req.headers().clone();
+    let path = req.uri().path().to_string();
+    let suffix = path
+        .strip_prefix("/api/passkeys")
+        .unwrap_or("")
+        .to_string();
+    let url = format!(
+        "{}/api/passkeys{}",
+        state.atlas_api_url.0.trim_end_matches('/'),
+        suffix
+    );
+
+    let body = match axum::body::to_bytes(req.into_body(), 1024 * 1024).await {
+        Ok(b) => b,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                format!("Failed to read request body: {e}"),
+            )
+                .into_response();
+        }
+    };
+
+    let origin = headers
+        .get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+        .or_else(|| {
+            let host = headers.get(header::HOST)?.to_str().ok()?;
+            let scheme = if host.ends_with(".localhost")
+                || host.starts_with("localhost")
+                || host.starts_with("127.")
+            {
+                "http"
+            } else {
+                "https"
+            };
+            Some(format!("{scheme}://{host}"))
+        });
+
+    let client = folio::atlas_client::http_client();
+    let mut upstream_req = client.request(
+        reqwest::Method::from_bytes(method.as_str().as_bytes()).unwrap_or(reqwest::Method::POST),
+        &url,
+    );
+
+    if let Some(origin) = origin.as_deref() {
+        upstream_req = upstream_req.header(header::ORIGIN, origin);
+    }
+    for name in [
+        header::COOKIE,
+        header::AUTHORIZATION,
+        header::CONTENT_TYPE,
+        header::HeaderName::from_static("x-forwarded-host"),
+        header::HeaderName::from_static("x-forwarded-for"),
+    ] {
+        if let Some(val) = headers.get(&name) {
+            upstream_req = upstream_req.header(&name, val);
+        }
+    }
+    if headers.get("x-forwarded-host").is_none() {
+        if let Some(host) = headers.get(header::HOST) {
+            upstream_req = upstream_req.header("x-forwarded-host", host);
+        }
+    }
+
+    match upstream_req.body(body).send().await {
+        Ok(upstream) => {
+            let status = axum::http::StatusCode::from_u16(upstream.status().as_u16())
+                .unwrap_or(axum::http::StatusCode::BAD_GATEWAY);
+            let mut builder = axum::response::Response::builder().status(status);
+            for (k, v) in upstream.headers().iter() {
+                if matches!(
+                    k.as_str(),
+                    "transfer-encoding" | "connection" | "keep-alive" | "content-length"
+                ) {
+                    continue;
+                }
+                builder = builder.header(k, v);
+            }
+            let bytes = upstream.bytes().await.unwrap_or_default();
+            builder
+                .body(axum::body::Body::from(bytes))
+                .unwrap_or_else(|_| {
+                    (
+                        axum::http::StatusCode::BAD_GATEWAY,
+                        "Failed to build proxied response",
+                    )
+                        .into_response()
+                })
+        }
+        Err(e) => {
+            eprintln!("[folio] passkey proxy to {url} failed: {e}");
+            (
+                axum::http::StatusCode::BAD_GATEWAY,
+                format!("Passkey proxy failed: {e}"),
+            )
+                .into_response()
+        }
+    }
 }
 
 /// Poll `ATLAS_API_URL/health` until it responds (or we exhaust attempts).
@@ -482,6 +604,8 @@ async fn verify_handler(
     struct FolioMe {
         has_passkey: bool,
         onboarding_complete: bool,
+        #[serde(default)]
+        folio_role: folio::auth::FolioRole,
     }
 
     let me_url = format!("{}/api/folio/me", atlas_url);
@@ -568,7 +692,7 @@ async fn verify_handler(
     } else if !me.onboarding_complete {
         "/onboarding"
     } else {
-        "/dashboard"
+        me.folio_role.home_path()
     };
 
     redirect_authed(dest, cookie_header, verified_email.as_deref())

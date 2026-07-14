@@ -40,7 +40,9 @@ pub fn PasskeySetup() -> impl IntoView {
                 }
                 Err(e) => {
                     state.set(PasskeySetupState::Idle);
-                    error_msg.set(Some(format!("Biometric prompt cancelled or failed: {e}")));
+                    // Don't prefix with "Biometric cancelled" — most failures here are
+                    // API/proxy errors before the browser prompt appears.
+                    error_msg.set(Some(e));
                 }
             }
         });

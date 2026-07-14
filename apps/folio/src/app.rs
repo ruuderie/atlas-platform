@@ -17,7 +17,7 @@ use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
 
 // Landlord pages
 use crate::pages::landlord::{
-    account_billing::LandlordAccountBilling, asset_alerts::AssetAlerts, asset_detail::AssetDetail,
+    account_billing::LandlordAccountBilling, asset_alerts::AssetAlerts,
     assets::Assets, billing::Billing, building_systems::BuildingSystems, campaigns::Campaigns,
     catalog::Catalog, communications::Communications,
     contractor_marketplace::ContractorMarketplace, dashboard::LandlordDashboard,
@@ -25,12 +25,16 @@ use crate::pages::landlord::{
     lease_detail::LeaseDetail, leases::Leases, ledger::Ledger,
     listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
     map_portfolio::MapPortfolio, meridian_config::MeridianConfigurator,
-    notifications::NotificationsPage, portfolio::Portfolio, ratings::LandlordRatings,
+    notifications::NotificationsPage, portfolio::Portfolio,
+    project_detail::ProjectDetail, property_documents::PropertyDocuments,
+    property_hub::AssetRouteDispatch, property_systems::PropertySystems,
+    ratings::LandlordRatings, referrals::LandlordReferrals,
     reservations::LandlordReservations, str_compliance::StrCompliance,
-    syndication::LandlordSyndication, team::LandlordTeam, referrals::LandlordReferrals,
-    tenant_profile::TenantProfile,
+    syndication::LandlordSyndication, team::LandlordTeam,
+    tenant_portal_content::TenantPortalContent, tenant_profile::TenantProfile,
     unit_appliances::UnitAppliances, vendors::Vendors, violations::Violations,
-    wholesaling::LandlordWholesaling,
+    wholesaling::LandlordWholesaling, work_order_create::WorkOrderCreate,
+    work_order_detail::WorkOrderDetail,
 };
 
 // Tenant pages
@@ -202,13 +206,19 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("")               view=LandlordDashboard/>
                     <Route path=path!("/portfolio")     view=Portfolio/>
                     <Route path=path!("/assets")        view=Assets/>
-                    <Route path=path!("/assets/:id")    view=AssetDetail/>
+                    <Route path=path!("/assets/:id")    view=AssetRouteDispatch/>
                     <Route path=path!("/assets/:id/preview") view=ListingNetworkPreview/>
                     <Route path=path!("/assets/:id/alerts")  view=AssetAlerts/>
+                    <Route path=path!("/assets/:id/documents") view=PropertyDocuments/>
+                    <Route path=path!("/assets/:id/systems") view=PropertySystems/>
+                    <Route path=path!("/assets/:id/portal") view=TenantPortalContent/>
                     <Route path=path!("/leases")        view=Leases/>
                     <Route path=path!("/leases/:id")    view=LeaseDetail/>
                     <Route path=path!("/tenants/:id")   view=TenantProfile/>
                     <Route path=path!("/maintenance")   view=MaintenanceQueue/>
+                    <Route path=path!("/maintenance/new") view=WorkOrderCreate/>
+                    <Route path=path!("/maintenance/:id") view=WorkOrderDetail/>
+                    <Route path=path!("/projects/:id")  view=ProjectDetail/>
                     <Route path=path!("/ledger")        view=Ledger/>
                     <Route path=path!("/violations")    view=Violations/>
                     <Route path=path!("/inspections")   view=Inspections/>

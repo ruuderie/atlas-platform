@@ -412,7 +412,7 @@ pub fn OnboardingWizard() -> impl IntoView {
                     </div>
                     <Show when=move || current_step() != WizardStep::GoLive>
                         <a
-                            href="/dashboard"
+                            href="/l"
                             style="display:flex; align-items:center; gap:4px; font-size:12px; color:#45464d; text-decoration:none; transition:color 0.15s;"
                         >
                             <span class="ms" style="font-size:16px;">"close"</span>
@@ -786,7 +786,7 @@ pub fn OnboardingWizard() -> impl IntoView {
                         </p>
                         <a
                             id="ob-go-to-dashboard"
-                            href="/dashboard"
+                            href="/l"
                             style="display:inline-flex; align-items:center; gap:8px; padding:16px 48px; border-radius:12px; background:linear-gradient(135deg,#000 0%,#131b2e 100%); color:#fff; font-size:16px; font-weight:700; text-decoration:none; box-shadow:0 4px 16px rgba(25,28,30,0.2);"
                         >
                             "Go to Dashboard"
@@ -909,7 +909,7 @@ mod tests {
         } else if !onboarding_complete {
             "/onboarding"
         } else {
-            "/dashboard"
+            "/l"
         }
     }
 
@@ -924,8 +924,8 @@ mod tests {
     }
 
     #[test]
-    fn fully_set_up_goes_to_dashboard() {
-        assert_eq!(pick_dest(true, true), "/dashboard");
+    fn fully_set_up_goes_to_role_home() {
+        assert_eq!(pick_dest(true, true), "/l");
     }
 
     #[test]

@@ -125,13 +125,11 @@ impl AtlasApp for FolioApp {
             .layer(middleware::from_fn(require_landlord));
 
         // ── Tenant-only sub-router ────────────────────────────────────────────
-        // Tenant role: own lease/payments/maintenance/reservations.
-        // Applications (rental apps) are accessible to Tenants too.
+        // Tenant role: own lease/payments/reservations/applications.
+        // Maintenance + household are on shared_router (landlords also need them).
         let tenant_router = Router::new()
-            .merge(crate::handlers::folio::maintenance::authenticated_routes_raw())
             .merge(crate::handlers::folio::reservations::authenticated_routes_raw())
             .merge(crate::handlers::folio::applications::authenticated_routes_raw())
-            .merge(crate::handlers::folio::household::authenticated_routes())
             .layer(middleware::from_fn(require_tenant));
 
         // ── Vendor-only sub-router ────────────────────────────────────────────
@@ -158,6 +156,7 @@ impl AtlasApp for FolioApp {
         // App config write is Owner/Admin-gated inside the handler itself.
         // Marketplace browse is available to all roles — role restrictions are
         // enforced per-handler (endorse requires Landlord/PM, listing PATCH requires Landlord).
+        // Maintenance + household: landlords manage queues; tenants view own cases/occupants.
         let shared_router = Router::new()
             .merge(crate::handlers::folio::pm::app_config::authenticated_routes_raw())
             .merge(crate::handlers::folio::marketplace::vendors::authenticated_routes_raw())
@@ -168,6 +167,9 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::provision::authenticated_routes_raw())
             .merge(crate::handlers::folio::notifications::authenticated_routes_raw())
             .merge(crate::handlers::folio::onboarding_submit::routes())
+            .merge(crate::handlers::folio::maintenance::authenticated_routes_raw())
+            .merge(crate::handlers::folio::projects::authenticated_routes_raw())
+            .merge(crate::handlers::folio::household::authenticated_routes())
             // ── Property Owner Lite — G-10 value history + G-27 review invites ───
             .merge(crate::handlers::folio::property_value::authenticated_routes_raw())
             .merge(crate::handlers::folio::review_invite::authenticated_routes_raw())

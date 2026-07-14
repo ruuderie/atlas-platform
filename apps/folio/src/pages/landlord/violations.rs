@@ -415,23 +415,7 @@ fn ViolSkeleton(rows: usize) -> impl IntoView {
 
 #[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|s| s.to_string())
-        .or_else(|| {
-            headers
-                .get(axum::http::header::COOKIE)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|cookies| {
-                    cookies.split(';').find_map(|part| {
-                        part.trim()
-                            .strip_prefix("atlas_session=")
-                            .map(|t| t.to_string())
-                    })
-                })
-        })
+    crate::auth::extract_bearer_token(headers)
 }
 
 /// GET /api/folio/violations

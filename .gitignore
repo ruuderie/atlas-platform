@@ -92,6 +92,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Generated reports and compiled PDFs — not tracked in source control
+# (legacy paths; prefer docs/private/ going forward)
 docs/reports/market-analysis/pdf/
 docs/agprov/
 docs/reports/sales/pdf/
@@ -99,3 +100,9 @@ docs/reports/**/*.md
 docs/reports/**/*.pdf
 .agents/
 .atlas-ops.local
+
+# ── Private product / research docs ───────────────────────────────────────────
+# Convention: anything under docs/private/ stays off GitHub.
+# Exception: this README so the rule is visible in the public repo.
+docs/private/**
+!docs/private/README.md
