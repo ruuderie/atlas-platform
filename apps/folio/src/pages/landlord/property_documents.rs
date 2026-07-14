@@ -1,6 +1,5 @@
 //! Property documents & expenses — `/l/assets/:id/documents`
 
-use crate::atlas_client::{authenticated_get, session_token_from_request};
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::components::property_tab_bar::{PropertyTab, PropertyTabBar};
@@ -29,17 +28,26 @@ pub struct PropertyDocumentRow {
     pub project_id: Option<Uuid>,
 }
 
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
+
 #[server(GetPropertyDocuments, "/api")]
 pub async fn get_property_documents(
     asset_id: Uuid,
     project_id: Option<Uuid>,
 ) -> Result<Vec<PropertyDocumentRow>, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
     let mut path = format!("/api/folio/assets/{asset_id}/documents");
     if let Some(pid) = project_id {
         path.push_str(&format!("?project_id={pid}"));
     }
-    authenticated_get(&path, &token, None)
+    crate::atlas_client::authenticated_get(&path, &token, None)
         .await
         .map_err(ServerFnError::new)
 }

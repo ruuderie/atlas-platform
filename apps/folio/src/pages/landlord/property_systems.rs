@@ -1,7 +1,6 @@
 //! Nested building systems — `/l/assets/:id/systems`
 //! Property-scoped systems list with PropertyTabBar (portfolio `/l/systems` stays).
 
-use crate::atlas_client::{authenticated_get, session_token_from_request};
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::components::property_tab_bar::{PropertyTab, PropertyTabBar};
@@ -19,12 +18,21 @@ pub struct NestedSystemDto {
     pub condition: Option<String>,
 }
 
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
+
 #[server(GetNestedBuildingSystems, "/api")]
 pub async fn get_nested_building_systems(
     property_id: Uuid,
 ) -> Result<Vec<NestedSystemDto>, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(
         &format!("/api/folio/assets/{property_id}/systems"),
         &token,
         None,

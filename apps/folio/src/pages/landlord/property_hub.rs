@@ -1,6 +1,5 @@
 //! Property hub / unit / leaf dispatch — `/l/assets/:id`
 
-use crate::atlas_client::{authenticated_get, session_token_from_request};
 use crate::components::activity_rail::{ActivityRail, ActivityRailItem};
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
@@ -45,28 +44,53 @@ pub struct ProjectSummaryDto {
     child_count: usize,
 }
 
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
+
 #[server(GetAssetForDispatch, "/api")]
 pub async fn get_asset_for_dispatch(id: Uuid) -> Result<AssetDetailDto, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(&format!("/api/folio/assets/{id}"), &token, None)
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(&format!("/api/folio/assets/{id}"), &token, None)
         .await
         .map_err(ServerFnError::new)
 }
 
 #[server(GetAssetChildren, "/api")]
 pub async fn get_asset_children(id: Uuid) -> Result<Vec<AssetChildDto>, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(&format!("/api/folio/assets/{id}/children"), &token, None)
-        .await
-        .map_err(ServerFnError::new)
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(
+        &format!("/api/folio/assets/{id}/children"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(ServerFnError::new)
 }
 
 #[server(GetProjectsForAsset, "/api")]
 pub async fn get_projects_for_asset(asset_id: Uuid) -> Result<Vec<ProjectSummaryDto>, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(&format!("/api/folio/projects?asset_id={asset_id}"), &token, None)
-        .await
-        .map_err(ServerFnError::new)
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(
+        &format!("/api/folio/projects?asset_id={asset_id}"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(ServerFnError::new)
 }
 
 fn is_multi_unit_parent(a: &AssetDetailDto, children: &[AssetChildDto]) -> bool {

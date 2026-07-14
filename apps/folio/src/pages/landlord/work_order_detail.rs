@@ -1,6 +1,5 @@
 //! Work order detail — `/l/maintenance/:id`
 
-use crate::atlas_client::{authenticated_get, authenticated_post, session_token_from_request};
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::components::photo_lightbox::{PhotoItem, PhotoStrip};
@@ -29,12 +28,25 @@ struct CompleteBody {
     note: Option<String>,
 }
 
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
+
 #[server(GetMaintenanceDetail, "/api")]
 async fn get_maintenance_detail(id: Uuid) -> Result<MaintenanceDetailDto, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(&format!("/api/folio/maintenance/{id}"), &token, None)
-        .await
-        .map_err(ServerFnError::new)
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(
+        &format!("/api/folio/maintenance/{id}"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(ServerFnError::new)
 }
 
 #[server(CompleteMaintenance, "/api")]
@@ -42,12 +54,16 @@ async fn complete_maintenance(
     id: Uuid,
     actual_cost_cents: Option<i64>,
 ) -> Result<(), ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
     let body = CompleteBody {
         actual_cost_cents,
         note: None,
     };
-    authenticated_post::<_, serde_json::Value>(
+    crate::atlas_client::authenticated_post::<_, serde_json::Value>(
         &format!("/api/folio/maintenance/{id}/complete"),
         &token,
         None,

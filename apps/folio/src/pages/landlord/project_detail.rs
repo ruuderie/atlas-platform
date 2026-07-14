@@ -1,7 +1,6 @@
 //! Project detail — `/l/projects/:id`
 //! Budget, timeline, child WOs, G-27 rollup. Stitch: l_project_detail.
 
-use crate::atlas_client::{authenticated_get, session_token_from_request};
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::components::photo_lightbox::{PhotoItem, PhotoStrip};
@@ -67,20 +66,37 @@ pub struct VendorRollupDto {
     local_avg: Option<f64>,
 }
 
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
+
 #[server(GetProjectDetail, "/api")]
 async fn get_project_detail(id: Uuid) -> Result<ProjectDetailDto, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(&format!("/api/folio/projects/{id}"), &token, None)
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(&format!("/api/folio/projects/{id}"), &token, None)
         .await
         .map_err(ServerFnError::new)
 }
 
 #[server(GetProjectG27Rollup, "/api")]
 async fn get_project_g27_rollup(id: Uuid) -> Result<G27RollupDto, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
-    authenticated_get(&format!("/api/folio/projects/{id}/g27-rollup"), &token, None)
-        .await
-        .map_err(ServerFnError::new)
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_get(
+        &format!("/api/folio/projects/{id}/g27-rollup"),
+        &token,
+        None,
+    )
+    .await
+    .map_err(ServerFnError::new)
 }
 
 fn money(cents: i64) -> String {

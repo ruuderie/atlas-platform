@@ -1,7 +1,6 @@
 //! Work order create sheet page — `/l/maintenance/new`
 //! Modes: work order | schedule | log paid. Optional project_id query.
 
-use crate::atlas_client::{authenticated_post, session_token_from_request};
 use crate::components::interruptible_sheet::InterruptibleSheet;
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
@@ -42,6 +41,11 @@ struct IdResp {
     id: Uuid,
 }
 
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
+
 #[server(CreateMaintenanceTicket, "/api")]
 async fn create_maintenance_ticket(
     asset_id: Uuid,
@@ -50,7 +54,11 @@ async fn create_maintenance_ticket(
     description: String,
     is_emergency: bool,
 ) -> Result<Uuid, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
     let body = CreateTicketBody {
         asset_id,
         reported_by_user_id,
@@ -59,9 +67,14 @@ async fn create_maintenance_ticket(
         is_emergency,
         voice_note_r2_key: None,
     };
-    let resp: IdResp = authenticated_post("/api/folio/maintenance", &token, None, &body)
-        .await
-        .map_err(ServerFnError::new)?;
+    let resp: IdResp = crate::atlas_client::authenticated_post(
+        "/api/folio/maintenance",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(ServerFnError::new)?;
     Ok(resp.id)
 }
 
@@ -73,7 +86,11 @@ async fn log_paid_maintenance(
     actual_cost_cents: i64,
     project_id: Option<Uuid>,
 ) -> Result<Uuid, ServerFnError> {
-    let token = session_token_from_request().await.map_err(ServerFnError::new)?;
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| ServerFnError::new("No session token"))?;
     let body = LogPaidBody {
         asset_id,
         subject,
@@ -82,9 +99,14 @@ async fn log_paid_maintenance(
         service_provider_id: None,
         project_id,
     };
-    let resp: IdResp = authenticated_post("/api/folio/maintenance/log-paid", &token, None, &body)
-        .await
-        .map_err(ServerFnError::new)?;
+    let resp: IdResp = crate::atlas_client::authenticated_post(
+        "/api/folio/maintenance/log-paid",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(ServerFnError::new)?;
     Ok(resp.id)
 }
 
