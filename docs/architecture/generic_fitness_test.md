@@ -2,7 +2,7 @@
 
 > **Status:** Living (canonical)  
 > **Audience:** Anyone proposing a net-new table, migration, or new `G-XX` platform generic  
-> **Registry of what exists:** [`docs/CURRENT_STATE.md`](../CURRENT_STATE.md) (Platform Generics Registry)  
+> **Registry of what exists:** [`docs/private/archive/CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) (Platform Generics Registry)  
 > **Decision diagram:** [`diagrams/generic_fitness_test_flow.mmd`](./diagrams/generic_fitness_test_flow.mmd)
 
 This is the **mandatory** standard for deciding whether a need becomes a new platform generic, an extension of an existing one, or an app-specific table. Historical registry/spec docs (`platform_generics.md`, `platform_generics_v2.md`, `platform_generics_v3.md`) describe *what* was built; **this file owns Rule 7**.
@@ -61,7 +61,7 @@ Source diagram (may lag slightly): [`generic_fitness_test_flow.mmd`](./diagrams/
 When introducing a new table, answer in plan/PR notes (same spirit as `atlas_app_integration.md`):
 
 1. **Which existing generic comes closest?**  
-   Use the registry in [`CURRENT_STATE.md`](../CURRENT_STATE.md). Closest may be G-19 campaigns, G-13 cases, G-31 leads, invite codes, G-36 programs, etc.
+   Use the registry in [`CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md). Closest may be G-19 campaigns, G-13 cases, G-31 leads, invite codes, G-36 programs, etc.
 
 2. **What specific field or behavior is missing?**
 
@@ -86,7 +86,7 @@ When introducing a new table, answer in plan/PR notes (same spirit as `atlas_app
 
 Run the full **5-lens** analysis **only** when the gate is **PROMOTE NEW GENERIC** (Q4 cross-app benefit is clear).
 
-Template and lenses: [`docs/prompts/platform_generics_gap_analysis_prompt.md`](../prompts/platform_generics_gap_analysis_prompt.md).  
+Template and lenses: [`docs/private/prompts/platform_generics_gap_analysis_prompt.md`](../private/prompts/platform_generics_gap_analysis_prompt.md).  
 Historical scored candidates: [`platform_generics_gap_analysis.md`](../../platform_generics_gap_analysis.md) (repo root under `atlas-platform/`).
 
 Do **not** run a full promote score for USE / EXTEND JSONB / EXTEND COMPANION / APP-SPECIFIC — the short Q1–Q4 writeup is enough.
@@ -135,8 +135,8 @@ If **PROMOTE NEW GENERIC**, attach a short 5-lens scorecard (Lens 1–5 + recomm
 
 | Doc | Role |
 |-----|------|
-| [`CURRENT_STATE.md`](../CURRENT_STATE.md) | Living registry of G-01…G-36+ and ops ground truth |
+| [`CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) | Living registry of G-01…G-36+ and ops ground truth |
 | [`platform_generics_v3.md`](./platform_generics_v3.md) | Implemented generics quick ref (Rev 5); Rule 7 §1 defers here |
 | [`platform_generics_v2.md`](./platform_generics_v2.md) / [`platform_generics.md`](./platform_generics.md) | Historical specs |
 | [`atlas_app_integration.md`](../atlas_app_integration.md) | AtlasApp trait; must run Rule 7 before app migrations |
-| [`platform_generics_gap_analysis_prompt.md`](../prompts/platform_generics_gap_analysis_prompt.md) | 5-lens promote scoring |
+| [`platform_generics_gap_analysis_prompt.md`](../private/prompts/platform_generics_gap_analysis_prompt.md) | 5-lens promote scoring |

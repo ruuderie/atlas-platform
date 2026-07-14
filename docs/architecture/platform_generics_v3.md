@@ -6,7 +6,7 @@
 > **Branch Target:** `feat/platform-generics-v3` → merged to `dev`
 > **Purpose:** Canonical generics design doc for G01–G37+. Adds G-32 (`atlas_rbac`), G-33 (`atlas_app_deployment_config`), G-34 (`atlas_vendor_marketplace`), G-35–G-37 (notifications / programs / ambassadors), and field enhancements to G-01/G-10/G-05 (Syndication).
 >
-> **See also:** [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — **authoritative registry** (backend + frontend status). Status columns below must match that file.
+> **See also:** [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) — **authoritative registry** (backend + frontend status). Status columns below must match that file.
 >
 > **Living Rule 7 text:** [`generic_fitness_test.md`](./generic_fitness_test.md) — use that doc (not §1 alone) before any net-new table or new G-number.
 >
@@ -356,7 +356,7 @@ These remain valid generic candidates for future verticals (insurance, telecom, 
 
 - Superseded: [`platform_generics_v2.md`](./platform_generics_v2.md)
 - Original 8 generics: [`platform_generics.md`](./platform_generics.md)
-- Current State: [`../CURRENT_STATE.md`](../CURRENT_STATE.md)
+- Current State: [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md)
 - Layer Map: [`platform_layer_map.md`](./platform_layer_map.md)
 - Asset metadata shapes: [`asset_metadata_shapes.md`](./asset_metadata_shapes.md)
 

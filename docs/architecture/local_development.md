@@ -229,13 +229,13 @@ Suggested future subcommands (also listed in `CURRENT_STATE` follow-ups):
 - `atlas-local smoke` — hit `/api/health` + key frontends
 - `atlas-local doctor` — PostGIS / port / WebAuthn env diagnostics
 
-When you notice a repeated local ops pain during feature work, **surface it by extending this CLI** and update this doc + the Infrastructure row in [`CURRENT_STATE.md`](../CURRENT_STATE.md).
+When you notice a repeated local ops pain during feature work, **surface it by extending this CLI** and update this doc + the Infrastructure row in [`CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md).
 
 ---
 
 ## Related docs
 
-- [`CURRENT_STATE.md`](../CURRENT_STATE.md) — ground-truth registry (includes `atlas-local` row)
+- [`CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) — ground-truth registry (includes `atlas-local` row)
 - [`deployment_environments.md`](../deployment_environments.md) — DEV/UAT/PROD matrix
 - [`tls_and_custom_domains.md`](tls_and_custom_domains.md) — server TLS (not used locally)
 - NixForge repo — bare-metal Postgres, K3s, Woodpecker host
