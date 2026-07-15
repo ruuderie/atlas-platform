@@ -42,4 +42,5 @@ pub mod vault;
 pub mod vendor; // G-32 — Vendor-role routes: work orders + invoices
 pub mod vendors;
 pub mod violations; // G-13 — Compliance violation filing + cure status transitions
-pub mod wholesale; // G-35 ext — POST /api/folio/service-requests + vendor notify
+pub mod wholesale; // G-15 wholesale MAO (legacy paths; prefer deal_ops)
+pub mod deal_ops; // G-15 Deal Ops — Wholesaling + Creative Finance

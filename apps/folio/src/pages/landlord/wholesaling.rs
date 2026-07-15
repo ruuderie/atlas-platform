@@ -1,27 +1,23 @@
 // apps/folio/src/pages/landlord/wholesaling.rs
 //
-// Wholesaling — /l/wholesaling
-//
-// Kanban board for wholesale opportunity tracking.
-// Uses /api/folio/wholesale to list leads + advance stage.
-// Also exposes the stateless MAO calculator via /api/folio/wholesale/mao.
-// ─────────────────────────────────────────────────────────────────────────────
+// Wholesaling — /l/wholesaling (legacy; prefer /l/deals?track=wholesale)
+// Kanban + MAO calculator aligned to /api/folio/wholesale DTOs.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// ── API types ─────────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WholesaleSummary {
     pub id: Uuid,
     pub property_address: String,
-    pub stage: String, // lead | negotiating | under_contract | closed | dead
+    pub stage: String,
+    pub status: Option<String>,
     pub arv_cents: Option<i64>,
     pub repair_cents: Option<i64>,
     pub offer_cents: Option<i64>,
+    pub deal_amount_cents: Option<i64>,
     pub created_at: String,
 }
 
@@ -32,9 +28,9 @@ pub struct MaoResult {
     pub repair_cents: i64,
     pub wholesale_fee_cents: i64,
     pub equity_cushion_pct: f64,
+    pub is_viable: Option<bool>,
+    pub currency: Option<String>,
 }
-
-// ── Server functions ──────────────────────────────────────────────────────────
 
 #[server(FetchWholesaleLeads, "/api")]
 pub async fn fetch_wholesale_leads(
@@ -66,7 +62,7 @@ pub async fn calc_mao(
         "arv_cents": arv,
         "repair_cents": repair,
         "wholesale_fee_cents": fee,
-        "multiplier": 0.7
+        "multiplier": "0.70"
     });
     crate::atlas_client::authenticated_post::<serde_json::Value, MaoResult>(
         "/api/folio/wholesale/mao",
@@ -76,6 +72,38 @@ pub async fn calc_mao(
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+}
+
+#[server(CreateWholesaleLead, "/api")]
+pub async fn create_wholesale_lead(
+    address: String,
+    arv_cents: i64,
+    repair_cents: i64,
+    seller_motivation: String,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = session_token(&headers)?;
+    let body = serde_json::json!({
+        "address": address,
+        "arv_cents": arv_cents,
+        "repair_cents": repair_cents,
+        "seller_motivation": seller_motivation,
+    });
+    #[derive(Deserialize)]
+    struct Resp {
+        id: Uuid,
+    }
+    let resp = crate::atlas_client::authenticated_post::<serde_json::Value, Resp>(
+        "/api/folio/wholesale",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    Ok(resp.id)
 }
 
 #[cfg(feature = "ssr")]
@@ -94,8 +122,6 @@ fn session_token(
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 fn fmt_k(cents: i64) -> String {
     let k = cents as f64 / 100_000.0;
     if k >= 1.0 {
@@ -105,58 +131,63 @@ fn fmt_k(cents: i64) -> String {
     }
 }
 
+/// Kanban columns use canonical wholesale acquire stages.
 const STAGES: &[(&str, &str)] = &[
-    ("lead", "📋 Lead"),
-    ("negotiating", "🤝 Negotiating"),
-    ("under_contract", "📝 Under Contract"),
-    ("closed", "✅ Closed"),
-    ("dead", "💀 Dead"),
+    ("new", "New"),
+    ("prescreened", "Prescreened"),
+    ("offer_out", "Offer out"),
+    ("under_contract", "Under contract"),
+    ("title_clear", "Title clear"),
+    ("marketing", "Marketing"),
+    ("assigned_or_closed", "Closed"),
+    ("dead", "Dead"),
 ];
 
 fn stage_color(stage: &str) -> &'static str {
     match stage {
-        "lead" => "#60a5fa",
-        "negotiating" => "#fbbf24",
+        "new" => "#60a5fa",
+        "prescreened" | "qualified" => "#38bdf8",
+        "offer_out" | "negotiating" => "#fbbf24",
         "under_contract" => "#a78bfa",
-        "closed" => "#4ade80",
-        "dead" => "#94a3b8",
+        "title_clear" => "#c084fc",
+        "marketing" => "#fb923c",
+        "assigned_or_closed" | "closed" => "#4ade80",
+        "dead" | "converted_to_cf" => "#94a3b8",
         _ => "#94a3b8",
     }
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+fn normalize_stage(s: &str) -> String {
+    match s {
+        "lead" | "new" => "new".into(),
+        "qualified" => "prescreened".into(),
+        "negotiating" => "offer_out".into(),
+        "closed" => "assigned_or_closed".into(),
+        other => other.to_string(),
+    }
+}
 
 #[component]
 pub fn LandlordWholesaling() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
     let show_calc = RwSignal::new(false);
+    let show_add = RwSignal::new(false);
     let calc_arv = RwSignal::new(String::new());
     let calc_repair = RwSignal::new(String::new());
-    let calc_fee = RwSignal::new(String::new());
+    let calc_fee = RwSignal::new(String::from("5000"));
     let calc_result = RwSignal::new(None::<MaoResult>);
     let calculating = RwSignal::new(false);
+    let new_addr = RwSignal::new(String::new());
+    let new_arv = RwSignal::new(String::new());
+    let new_repair = RwSignal::new(String::new());
+    let creating = RwSignal::new(false);
 
     let leads_res = Resource::new(move || refresh.get(), |_| fetch_wholesale_leads());
 
     let handle_calc = move |_: leptos::ev::MouseEvent| {
-        let arv = calc_arv
-            .get()
-            .replace(['$', ',', 'k', ' '], "")
-            .parse::<f64>()
-            .unwrap_or(0.0) as i64
-            * 100;
-        let repair = calc_repair
-            .get()
-            .replace(['$', ',', 'k', ' '], "")
-            .parse::<f64>()
-            .unwrap_or(0.0) as i64
-            * 100;
-        let fee = calc_fee
-            .get()
-            .replace(['$', ',', 'k', ' '], "")
-            .parse::<f64>()
-            .unwrap_or(0.0) as i64
-            * 100;
+        let arv = (calc_arv.get().parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
+        let repair = (calc_repair.get().parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
+        let fee = (calc_fee.get().parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
         if arv == 0 {
             return;
         }
@@ -169,30 +200,55 @@ pub fn LandlordWholesaling() -> impl IntoView {
         });
     };
 
+    let handle_create = move |_: leptos::ev::MouseEvent| {
+        let address = new_addr.get();
+        if address.trim().is_empty() {
+            return;
+        }
+        let arv = (new_arv.get().parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
+        let repair = (new_repair.get().parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
+        creating.set(true);
+        spawn_local(async move {
+            if create_wholesale_lead(address, arv, repair, "other".into())
+                .await
+                .is_ok()
+            {
+                show_add.set(false);
+                refresh.update(|n| *n += 1);
+            }
+            creating.set(false);
+        });
+    };
+
     view! {
         <div class="main-area">
-
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Wholesaling"</h1>
-                    <p class="page-subtitle">"Off-market deal pipeline and MAO analysis"</p>
+                    <p class="page-subtitle">
+                        "Ugly-house MAO pipeline · "
+                        <a href="/l/deals?track=wholesale">"Open Deal Ops →"</a>
+                    </p>
                 </div>
                 <div class="page-actions">
                     <button class="btn btn-ghost btn-sm" on:click=move |_| show_calc.set(true)>
-                        "🧮 MAO Calculator"
+                        "MAO Calculator"
                     </button>
-                    <button class="btn btn-primary btn-sm" disabled=true>"+ Add Lead"</button>
+                    <button class="btn btn-primary btn-sm" on:click=move |_| show_add.set(true)>
+                        "+ Add Lead"
+                    </button>
                 </div>
             </div>
 
-            // ── Kanban ──
             <Suspense fallback=|| view! { <div class="doc-empty">"Loading pipeline…"</div> }>
                 {move || leads_res.get().map(|res| {
                     match res {
                         Ok(leads) => view! {
                             <div class="wholesale-kanban">
                                 {STAGES.iter().map(|(stage_id, stage_label)| {
-                                    let stage_leads: Vec<_> = leads.iter().filter(|l| &l.stage.as_str() == stage_id).cloned().collect();
+                                    let stage_leads: Vec<_> = leads.iter().filter(|l| {
+                                        normalize_stage(&l.stage) == *stage_id
+                                    }).cloned().collect();
                                     let count = stage_leads.len();
                                     let color = stage_color(stage_id);
                                     let label = *stage_label;
@@ -204,21 +260,20 @@ pub fn LandlordWholesaling() -> impl IntoView {
                                             </div>
                                             <div class="wholesale-col-body">
                                                 {if stage_leads.is_empty() {
-                                                    view! {
-                                                        <div class="wholesale-empty">"—"</div>
-                                                    }.into_any()
+                                                    view! { <div class="wholesale-empty">"—"</div> }.into_any()
                                                 } else {
                                                     view! {
                                                         <For
                                                             each=move || stage_leads.clone()
                                                             key=|l| l.id
                                                             children=move |lead| {
-                                                                let addr  = lead.property_address.clone();
-                                                                let arv   = lead.arv_cents.map(fmt_k).unwrap_or_else(|| "—".to_string());
-                                                                let offer = lead.offer_cents.map(fmt_k).unwrap_or_else(|| "—".to_string());
-                                                                let date  = lead.created_at.chars().take(10).collect::<String>();
+                                                                let addr = lead.property_address.clone();
+                                                                let arv = lead.arv_cents.map(fmt_k).unwrap_or_else(|| "—".to_string());
+                                                                let offer = lead.offer_cents.or(lead.deal_amount_cents).map(fmt_k).unwrap_or_else(|| "—".to_string());
+                                                                let date = lead.created_at.chars().take(10).collect::<String>();
+                                                                let href = format!("/l/deals/{}", lead.id);
                                                                 view! {
-                                                                    <div class="wholesale-card">
+                                                                    <a class="wholesale-card" href=href>
                                                                         <div class="wholesale-card-addr">{addr}</div>
                                                                         <div class="wholesale-card-kv">
                                                                             <span class="wholesale-card-k">"ARV"</span>
@@ -229,7 +284,7 @@ pub fn LandlordWholesaling() -> impl IntoView {
                                                                             <span class="wholesale-card-v">{offer}</span>
                                                                         </div>
                                                                         <div class="wholesale-card-date">{date}</div>
-                                                                    </div>
+                                                                    </a>
                                                                 }
                                                             }
                                                         />
@@ -248,37 +303,32 @@ pub fn LandlordWholesaling() -> impl IntoView {
                 })}
             </Suspense>
 
-            // ── MAO Calculator Modal ─────────────────────────────────────────
             <Show when=move || show_calc.get()>
                 <div class="modal-backdrop">
                     <div class="modal-card" style="max-width:28rem;">
                         <div class="modal-header">
-                            <h3 class="modal-title">"🧮 MAO Calculator"</h3>
+                            <h3 class="modal-title">"MAO Calculator"</h3>
                             <button class="modal-close" on:click=move |_| { show_calc.set(false); calc_result.set(None); }>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
                             <div class="form-field">
-                                <label class="form-label">"ARV — After Repair Value ($)"</label>
-                                <input type="number" class="form-input" placeholder="250000"
-                                    prop:value=calc_arv
+                                <label class="form-label">"ARV ($)"</label>
+                                <input type="number" class="form-input" prop:value=calc_arv
                                     on:input=move |ev| calc_arv.set(event_target_value(&ev)) />
                             </div>
                             <div class="form-field">
-                                <label class="form-label">"Estimated Repairs ($)"</label>
-                                <input type="number" class="form-input" placeholder="30000"
-                                    prop:value=calc_repair
+                                <label class="form-label">"Repairs ($)"</label>
+                                <input type="number" class="form-input" prop:value=calc_repair
                                     on:input=move |ev| calc_repair.set(event_target_value(&ev)) />
                             </div>
                             <div class="form-field">
-                                <label class="form-label">"Wholesale Fee ($)"</label>
-                                <input type="number" class="form-input" placeholder="10000"
-                                    prop:value=calc_fee
+                                <label class="form-label">"Wholesale fee ($)"</label>
+                                <input type="number" class="form-input" prop:value=calc_fee
                                     on:input=move |ev| calc_fee.set(event_target_value(&ev)) />
                             </div>
-
                             {move || calc_result.get().map(|r| view! {
                                 <div class="mao-result-card">
-                                    <div class="mao-result-label">"Maximum Allowable Offer (MAO)"</div>
+                                    <div class="mao-result-label">"Maximum Allowable Offer"</div>
                                     <div class="mao-result-value">{fmt_k(r.mao_cents)}</div>
                                     <div class="mao-result-detail">
                                         "Equity cushion: " <strong>{format!("{:.1}%", r.equity_cushion_pct)}</strong>
@@ -288,11 +338,7 @@ pub fn LandlordWholesaling() -> impl IntoView {
                         </div>
                         <div class="modal-footer">
                             <button class="btn btn-ghost" on:click=move |_| { show_calc.set(false); calc_result.set(None); }>"Close"</button>
-                            <button
-                                class="btn btn-primary"
-                                on:click=handle_calc
-                                disabled=move || calculating.get()
-                            >
+                            <button class="btn btn-primary" on:click=handle_calc disabled=move || calculating.get()>
                                 {move || if calculating.get() { "Calculating…" } else { "Calculate MAO" }}
                             </button>
                         </div>
@@ -300,6 +346,39 @@ pub fn LandlordWholesaling() -> impl IntoView {
                 </div>
             </Show>
 
+            <Show when=move || show_add.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"New wholesale lead"</h3>
+                            <button class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <div class="form-field">
+                                <label class="form-label">"Address"</label>
+                                <input class="form-input" prop:value=new_addr
+                                    on:input=move |ev| new_addr.set(event_target_value(&ev)) />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"ARV ($)"</label>
+                                <input type="number" class="form-input" prop:value=new_arv
+                                    on:input=move |ev| new_arv.set(event_target_value(&ev)) />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Repairs ($)"</label>
+                                <input type="number" class="form-input" prop:value=new_repair
+                                    on:input=move |ev| new_repair.set(event_target_value(&ev)) />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_create disabled=move || creating.get()>
+                                {move || if creating.get() { "Saving…" } else { "Create" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }

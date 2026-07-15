@@ -14,3 +14,4 @@ pub mod ratings;
 pub mod reports;
 pub mod reservations;
 pub mod violations;
+pub mod lease_option;

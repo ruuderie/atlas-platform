@@ -65,4 +65,5 @@ pub mod tax;
 pub mod vault;
 pub mod vendor;
 pub mod violation; // G-13 — Compliance violation lifecycle (typed category + cure status transitions)
-pub mod wholesale; // G-22 — STR guest registration, vehicle declarations, special requests
+pub mod wholesale; // G-15 wholesale MAO (thin; prefer deal_ops for Deal Ops)
+pub mod deal_ops; // G-15 Deal Ops — Wholesaling + Creative Finance

@@ -511,8 +511,20 @@ pub enum PmContractType {
     VendorService,
     /// Property management agreement (landlord ↔ PM company).
     ManagementAgreement,
-    /// Wholesaling purchase contract.
+    /// Wholesaling purchase contract (equitable interest / P&S).
     WholesalePurchase,
+    /// Assignment of wholesale purchase contract to cash buyer.
+    Assignment,
+    /// Subject-to acquisition (deed; underlying loan stays in seller name).
+    SubjectToPurchase,
+    /// Purchase option (no deed yet).
+    PurchaseOption,
+    /// Lease-option / rent-to-own with tenant-buyer.
+    LeaseOption,
+    /// Wraparound / AITD owner-finance sale.
+    Wrap,
+    /// Land contract / contract for deed.
+    LandContract,
 }
 
 impl fmt::Display for PmContractType {
@@ -523,6 +535,12 @@ impl fmt::Display for PmContractType {
             Self::VendorService => "vendor_service",
             Self::ManagementAgreement => "management_agreement",
             Self::WholesalePurchase => "wholesale_purchase",
+            Self::Assignment => "assignment",
+            Self::SubjectToPurchase => "subject_to_purchase",
+            Self::PurchaseOption => "purchase_option",
+            Self::LeaseOption => "lease_option",
+            Self::Wrap => "wrap",
+            Self::LandContract => "land_contract",
         })
     }
 }
@@ -536,6 +554,12 @@ impl TryFrom<String> for PmContractType {
             "vendor_service" => Ok(Self::VendorService),
             "management_agreement" => Ok(Self::ManagementAgreement),
             "wholesale_purchase" => Ok(Self::WholesalePurchase),
+            "assignment" => Ok(Self::Assignment),
+            "subject_to_purchase" => Ok(Self::SubjectToPurchase),
+            "purchase_option" => Ok(Self::PurchaseOption),
+            "lease_option" => Ok(Self::LeaseOption),
+            "wrap" => Ok(Self::Wrap),
+            "land_contract" => Ok(Self::LandContract),
             other => Err(format!("unknown PmContractType: '{other}'")),
         }
     }
@@ -545,7 +569,7 @@ impl TryFrom<String> for PmContractType {
 
 /// Guarantee mechanism for a Brazilian residential lease (Lei do Inquilinato Art. 37).
 ///
-/// Stored as VARCHAR in `atlas_contracts.contract_metadata -> guarantee_type`.
+/// Stored as VARCHAR in `atlas_contracts.terms_metadata -> guarantee_type`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GuaranteeType {
@@ -710,27 +734,79 @@ impl TryFrom<String> for TradeType {
     }
 }
 
+// ── Deal Ops track ────────────────────────────────────────────────────────────
+
+/// Folio Deal Ops rail: wholesaling (ugly houses) vs creative finance (pretty houses).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DealTrack {
+    Wholesale,
+    CreativeFinance,
+}
+
+impl fmt::Display for DealTrack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Wholesale => "wholesale",
+            Self::CreativeFinance => "creative_finance",
+        })
+    }
+}
+
+impl TryFrom<String> for DealTrack {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "wholesale" => Ok(Self::Wholesale),
+            "creative_finance" => Ok(Self::CreativeFinance),
+            other => Err(format!("unknown DealTrack: '{other}'")),
+        }
+    }
+}
+
 // ── Wholesale pipeline stage ──────────────────────────────────────────────────
 
-/// Stage in the wholesale deal pipeline.
+/// Stage in the wholesale acquisition pipeline (Ron LeGrand 14-step).
 ///
-/// Stored as VARCHAR in `atlas_opportunities.stage`.
-/// `Closed` and `Dead` are terminal — stage cannot be changed after reaching them.
+/// Stored as VARCHAR in `atlas_opportunities.status` (no separate `stage` column).
+/// Terminal: `AssignedOrClosed`, `Dead`, `ConvertedToCf`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WholesaleStage {
     New,
-    Qualified,
-    Negotiating,
+    Prescreened,
+    OfferOut,
     UnderContract,
-    Closed,
+    TitleClear,
+    Marketing,
+    AssignedOrClosed,
     Dead,
+    ConvertedToCf,
+    /// Legacy alias — prefer `Prescreened`.
+    Qualified,
+    /// Legacy alias — prefer `OfferOut`.
+    Negotiating,
+    /// Legacy alias — prefer `AssignedOrClosed`.
+    Closed,
 }
 
 impl WholesaleStage {
     /// Terminal stages cannot be transitioned out of.
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Closed | Self::Dead)
+        matches!(
+            self,
+            Self::AssignedOrClosed | Self::Dead | Self::ConvertedToCf | Self::Closed
+        )
+    }
+
+    /// Canonical stage for UI columns (collapses legacy aliases).
+    pub fn canonical(&self) -> Self {
+        match self {
+            Self::Qualified => Self::Prescreened,
+            Self::Negotiating => Self::OfferOut,
+            Self::Closed => Self::AssignedOrClosed,
+            other => other.clone(),
+        }
     }
 }
 
@@ -738,11 +814,17 @@ impl fmt::Display for WholesaleStage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::New => "new",
+            Self::Prescreened => "prescreened",
+            Self::OfferOut => "offer_out",
+            Self::UnderContract => "under_contract",
+            Self::TitleClear => "title_clear",
+            Self::Marketing => "marketing",
+            Self::AssignedOrClosed => "assigned_or_closed",
+            Self::Dead => "dead",
+            Self::ConvertedToCf => "converted_to_cf",
             Self::Qualified => "qualified",
             Self::Negotiating => "negotiating",
-            Self::UnderContract => "under_contract",
             Self::Closed => "closed",
-            Self::Dead => "dead",
         })
     }
 }
@@ -752,12 +834,320 @@ impl TryFrom<String> for WholesaleStage {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "new" => Ok(Self::New),
+            "prescreened" => Ok(Self::Prescreened),
+            "offer_out" => Ok(Self::OfferOut),
+            "under_contract" => Ok(Self::UnderContract),
+            "title_clear" => Ok(Self::TitleClear),
+            "marketing" => Ok(Self::Marketing),
+            "assigned_or_closed" => Ok(Self::AssignedOrClosed),
+            "dead" => Ok(Self::Dead),
+            "converted_to_cf" => Ok(Self::ConvertedToCf),
             "qualified" => Ok(Self::Qualified),
             "negotiating" => Ok(Self::Negotiating),
-            "under_contract" => Ok(Self::UnderContract),
             "closed" => Ok(Self::Closed),
-            "dead" => Ok(Self::Dead),
+            // UI alias historically used for "new"
+            "lead" => Ok(Self::New),
             other => Err(format!("unknown WholesaleStage: '{other}'")),
+        }
+    }
+}
+
+/// Wholesale cash-buyer disposition stages.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WholesaleBuyerStage {
+    BuyerLead,
+    PrescreenPass,
+    DepositHeld,
+    Assigned,
+    Closed,
+    Disqualified,
+}
+
+impl WholesaleBuyerStage {
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Closed | Self::Disqualified)
+    }
+}
+
+impl fmt::Display for WholesaleBuyerStage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::BuyerLead => "buyer_lead",
+            Self::PrescreenPass => "prescreen_pass",
+            Self::DepositHeld => "deposit_held",
+            Self::Assigned => "assigned",
+            Self::Closed => "closed",
+            Self::Disqualified => "disqualified",
+        })
+    }
+}
+
+impl TryFrom<String> for WholesaleBuyerStage {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "buyer_lead" => Ok(Self::BuyerLead),
+            "prescreen_pass" => Ok(Self::PrescreenPass),
+            "deposit_held" => Ok(Self::DepositHeld),
+            "assigned" => Ok(Self::Assigned),
+            "closed" => Ok(Self::Closed),
+            "disqualified" => Ok(Self::Disqualified),
+            other => Err(format!("unknown WholesaleBuyerStage: '{other}'")),
+        }
+    }
+}
+
+/// Creative finance acquisition stages (Pretty House).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CreativeFinanceAcquireStage {
+    New,
+    Prescreened,
+    OfferStructured,
+    CyaClosing,
+    OwnedOrOptioned,
+    Dead,
+}
+
+impl CreativeFinanceAcquireStage {
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::OwnedOrOptioned | Self::Dead)
+    }
+}
+
+impl fmt::Display for CreativeFinanceAcquireStage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::New => "new",
+            Self::Prescreened => "prescreened",
+            Self::OfferStructured => "offer_structured",
+            Self::CyaClosing => "cya_closing",
+            Self::OwnedOrOptioned => "owned_or_optioned",
+            Self::Dead => "dead",
+        })
+    }
+}
+
+impl TryFrom<String> for CreativeFinanceAcquireStage {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "new" => Ok(Self::New),
+            "prescreened" => Ok(Self::Prescreened),
+            "offer_structured" => Ok(Self::OfferStructured),
+            "cya_closing" => Ok(Self::CyaClosing),
+            "owned_or_optioned" => Ok(Self::OwnedOrOptioned),
+            "dead" => Ok(Self::Dead),
+            other => Err(format!("unknown CreativeFinanceAcquireStage: '{other}'")),
+        }
+    }
+}
+
+/// Creative finance disposition (tenant-buyer) stages.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CreativeFinanceDisposeStage {
+    BuyerLead,
+    PrescreenPass,
+    AraDeposit,
+    Installed,
+    ExerciseCashout,
+    Disqualified,
+}
+
+impl CreativeFinanceDisposeStage {
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            Self::Installed | Self::ExerciseCashout | Self::Disqualified
+        )
+    }
+}
+
+impl fmt::Display for CreativeFinanceDisposeStage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::BuyerLead => "buyer_lead",
+            Self::PrescreenPass => "prescreen_pass",
+            Self::AraDeposit => "ara_deposit",
+            Self::Installed => "installed",
+            Self::ExerciseCashout => "exercise_cashout",
+            Self::Disqualified => "disqualified",
+        })
+    }
+}
+
+impl TryFrom<String> for CreativeFinanceDisposeStage {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "buyer_lead" => Ok(Self::BuyerLead),
+            "prescreen_pass" => Ok(Self::PrescreenPass),
+            "ara_deposit" => Ok(Self::AraDeposit),
+            "installed" => Ok(Self::Installed),
+            "exercise_cashout" => Ok(Self::ExerciseCashout),
+            "disqualified" => Ok(Self::Disqualified),
+            other => Err(format!("unknown CreativeFinanceDisposeStage: '{other}'")),
+        }
+    }
+}
+
+/// Pretty House buy structures (six) + wholesale all-cash MAO.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcquisitionStructure {
+    AllCashMao,
+    SubjectToFreeEquity,
+    SubjectToCashEquity,
+    SubjectToDeferredEquity,
+    SubjectToSellerSecond,
+    SellerFinanceWrap,
+    PurchaseOption,
+}
+
+impl fmt::Display for AcquisitionStructure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::AllCashMao => "all_cash_mao",
+            Self::SubjectToFreeEquity => "subject_to_free_equity",
+            Self::SubjectToCashEquity => "subject_to_cash_equity",
+            Self::SubjectToDeferredEquity => "subject_to_deferred_equity",
+            Self::SubjectToSellerSecond => "subject_to_seller_second",
+            Self::SellerFinanceWrap => "seller_finance_wrap",
+            Self::PurchaseOption => "purchase_option",
+        })
+    }
+}
+
+impl TryFrom<String> for AcquisitionStructure {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "all_cash_mao" => Ok(Self::AllCashMao),
+            "subject_to_free_equity" => Ok(Self::SubjectToFreeEquity),
+            "subject_to_cash_equity" => Ok(Self::SubjectToCashEquity),
+            "subject_to_deferred_equity" => Ok(Self::SubjectToDeferredEquity),
+            "subject_to_seller_second" => Ok(Self::SubjectToSellerSecond),
+            "seller_finance_wrap" => Ok(Self::SellerFinanceWrap),
+            "purchase_option" => Ok(Self::PurchaseOption),
+            other => Err(format!("unknown AcquisitionStructure: '{other}'")),
+        }
+    }
+}
+
+/// Planned exit after acquisition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExitMode {
+    WholesaleAssignment,
+    SimultaneousClose,
+    LeaseOption,
+    OwnerFinanceWrap,
+    LandContract,
+    RetailCash,
+}
+
+impl fmt::Display for ExitMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::WholesaleAssignment => "wholesale_assignment",
+            Self::SimultaneousClose => "simultaneous_close",
+            Self::LeaseOption => "lease_option",
+            Self::OwnerFinanceWrap => "owner_finance_wrap",
+            Self::LandContract => "land_contract",
+            Self::RetailCash => "retail_cash",
+        })
+    }
+}
+
+impl TryFrom<String> for ExitMode {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "wholesale_assignment" => Ok(Self::WholesaleAssignment),
+            "simultaneous_close" => Ok(Self::SimultaneousClose),
+            "lease_option" => Ok(Self::LeaseOption),
+            "owner_finance_wrap" => Ok(Self::OwnerFinanceWrap),
+            "land_contract" => Ok(Self::LandContract),
+            "retail_cash" => Ok(Self::RetailCash),
+            other => Err(format!("unknown ExitMode: '{other}'")),
+        }
+    }
+}
+
+/// Buyer fit matrix (wholesale cash vs creative-finance tenant-buyer).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuyerFit {
+    /// Wholesale: can raise cash and close quickly.
+    CashReady,
+    /// Wholesale: interested but needs more time.
+    NeedsTime,
+    /// CF: strong money + credit — conventional path.
+    Conventional,
+    /// CF: money + weak credit — lease-option / OF.
+    LeaseOptionOrOf,
+    /// CF: little money + strong credit — loan only / nurture.
+    LoanOnly,
+    Disqualify,
+}
+
+impl fmt::Display for BuyerFit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::CashReady => "cash_ready",
+            Self::NeedsTime => "needs_time",
+            Self::Conventional => "conventional",
+            Self::LeaseOptionOrOf => "lease_option_or_of",
+            Self::LoanOnly => "loan_only",
+            Self::Disqualify => "disqualify",
+        })
+    }
+}
+
+impl TryFrom<String> for BuyerFit {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "cash_ready" => Ok(Self::CashReady),
+            "needs_time" => Ok(Self::NeedsTime),
+            "conventional" => Ok(Self::Conventional),
+            "lease_option_or_of" => Ok(Self::LeaseOptionOrOf),
+            "loan_only" => Ok(Self::LoanOnly),
+            "disqualify" => Ok(Self::Disqualify),
+            other => Err(format!("unknown BuyerFit: '{other}'")),
+        }
+    }
+}
+
+/// Application type for G-18 `atlas_applications.application_type`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PmApplicationType {
+    Rental,
+    TenantBuyer,
+    CashBuyer,
+}
+
+impl fmt::Display for PmApplicationType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Rental => "rental",
+            Self::TenantBuyer => "tenant_buyer",
+            Self::CashBuyer => "cash_buyer",
+        })
+    }
+}
+
+impl TryFrom<String> for PmApplicationType {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "rental" => Ok(Self::Rental),
+            "tenant_buyer" => Ok(Self::TenantBuyer),
+            "cash_buyer" => Ok(Self::CashBuyer),
+            other => Err(format!("unknown PmApplicationType: '{other}'")),
         }
     }
 }
@@ -766,7 +1156,7 @@ impl TryFrom<String> for WholesaleStage {
 
 /// Why a seller is motivated to sell quickly.
 ///
-/// Stored in `atlas_opportunities.opportunity_metadata -> motivation`.
+/// Stored in `atlas_opportunities.financial_inputs -> motivation`.
 /// Used by the Lead Quality Assessment G-27 scorecard as a dimension signal.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -822,8 +1212,14 @@ impl TryFrom<String> for SellerMotivation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PmOpportunityType {
-    /// Wholesale acquisition lead.
+    /// Wholesale acquisition lead (ugly-house / MAO track).
     WholesaleLead,
+    /// Cash investor buyer for a wholesale disposition.
+    WholesaleBuyer,
+    /// Pretty House / creative-finance acquisition.
+    CreativeFinanceAcquisition,
+    /// Tenant-buyer disposition for creative finance.
+    CreativeFinanceDisposition,
     /// New tenant application for an available unit.
     LeaseApplication,
     /// Lease renewal negotiation.
@@ -834,6 +1230,9 @@ impl fmt::Display for PmOpportunityType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::WholesaleLead => "wholesale_lead",
+            Self::WholesaleBuyer => "wholesale_buyer",
+            Self::CreativeFinanceAcquisition => "creative_finance_acquisition",
+            Self::CreativeFinanceDisposition => "creative_finance_disposition",
             Self::LeaseApplication => "lease_application",
             Self::LeaseRenewal => "lease_renewal",
         })
@@ -845,6 +1244,9 @@ impl TryFrom<String> for PmOpportunityType {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "wholesale_lead" => Ok(Self::WholesaleLead),
+            "wholesale_buyer" => Ok(Self::WholesaleBuyer),
+            "creative_finance_acquisition" => Ok(Self::CreativeFinanceAcquisition),
+            "creative_finance_disposition" => Ok(Self::CreativeFinanceDisposition),
             "lease_application" => Ok(Self::LeaseApplication),
             "lease_renewal" => Ok(Self::LeaseRenewal),
             other => Err(format!("unknown PmOpportunityType: '{other}'")),
@@ -1385,8 +1787,16 @@ mod tests {
         check_roundtrip!(GuaranteeType::TituloCapitalizacao);
         check_roundtrip!(TradeType::GeneralContractor);
         check_roundtrip!(WholesaleStage::UnderContract);
+        check_roundtrip!(WholesaleStage::AssignedOrClosed);
         check_roundtrip!(SellerMotivation::TiredLandlord);
         check_roundtrip!(PmOpportunityType::WholesaleLead);
+        check_roundtrip!(PmOpportunityType::CreativeFinanceAcquisition);
+        check_roundtrip!(DealTrack::CreativeFinance);
+        check_roundtrip!(AcquisitionStructure::SubjectToFreeEquity);
+        check_roundtrip!(ExitMode::LeaseOption);
+        check_roundtrip!(BuyerFit::LeaseOptionOrOf);
+        check_roundtrip!(PmContractType::LeaseOption);
+        check_roundtrip!(PmApplicationType::TenantBuyer);
         check_roundtrip!(StrPermitCategory::PrincipalResidence);
         check_roundtrip!(PmRegistrationType::StrPermit);
         check_roundtrip!(ScorecardEntityType::Contractor);

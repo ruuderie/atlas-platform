@@ -99,6 +99,7 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::leases::authenticated_routes_raw())
             .merge(crate::handlers::folio::vendors::authenticated_routes_raw())
             .merge(crate::handlers::folio::wholesale::authenticated_routes_raw())
+            .merge(crate::handlers::folio::deal_ops::authenticated_routes_raw())
             .merge(crate::handlers::folio::billing::authenticated_routes_raw())
             .merge(crate::handlers::folio::str::authenticated_routes_raw())
             .merge(crate::handlers::folio::vault::authenticated_routes_raw())

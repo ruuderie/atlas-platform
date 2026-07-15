@@ -33,7 +33,9 @@ use crate::pages::landlord::{
     syndication::LandlordSyndication, team::LandlordTeam,
     tenant_portal_content::TenantPortalContent, tenant_profile::TenantProfile,
     unit_appliances::UnitAppliances, vendors::Vendors, violations::Violations,
-    wholesaling::LandlordWholesaling, work_order_create::WorkOrderCreate,
+    wholesaling::LandlordWholesaling, deals::LandlordDeals, deal_workspace::DealWorkspace,
+    deal_structure::DealStructure, buyers::LandlordBuyers,
+    work_order_create::WorkOrderCreate,
     work_order_detail::WorkOrderDetail,
 };
 
@@ -45,6 +47,7 @@ use crate::pages::tenant::{
     my_lease::MyLease, payment_history::TenantPaymentHistory, payments::TenantPayments,
     profile::TenantProfile as TenantProfilePage, ratings::TenantRatings, reports::TenantReports,
     reservations::TenantReservations, violations::TenantViolations,
+    lease_option::TenantLeaseOption,
 };
 
 // Vendor pages
@@ -238,6 +241,10 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/vault")         view=LandlordDigitalVault/>
                     <Route path=path!("/syndication")   view=LandlordSyndication/>
                     <Route path=path!("/wholesaling")   view=LandlordWholesaling/>
+                    <Route path=path!("/deals")         view=LandlordDeals/>
+                    <Route path=path!("/deals/:id")     view=DealWorkspace/>
+                    <Route path=path!("/deals/:id/structure") view=DealStructure/>
+                    <Route path=path!("/buyers")        view=LandlordBuyers/>
                     <Route path=path!("/account/billing")view=LandlordAccountBilling/>
                     <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
                     <Route path=path!("/ratings") view=LandlordRatings/>
@@ -250,6 +257,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("")                    view=TenantDashboard/>
                     <Route path=path!("/my-lease")           view=MyLease/>
                     <Route path=path!("/payments")           view=TenantPayments/>
+                    <Route path=path!("/option")             view=TenantLeaseOption/>
                     <Route path=path!("/payments/history")   view=TenantPaymentHistory/>
                     <Route path=path!("/maintenance")          view=MaintenanceRequests/>
                     <Route path=path!("/maintenance/new")      view=TenantMaintenanceTriage/>

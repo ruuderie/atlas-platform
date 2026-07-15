@@ -1,28 +1,7 @@
-//! Folio — Wholesale handler.
+//! Folio — Wholesale handler (legacy paths; prefer `/api/folio/deals`).
 //!
-//! # Routes
-//!
-//! ```ignore
-//! GET  /api/folio/wholesale
-//!      List all wholesale leads (atlas_opportunities) for the tenant.
-//!      -> 200 [WholesaleSummary]
-//!
-//! POST /api/folio/wholesale/mao
-//!      Stateless MAO calculation — no auth, no DB write.
-//!      Body: { "arv_cents": i64, "repair_cents": i64, "wholesale_fee_cents": i64,
-//!              "multiplier"?: f64, "currency"?: string }
-//!      -> 200 MaoResult
-//!
-//! POST /api/folio/wholesale
-//!      Create a wholesale opportunity (lead).
-//!      Body: CreateWholesaleHttpInput
-//!      -> 201 { "id": uuid }
-//!
-//! POST /api/folio/wholesale/:id/advance
-//!      Advance a lead's Kanban stage.
-//!      Body: { "stage": WholesaleStage }
-//!      -> 204
-//! ```
+//! Kept for backward compatibility. List now filters `wholesale_lead` and
+//! flattens `financial_inputs` for the Folio Kanban UI.
 
 use axum::{
     Router,
@@ -36,10 +15,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::user;
+use crate::services::pm::deal_ops::DealOpsService;
 use crate::services::pm::wholesale::WholesaleService;
-use crate::types::pm::{SellerMotivation, WholesaleStage};
-
-// ── Route registration ────────────────────────────────────────────────────────
+use crate::types::pm::{PmOpportunityType, SellerMotivation, WholesaleStage};
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
@@ -48,14 +26,18 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/folio/wholesale/{id}/advance", post(advance_stage))
 }
 
-// ── Request / response types ──────────────────────────────────────────────────
-
 #[derive(Debug, Serialize)]
 struct WholesaleSummary {
     pub id: Uuid,
     pub asset_id: Option<Uuid>,
     pub name: String,
+    /// Canonical stage string (also exposed as `stage` for UI).
     pub status: String,
+    pub stage: String,
+    pub property_address: String,
+    pub arv_cents: Option<i64>,
+    pub repair_cents: Option<i64>,
+    pub offer_cents: Option<i64>,
     pub currency: String,
     pub deal_amount_cents: Option<i64>,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -66,9 +48,20 @@ pub struct MaoHttpInput {
     pub arv_cents: i64,
     pub repair_cents: i64,
     pub wholesale_fee_cents: i64,
-    /// Optional multiplier override (0.65–0.75). Defaults to 0.70.
     pub multiplier: Option<String>,
     pub currency: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct MaoHttpResult {
+    pub arv_cents: i64,
+    pub repair_cents: i64,
+    pub wholesale_fee_cents: i64,
+    pub multiplier: String,
+    pub mao_cents: i64,
+    pub is_viable: bool,
+    pub equity_cushion_pct: f64,
+    pub currency: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -90,9 +83,6 @@ pub struct AdvanceStageInput {
     pub stage: String,
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
-
-/// GET /api/folio/wholesale
 async fn list_leads(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -101,6 +91,10 @@ async fn list_leads(
 
     let opportunities = crate::entities::atlas_opportunity::Entity::find()
         .filter(crate::entities::atlas_opportunity::Column::TenantId.eq(tenant_id))
+        .filter(
+            crate::entities::atlas_opportunity::Column::OpportunityType
+                .eq(PmOpportunityType::WholesaleLead.to_string()),
+        )
         .all(&db)
         .await
         .map_err(|e| {
@@ -110,24 +104,31 @@ async fn list_leads(
 
     let summaries: Vec<WholesaleSummary> = opportunities
         .into_iter()
-        .map(|o| WholesaleSummary {
-            id: o.id,
-            asset_id: o.asset_id,
-            name: o.name,
-            status: o.status,
-            currency: o.currency,
-            deal_amount_cents: o.deal_amount_cents,
-            created_at: o.created_at,
+        .map(|o| {
+            let s = DealOpsService::summarize(&o);
+            let stage = WholesaleStage::try_from(o.status.clone())
+                .map(|st| st.canonical().to_string())
+                .unwrap_or(o.status.clone());
+            WholesaleSummary {
+                id: s.id,
+                asset_id: s.asset_id,
+                name: s.name,
+                status: stage.clone(),
+                stage,
+                property_address: s.property_address,
+                arv_cents: s.arv_cents,
+                repair_cents: s.repair_cents,
+                offer_cents: s.offer_cents,
+                currency: s.currency,
+                deal_amount_cents: s.deal_amount_cents,
+                created_at: s.created_at,
+            }
         })
         .collect();
 
     Ok(axum::response::Json(summaries))
 }
 
-/// POST /api/folio/wholesale/mao
-///
-/// Stateless — no auth required. The UI can call this speculatively as the
-/// user types ARV and repair estimates before committing the lead.
 async fn compute_mao(Json(input): Json<MaoHttpInput>) -> impl IntoResponse {
     use rust_decimal::Decimal;
     use std::str::FromStr;
@@ -145,10 +146,22 @@ async fn compute_mao(Json(input): Json<MaoHttpInput>) -> impl IntoResponse {
         input.currency,
     );
 
-    axum::response::Json(result)
+    axum::response::Json(MaoHttpResult {
+        arv_cents: result.arv_cents,
+        repair_cents: result.repair_cents,
+        wholesale_fee_cents: result.wholesale_fee_cents,
+        multiplier: result.multiplier.to_string(),
+        mao_cents: result.mao_cents,
+        is_viable: result.is_viable,
+        equity_cushion_pct: DealOpsService::equity_cushion_pct(
+            result.arv_cents,
+            result.mao_cents,
+            result.repair_cents,
+        ),
+        currency: result.currency,
+    })
 }
 
-/// POST /api/folio/wholesale
 async fn create_lead(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -171,7 +184,7 @@ async fn create_lead(
         input.arv_cents,
         input.repair_cents,
         motivation,
-        input.owner_user_id,
+        input.owner_user_id.or(Some(current_user.id)),
     )
     .await
     .map_err(|e| {
@@ -185,7 +198,6 @@ async fn create_lead(
     ))
 }
 
-/// POST /api/folio/wholesale/:id/advance
 async fn advance_stage(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -215,8 +227,6 @@ async fn advance_stage(
 
     Ok(StatusCode::NO_CONTENT)
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     crate::extractors::tenant::resolve_tenant_id(db, user_id).await
