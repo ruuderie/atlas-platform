@@ -207,6 +207,11 @@ impl StripeConnectWebhookHandler {
                     Self::on_charge_refunded(db, charge).await?;
                 }
             }
+            stripe::EventType::CheckoutSessionCompleted => {
+                if let stripe::EventObject::CheckoutSession(session) = event.data.object {
+                    Self::on_checkout_session_completed(db, session).await?;
+                }
+            }
             _ => {
                 tracing::debug!(event_type = ?event.type_, "Stripe webhook: unhandled event type");
             }
@@ -221,6 +226,32 @@ impl StripeConnectWebhookHandler {
         db: &sea_orm::DatabaseConnection,
         intent: stripe::PaymentIntent,
     ) -> Result<()> {
+        // Pre-order / founding checkouts stamp attribution metadata without ledger_entry_id.
+        if !intent.metadata.contains_key("ledger_entry_id") {
+            if intent.metadata.contains_key("conversion_id") {
+                Self::record_attribution_from_metadata(
+                    db,
+                    &intent.metadata,
+                    if intent.amount_received > 0 {
+                        intent.amount_received
+                    } else {
+                        intent.amount
+                    },
+                    intent
+                        .receipt_email
+                        .clone()
+                        .or_else(|| intent.metadata.get("email").cloned()),
+                )
+                .await?;
+            } else {
+                tracing::debug!(
+                    payment_intent = %intent.id,
+                    "payment_intent.succeeded without ledger_entry_id — skipping ledger reconcile"
+                );
+            }
+            return Ok(());
+        }
+
         let ledger_entry_id = Self::extract_ledger_id(&intent.metadata)?;
         let provider_invoice_id = intent.id.to_string();
 
@@ -237,6 +268,67 @@ impl StripeConnectWebhookHandler {
         )
         .await
         .context("LedgerService::mark_paid failed after payment_intent.succeeded")?;
+
+        Ok(())
+    }
+
+    async fn on_checkout_session_completed(
+        db: &sea_orm::DatabaseConnection,
+        session: stripe::CheckoutSession,
+    ) -> Result<()> {
+        let metadata = session.metadata.unwrap_or_default();
+        if !metadata.contains_key("conversion_id") {
+            tracing::debug!(
+                session_id = %session.id,
+                "checkout.session.completed without conversion_id — no attribution to record"
+            );
+            return Ok(());
+        }
+
+        let amount_cents = session.amount_total.unwrap_or(0);
+        let email = session
+            .customer_email
+            .clone()
+            .or_else(|| metadata.get("email").cloned());
+
+        Self::record_attribution_from_metadata(db, &metadata, amount_cents, email).await
+    }
+
+    async fn record_attribution_from_metadata(
+        db: &sea_orm::DatabaseConnection,
+        metadata: &std::collections::HashMap<String, String>,
+        amount_cents: i64,
+        email: Option<String>,
+    ) -> Result<()> {
+        let tenant_id = metadata
+            .get("attribution_tenant_id")
+            .and_then(|s| s.parse::<uuid::Uuid>().ok())
+            .unwrap_or_else(uuid::Uuid::nil);
+
+        let conversion_id = metadata
+            .get("conversion_id")
+            .and_then(|s| s.parse::<uuid::Uuid>().ok())
+            .unwrap_or_else(uuid::Uuid::new_v4);
+
+        if let Err(e) = crate::services::pm::attribution_hooks::record_paid_conversion(
+            db,
+            tenant_id,
+            None,
+            email,
+            "stripe_checkout_sessions",
+            conversion_id,
+            amount_cents,
+            crate::types::pm::AttributionModel::LastTouch,
+            None,
+        )
+        .await
+        {
+            tracing::warn!(
+                error = %e,
+                %conversion_id,
+                "Stripe checkout attribution conversion recording failed"
+            );
+        }
 
         Ok(())
     }

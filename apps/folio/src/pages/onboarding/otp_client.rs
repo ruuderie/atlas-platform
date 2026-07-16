@@ -92,12 +92,11 @@ pub async fn verify_otp(
             ));
         }
 
-        // Forward the session cookie to the browser (same attributes as magic-link verify).
+        // Forward the session cookie (same attributes as magic-link verify).
         if let Some(resp_opts) = resp_opts {
-            if let Ok(cookie_val) = axum::http::HeaderValue::from_str(&format!(
-                "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400",
-                token
-            )) {
+            if let Ok(cookie_val) =
+                axum::http::HeaderValue::from_str(&crate::auth::session_cookie_header(&token))
+            {
                 resp_opts.insert_header(axum::http::header::SET_COOKIE, cookie_val);
             }
         }

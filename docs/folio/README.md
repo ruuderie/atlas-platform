@@ -35,4 +35,4 @@
 | Folio router | `apps/folio/src/app.rs` |
 | Folio CSS tokens | `apps/folio/style/main.css` |
 | Backend Folio handlers | `backend/src/handlers/folio/` |
-| Platform registry (private) | `docs/private/archive/CURRENT_STATE.md` |
+| Platform registry | `docs/CURRENT_STATE.md` |

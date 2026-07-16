@@ -3,11 +3,14 @@ pub mod appliance; // G-10 lifecycle — Appliance tracking (ApplianceMetadata +
 pub mod applications;
 pub mod asset;
 pub mod attribution; // Phase 6 — Multi-channel attribution touchpoints (G20)
+pub mod attribution_hooks; // Attribution conversion helpers for payment flows
 pub mod building_system; // G-10 lifecycle — Building system tracking (elevator, roof, HVAC, fire suppression)
 pub mod campaign; // Phase 6 — Multi-channel campaign management (G19)
+pub mod campaign_dm; // G-19 Direct Mail campaign helpers (mail drops + offer codes)
 pub mod catalog; // Phase 6 — Product catalog, pricebook & availability (G26)
 pub mod commission; // Phase 6 — Commission plan application & splits (G25)
 pub mod condominio;
+pub mod direct_mail; // G-19 DirectMailProvider trait + provider stubs
 pub mod event; // Phase 6 — Event management, ticketing & check-in (G21)
 pub mod fair_housing;
 pub mod household; // G-22 — Lease-scoped tenant declarations: vehicles + occupants (type-safe)

@@ -4,6 +4,7 @@ pub mod app;
 pub mod auth;
 pub mod components;
 pub mod geo;
+pub mod marketing_attribution;
 pub mod models;
 pub mod pages;
 pub mod utils;

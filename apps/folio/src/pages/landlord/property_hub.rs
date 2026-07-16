@@ -56,9 +56,15 @@ pub async fn get_asset_for_dispatch(id: Uuid) -> Result<AssetDetailDto, ServerFn
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token(&headers)
         .ok_or_else(|| ServerFnError::new("No session token"))?;
-    crate::atlas_client::authenticated_get(&format!("/api/folio/assets/{id}"), &token, None)
-        .await
-        .map_err(ServerFnError::new)
+    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
+    crate::atlas_client::authenticated_get_with_headers(
+        &format!("/api/folio/assets/{id}"),
+        &token,
+        None,
+        proxy,
+    )
+    .await
+    .map_err(ServerFnError::new)
 }
 
 #[server(GetAssetChildren, "/api")]
@@ -68,10 +74,12 @@ pub async fn get_asset_children(id: Uuid) -> Result<Vec<AssetChildDto>, ServerFn
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token(&headers)
         .ok_or_else(|| ServerFnError::new("No session token"))?;
-    crate::atlas_client::authenticated_get(
+    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
+    crate::atlas_client::authenticated_get_with_headers(
         &format!("/api/folio/assets/{id}/children"),
         &token,
         None,
+        proxy,
     )
     .await
     .map_err(ServerFnError::new)
@@ -84,10 +92,12 @@ pub async fn get_projects_for_asset(asset_id: Uuid) -> Result<Vec<ProjectSummary
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token(&headers)
         .ok_or_else(|| ServerFnError::new("No session token"))?;
-    crate::atlas_client::authenticated_get(
+    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
+    crate::atlas_client::authenticated_get_with_headers(
         &format!("/api/folio/projects?asset_id={asset_id}"),
         &token,
         None,
+        proxy,
     )
     .await
     .map_err(ServerFnError::new)

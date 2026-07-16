@@ -319,7 +319,7 @@ fn BetaApplication() -> impl IntoView {
         let why_beta_value = why_beta.get();
 
         leptos::task::spawn_local(async move {
-            let body = serde_json::json!({
+            let mut body = serde_json::json!({
                 "first_name": first_name_value,
                 "last_name": last_name_value,
                 "email": email_value,
@@ -332,6 +332,7 @@ fn BetaApplication() -> impl IntoView {
                 "why_beta": why_beta_value,
                 "source": "beta_application"
             });
+            crate::marketing_attribution::merge_into_waitlist_body(&mut body);
 
             let result = gloo_net::http::Request::post("/api/pub/beta-applications")
                 .header("Content-Type", "application/json")
@@ -574,28 +575,11 @@ fn BetaApplication() -> impl IntoView {
 
 #[component]
 fn BetaFooter() -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div>
-                    <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"Modern Landlord OS · Beta Program"</div>
-                </div>
-                <div class="mktg-footer-links">
-                    <a href="/" rel="external">"For Landlords"</a>
-                    <a href="/brokers" rel="external">"For Brokers"</a>
-                    <a href="/property-managers" rel="external">"For PMs"</a>
-                    <a href="/vendors" rel="external">"For Vendors"</a>
-                    <a href="/founding" rel="external">"Lifetime plans"</a>
-                    <a href="/login" rel="external">"Sign in"</a>
-                </div>
-                <div class="mktg-footer-legal">
-                    "© 2026 Folio · Atlas Platform · "
-                    <a href="/legal/privacy">"Privacy"</a>
-                    " · "
-                    <a href="/legal/terms">"Terms"</a>
-                </div>
-            </div>
-        </footer>
+        <MarketingFooter
+            tagline="Modern Landlord OS · Beta Program".to_string()
+            show_page_anchors=false
+        />
     }
 }

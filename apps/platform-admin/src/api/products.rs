@@ -226,3 +226,60 @@ pub async fn bulk_localize(product_id: Uuid) -> Result<serde_json::Value, String
 pub async fn get_waitlist(id: Uuid) -> Result<WaitlistAnalyticsResponse, String> {
     api_get(&format!("api/admin/platform/products/{}/waitlist", id)).await
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProductPixelModel {
+    pub id: Uuid,
+    pub product_id: Uuid,
+    pub name: String,
+    pub pixel_type: String,
+    pub snippet: String,
+    pub inject_at: String,
+    pub is_active: bool,
+}
+
+#[derive(Serialize)]
+struct CreateProductPixelBody {
+    name: String,
+    pixel_type: String,
+    snippet: String,
+    inject_at: Option<String>,
+}
+
+pub async fn list_product_pixels(id: Uuid) -> Result<Vec<ProductPixelModel>, String> {
+    api_get(&format!("api/admin/platform/products/{}/pixels", id)).await
+}
+
+pub async fn create_product_pixel(
+    product_id: Uuid,
+    name: String,
+    pixel_type: String,
+    snippet: String,
+) -> Result<ProductPixelModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/platform/products/{}/pixels", product_id));
+    let req = client.post(&url).json(&CreateProductPixelBody {
+        name,
+        pixel_type,
+        snippet,
+        inject_at: Some("head".to_string()),
+    });
+    api_request(req).await
+}
+
+pub async fn delete_product_pixel(product_id: Uuid, pixel_id: Uuid) -> Result<(), String> {
+    use crate::api::client::with_credentials;
+    use reqwest::StatusCode;
+    let client = create_client();
+    let url = api_url(&format!(
+        "api/admin/platform/products/{}/pixels/{}",
+        product_id, pixel_id
+    ));
+    let req = with_credentials(client.delete(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::NO_CONTENT || res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("Failed to delete pixel: {}", res.status()))
+    }
+}

@@ -5,6 +5,7 @@ pub mod billing;
 pub mod ambassadors; // G-37 — Growth ambassadors / influencers / QR / fulfillment stubs
 pub mod campaigns; // G-19 — Campaign registry: list, detail, create, status update, enrollments
 pub mod compliance;
+pub mod integrations; // Integration webhooks (direct mail providers, etc.)
 pub mod developer_console;
 pub mod feature_flags; // Feature flag registry: global rollout, plan gates, per-NI overrides, audit log
 pub mod passkeys_admin; // Super-admin passkey management: list + revoke all users' passkeys

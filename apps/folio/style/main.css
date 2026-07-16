@@ -887,6 +887,75 @@ a.landlord-card:active {
   border-bottom: none;
 }
 
+.landlord-table__primary {
+  font-weight: 600;
+  color: #191c1e;
+}
+
+.landlord-table__meta {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: #45464d;
+}
+
+.landlord-create-panel {
+  margin-bottom: 1.25rem;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid rgba(198, 198, 205, 0.35);
+  border-radius: 0.75rem;
+}
+
+.landlord-create-panel__title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.landlord-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 720px) {
+  .landlord-create-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.landlord-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #45464d;
+}
+
+.landlord-field--wide {
+  grid-column: 1 / -1;
+}
+
+.landlord-field input,
+.landlord-field select {
+  font: inherit;
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: #191c1e;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(198, 198, 205, 0.55);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.landlord-create-error {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: #b42318;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .landlord-table tbody tr:hover td {
     background: #f2f4f6;
@@ -5989,16 +6058,39 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
 .mktg-footer { background: #050b14; border-top: 1px solid var(--mk-border); padding: 2.5rem 2rem; }
 .mktg-footer-inner {
   max-width: 1200px; margin: 0 auto;
-  display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 1.75rem;
 }
+.mktg-footer-brand { display: flex; flex-direction: column; gap: .25rem; }
 .mktg-footer-logo { font-size: 1.1rem; font-weight: 800; color: #fff; }
 .mktg-footer-tagline { font-size: .78rem; color: var(--mk-muted); }
-.mktg-footer-links { display: flex; gap: 1.5rem; margin-left: auto; }
-.mktg-footer-links a { color: var(--mk-muted); font-size: .85rem; text-decoration: none; transition: color .15s; }
+.mktg-footer-dirs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem 2rem;
+}
+.mktg-footer-col-title {
+  font-size: .7rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: rgba(255,255,255,.45); margin-bottom: .65rem;
+}
+.mktg-footer-col-links {
+  display: flex; flex-direction: column; gap: .55rem;
+}
+.mktg-footer-col-links a,
+.mktg-footer-links a {
+  color: var(--mk-muted); font-size: .9rem; text-decoration: none;
+  transition: color .15s; padding: .15rem 0; min-height: 1.5rem;
+}
+.mktg-footer-col-links a:hover,
 .mktg-footer-links a:hover { color: var(--mk-text); }
+/* Legacy flat link row (kept for any remaining callers) */
+.mktg-footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
 .mktg-footer-legal { font-size: .78rem; color: var(--mk-muted); }
 .mktg-footer-legal a { color: var(--mk-muted); transition: color .15s; }
 .mktg-footer-legal a:hover { color: var(--mk-text); }
+@media (max-width: 720px) {
+  .mktg-footer-dirs { grid-template-columns: 1fr; gap: 1.25rem; }
+  .mktg-footer-col-links a { font-size: .95rem; padding: .35rem 0; }
+}
 
 /* ── Friends & Family referral form ───────────────────────────────────────── */
 .refer-form { display: flex; flex-direction: column; gap: .35rem; }

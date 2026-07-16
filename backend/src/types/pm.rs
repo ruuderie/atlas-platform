@@ -2605,6 +2605,14 @@ pub enum CampaignEventType {
     Converted,
     /// A form on a landing page was filled out.
     FormFill,
+    /// Direct-mail piece submitted to provider / mail house.
+    MailSubmitted,
+    /// Direct-mail piece marked delivered (USPS/Lob webhook).
+    MailDelivered,
+    /// Direct-mail piece returned undeliverable.
+    MailReturned,
+    /// Monetary cost incurred (increments campaign spent_cents).
+    CostIncurred,
 }
 
 impl fmt::Display for CampaignEventType {
@@ -2620,6 +2628,10 @@ impl fmt::Display for CampaignEventType {
             CampaignEventType::SpamReported => write!(f, "spam_reported"),
             CampaignEventType::Converted => write!(f, "converted"),
             CampaignEventType::FormFill => write!(f, "form_fill"),
+            CampaignEventType::MailSubmitted => write!(f, "mail_submitted"),
+            CampaignEventType::MailDelivered => write!(f, "mail_delivered"),
+            CampaignEventType::MailReturned => write!(f, "mail_returned"),
+            CampaignEventType::CostIncurred => write!(f, "cost_incurred"),
         }
     }
 }
@@ -2638,6 +2650,10 @@ impl TryFrom<String> for CampaignEventType {
             "spam_reported" => Ok(CampaignEventType::SpamReported),
             "converted" => Ok(CampaignEventType::Converted),
             "form_fill" => Ok(CampaignEventType::FormFill),
+            "mail_submitted" => Ok(CampaignEventType::MailSubmitted),
+            "mail_delivered" => Ok(CampaignEventType::MailDelivered),
+            "mail_returned" => Ok(CampaignEventType::MailReturned),
+            "cost_incurred" => Ok(CampaignEventType::CostIncurred),
             other => Err(format!("unknown CampaignEventType: {other}")),
         }
     }
@@ -2671,6 +2687,8 @@ pub enum CampaignChannel {
     Referral,
     /// LinkedIn direct message or connection request.
     Linkedin,
+    /// Physical direct mail (postcard, letter, flyer).
+    DirectMail,
 }
 
 impl fmt::Display for CampaignChannel {
@@ -2683,6 +2701,7 @@ impl fmt::Display for CampaignChannel {
             CampaignChannel::Event => write!(f, "event"),
             CampaignChannel::Referral => write!(f, "referral"),
             CampaignChannel::Linkedin => write!(f, "linkedin"),
+            CampaignChannel::DirectMail => write!(f, "direct_mail"),
         }
     }
 }
@@ -2698,6 +2717,7 @@ impl TryFrom<String> for CampaignChannel {
             "event" => Ok(CampaignChannel::Event),
             "referral" => Ok(CampaignChannel::Referral),
             "linkedin" => Ok(CampaignChannel::Linkedin),
+            "direct_mail" | "postcard" | "mail" => Ok(CampaignChannel::DirectMail),
             other => Err(format!("unknown CampaignChannel: {other}")),
         }
     }
@@ -2744,6 +2764,8 @@ pub enum AttributionChannel {
     Content,
     /// Affiliate program click.
     Affiliate,
+    /// Physical direct mail (postcard / letter / flyer QR or typed URL).
+    DirectMail,
 }
 
 impl fmt::Display for AttributionChannel {
@@ -2760,6 +2782,7 @@ impl fmt::Display for AttributionChannel {
             AttributionChannel::Sms => write!(f, "sms"),
             AttributionChannel::Content => write!(f, "content"),
             AttributionChannel::Affiliate => write!(f, "affiliate"),
+            AttributionChannel::DirectMail => write!(f, "direct_mail"),
         }
     }
 }
@@ -2779,6 +2802,7 @@ impl TryFrom<String> for AttributionChannel {
             "sms" => Ok(AttributionChannel::Sms),
             "content" => Ok(AttributionChannel::Content),
             "affiliate" => Ok(AttributionChannel::Affiliate),
+            "direct_mail" | "postcard" | "mail" => Ok(AttributionChannel::DirectMail),
             other => Err(format!("unknown AttributionChannel: {other}")),
         }
     }

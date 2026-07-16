@@ -96,41 +96,65 @@ pub fn CampaignsPage() -> impl IntoView {
     });
 
     let show_new_modal = RwSignal::new(false);
+    let navigate = leptos_router::hooks::use_navigate();
 
     // new campaign form signals
     let new_name = RwSignal::new(String::new());
     let new_type = RwSignal::new("direct_mail".to_string());
     let new_goal = RwSignal::new("lead_capture".to_string());
     let new_budget = RwSignal::new(String::new());
-    let new_utm_src = RwSignal::new(String::new());
-    let new_utm_med = RwSignal::new(String::new());
+    let new_utm_src = RwSignal::new("manual".to_string());
+    let new_utm_med = RwSignal::new("direct_mail".to_string());
     let new_utm_cmp = RwSignal::new(String::new());
+    let new_provider = RwSignal::new("dm_manual".to_string());
+    let new_lp_path = RwSignal::new("/lp/miami-landlords".to_string());
+    let create_error = RwSignal::new(String::new());
 
-    let create_action = move || {
+    let create_action = Action::new_local(move |_: &()| {
         let name = new_name.get();
-        if name.is_empty() {
-            return;
-        }
         let budget = new_budget.get().parse::<i64>().ok().map(|d| d * 100);
+        let utm_medium = if new_type.get() == "direct_mail" {
+            Some("direct_mail".to_string())
+        } else {
+            Some(new_utm_med.get()).filter(|s| !s.is_empty())
+        };
         let input = CreateCampaignInput {
-            name,
+            name: name.clone(),
             campaign_type: new_type.get(),
-            // platform-admin campaigns: tenant_id is nil (cross-tenant) until wired to a tenant selector
             tenant_id: uuid::Uuid::nil(),
             goal_type: Some(new_goal.get()),
             budget_cents: budget,
             utm_source: Some(new_utm_src.get()).filter(|s| !s.is_empty()),
-            utm_medium: Some(new_utm_med.get()).filter(|s| !s.is_empty()),
+            utm_medium,
             utm_campaign: Some(new_utm_cmp.get()).filter(|s| !s.is_empty()),
             starts_at: None,
             ends_at: None,
         };
-        leptos::task::spawn_local(async move {
-            if create_campaign(input).await.is_ok() {
-                campaigns_version.update(|n| *n += 1);
+        let _provider = new_provider.get();
+        let _lp = new_lp_path.get();
+        let nav = navigate.clone();
+        async move {
+            if name.is_empty() {
+                create_error.set("Campaign name is required.".into());
+                return;
             }
-        });
-    };
+            create_error.set(String::new());
+            match create_campaign(input).await {
+                Ok(created) => {
+                    show_new_modal.set(false);
+                    campaigns_version.update(|n| *n += 1);
+                    new_name.set(String::new());
+                    new_utm_cmp.set(String::new());
+                    new_budget.set(String::new());
+                    nav(
+                        &format!("/campaigns/{}", created.id),
+                        leptos_router::NavigateOptions::default(),
+                    );
+                }
+                Err(e) => create_error.set(e),
+            }
+        }
+    });
 
     view! {
         <div class="main-canvas">
@@ -238,22 +262,30 @@ pub fn CampaignsPage() -> impl IntoView {
         // ── New Campaign Modal ───────────────────────────────────────────────
         <Show when=move || show_new_modal.get()>
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div class="bg-surface-container border border-outline-variant/30 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-outline-variant/20 flex items-center justify-between">
-                        <h2 class="text-sm font-bold text-on-surface">"New Campaign"</h2>
+                <div class="bg-surface-container border border-outline-variant/30 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+                    <div class="px-6 py-4 border-b border-outline-variant/20 flex items-center justify-between shrink-0">
+                        <div>
+                            <h2 class="text-sm font-bold text-on-surface">"New Campaign"</h2>
+                            <p class="text-[10px] text-on-surface-variant mt-0.5">
+                                "Direct mail defaults on — unique utm_campaign + offer code before first stamp."
+                            </p>
+                        </div>
                         <button class="btn btn-ghost btn-icon btn-sm" on:click=move |_| show_new_modal.set(false)>
                             <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>
                         </button>
                     </div>
-                    <div class="px-6 py-5 space-y-4">
+                    <div class="px-6 py-5 space-y-4 overflow-y-auto">
+                        <Show when=move || !create_error.get().is_empty()>
+                            <p class="text-xs text-error bg-error/10 border border-error/20 rounded-lg px-3 py-2">{move || create_error.get()}</p>
+                        </Show>
                         // Name
                         <div>
                             <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Campaign Name"</label>
                             <input
-                                type="text" placeholder="e.g. FMCSA Outreach Jun 2026"
+                                type="text" placeholder="e.g. Miami Q3 Landlord Postcard"
                                 class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/60 outline-none"
                                 on:input=move |ev| new_name.set(event_target_value(&ev))
-                                prop:value=new_name
+                                prop:value=move || new_name.get()
                             />
                         </div>
 
@@ -263,7 +295,17 @@ pub fn CampaignsPage() -> impl IntoView {
                                 <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Type"</label>
                                 <select
                                     class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface focus:border-primary/60 outline-none"
-                                    on:change=move |ev| new_type.set(event_target_value(&ev))
+                                    prop:value=move || new_type.get()
+                                    on:change=move |ev| {
+                                        let t = event_target_value(&ev);
+                                        if t == "direct_mail" {
+                                            new_utm_med.set("direct_mail".to_string());
+                                            if new_utm_src.get().is_empty() {
+                                                new_utm_src.set("manual".to_string());
+                                            }
+                                        }
+                                        new_type.set(t);
+                                    }
                                 >
                                     <option value="direct_mail">"Direct Mail"</option>
                                     <option value="cold_email">"Cold Email"</option>
@@ -279,6 +321,7 @@ pub fn CampaignsPage() -> impl IntoView {
                                 <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Goal"</label>
                                 <select
                                     class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface focus:border-primary/60 outline-none"
+                                    prop:value=move || new_goal.get()
                                     on:change=move |ev| new_goal.set(event_target_value(&ev))
                                 >
                                     <option value="lead_capture">"Lead Capture"</option>
@@ -291,6 +334,35 @@ pub fn CampaignsPage() -> impl IntoView {
                             </div>
                         </div>
 
+                        <Show when=move || new_type.get() == "direct_mail">
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Mail provider"</label>
+                                    <select
+                                        class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface focus:border-primary/60 outline-none"
+                                        prop:value=move || new_provider.get()
+                                        on:change=move |ev| new_provider.set(event_target_value(&ev))
+                                    >
+                                        <option value="dm_manual">"Manual CSV (ship now)"</option>
+                                        <option value="dm_lob" disabled>"Lob (coming soon)"</option>
+                                        <option value="dm_property_radar" disabled>"PropertyRadar (coming soon)"</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Landing page path"</label>
+                                    <input type="text"
+                                        class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface font-mono focus:border-primary/60 outline-none"
+                                        prop:value=move || new_lp_path.get()
+                                        on:input=move |ev| new_lp_path.set(event_target_value(&ev))
+                                    />
+                                </div>
+                                <div class="bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 text-[11px] text-on-surface-variant leading-relaxed">
+                                    <span class="font-semibold text-amber-300">"Before you mail: "</span>
+                                    "unique utm_campaign · per-drop utm_content · offer code on piece · QR → tracked LP · record spend on invoice · GA4/Meta pixels live."
+                                </div>
+                            </div>
+                        </Show>
+
                         // UTM section
                         <div class="bg-surface-container-high/30 rounded-lg p-3 space-y-2">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">
@@ -299,57 +371,58 @@ pub fn CampaignsPage() -> impl IntoView {
                             <div class="grid grid-cols-3 gap-2">
                                 <div>
                                     <label class="block text-[10px] text-on-surface-variant/70 mb-1">"utm_source"</label>
-                                    <input type="text" placeholder="direct_mail"
+                                    <input type="text" placeholder="manual"
                                         class="w-full bg-surface-container-low border border-outline-variant/30 rounded px-2 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/60 outline-none"
+                                        prop:value=move || new_utm_src.get()
                                         on:input=move |ev| new_utm_src.set(event_target_value(&ev))
                                     />
                                 </div>
                                 <div>
                                     <label class="block text-[10px] text-on-surface-variant/70 mb-1">"utm_medium"</label>
-                                    <input type="text" placeholder="postcard"
+                                    <input type="text" placeholder="direct_mail"
                                         class="w-full bg-surface-container-low border border-outline-variant/30 rounded px-2 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/60 outline-none"
+                                        prop:value=move || new_utm_med.get()
+                                        prop:readonly=move || new_type.get() == "direct_mail"
                                         on:input=move |ev| new_utm_med.set(event_target_value(&ev))
                                     />
                                 </div>
                                 <div>
                                     <label class="block text-[10px] text-on-surface-variant/70 mb-1">"utm_campaign"</label>
-                                    <input type="text" placeholder="fmcsa_jun26"
+                                    <input type="text" placeholder="miami_q3_dm"
                                         class="w-full bg-surface-container-low border border-outline-variant/30 rounded px-2 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/60 outline-none"
+                                        prop:value=move || new_utm_cmp.get()
                                         on:input=move |ev| new_utm_cmp.set(event_target_value(&ev))
                                     />
                                 </div>
                             </div>
-                            <p class="text-[10px] text-on-surface-variant/50">
-                                "Landing page URL example: "
-                                <span class="font-mono text-primary/70">
-                                    {move || format!("/lp/your-slug?utm_source={}&utm_medium={}&utm_campaign={}",
-                                        new_utm_src.get(), new_utm_med.get(), new_utm_cmp.get())}
-                                </span>
+                            <p class="text-[10px] text-on-surface-variant/50 font-mono break-all">
+                                {move || format!(
+                                    "{}?utm_source={}&utm_medium={}&utm_campaign={}",
+                                    new_lp_path.get(),
+                                    new_utm_src.get(),
+                                    new_utm_med.get(),
+                                    new_utm_cmp.get()
+                                )}
                             </p>
                         </div>
 
                         // Budget
                         <div>
                             <label class="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">"Budget (USD)"</label>
-                            <input type="number" placeholder="5000"
+                            <input type="number" placeholder="2500"
                                 class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/60 outline-none"
+                                prop:value=move || new_budget.get()
                                 on:input=move |ev| new_budget.set(event_target_value(&ev))
                             />
                         </div>
                     </div>
-                    <div class="px-6 py-4 border-t border-outline-variant/20 flex justify-end gap-3">
+                    <div class="px-6 py-4 border-t border-outline-variant/20 flex justify-end gap-3 shrink-0">
                         <button class="btn btn-ghost"
                             on:click=move |_| show_new_modal.set(false)>"Cancel"</button>
                         <button
                             class="btn btn-primary"
-                        on:click=move |_| {
-                                let name = new_name.get();
-                                if name.is_empty() { return; }
-                                show_new_modal.set(false);
-                                create_action();
-                                new_name.set(String::new());
-                            }
-                        >"Create Campaign"</button>
+                            on:click=move |_| { create_action.dispatch(()); }
+                        >{move || if new_type.get() == "direct_mail" { "Create & add first drop" } else { "Create Campaign" }}</button>
                     </div>
                 </div>
             </div>
@@ -585,7 +658,7 @@ pub fn CampaignDetail() -> impl IntoView {
 
                             // ── Tabs ─────────────────────────────────────────
                             <div class="tab-bar">
-                                {[("overview", "Overview"), ("referrers", "Referrers"), ("ambassadors", "Ambassadors"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
+                                {[("overview", "Overview"), ("drops", "Drops"), ("spend", "Spend"), ("attribution", "Attribution"), ("referrers", "Referrers"), ("ambassadors", "Ambassadors"), ("members", "Members"), ("landing-pages", "Landing + QR"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
                                     let slug = slug.to_string();
                                     let label = label.to_string();
                                     let slug2 = slug.clone();
@@ -605,6 +678,16 @@ pub fn CampaignDetail() -> impl IntoView {
                             // ── Tab: Overview ────────────────────────────────
                             <Show when=move || active_tab.get() == "overview">
                                 <OverviewTab campaign_id=id />
+                            </Show>
+
+                            <Show when=move || active_tab.get() == "drops">
+                                <DmDropsTab campaign_id=id />
+                            </Show>
+                            <Show when=move || active_tab.get() == "spend">
+                                <DmSpendTab campaign_id=id />
+                            </Show>
+                            <Show when=move || active_tab.get() == "attribution">
+                                <DmAttributionTab campaign_id=id />
                             </Show>
 
                             // ── Tab: Referrers ───────────────────────────────
@@ -630,9 +713,14 @@ pub fn CampaignDetail() -> impl IntoView {
                                 <MembersTab campaign_id=id />
                             </Show>
 
-                            // ── Tab: Landing Pages ───────────────────────────
+                            // ── Tab: Landing + QR ────────────────────────────
                             <Show when=move || active_tab.get() == "landing-pages">
-                                <LandingPagesTab utm_campaign=utm_for_landing_pages.clone() />
+                                <LandingPagesTab
+                                    campaign_id=id
+                                    utm_campaign=utm_for_landing_pages.clone()
+                                    utm_source=utm_source.clone()
+                                    utm_medium=utm_medium.clone()
+                                />
                             </Show>
 
                             // ── Tab: Sequence ────────────────────────────────
@@ -968,14 +1056,43 @@ fn MembersTab(campaign_id: uuid::Uuid) -> impl IntoView {
 // ── Landing Pages Tab ─────────────────────────────────────────────────────────
 
 #[component]
-fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
+fn LandingPagesTab(
+    campaign_id: uuid::Uuid,
+    utm_campaign: String,
+    utm_source: String,
+    utm_medium: String,
+) -> impl IntoView {
     let products_res =
         LocalResource::new(move || async move { get_products().await.unwrap_or_default() });
 
     let utm_cmp = utm_campaign.clone();
+    let qr_url = crate::api::admin::campaign_qr_url(campaign_id);
+    let tracked_preview = format!(
+        "?utm_source={}&utm_medium={}&utm_campaign={}&utm_content={{drop}}",
+        utm_source, utm_medium, utm_cmp
+    );
 
     view! {
         <div class="space-y-4">
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                <div class="px-4 py-3 border-b border-outline-variant/15 flex items-center justify-between gap-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Landing + QR"</h3>
+                    <a class="btn btn-ghost btn-sm" href=qr_url.clone()
+                        style="text-decoration:none" target="_blank" rel="noopener">
+                        "Download QR PNG"
+                    </a>
+                </div>
+                <div class="px-5 py-4 text-xs text-on-surface-variant leading-relaxed space-y-2">
+                    <p>
+                        "Print the QR on the piece so it lands on the tracked LP. Full query shape:"
+                    </p>
+                    <p class="font-mono text-[11px] text-primary/80 break-all">{tracked_preview}</p>
+                    <p class="text-[10px] text-on-surface-variant/60">
+                        "Replace the drop placeholder with each drop’s utm_content. Offer codes are redeemed on waitlist, not in the URL."
+                    </p>
+                </div>
+            </div>
+
             // Explainer
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">"How Campaign → Landing Page Linking Works"</h3>
@@ -1002,6 +1119,8 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
             <Suspense fallback=|| view! { <div class="text-xs text-on-surface-variant/60 animate-pulse">"Loading landing pages..."</div> }>
                 {move || {
                     let cmp = utm_campaign.clone();
+                    let src = utm_source.clone();
+                    let med = utm_medium.clone();
                     products_res.get().map(|products| {
                         if products.is_empty() {
                             return view! {
@@ -1016,7 +1135,10 @@ fn LandingPagesTab(utm_campaign: String) -> impl IntoView {
                             <div class="space-y-3">
                                 {products.into_iter().map(|p| {
                                     let slug = p.slug.clone();
-                                    let lp_url = format!("/lp/{}?utm_source=direct_mail&utm_medium=postcard&utm_campaign={}", slug, cmp);
+                                    let lp_url = format!(
+                                        "/lp/{}?utm_source={}&utm_medium={}&utm_campaign={}",
+                                        slug, src, med, cmp
+                                    );
                                     let lp_url2 = lp_url.clone();
                                     #[cfg(not(target_arch = "wasm32"))]
                                     let _ = &lp_url2;
@@ -1099,6 +1221,318 @@ fn SequenceTab() -> impl IntoView {
                 "or direct mail follow-ups. Steps are executed by the campaign engine based on enrollment date."
             </p>
             <p class="text-xs text-primary/60 mt-3">"Sequence builder coming next."</p>
+        </div>
+    }
+}
+
+// ── Direct Mail: Drops / Spend / Attribution ──────────────────────────────────
+
+#[component]
+fn DmDropsTab(campaign_id: uuid::Uuid) -> impl IntoView {
+    use crate::api::admin::{create_mail_drop, create_offer_code, list_mail_drops, list_offer_codes};
+    let version = RwSignal::new(0u32);
+    let drop_name = RwSignal::new(String::new());
+    let offer_code = RwSignal::new(String::new());
+    let piece_count = RwSignal::new("500".to_string());
+    let unit_cost = RwSignal::new(String::new());
+    let drops = LocalResource::new(move || async move {
+        let _ = version.get();
+        list_mail_drops(campaign_id).await.unwrap_or_default()
+    });
+    let codes = LocalResource::new(move || async move {
+        let _ = version.get();
+        list_offer_codes(campaign_id).await.unwrap_or_default()
+    });
+
+    view! {
+        <div class="space-y-4">
+            <div class="bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3 text-[11px] text-on-surface-variant leading-relaxed">
+                <span class="font-semibold text-amber-300">"Print checklist. "</span>
+                "One drop = one creative. Print offer code on the piece + QR to tracked LP. Export CSV for the mail house, then record spend when invoiced."
+            </div>
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-4 flex flex-wrap gap-3 items-end">
+                <div>
+                    <label class="text-[10px] uppercase text-on-surface-variant">"Drop name"</label>
+                    <input class="block mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs"
+                        placeholder="Postcard A"
+                        prop:value=move || drop_name.get()
+                        on:input=move |ev| drop_name.set(event_target_value(&ev))
+                    />
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase text-on-surface-variant">"Offer code"</label>
+                    <input class="block mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs font-mono"
+                        placeholder="MIAMI-A"
+                        prop:value=move || offer_code.get()
+                        on:input=move |ev| offer_code.set(event_target_value(&ev))
+                    />
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase text-on-surface-variant">"Pieces"</label>
+                    <input class="block mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs w-20"
+                        prop:value=move || piece_count.get()
+                        on:input=move |ev| piece_count.set(event_target_value(&ev))
+                    />
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase text-on-surface-variant">"Unit cost (USD)"</label>
+                    <input class="block mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs w-24"
+                        placeholder="2.40"
+                        prop:value=move || unit_cost.get()
+                        on:input=move |ev| unit_cost.set(event_target_value(&ev))
+                    />
+                </div>
+                <button class="btn btn-primary btn-sm"
+                    on:click=move |_| {
+                        let name = drop_name.get();
+                        let code = offer_code.get();
+                        let pieces: i32 = piece_count.get().parse().unwrap_or(0);
+                        let unit_cents = unit_cost.get().parse::<f64>().ok().map(|d| (d * 100.0) as i64);
+                        if name.is_empty() { return; }
+                        let utm = name.to_lowercase().replace(' ', "_");
+                        leptos::task::spawn_local(async move {
+                            if let Ok(drop) = create_mail_drop(campaign_id, &name, Some(&utm), pieces, unit_cents).await {
+                                if !code.is_empty() {
+                                    let _ = create_offer_code(campaign_id, &code, Some(drop.id)).await;
+                                }
+                                drop_name.set(String::new());
+                                offer_code.set(String::new());
+                                version.update(|n| *n += 1);
+                            }
+                        });
+                    }
+                >"+ Add drop"</button>
+                <a class="btn btn-ghost btn-sm" href=crate::api::admin::campaign_qr_url(campaign_id)
+                    style="text-decoration:none" target="_blank">"QR PNG"</a>
+                <a class="btn btn-ghost btn-sm" href=crate::api::admin::campaign_export_url(campaign_id)
+                    style="text-decoration:none" target="_blank">"Export CSV"</a>
+            </div>
+            <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant">"Loading drops…"</p> }>
+                {move || {
+                    let list = drops.get().unwrap_or_default();
+                    let code_list = codes.get().unwrap_or_default();
+                    view! {
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                            <table class="w-full text-left text-xs">
+                                <thead><tr class="border-b border-outline-variant/20 text-[10px] uppercase text-on-surface-variant">
+                                    <th class="px-4 py-2">"Drop"</th>
+                                    <th class="px-4 py-2">"utm_content"</th>
+                                    <th class="px-4 py-2">"Offer"</th>
+                                    <th class="px-4 py-2 text-right">"Pieces"</th>
+                                    <th class="px-4 py-2 text-right">"Cost"</th>
+                                    <th class="px-4 py-2">"Status"</th>
+                                </tr></thead>
+                                <tbody>
+                                    {list.into_iter().map(|d| {
+                                        let offer = code_list.iter()
+                                            .find(|c| c.mail_drop_id == Some(d.id))
+                                            .map(|c| c.code.clone())
+                                            .unwrap_or_else(|| "—".into());
+                                        let cost = match (d.unit_cost_cents, d.piece_count) {
+                                            (Some(u), n) if n > 0 => format!("${:.0}", (u * n as i64) as f64 / 100.0),
+                                            _ => "—".into(),
+                                        };
+                                        view! {
+                                            <tr class="border-b border-outline-variant/10">
+                                                <td class="px-4 py-2 font-semibold">{d.drop_name}</td>
+                                                <td class="px-4 py-2 font-mono">{d.utm_content.unwrap_or_default()}</td>
+                                                <td class="px-4 py-2 font-mono">{offer}</td>
+                                                <td class="px-4 py-2 text-right font-mono">{d.piece_count}</td>
+                                                <td class="px-4 py-2 text-right font-mono">{cost}</td>
+                                                <td class="px-4 py-2">{d.status}</td>
+                                            </tr>
+                                        }
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }}
+            </Suspense>
+        </div>
+    }
+}
+
+#[component]
+fn DmSpendTab(campaign_id: uuid::Uuid) -> impl IntoView {
+    use crate::api::admin::{get_campaign, record_campaign_spend};
+    let amount = RwSignal::new(String::new());
+    let source = RwSignal::new("mail_house_invoice".to_string());
+    let external_ref = RwSignal::new(String::new());
+    let msg = RwSignal::new(String::new());
+    let version = RwSignal::new(0u32);
+    let spent = LocalResource::new(move || async move {
+        let _ = version.get();
+        get_campaign(campaign_id).await.map(|c| (c.spent_cents, c.budget_cents, c.total_conversions)).ok()
+    });
+
+    view! {
+        <div class="space-y-4 max-w-xl">
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 space-y-4">
+                <Suspense fallback=|| view! { <p class="text-xs">"…"</p> }>
+                    {move || spent.get().flatten().map(|(s, b, conv)| {
+                        let cac = if conv > 0 { format!("${:.0}", s as f64 / 100.0 / conv as f64) } else { "—".into() };
+                        view! {
+                            <div class="grid grid-cols-3 gap-3 text-center">
+                                <div><div class="text-[10px] uppercase text-on-surface-variant">"Spent"</div>
+                                    <div class="text-lg font-bold font-mono text-amber-400">{format!("${:.0}", s as f64 / 100.0)}</div></div>
+                                <div><div class="text-[10px] uppercase text-on-surface-variant">"Budget"</div>
+                                    <div class="text-lg font-bold font-mono">{b.map(|x| format!("${:.0}", x as f64 / 100.0)).unwrap_or("—".into())}</div></div>
+                                <div><div class="text-[10px] uppercase text-on-surface-variant">"CAC"</div>
+                                    <div class="text-lg font-bold font-mono text-primary">{cac}</div></div>
+                            </div>
+                        }
+                    })}
+                </Suspense>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="text-[10px] uppercase text-on-surface-variant">"Amount (USD)"</label>
+                        <input class="w-full mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs"
+                            prop:value=move || amount.get()
+                            on:input=move |ev| amount.set(event_target_value(&ev))
+                            placeholder="1200"
+                        />
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase text-on-surface-variant">"Source"</label>
+                        <input class="w-full mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs font-mono"
+                            prop:value=move || source.get()
+                            on:input=move |ev| source.set(event_target_value(&ev))
+                        />
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase text-on-surface-variant">"Invoice ref"</label>
+                        <input class="w-full mt-1 px-2 py-1.5 rounded border border-outline-variant/30 bg-surface text-xs"
+                            prop:value=move || external_ref.get()
+                            on:input=move |ev| external_ref.set(event_target_value(&ev))
+                            placeholder="INV-7841"
+                        />
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm"
+                    on:click=move |_| {
+                        let dollars: f64 = amount.get().parse().unwrap_or(0.0);
+                        if dollars <= 0.0 { return; }
+                        let cents = (dollars * 100.0) as i64;
+                        let src = source.get();
+                        let xref = external_ref.get();
+                        let xref = if xref.is_empty() { None } else { Some(xref) };
+                        leptos::task::spawn_local(async move {
+                            match record_campaign_spend(campaign_id, cents, &src, xref.as_deref()).await {
+                                Ok(_) => {
+                                    msg.set("Spend recorded.".into());
+                                    amount.set(String::new());
+                                    version.update(|n| *n += 1);
+                                }
+                                Err(e) => msg.set(e),
+                            }
+                        });
+                    }
+                >"Record spend"</button>
+                <p class="text-xs text-on-surface-variant">{move || msg.get()}</p>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn DmAttributionTab(campaign_id: uuid::Uuid) -> impl IntoView {
+    use crate::api::admin::{get_campaign, get_campaign_attribution};
+    let meta = LocalResource::new(move || async move {
+        get_campaign(campaign_id).await.ok()
+    });
+    let data = LocalResource::new(move || async move {
+        get_campaign_attribution(campaign_id).await.unwrap_or_default()
+    });
+    view! {
+        <div class="space-y-4">
+            <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant">"…"</p> }>
+                {move || meta.get().flatten().map(|c| {
+                    let conv = c.total_conversions.max(0);
+                    let cac = if conv > 0 {
+                        format!("${:.0}", c.spent_cents as f64 / 100.0 / conv as f64)
+                    } else {
+                        "—".into()
+                    };
+                    view! {
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3">
+                                <div class="text-[10px] uppercase text-on-surface-variant">"Spent"</div>
+                                <div class="text-lg font-bold font-mono">{format!("${:.0}", c.spent_cents as f64 / 100.0)}</div>
+                            </div>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3">
+                                <div class="text-[10px] uppercase text-on-surface-variant">"Conversions"</div>
+                                <div class="text-lg font-bold font-mono text-emerald-400">{conv}</div>
+                            </div>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3">
+                                <div class="text-[10px] uppercase text-on-surface-variant">"CAC"</div>
+                                <div class="text-lg font-bold font-mono text-primary">{cac}</div>
+                            </div>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-4 py-3">
+                                <div class="text-[10px] uppercase text-on-surface-variant">"Model"</div>
+                                <div class="text-sm font-semibold">"last_touch · 30d"</div>
+                            </div>
+                        </div>
+                    }
+                })}
+            </Suspense>
+            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                <div class="px-4 py-3 border-b border-outline-variant/15 flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"G-20 touchpoints"</h3>
+                    <span class="text-[10px] text-on-surface-variant/60">"Campaign-scoped · not a global Attribution Dashboard"</span>
+                </div>
+                <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant p-4">"Loading…"</p> }>
+                    {move || {
+                        let list = data.get().unwrap_or_default();
+                        if list.is_empty() {
+                            view! {
+                                <p class="text-xs text-on-surface-variant p-6 text-center">
+                                    "No touchpoints yet. LP views and waitlist with UTMs / offer codes will appear here."
+                                </p>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <table class="w-full text-left text-xs">
+                                    <thead>
+                                        <tr class="border-b border-outline-variant/20 text-[10px] uppercase text-on-surface-variant">
+                                            <th class="px-4 py-2">"When"</th>
+                                            <th class="px-4 py-2">"Channel"</th>
+                                            <th class="px-4 py-2">"Identity"</th>
+                                            <th class="px-4 py-2">"utm_content"</th>
+                                            <th class="px-4 py-2">"Event"</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {list.into_iter().map(|tp| {
+                                            let identity = tp.contact_email.clone()
+                                                .or_else(|| tp.anonymous_id.map(|a| {
+                                                    let short = if a.len() > 8 { format!("anon:{}…", &a[..8]) } else { format!("anon:{a}") };
+                                                    short
+                                                }))
+                                                .unwrap_or_else(|| "—".into());
+                                            let event = match (&tp.conversion_entity_type, tp.conversion_value_cents) {
+                                                (Some(t), Some(v)) => format!("{t} · ${:.0}", v as f64 / 100.0),
+                                                (Some(t), None) => t.clone(),
+                                                _ => "touch".into(),
+                                            };
+                                            let when = tp.occurred_at.replace('T', " ").chars().take(16).collect::<String>();
+                                            view! {
+                                                <tr class="border-b border-outline-variant/10">
+                                                    <td class="px-4 py-2 font-mono text-[11px]">{when}</td>
+                                                    <td class="px-4 py-2"><span class="text-[9px] uppercase font-bold tracking-wider text-amber-400 border border-amber-500/30 bg-amber-500/10 rounded px-1.5 py-0.5">{tp.channel}</span></td>
+                                                    <td class="px-4 py-2 font-mono text-[11px]">{identity}</td>
+                                                    <td class="px-4 py-2 font-mono text-[11px]">{tp.utm_content.unwrap_or_default()}</td>
+                                                    <td class="px-4 py-2">{event}</td>
+                                                </tr>
+                                            }
+                                        }).collect_view()}
+                                    </tbody>
+                                </table>
+                            }.into_any()
+                        }
+                    }}
+                </Suspense>
+            </div>
         </div>
     }
 }

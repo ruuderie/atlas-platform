@@ -377,7 +377,7 @@ fn MktgHero(
     let eyebrow = hero
         .eyebrow
         .clone()
-        .unwrap_or_else(|| "Beta Access Open · US · Canada · Brazil".to_string());
+        .unwrap_or_else(|| "Beta Access Open · US · Canada".to_string());
     let headline = hero
         .headline
         .clone()
@@ -395,7 +395,7 @@ fn MktgHero(
             "Built by a landlord".to_string(),
             "No setup fee".to_string(),
             "Long-term + vacation rentals".to_string(),
-            "US · Canada · Brazil".to_string(),
+            "US · Canada".to_string(),
         ]
     } else {
         hero.proof_items
@@ -461,7 +461,7 @@ fn MktgHero(
             let src = source.get();
             let p = phone.get();
             leptos::task::spawn_local(async move {
-                let body = serde_json::json!({
+                let mut body = serde_json::json!({
                     "email":               e,
                     "role":                if r.is_empty() { serde_json::Value::Null } else { r.into() },
                     "portfolio_size_label": if s.is_empty() { serde_json::Value::Null } else { s.into() },
@@ -469,6 +469,7 @@ fn MktgHero(
                     "utm_source":          if src.is_empty() { serde_json::Value::Null } else { src.into() },
                     "variant_slug":        vs3,
                 });
+                crate::marketing_attribution::merge_into_waitlist_body(&mut body);
                 let resp = gloo_net::http::Request::post(&url)
                     .header("Content-Type", "application/json")
                     .body(body.to_string())
@@ -892,7 +893,7 @@ fn MktgFeatures(#[prop(default = None)] override_block: Option<FeatureGridBlock>
         ("analytics", "Portfolio dashboard", "See your income, vacancies, and maintenance costs across every property at a glance."),
         ("campaign", "Vacancy marketing", "List your vacancy, collect applications, screen tenants, and convert to a signed lease — one workflow."),
         ("groups", "Contractor marketplace", "Find vetted contractors, send them work orders, receive invoices, and leave reviews — all inside Folio."),
-        ("language", "Multi-country", "United States · Canada · Brazil — with more countries on the way."),
+        ("language", "Multi-country", "United States · Canada — with more markets on the way."),
     ];
     let cells: Vec<(String, String, String)> = override_block
         .and_then(|block| (!block.items.is_empty()).then_some(block.items))
@@ -1095,14 +1096,9 @@ fn MktgInternational(
             "ON · BC · QC · PIPEDA-compliant · EFT rails",
         ),
         (
-            "🇧🇷",
-            "Brazil",
-            "LGPD-compliant · PIX payment rail · Curitiba + São Paulo",
-        ),
-        (
             "🌎",
             "More markets",
-            "Latin America expansion Q3 2026 · EU planned",
+            "Additional markets planned — expand when you're ready",
         ),
     ];
     let markets: Vec<(String, String, String)> = override_block
@@ -1159,17 +1155,12 @@ fn MktgPayments(
     let subhead = override_block
         .as_ref()
         .and_then(|block| block.subhead.clone())
-        .unwrap_or_else(|| "The unified ledger handles every rail — ACH, card, PIX — and automatically splits payments between principal, fees, and reserves.".to_string());
+        .unwrap_or_else(|| "The unified ledger handles every rail — ACH, EFT, and card — and automatically splits payments between principal, fees, and reserves.".to_string());
     let default_rails = vec![
         (
             "💳",
             "ACH / EFT",
             "US and Canada bank transfers. 1–2 business day settlement.",
-        ),
-        (
-            "⚡",
-            "PIX",
-            "Brazil's instant payment rail. Settlement in seconds.",
         ),
         (
             "💰",
@@ -1307,7 +1298,7 @@ fn folio_landlord_fallback_plans() -> Vec<crate::pages::marketing::marketing_pri
                 "Vacation rental calendar & channels".into(),
                 "STR compliance & permits".into(),
                 "Portfolio analytics".into(),
-                "Multi-country (US, Canada, Brazil)".into(),
+                "Multi-country (US, Canada)".into(),
                 "Priority support".into(),
             ],
             cta_label: DEFAULT_MARKETING_NAV_CTA.into(),
@@ -1422,46 +1413,23 @@ fn BetaCalloutStrip(
 
 #[component]
 fn MktgFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     let tagline = override_block
         .as_ref()
         .and_then(|block| block.tagline.clone())
         .unwrap_or_else(|| "Modern Landlord OS".to_string());
-    let links: Vec<(String, String)> = override_block
-        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
-        .map(|links| {
-            links
+    let override_links = override_block
+        .filter(|block| !block.links.is_empty())
+        .map(|block| {
+            block
+                .links
                 .into_iter()
                 .map(|link| (link.label, link.href))
-                .collect()
+                .collect::<Vec<_>>()
         })
-        .unwrap_or_else(|| {
-            vec![
-                ("Sign in".to_string(), "/login".to_string()),
-                ("Pricing".to_string(), "#pricing".to_string()),
-                ("Features".to_string(), "#features".to_string()),
-            ]
-        });
-
+        .unwrap_or_default();
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div>
-                    <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">{tagline}</div>
-                </div>
-                <div class="mktg-footer-links">
-                    {links.into_iter().map(|(label, href)| view! {
-                        <a href=href rel="external">{label}</a>
-                    }).collect_view()}
-                </div>
-                <div class="mktg-footer-legal">
-                    "© 2026 Folio · Atlas Platform · "
-                    <a href="/legal/privacy">"Privacy"</a>
-                    " · "
-                    <a href="/legal/terms">"Terms"</a>
-                </div>
-            </div>
-        </footer>
+        <MarketingFooter tagline=tagline override_links=override_links/>
     }
 }
 

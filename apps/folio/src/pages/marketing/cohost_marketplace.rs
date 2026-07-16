@@ -585,26 +585,16 @@ pub fn CohostMarketplace() -> impl IntoView {
             </section>
 
             // ── Footer ────────────────────────────────────────────────────────
-            <footer class="mktg-footer">
-                <div class="mktg-footer-inner">
-                    <div>
-                        <div class="mktg-footer-logo">"Folio"</div>
-                        <div class="mktg-footer-tagline">"Modern Landlord OS"</div>
-                    </div>
-                    <div class="mktg-footer-links">
-                        <a href="/login">"Sign in"</a>
-                        <a href="/lp#pricing">"Pricing"</a>
-                        <a href="/lp#features">"Features"</a>
-                        <a href="/cohost-market">"Cohost Network"</a>
-                    </div>
-                    <div class="mktg-footer-legal">
-                        "© 2026 Folio · Atlas Platform · "
-                        <a href="/legal/privacy">"Privacy"</a>
-                        " · "
-                        <a href="/legal/terms">"Terms"</a>
-                    </div>
-                </div>
-            </footer>
+            {
+                use crate::components::marketing_footer::MarketingFooter;
+                view! {
+                    <MarketingFooter
+                        tagline="Modern Landlord OS".to_string()
+                        pricing_href="/lp#pricing"
+                        features_href="/lp#features"
+                    />
+                }
+            }
 
             // ── Connect modal ─────────────────────────────────────────────────
             {move || connect_open.get().map(|idx| {

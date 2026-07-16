@@ -57,6 +57,9 @@ pub struct SendOtpRequest {
 pub struct VerifyOtpRequest {
     pub email: String,
     pub code: String,
+    /// Optional G-20 anonymous id from Folio localStorage for identity resolve.
+    #[serde(default)]
+    pub anonymous_id: Option<String>,
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -381,6 +384,22 @@ async fn verify_otp(
         event = "otp.verified",
         user_id = %user.id,
     );
+
+    // Best-effort: link prior anonymous marketing touchpoints to this user.
+    if let Some(anon) = req
+        .anonymous_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        // Platform acquisition uses sentinel tenant — resolve across known tenant if possible.
+        // Folio authenticated resolve is preferred; this covers cold OTP before tenant role.
+        let sentinel = Uuid::nil();
+        let _ = crate::services::pm::attribution::AttributionService::resolve_identity(
+            &db, sentinel, anon, user.id,
+        )
+        .await;
+    }
 
     Ok((
         StatusCode::OK,

@@ -46,11 +46,16 @@ use uuid::Uuid;
 
 use crate::entities::{
     app_page, app_page_variant, atlas_campaign, atlas_lead, outbox_job, platform_product,
-    platform_product_plan, product_page::{template, variant},
+    platform_product_plan, product_page::{template, variant}, product_tracking_pixel,
 };
-use crate::services::pm::campaign::{CampaignService, EnrollContactPayload, RecordEventPayload};
+use crate::services::flag_service::FlagService;
+use crate::services::pm::{
+    attribution::{AttributionService, CapturePayload, UtmParams},
+    campaign::{CampaignService, EnrollContactPayload, RecordEventPayload},
+    campaign_dm,
+};
 use crate::types::gtm::PlanTier;
-use crate::types::pm::{CampaignChannel, CampaignEventType};
+use crate::types::pm::{AttributionChannel, CampaignChannel, CampaignEventType};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -125,6 +130,15 @@ pub struct ProductPageResponse {
     pub variant_id: Option<Uuid>,
     pub serve_source: ServeSource,
     pub plans: Vec<PublicProductPlan>,
+    #[serde(default)]
+    pub pixels: Vec<PublicPixelSnippet>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PublicPixelSnippet {
+    pub pixel_type: String,
+    pub snippet: String,
+    pub inject_at: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -209,6 +223,10 @@ pub struct WaitlistBody {
     /// Friends & Family / referral attribution — who shared the link.
     /// Also mirrored into utm_content when that field is empty.
     pub referred_by: Option<String>,
+    /// Direct mail offer code for attribution and redemption tracking.
+    pub offer_code: Option<String>,
+    /// Client-side anonymous visitor id (localStorage) for G-20 identity resolve.
+    pub anonymous_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -217,6 +235,10 @@ pub struct PreOrderBody {
     pub name: Option<String>,
     pub success_url: String,
     pub cancel_url: String,
+    /// Optional DM / campaign attribution (mirrored into Stripe metadata).
+    pub offer_code: Option<String>,
+    pub campaign_id: Option<Uuid>,
+    pub anonymous_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -377,6 +399,39 @@ async fn load_public_plans_by_slug(
     }
 }
 
+async fn load_active_pixels(db: &DatabaseConnection, product_id: Uuid) -> Vec<PublicPixelSnippet> {
+    product_tracking_pixel::Entity::find()
+        .filter(product_tracking_pixel::Column::ProductId.eq(product_id))
+        .filter(product_tracking_pixel::Column::IsActive.eq(true))
+        .order_by_asc(product_tracking_pixel::Column::CreatedAt)
+        .all(db)
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(|r| PublicPixelSnippet {
+                    pixel_type: r.pixel_type,
+                    snippet: r.snippet,
+                    inject_at: r.inject_at,
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+async fn load_active_pixels_by_slug(
+    db: &DatabaseConnection,
+    product_slug: &str,
+) -> Vec<PublicPixelSnippet> {
+    match platform_product::Entity::find()
+        .filter(platform_product::Column::Slug.eq(product_slug))
+        .one(db)
+        .await
+    {
+        Ok(Some(product)) => load_active_pixels(db, product.id).await,
+        _ => vec![],
+    }
+}
+
 fn cdn_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -529,6 +584,7 @@ async fn get_product_master(
             };
         let hreflang = load_hreflang(&db, pg.id, &slug).await;
         let plans = load_public_plans_by_slug(&db, &slug).await;
+        let pixels = load_active_pixels_by_slug(&db, &slug).await;
         let product_waitlist_count = platform_product::Entity::find()
             .filter(platform_product::Column::Slug.eq(&slug))
             .one(&db)
@@ -568,6 +624,7 @@ async fn get_product_master(
             variant_id,
             serve_source: ServeSource::Cms,
             plans,
+            pixels,
         };
         let mut resp = (StatusCode::OK, Json(page)).into_response();
         *resp.headers_mut() = cdn_headers();
@@ -587,6 +644,7 @@ async fn get_product_master(
 
     let hreflang = load_hreflang(&db, product.id, &slug).await;
     let plans = load_public_plans(&db, product.id).await;
+    let pixels = load_active_pixels(&db, product.id).await;
     let base = base_url();
 
     let meta_title = tmpl.meta_title.clone().unwrap_or_else(|| {
@@ -630,6 +688,7 @@ async fn get_product_master(
         variant_id: None,
         serve_source: ServeSource::ProductTemplate,
         plans,
+        pixels,
     };
 
     let mut resp = (StatusCode::OK, Json(page)).into_response();
@@ -692,6 +751,7 @@ async fn get_product_variant(
 
         let base = base_url();
         let plans = load_public_plans_by_slug(&db, &slug).await;
+        let pixels = load_active_pixels_by_slug(&db, &slug).await;
         let product_waitlist_count = platform_product::Entity::find()
             .filter(platform_product::Column::Slug.eq(&slug))
             .one(&db)
@@ -730,6 +790,7 @@ async fn get_product_variant(
             variant_id: ab_variant_id,
             serve_source: ServeSource::Cms,
             plans,
+            pixels,
         };
         let mut resp = (StatusCode::OK, Json(page)).into_response();
         *resp.headers_mut() = cdn_headers();
@@ -763,6 +824,7 @@ async fn get_product_variant(
 
     let hreflang = load_hreflang(&db, product.id, &slug).await;
     let plans = load_public_plans(&db, product.id).await;
+    let pixels = load_active_pixels(&db, product.id).await;
     let base = base_url();
 
     // Merge: variant overrides template
@@ -840,6 +902,7 @@ async fn get_product_variant(
         variant_id: None,
         serve_source: ServeSource::ProductTemplate,
         plans,
+        pixels,
     };
 
     let mut resp = (StatusCode::OK, Json(page)).into_response();
@@ -1095,6 +1158,90 @@ async fn join_waitlist_inner(
         match new_lead.insert(db).await {
             Ok(lead) => {
                 inserted_lead_id = Some(lead.id);
+                
+                // ── Attribution Touchpoint Capture ──────────────────────────────────
+                // Map utm_medium to AttributionChannel with DirectMail priority
+                let attribution_channel = if body.offer_code.is_some() 
+                    || matches!(body.utm_medium.as_deref(), Some("direct_mail" | "postcard" | "mail")) {
+                    AttributionChannel::DirectMail
+                } else {
+                    // Best-effort mapping from utm_medium
+                    body.utm_medium.as_deref()
+                        .and_then(|medium| match medium {
+                            "cpc" | "ppc" | "paid_search" => Some(AttributionChannel::PaidSearch),
+                            "organic" | "seo" => Some(AttributionChannel::OrganicSearch),
+                            "social" => Some(AttributionChannel::OrganicSocial),
+                            "paid_social" => Some(AttributionChannel::PaidSocial),
+                            "email" => Some(AttributionChannel::ColdEmail),
+                            "referral" => Some(AttributionChannel::Referral),
+                            "sms" => Some(AttributionChannel::Sms),
+                            "content" => Some(AttributionChannel::Content),
+                            "affiliate" => Some(AttributionChannel::Affiliate),
+                            _ => None,
+                        })
+                        .unwrap_or(AttributionChannel::Direct)
+                };
+
+                // Resolve campaign_id from offer_code if provided
+                let mut resolved_campaign_id = None;
+                if let Some(ref offer_code_str) = body.offer_code {
+                    if let Ok(Some(offer_code)) = campaign_dm::find_offer_code_by_code(db, offer_code_str).await {
+                        if offer_code.is_active {
+                            resolved_campaign_id = Some(offer_code.campaign_id);
+                            // Increment redemption count
+                            if let Err(e) = campaign_dm::increment_redemption_count(db, offer_code.id).await {
+                                tracing::warn!(
+                                    offer_code_id = %offer_code.id,
+                                    error = %e,
+                                    "failed to increment offer code redemption count"
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // Capture attribution touchpoint (gated by acquisition.dm_tracking)
+                let dm_tracking_enabled = FlagService::is_enabled(
+                    db,
+                    sentinel_tenant_id,
+                    None,
+                    "acquisition.dm_tracking",
+                )
+                .await
+                .unwrap_or(true);
+
+                if dm_tracking_enabled {
+                    let capture_payload = CapturePayload {
+                        channel: attribution_channel,
+                        utm: UtmParams {
+                            utm_source: body.utm_source.clone(),
+                            utm_medium: body.utm_medium.clone(),
+                            utm_campaign: body.utm_campaign.clone(),
+                            utm_content: utm_content.clone(),
+                            utm_term: body.utm_term.clone(),
+                        },
+                        user_id: None, // Not yet a platform user
+                        contact_email: Some(body.email.clone()),
+                        anonymous_id: body.anonymous_id.clone().filter(|s| !s.is_empty()),
+                        campaign_id: resolved_campaign_id,
+                        enrollment_id: None,
+                        event_id: None,
+                        landing_page_url: body.landing_url.clone(),
+                        referrer_url: body.referrer.clone(),
+                    };
+
+                    if let Err(e) =
+                        AttributionService::capture_touchpoint(db, sentinel_tenant_id, capture_payload)
+                            .await
+                    {
+                        tracing::warn!(
+                            email = %body.email,
+                            error = %e,
+                            "failed to capture attribution touchpoint"
+                        );
+                    }
+                }
+                
                 // Atomically increment platform_product.waitlist_count
                 let mut prod_active: platform_product::ActiveModel = product.into();
                 prod_active.waitlist_count = Set(prod_active.waitlist_count.unwrap() + 1);
@@ -1320,11 +1467,42 @@ async fn create_pre_order(
 
     let client = stripe::Client::new(stripe_secret);
 
+    let conversion_id = Uuid::new_v4();
+    let sentinel_tenant_id = product.sentinel_tenant_id.unwrap_or_else(Uuid::nil);
+    let mut metadata = std::collections::HashMap::new();
+    metadata.insert("conversion_id".to_string(), conversion_id.to_string());
+    metadata.insert("product_slug".to_string(), slug.to_string());
+    metadata.insert("attribution_tenant_id".to_string(), sentinel_tenant_id.to_string());
+    metadata.insert("email".to_string(), body.email.clone());
+    if let Some(ref offer) = body.offer_code {
+        if !offer.is_empty() {
+            metadata.insert("offer_code".to_string(), offer.clone());
+        }
+    }
+    if let Some(cid) = body.campaign_id {
+        metadata.insert("campaign_id".to_string(), cid.to_string());
+    }
+    if let Some(ref anon) = body.anonymous_id {
+        if !anon.is_empty() {
+            metadata.insert("anonymous_id".to_string(), anon.clone());
+        }
+    }
+
+    let client_ref = body
+        .offer_code
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .or_else(|| body.campaign_id.map(|c| c.to_string()))
+        .unwrap_or_else(|| conversion_id.to_string());
+
     let mut create_session = stripe::CreateCheckoutSession::new();
     create_session.mode = Some(stripe::CheckoutSessionMode::Payment);
     create_session.customer_email = Some(&body.email);
     create_session.success_url = Some(&body.success_url);
     create_session.cancel_url = Some(&body.cancel_url);
+    create_session.client_reference_id = Some(client_ref.as_str());
+    create_session.metadata = Some(metadata);
 
     let line_item = stripe::CreateCheckoutSessionLineItems {
         price: Some(stripe_price_id.clone()),
@@ -1344,7 +1522,8 @@ async fn create_pre_order(
                 email = %body.email,
                 product_slug = slug,
                 session_id = ?session.id,
-                "Stripe checkout session created"
+                %conversion_id,
+                "Stripe checkout session created with attribution metadata"
             );
 
             (
@@ -1353,6 +1532,7 @@ async fn create_pre_order(
                     "checkout_url": session.url,
                     "session_id": session.id,
                     "product_slug": slug,
+                    "conversion_id": conversion_id,
                 })),
             )
                 .into_response()

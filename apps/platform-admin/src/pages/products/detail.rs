@@ -6,8 +6,9 @@ use uuid::Uuid;
 use crate::api::crm::get_leads;
 use crate::api::models::UpdateProductBody;
 use crate::api::products::{
-    ProductPlanBillingInterval, ProductPlanInput, ProductPlanModel, UpsertProductTemplateBody,
-    create_product_plan, delete_product_plan, get_product_detail, get_template, get_variants,
+    ProductPlanBillingInterval, ProductPlanInput, ProductPlanModel, ProductPixelModel,
+    UpsertProductTemplateBody, create_product_plan, create_product_pixel, delete_product_pixel,
+    delete_product_plan, get_product_detail, get_template, get_variants, list_product_pixels,
     list_product_plans, publish_marketing, update_product_detail, update_product_plan,
     upsert_template,
 };
@@ -267,26 +268,43 @@ pub fn ProductDetail() -> impl IntoView {
     let show_pixel_form = RwSignal::new(false);
     let pixel_name_input = RwSignal::new(String::new());
     let pixel_url_input = RwSignal::new(String::new());
+    let pixel_type_input = RwSignal::new("ga4".to_string());
+    let pixels_version = RwSignal::new(0u32);
+    let pixels_res = LocalResource::new(move || async move {
+        let _ = pixels_version.get();
+        match product_uuid() {
+            Some(id) => list_product_pixels(id).await.unwrap_or_default(),
+            None => Vec::<ProductPixelModel>::new(),
+        }
+    });
     let show_domain_form = RwSignal::new(false);
     let domain_alias_input = RwSignal::new(String::new());
     let toast_px = toast.clone();
     let handle_add_pixel = move |_: web_sys::MouseEvent| {
         let name = pixel_name_input.get_untracked();
-        let url = pixel_url_input.get_untracked();
-        if name.trim().is_empty() || url.trim().is_empty() {
-            toast_px.show_toast("Error", "Pixel name and script URL are required.", "error");
+        let snippet = pixel_url_input.get_untracked();
+        let pixel_type = pixel_type_input.get_untracked();
+        if name.trim().is_empty() || snippet.trim().is_empty() {
+            toast_px.show_toast("Error", "Pixel name and script / measurement ID are required.", "error");
             return;
         }
-        // API: POST /api/admin/platform/products/{id}/pixels (future endpoint)
-        // For now we save the intent via toast + reset form
-        toast_px.show_toast(
-            "Queued",
-            &format!("Pixel '{}' queued for API wiring.", name),
-            "info",
-        );
-        pixel_name_input.set(String::new());
-        pixel_url_input.set(String::new());
-        show_pixel_form.set(false);
+        let Some(id) = product_uuid() else {
+            toast_px.show_toast("Error", "Invalid product ID.", "error");
+            return;
+        };
+        let toast_ok = toast_px.clone();
+        leptos::task::spawn_local(async move {
+            match create_product_pixel(id, name.clone(), pixel_type, snippet).await {
+                Ok(_) => {
+                    pixels_version.update(|n| *n += 1);
+                    pixel_name_input.set(String::new());
+                    pixel_url_input.set(String::new());
+                    show_pixel_form.set(false);
+                    toast_ok.show_toast("Saved", &format!("Pixel '{}' attached.", name), "success");
+                }
+                Err(e) => toast_ok.show_toast("Error", &e, "error"),
+            }
+        });
     };
     let toast_da = toast.clone();
     let handle_add_domain = move |_: web_sys::MouseEvent| {
@@ -1340,9 +1358,24 @@ pub fn ProductDetail() -> impl IntoView {
                                         />
                                     </div>
                                     <div>
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Type"</label>
+                                        <select
+                                            class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                            prop:value=move || pixel_type_input.get()
+                                            on:change=move |ev| pixel_type_input.set(event_target_value(&ev))
+                                        >
+                                            <option value="ga4">"GA4"</option>
+                                            <option value="meta">"Meta"</option>
+                                            <option value="gtm">"GTM"</option>
+                                            <option value="linkedin">"LinkedIn"</option>
+                                            <option value="tiktok">"TikTok"</option>
+                                            <option value="custom">"Custom"</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-span-2">
                                         <label class="text-xs font-semibold text-on-surface-variant">"Script / Measurement ID"</label>
                                         <input
-                                            type="text" placeholder="e.g. G-XXXXXXXX"
+                                            type="text" placeholder="e.g. G-XXXXXXXX or full snippet"
                                             class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
                                             prop:value=move || pixel_url_input.get()
                                             on:input=move |ev| pixel_url_input.set(event_target_value(&ev))
@@ -1356,19 +1389,51 @@ pub fn ProductDetail() -> impl IntoView {
                             </div>
                         </Show>
 
-                        // Pixel types guide
+                        // Configured pixels
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm">
                             <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-4">"Configured Pixels"</p>
-                            <div class="space-y-3">
-                                // Empty state — pixels come from product_tracking_pixels table
-                                <div class="flex flex-col items-center gap-3 py-8 text-center">
-                                    <span class="material-symbols-outlined text-[32px] text-on-surface-variant/30">"track_changes"</span>
-                                    <p class="text-xs text-on-surface-variant/60 max-w-xs">
-                                        "No tracking pixels configured. Add GA4, Meta Pixel, GTM, or LinkedIn tags — "
-                                        "they'll be injected into every landing page for this product."
-                                    </p>
-                                </div>
-                            </div>
+                            <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant">"Loading…"</p> }>
+                                {move || {
+                                    let list = pixels_res.get().unwrap_or_default();
+                                    if list.is_empty() {
+                                        view! {
+                                            <div class="flex flex-col items-center gap-3 py-8 text-center">
+                                                <span class="material-symbols-outlined text-[32px] text-on-surface-variant/30">"track_changes"</span>
+                                                <p class="text-xs text-on-surface-variant/60 max-w-xs">
+                                                    "No tracking pixels configured. Add GA4 + Meta (minimum) before the first DM drop — "
+                                                    "they'll be injected into every landing page for this product."
+                                                </p>
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <div class="space-y-2">
+                                                {list.into_iter().map(|px| {
+                                                    let pid = px.id;
+                                                    view! {
+                                                        <div class="flex items-center justify-between gap-3 p-3 rounded-lg border border-outline-variant/20 bg-surface-container">
+                                                            <div class="min-w-0">
+                                                                <p class="text-sm font-semibold text-on-surface">{px.name.clone()}</p>
+                                                                <p class="text-[10px] text-on-surface-variant uppercase">{format!("{} · {}", px.pixel_type, px.inject_at)}</p>
+                                                                <p class="text-xs text-on-surface-variant/70 truncate font-mono mt-0.5">{px.snippet.clone()}</p>
+                                                            </div>
+                                                            <button class="btn btn-ghost btn-sm"
+                                                                on:click=move |_| {
+                                                                    let Some(product_id) = product_uuid() else { return; };
+                                                                    leptos::task::spawn_local(async move {
+                                                                        let _ = delete_product_pixel(product_id, pid).await;
+                                                                        pixels_version.update(|n| *n += 1);
+                                                                    });
+                                                                }
+                                                            >"Remove"</button>
+                                                        </div>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
+                                        }.into_any()
+                                    }
+                                }}
+                            </Suspense>
                         </div>
 
                         // Pixel type reference

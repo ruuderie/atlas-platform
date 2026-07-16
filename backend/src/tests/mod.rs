@@ -26,6 +26,9 @@ pub mod provision_tests;
 // Complete generics service layer tests
 pub mod services_tests;
 
+// G-19 Direct mail provider registry unit tests
+pub mod direct_mail_provider_tests;
+
 // G-27 ScorecardService integration tests
 pub mod g27_scorecard_tests;
 

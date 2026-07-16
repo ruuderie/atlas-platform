@@ -31,6 +31,7 @@ Only these stay in the public `docs/` tree:
 
 ### Public root docs
 
+- `CURRENT_STATE.md` — **everyday living registry** (not under `private/archive/`)
 - `auth-security-observability-runbook.md`
 - `cicd_security_hardening.md`
 - `cloudflare_sealed_secrets_maintenance.md`
@@ -52,7 +53,9 @@ Only these stay in the public `docs/` tree:
 - GTM / market / strategy / reports / backlog
 - Research / agent prompts (`docs/private/prompts/` — including stitch→leptos)
 - Folio product-surface specs (`docs/private/folio/`)
-- Product planning (`g27/` vertical plans, CRM unification plans, CURRENT_STATE dumps, Phase notes)
+- Product planning (`g27/` vertical plans, CRM unification plans, Phase notes)
+
+**Living registry (not archive):** [`docs/CURRENT_STATE.md`](../CURRENT_STATE.md) — everyday ground truth for generics, apps, workers. Completed historical phase notes stay under `docs/private/archive/`.
 
 ## Rule for agents
 

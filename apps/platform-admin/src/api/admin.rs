@@ -1111,6 +1111,148 @@ pub async fn update_campaign_status(
     }
 }
 
+/// POST /api/admin/campaigns/:id/spend — record manual spend (cents).
+pub async fn record_campaign_spend(
+    campaign_id: uuid::Uuid,
+    cents: i64,
+    source: &str,
+    external_ref: Option<&str>,
+) -> Result<CampaignModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/spend", campaign_id));
+    let req = with_credentials(client.post(&url)).json(&serde_json::json!({
+        "cents": cents,
+        "source": source,
+        "external_ref": external_ref,
+    }));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<CampaignModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MailDropModel {
+    pub id: uuid::Uuid,
+    pub campaign_id: uuid::Uuid,
+    pub drop_name: String,
+    pub creative_variant: Option<String>,
+    pub utm_content: Option<String>,
+    pub piece_count: i32,
+    pub unit_cost_cents: Option<i64>,
+    pub status: String,
+    pub mailed_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OfferCodeModel {
+    pub id: uuid::Uuid,
+    pub campaign_id: uuid::Uuid,
+    pub mail_drop_id: Option<uuid::Uuid>,
+    pub code: String,
+    pub is_active: bool,
+    pub redemption_count: i32,
+}
+
+pub async fn list_mail_drops(campaign_id: uuid::Uuid) -> Result<Vec<MailDropModel>, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/mail-drops", campaign_id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn create_mail_drop(
+    campaign_id: uuid::Uuid,
+    drop_name: &str,
+    utm_content: Option<&str>,
+    piece_count: i32,
+    unit_cost_cents: Option<i64>,
+) -> Result<MailDropModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/mail-drops", campaign_id));
+    let req = with_credentials(client.post(&url)).json(&serde_json::json!({
+        "drop_name": drop_name,
+        "utm_content": utm_content,
+        "piece_count": piece_count,
+        "unit_cost_cents": unit_cost_cents,
+    }));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn list_offer_codes(campaign_id: uuid::Uuid) -> Result<Vec<OfferCodeModel>, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/offer-codes", campaign_id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn create_offer_code(
+    campaign_id: uuid::Uuid,
+    code: &str,
+    mail_drop_id: Option<uuid::Uuid>,
+) -> Result<OfferCodeModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/offer-codes", campaign_id));
+    let req = with_credentials(client.post(&url)).json(&serde_json::json!({
+        "code": code,
+        "mail_drop_id": mail_drop_id,
+    }));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributionTouchpointModel {
+    pub id: uuid::Uuid,
+    pub channel: String,
+    pub contact_email: Option<String>,
+    pub anonymous_id: Option<String>,
+    pub utm_content: Option<String>,
+    pub utm_campaign: Option<String>,
+    pub conversion_entity_type: Option<String>,
+    pub conversion_value_cents: Option<i64>,
+    pub occurred_at: String,
+}
+
+pub async fn get_campaign_attribution(
+    campaign_id: uuid::Uuid,
+) -> Result<Vec<AttributionTouchpointModel>, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/attribution", campaign_id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub fn campaign_qr_url(campaign_id: uuid::Uuid) -> String {
+    api_url(&format!("api/admin/campaigns/{}/qr", campaign_id))
+}
+
 /// Enroll a batch of leads into a campaign by lead ID.
 pub async fn enroll_leads(
     campaign_id: uuid::Uuid,

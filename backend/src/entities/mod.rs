@@ -133,6 +133,8 @@ pub mod atlas_ambassador_campaign; // G37 — ambassador ↔ campaign attach
 pub mod atlas_campaign; // G19 — campaign definition
 pub mod atlas_campaign_enrollment; // G19 — contact enrollment + progress
 pub mod atlas_campaign_event; // G19 — interaction event (open/click/convert)
+pub mod atlas_campaign_mail_drop; // G19 — direct-mail drop companion
+pub mod atlas_campaign_offer_code; // G19 — offer codes for DM offline attribution
 pub mod atlas_catalog_availability; // G26 — per-date slot grid
 pub mod atlas_catalog_entry; // Saleable product definition (room type, package, subscription)
 pub mod atlas_catalog_rate_rule; // Dynamic pricing overrides (date range, channel, min-stay)
@@ -186,6 +188,7 @@ pub mod atlas_scorecard_contributor_calibration;
 pub mod platform_product; // Platform product registry (Folio, Anchor, Network, Meridian)
 pub mod platform_product_plan; // Product-scoped marketing pricing plans
 pub mod product_page; // product_page_templates + product_page_variants (programmatic SEO)
+pub mod product_tracking_pixel; // Per-product GA4/Meta/etc snippets for SSR injection
 
 // FEATURE FLAGS — flag registry, per-tenant overrides, and audit trail
 pub mod atlas_flag_instance_enablement; // Per-app-instance grant/deny enablements

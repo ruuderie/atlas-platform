@@ -507,6 +507,10 @@ impl CampaignService {
             CampaignEventType::Bounced => None,
             CampaignEventType::Unsubscribed => None,
             CampaignEventType::SpamReported => None,
+            CampaignEventType::MailSubmitted
+            | CampaignEventType::MailDelivered
+            | CampaignEventType::MailReturned
+            | CampaignEventType::CostIncurred => None,
         };
 
         if let Some(counter) = maybe_counter {
@@ -551,6 +555,35 @@ impl CampaignService {
         );
 
         Ok(event)
+    }
+
+    /// Increment `spent_cents` on a campaign (manual mail-house invoice or provider cost webhook).
+    pub async fn record_spend(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        campaign_id: Uuid,
+        cents: i64,
+        source: &str,
+        external_ref: Option<&str>,
+    ) -> Result<atlas_campaign::Model> {
+        if cents <= 0 {
+            return Err(anyhow!("record_spend requires cents > 0"));
+        }
+        let campaign = Self::get(db, tenant_id, campaign_id).await?;
+        use sea_orm::ConnectionTrait;
+        db.execute_unprepared(&format!(
+            "UPDATE atlas_campaigns SET spent_cents = spent_cents + {cents}, updated_at = NOW() WHERE id = '{campaign_id}' AND tenant_id = '{tenant_id}'"
+        ))
+        .await
+        .map_err(|e| anyhow!("record_spend failed: {e:#}"))?;
+
+        tracing::info!(
+            %tenant_id, %campaign_id, cents, source, ?external_ref,
+            previous_spent = campaign.spent_cents,
+            "CampaignService::record_spend"
+        );
+
+        Self::get(db, tenant_id, campaign_id).await
     }
 
     // ── List by subject entity ────────────────────────────────────────────────

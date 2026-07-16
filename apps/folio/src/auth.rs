@@ -2,6 +2,55 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 pub use server_fn::error::ServerFnError;
 
+/// Session cookie attributes — must match backend `session_cookie_header`.
+/// Local HTTP (`ENVIRONMENT=development|dev|local`) omits `Secure` so the
+/// browser actually stores/sends the cookie on `http://*.localhost`.
+#[cfg(feature = "ssr")]
+fn cookie_secure_fragment() -> &'static str {
+    match std::env::var("ENVIRONMENT")
+        .unwrap_or_else(|_| "production".to_string())
+        .to_lowercase()
+        .as_str()
+    {
+        "development" | "dev" | "local" => "",
+        _ => "; Secure",
+    }
+}
+
+#[cfg(feature = "ssr")]
+pub fn session_cookie_header(token: &str) -> String {
+    format!(
+        "session={token}; HttpOnly{}; SameSite=Strict; Path=/; Max-Age=86400",
+        cookie_secure_fragment()
+    )
+}
+
+/// Expire the browser session cookie (local HTTP omits `Secure`, same as set).
+#[cfg(feature = "ssr")]
+pub fn clear_session_cookie_header() -> String {
+    format!(
+        "session=; HttpOnly{}; SameSite=Strict; Path=/; Max-Age=0",
+        cookie_secure_fragment()
+    )
+}
+
+/// When Atlas returns 401, drop the dead cookie so the next navigation hits `/login`
+/// instead of a zombie shell with cascading "API 401" toasts.
+#[cfg(feature = "ssr")]
+pub fn expire_browser_session_if_unauthorized(err: &str) {
+    if !err.contains("401") {
+        return;
+    }
+    if let Some(resp) = use_context::<leptos_axum::ResponseOptions>() {
+        if let Ok(val) = axum::http::HeaderValue::from_str(&clear_session_cookie_header()) {
+            resp.insert_header(axum::http::header::SET_COOKIE, val);
+        }
+    }
+    if let Some(cache) = SERVER_SESSION_CACHE.get() {
+        cache.invalidate_all();
+    }
+}
+
 // ── FolioRole — shared between SSR and WASM ───────────────────────────────────
 //
 // IMPORTANT: This enum must stay in sync with the backend `FolioRole` in
@@ -573,13 +622,12 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
             .ok_or_else(|| ServerFnError::new("No session cookie after verify"))?;
 
         // Forward the session cookie to the browser so it persists for all
-        // subsequent requests. We mirror the same cookie attributes the backend
-        // uses in session_cookie_header().
+        // subsequent requests. Mirror backend `session_cookie_header` (no Secure
+        // on local HTTP).
         if let Some(resp) = resp_opts {
-            if let Ok(cookie_val) = axum::http::HeaderValue::from_str(&format!(
-                "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400",
-                session_token
-            )) {
+            if let Ok(cookie_val) =
+                axum::http::HeaderValue::from_str(&session_cookie_header(&session_token))
+            {
                 resp.insert_header(axum::http::header::SET_COOKIE, cookie_val);
             }
         }

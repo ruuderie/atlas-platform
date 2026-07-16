@@ -217,7 +217,10 @@ pub async fn authenticated_get_with_headers<T: DeserializeOwned>(
     if !res.status().is_success() {
         let status = res.status();
         let msg = res.text().await.unwrap_or_default();
-        return Err(format!("API {status}: {msg}"));
+        let err = format!("API {status}: {msg}");
+        #[cfg(feature = "ssr")]
+        crate::auth::expire_browser_session_if_unauthorized(&err);
+        return Err(err);
     }
     res.json::<T>().await.map_err(|e| e.to_string())
 }
@@ -260,7 +263,10 @@ pub async fn authenticated_post_with_headers<B: Serialize, T: DeserializeOwned>(
     if !res.status().is_success() {
         let status = res.status();
         let msg = res.text().await.unwrap_or_default();
-        return Err(format!("API {status}: {msg}"));
+        let err = format!("API {status}: {msg}");
+        #[cfg(feature = "ssr")]
+        crate::auth::expire_browser_session_if_unauthorized(&err);
+        return Err(err);
     }
     res.json::<T>().await.map_err(|e| e.to_string())
 }

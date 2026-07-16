@@ -32,7 +32,7 @@ use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, patch, post},
+    routing::{delete, get, patch, post},
 };
 use chrono::Utc;
 use sea_orm::{
@@ -43,7 +43,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::entities::{platform_product, platform_product_plan};
+use crate::entities::{platform_product, platform_product_plan, product_tracking_pixel};
+use crate::types::gtm::{InjectAt, PixelType};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -70,6 +71,14 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
         .route(
             "/api/admin/platform/products/{id}/plans/{plan_id}",
             patch(update_product_plan).delete(delete_product_plan),
+        )
+        .route(
+            "/api/admin/platform/products/{id}/pixels",
+            get(list_product_pixels).post(create_product_pixel),
+        )
+        .route(
+            "/api/admin/platform/products/{id}/pixels/{pixel_id}",
+            delete(delete_product_pixel),
         )
 }
 
@@ -528,4 +537,140 @@ pub async fn get_deploy_status(
         }),
     )
         .into_response()
+}
+
+// ── Tracking pixels ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct ProductPixelResponse {
+    pub id: Uuid,
+    pub product_id: Uuid,
+    pub name: String,
+    pub pixel_type: String,
+    pub snippet: String,
+    pub inject_at: String,
+    pub is_active: bool,
+}
+
+impl From<product_tracking_pixel::Model> for ProductPixelResponse {
+    fn from(m: product_tracking_pixel::Model) -> Self {
+        Self {
+            id: m.id,
+            product_id: m.product_id,
+            name: m.name,
+            pixel_type: m.pixel_type,
+            snippet: m.snippet,
+            inject_at: m.inject_at,
+            is_active: m.is_active,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateProductPixelBody {
+    pub name: String,
+    pub pixel_type: String,
+    pub snippet: String,
+    pub inject_at: Option<String>,
+}
+
+pub async fn list_product_pixels(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(product_id): Path<Uuid>,
+) -> impl IntoResponse {
+    if platform_product::Entity::find_by_id(product_id)
+        .one(&db)
+        .await
+        .ok()
+        .flatten()
+        .is_none()
+    {
+        return (StatusCode::NOT_FOUND, "product not found").into_response();
+    }
+
+    match product_tracking_pixel::Entity::find()
+        .filter(product_tracking_pixel::Column::ProductId.eq(product_id))
+        .order_by_asc(product_tracking_pixel::Column::CreatedAt)
+        .all(&db)
+        .await
+    {
+        Ok(rows) => {
+            let out: Vec<ProductPixelResponse> = rows.into_iter().map(Into::into).collect();
+            (StatusCode::OK, Json(out)).into_response()
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn create_product_pixel(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(product_id): Path<Uuid>,
+    Json(body): Json<CreateProductPixelBody>,
+) -> impl IntoResponse {
+    if platform_product::Entity::find_by_id(product_id)
+        .one(&db)
+        .await
+        .ok()
+        .flatten()
+        .is_none()
+    {
+        return (StatusCode::NOT_FOUND, "product not found").into_response();
+    }
+
+    let pixel_type = match PixelType::try_from(body.pixel_type.as_str()) {
+        Ok(t) => t.to_string(),
+        Err(e) => return (StatusCode::UNPROCESSABLE_ENTITY, e).into_response(),
+    };
+    let inject_at = match InjectAt::try_from(body.inject_at.as_deref().unwrap_or("head")) {
+        Ok(v) => v.to_string(),
+        Err(e) => return (StatusCode::UNPROCESSABLE_ENTITY, e).into_response(),
+    };
+    let name = body.name.trim().to_string();
+    let snippet = body.snippet.trim().to_string();
+    if name.is_empty() || snippet.is_empty() {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "name and snippet are required",
+        )
+            .into_response();
+    }
+
+    let now = Utc::now();
+    let model = product_tracking_pixel::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        product_id: Set(product_id),
+        name: Set(name),
+        pixel_type: Set(pixel_type),
+        snippet: Set(snippet),
+        inject_at: Set(inject_at),
+        is_active: Set(true),
+        created_at: Set(now.into()),
+        updated_at: Set(now.into()),
+    };
+
+    match model.insert(&db).await {
+        Ok(row) => (StatusCode::CREATED, Json(ProductPixelResponse::from(row))).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn delete_product_pixel(
+    Extension(db): Extension<DatabaseConnection>,
+    Path((product_id, pixel_id)): Path<(Uuid, Uuid)>,
+) -> impl IntoResponse {
+    match product_tracking_pixel::Entity::find_by_id(pixel_id)
+        .filter(product_tracking_pixel::Column::ProductId.eq(product_id))
+        .one(&db)
+        .await
+    {
+        Ok(Some(row)) => {
+            let active: product_tracking_pixel::ActiveModel = row.into();
+            match active.delete(&db).await {
+                Ok(_) => StatusCode::NO_CONTENT.into_response(),
+                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+            }
+        }
+        Ok(None) => (StatusCode::NOT_FOUND, "pixel not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }

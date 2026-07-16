@@ -226,18 +226,11 @@ fn ReferPathCard(
 
 #[component]
 fn ReferFooter() -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div><strong>"Folio"</strong>" · Friends & Family"</div>
-                <div class="mktg-footer-links">
-                    <a href="/">"Landlords"</a>
-                    <a href="/vendors">"Vendors"</a>
-                    <a href="/property-managers">"PMs"</a>
-                    <a href="/#waitlist-wrap">"Waitlist"</a>
-                    <a href="/login">"Sign in"</a>
-                </div>
-            </div>
-        </footer>
+        <MarketingFooter
+            tagline="Friends & Family".to_string()
+            show_page_anchors=false
+        />
     }
 }

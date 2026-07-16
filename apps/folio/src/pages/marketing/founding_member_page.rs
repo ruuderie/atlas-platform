@@ -391,7 +391,7 @@ fn FoundingSignup(
             .unwrap_or_default();
         #[cfg(not(feature = "hydrate"))]
         let landing_url = String::new();
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "email": e,
             "role": role.get(),
             "source": "founding",
@@ -401,6 +401,7 @@ fn FoundingSignup(
             "utm_content": tier_key.get(),
             "landing_url": landing_url,
         });
+        crate::marketing_attribution::merge_into_waitlist_body(&mut body);
         leptos::task::spawn_local(async move {
             let resp = gloo_net::http::Request::post(&FolioMarketingSlug::FolioFounding.waitlist_path())
                 .header("Content-Type", "application/json")
@@ -521,7 +522,7 @@ fn FoundingLandlord(spots: SpotInventory) -> impl IntoView {
                         <ul class="mktg-pricing-features founding-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Unlimited units"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Pro"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Multi-country (US, Brazil, USVI)"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Multi-country (US, Canada, USVI)"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Bitcoin & Lightning payments"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Owner portal (for investors)"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:15px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"API access"</li>
@@ -810,28 +811,11 @@ fn BetaCalloutStrip() -> impl IntoView {
 
 #[component]
 fn FoundingFooter() -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div>
-                    <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"Modern Landlord OS · Founding Member Program"</div>
-                </div>
-                <div class="mktg-footer-links">
-                    <a href="/" rel="external">"For Landlords"</a>
-                    <a href="/brokers" rel="external">"For Brokers"</a>
-                    <a href="/property-managers" rel="external">"For PMs"</a>
-                    <a href="/vendors" rel="external">"For Vendors"</a>
-                    <a href="/" rel="external">"Monthly pricing"</a>
-                    <a href="/login" rel="external">"Sign in"</a>
-                </div>
-                <div class="mktg-footer-legal">
-                    "© 2026 Folio · Atlas Platform · "
-                    <a href="/legal/privacy">"Privacy"</a>
-                    " · "
-                    <a href="/legal/terms">"Terms"</a>
-                </div>
-            </div>
-        </footer>
+        <MarketingFooter
+            tagline="Modern Landlord OS · Founding Member Program".to_string()
+            show_page_anchors=false
+        />
     }
 }

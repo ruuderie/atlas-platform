@@ -1047,7 +1047,6 @@ pub fn SidebarNav(
 
             <div class="sidebar-scroll">
                 {config.groups.iter().map(|group| {
-                    let path = location.pathname.get();
                     view! {
                         <div class="nav-group">
                             {group.label.map(|l| view! {
@@ -1055,13 +1054,22 @@ pub fn SidebarNav(
                             })}
                             <ul class="nav-list">
                                 {group.items.iter().map(|item| {
-                                    let active = is_active(&path, item.route);
+                                    let route = item.route;
+                                    let pathname = location.pathname;
                                     view! {
                                         <li>
                                             <A
-                                                href=item.route.path()
-                                                attr:class=if active { "nav-link nav-link--active" } else { "nav-link" }
-                                                attr:aria-current=if active { Some("page") } else { None }
+                                                href=route.path()
+                                                attr:class=move || {
+                                                    if is_active(&pathname.get(), route) {
+                                                        "nav-link nav-link--active"
+                                                    } else {
+                                                        "nav-link"
+                                                    }
+                                                }
+                                                attr:aria-current=move || {
+                                                    is_active(&pathname.get(), route).then_some("page")
+                                                }
                                             >
                                                 <span class="material-symbols-outlined nav-link-icon">
                                                     {item.icon.as_str()}
@@ -1079,16 +1087,22 @@ pub fn SidebarNav(
 
             <div class="sidebar-footer">
                 {(!config.footer_items.is_empty()).then(|| {
-                    let path = location.pathname.get();
                     view! {
                         <ul class="nav-list nav-list--footer">
                             {config.footer_items.iter().map(|item| {
-                                let active = is_active(&path, item.route);
+                                let route = item.route;
+                                let pathname = location.pathname;
                                 view! {
                                     <li>
                                         <A
-                                            href=item.route.path()
-                                            attr:class=if active { "nav-link nav-link--active" } else { "nav-link" }
+                                            href=route.path()
+                                            attr:class=move || {
+                                                if is_active(&pathname.get(), route) {
+                                                    "nav-link nav-link--active"
+                                                } else {
+                                                    "nav-link"
+                                                }
+                                            }
                                         >
                                             <span class="material-symbols-outlined nav-link-icon">
                                                 {item.icon.as_str()}

@@ -6,7 +6,7 @@ This document formalises the three-tier route and responsibility model introduce
 by the `CorePlatformApp` migration. Every handler, route prefix, and state injection
 point is traceable back to exactly one tier.
 
-**Ground truth:** [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) — generic counts, frontend apps, workers.
+**Ground truth:** [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — generic counts, frontend apps, workers.
 
 ---
 

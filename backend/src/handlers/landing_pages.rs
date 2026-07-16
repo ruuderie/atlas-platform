@@ -878,6 +878,18 @@ pub async fn post_lp_event(
         return StatusCode::BAD_REQUEST;
     }
 
+    // Clone fields needed for G-20 attribution before moving into ActiveModel.
+    let has_utm = body.utm_source.is_some()
+        || body.utm_medium.is_some()
+        || body.utm_campaign.is_some();
+    let session_id = body.session_id.clone();
+    let utm_source = body.utm_source.clone();
+    let utm_medium = body.utm_medium.clone();
+    let utm_campaign = body.utm_campaign.clone();
+    let utm_content = body.utm_content.clone();
+    let utm_term = body.utm_term.clone();
+    let referrer = body.referrer.clone();
+
     let ev = atlas_lp_event::ActiveModel {
         id: Set(Uuid::new_v4()),
         app_page_id: Set(body.app_page_id),
@@ -897,6 +909,72 @@ pub async fn post_lp_event(
     // Fire-and-forget — log errors but don't fail the response
     if let Err(e) = ev.insert(&db).await {
         tracing::warn!("lp_event insert failed: {:?}", e);
+    }
+
+    // ── G-20 Attribution Touchpoint Capture ─────────────────────────────────────
+    // If UTMs are present, also capture attribution touchpoint using session_id as anonymous_id
+    if has_utm {
+        use crate::services::flag_service::FlagService;
+        use crate::services::pm::attribution::{AttributionService, CapturePayload, UtmParams};
+        use crate::types::pm::AttributionChannel;
+
+        let platform_tenant = Uuid::nil();
+        let dm_tracking_enabled = FlagService::is_enabled(
+            &db,
+            platform_tenant,
+            None,
+            "acquisition.dm_tracking",
+        )
+        .await
+        .unwrap_or(true);
+
+        if dm_tracking_enabled {
+            let channel = utm_medium
+                .as_deref()
+                .and_then(|medium| match medium {
+                    "direct_mail" | "postcard" | "mail" => Some(AttributionChannel::DirectMail),
+                    "cpc" | "ppc" | "paid_search" => Some(AttributionChannel::PaidSearch),
+                    "organic" | "seo" => Some(AttributionChannel::OrganicSearch),
+                    "social" => Some(AttributionChannel::OrganicSocial),
+                    "paid_social" => Some(AttributionChannel::PaidSocial),
+                    "email" => Some(AttributionChannel::ColdEmail),
+                    "referral" => Some(AttributionChannel::Referral),
+                    "sms" => Some(AttributionChannel::Sms),
+                    "content" => Some(AttributionChannel::Content),
+                    "affiliate" => Some(AttributionChannel::Affiliate),
+                    _ => None,
+                })
+                .unwrap_or(AttributionChannel::Direct);
+
+            let capture_payload = CapturePayload {
+                channel,
+                utm: UtmParams {
+                    utm_source,
+                    utm_medium,
+                    utm_campaign,
+                    utm_content,
+                    utm_term,
+                },
+                user_id: None,
+                contact_email: None,
+                anonymous_id: Some(session_id.clone()),
+                campaign_id: None,
+                enrollment_id: None,
+                event_id: None,
+                landing_page_url: None,
+                referrer_url: referrer,
+            };
+
+            if let Err(e) =
+                AttributionService::capture_touchpoint(&db, platform_tenant, capture_payload).await
+            {
+                tracing::warn!(
+                    %session_id,
+                    error = %e,
+                    "failed to capture landing page attribution touchpoint"
+                );
+            }
+        }
     }
 
     StatusCode::ACCEPTED

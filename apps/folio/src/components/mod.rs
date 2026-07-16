@@ -2,6 +2,7 @@ pub mod activity_rail;
 pub mod interruptible_sheet;
 pub mod lang;
 pub mod layouts;
+pub mod marketing_footer;
 pub mod marketing_nav;
 pub mod nav;
 pub mod network_invite_panel;

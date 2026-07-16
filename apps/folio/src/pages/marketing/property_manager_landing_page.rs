@@ -202,10 +202,11 @@ fn PmHero(hero: HeroContent, cta_label: String) -> impl IntoView {
         err_msg.set(String::new());
         let e = email.get();
         leptos::task::spawn_local(async move {
-            let body = serde_json::json!({
+            let mut body = serde_json::json!({
                 "email": e,
                 "role": "Property Manager"
             });
+            crate::marketing_attribution::merge_into_waitlist_body(&mut body);
             let resp = gloo_net::http::Request::post(&FolioMarketingSlug::FolioPm.waitlist_path())
                 .header("Content-Type", "application/json")
                 .body(body.to_string())
@@ -665,48 +666,27 @@ fn BetaCalloutStrip(
 
 #[component]
 fn PmFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     let tagline = override_block
         .as_ref()
         .and_then(|block| block.tagline.clone())
         .unwrap_or_else(|| "Modern Landlord OS · Property Manager Edition".to_string());
-    let links: Vec<(String, String)> = override_block
-        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
-        .map(|links| {
-            links
+    let override_links = override_block
+        .filter(|block| !block.links.is_empty())
+        .map(|block| {
+            block
+                .links
                 .into_iter()
                 .map(|link| (link.label, link.href))
-                .collect()
+                .collect::<Vec<_>>()
         })
-        .unwrap_or_else(|| {
-            vec![
-                ("For Landlords".to_string(), "/".to_string()),
-                ("For Brokers".to_string(), "/brokers".to_string()),
-                ("For Vendors".to_string(), "/vendors".to_string()),
-                ("Cohost Network".to_string(), "/cohost-market".to_string()),
-                ("Sign in".to_string(), "/login".to_string()),
-            ]
-        });
-
+        .unwrap_or_default();
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div>
-                    <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">{tagline}</div>
-                </div>
-                <div class="mktg-footer-links">
-                    {links.into_iter().map(|(label, href)| view! {
-                        <a href=href rel="external">{label}</a>
-                    }).collect_view()}
-                </div>
-                <div class="mktg-footer-legal">
-                    "© 2026 Folio · Atlas Platform · "
-                    <a href="/legal/privacy">"Privacy"</a>
-                    " · "
-                    <a href="/legal/terms">"Terms"</a>
-                </div>
-            </div>
-        </footer>
+        <MarketingFooter
+            tagline=tagline
+            show_page_anchors=true
+            override_links=override_links
+        />
     }
 }
 

@@ -274,7 +274,7 @@ fn BrokerFeatures(
         ("gavel",        "License & compliance",         "Track your brokerage license renewal, agent certifications, E&O insurance, and fair housing deadlines — all in one place."),
         ("analytics",    "Brokerage analytics",          "GCI by agent, conversion rates, average days to close, and deal volume trends — dashboards built for running a team, not filing taxes."),
         ("calendar_month", "Showing & appointment scheduler", "Coordinate showings across your team. Buyers, sellers, and agents see the same calendar with no double bookings."),
-        ("language",     "US · Canada · Brazil",          "Operate across borders. Folio handles local compliance, licensing rules, and currency so you don't have to."),
+        ("language",     "US · Canada",                   "Operate across borders. Folio handles local compliance, licensing rules, and currency so you don't have to."),
     ];
     let features: Vec<(String, String, String)> = override_block
         .and_then(|block| (!block.items.is_empty()).then_some(block.items))
@@ -571,47 +571,28 @@ fn BetaCalloutStrip(
 
 #[component]
 fn BrokerFooter(#[prop(default = None)] override_block: Option<FooterBlock>) -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     let tagline = override_block
         .as_ref()
         .and_then(|block| block.tagline.clone())
         .unwrap_or_else(|| "Modern Landlord OS · Broker Edition".to_string());
-    let links: Vec<(String, String)> = override_block
-        .and_then(|block| (!block.links.is_empty()).then_some(block.links))
-        .map(|links| {
-            links
+    let override_links = override_block
+        .filter(|block| !block.links.is_empty())
+        .map(|block| {
+            block
+                .links
                 .into_iter()
                 .map(|link| (link.label, link.href))
-                .collect()
+                .collect::<Vec<_>>()
         })
-        .unwrap_or_else(|| {
-            vec![
-                ("← Main page".to_string(), "/".to_string()),
-                ("Sign in".to_string(), "/login".to_string()),
-                ("Pricing".to_string(), "#broker-pricing".to_string()),
-                ("Features".to_string(), "#broker-features".to_string()),
-            ]
-        });
-
+        .unwrap_or_default();
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div>
-                    <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">{tagline}</div>
-                </div>
-                <div class="mktg-footer-links">
-                    {links.into_iter().map(|(label, href)| view! {
-                        <a href=href rel="external">{label}</a>
-                    }).collect_view()}
-                </div>
-                <div class="mktg-footer-legal">
-                    "© 2026 Folio · Atlas Platform · "
-                    <a href="/legal/privacy">"Privacy"</a>
-                    " · "
-                    <a href="/legal/terms">"Terms"</a>
-                </div>
-            </div>
-        </footer>
+        <MarketingFooter
+            tagline=tagline
+            pricing_href="#broker-pricing"
+            features_href="#broker-features"
+            override_links=override_links
+        />
     }
 }
 

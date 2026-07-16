@@ -206,7 +206,7 @@ fn VendorReferWaitlist(referred_by: String) -> impl IntoView {
             .unwrap_or(serde_json::Value::Null);
         #[cfg(not(feature = "hydrate"))]
         let referrer_json = serde_json::Value::Null;
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "email": e,
             "role": "Vendor",
             "portfolio_size_label": trade.get(),
@@ -224,6 +224,7 @@ fn VendorReferWaitlist(referred_by: String) -> impl IntoView {
             "landing_url": landing_url,
             "referrer": referrer_json,
         });
+        crate::marketing_attribution::merge_into_waitlist_body(&mut body);
         leptos::task::spawn_local(async move {
             let resp = gloo_net::http::Request::post(&FolioMarketingSlug::FolioVendor.waitlist_path())
                 .header("Content-Type", "application/json")
@@ -425,21 +426,11 @@ fn VendorReferShareBlock(initial_code: String) -> impl IntoView {
 
 #[component]
 fn VendorReferFooter() -> impl IntoView {
+    use crate::components::marketing_footer::MarketingFooter;
     view! {
-        <footer class="mktg-footer">
-            <div class="mktg-footer-inner">
-                <div>
-                    <div class="mktg-footer-logo">"Folio"</div>
-                    <div class="mktg-footer-tagline">"Friends & Family · Vendors"</div>
-                </div>
-                <div class="mktg-footer-links">
-                    <a href="/vendors" rel="external">"Vendors"</a>
-                    <a href="/refer" rel="external">"Landlord referrals"</a>
-                    <a href="/founding" rel="external">"Founding"</a>
-                    <a href="/login" rel="external">"Sign in"</a>
-                </div>
-                <div class="mktg-footer-legal">"© 2026 Folio · Atlas Platform"</div>
-            </div>
-        </footer>
+        <MarketingFooter
+            tagline="Friends & Family · Vendors".to_string()
+            show_page_anchors=false
+        />
     }
 }

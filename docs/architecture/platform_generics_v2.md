@@ -2,14 +2,14 @@
 
 > [!WARNING]
 > **SUPERSEDED for G32+ design.** Prefer [`platform_generics_v3.md`](./platform_generics_v3.md) for G-32+.  
-> **Ground-truth status** (backend + frontend) is always [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) (Rev 11 — July 11, 2026).
+> **Ground-truth status** (backend + frontend) is always [`../CURRENT_STATE.md`](../CURRENT_STATE.md) (Rev 11 — July 11, 2026).
 
 > **Status:** Implemented & Merged to `dev` — status columns synced July 11, 2026 (Rev 11)
 > **Date:** 2026-05-27 (original design) → June 2026 (G01–G31) → July 11, 2026 (status sync)
 > **Branch History:** `feat/platform-generics-v2` → merged to `dev`
 > **Purpose:** Historical + status registry for G01–G31 design rationale. Do not invent new G-numbers here — use Rule 7 in [`generic_fitness_test.md`](./generic_fitness_test.md).
 >
-> **See also:** [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) — authoritative implementation registry.
+> **See also:** [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — authoritative implementation registry.
 
 ---
 
@@ -32,7 +32,7 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 
 ## 2. All Generics — Quick Reference (G01–G31+)
 
-Status columns match [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md) Rev 11.
+Status columns match [`../CURRENT_STATE.md`](../CURRENT_STATE.md) Rev 11.
 
 ### Infrastructure Layer (G01–G08) — All Deployed ✅
 
@@ -177,7 +177,7 @@ After G-27 through G-37, highest-value open items (see CURRENT_STATE Recommended
 
 **References**
 
-- Ground truth: [`../CURRENT_STATE.md`](../private/archive/CURRENT_STATE.md)
+- Ground truth: [`../CURRENT_STATE.md`](../CURRENT_STATE.md)
 - v3 (G32+): [`platform_generics_v3.md`](./platform_generics_v3.md)
 - Original 8 generics: [`platform_generics.md`](./platform_generics.md)
 - Fitness test: [`generic_fitness_test.md`](./generic_fitness_test.md)

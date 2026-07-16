@@ -198,7 +198,13 @@ pub async fn create_session_for_user(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let token_expiration = Utc::now() + Duration::hours(1);
+    // Local HTTP stacks keep a longer access token so Folio SSR proxies don't
+    // 401 every hour while the UI still looks signed-in from a cached /me.
+    let token_expiration = if cookie_secure_attribute_required() {
+        Utc::now() + Duration::hours(1)
+    } else {
+        Utc::now() + Duration::hours(24)
+    };
     let refresh_token_expiration = Utc::now() + Duration::days(7);
 
     let mut new_session = session::ActiveModel {
