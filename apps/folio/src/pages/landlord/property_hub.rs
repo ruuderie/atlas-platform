@@ -94,13 +94,13 @@ pub async fn get_projects_for_asset(asset_id: Uuid) -> Result<Vec<ProjectSummary
 }
 
 fn is_multi_unit_parent(a: &AssetDetailDto, children: &[AssetChildDto]) -> bool {
-    a.parent_asset_id.is_none()
-        && (a.asset_type.contains("property") || a.asset_type.contains("building"))
-        && children.iter().any(|c| c.asset_type.contains("unit"))
+    // Hierarchy is authoritative. Onboarding stores PropertyType strings
+    // (`multi_family`, …) on both parent and children — not `*property*` / `*unit*`.
+    a.parent_asset_id.is_none() && !children.is_empty()
 }
 
 fn is_unit(a: &AssetDetailDto) -> bool {
-    a.parent_asset_id.is_some() && a.asset_type.contains("unit")
+    a.parent_asset_id.is_some()
 }
 
 #[component]
@@ -171,10 +171,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
     .collect::<Vec<_>>()
     .join(", ");
 
-    let units: Vec<AssetChildDto> = children
-        .into_iter()
-        .filter(|c| c.asset_type.contains("unit"))
-        .collect();
+    let units: Vec<AssetChildDto> = children;
     let units_sig = RwSignal::new(units);
     let tab = RwSignal::new(PropertyTab::Overview);
 
@@ -399,5 +396,52 @@ fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                 </div>
             </section>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod dispatch_tests {
+    use super::{is_multi_unit_parent, is_unit, AssetChildDto, AssetDetailDto};
+    use uuid::Uuid;
+
+    fn parent(asset_type: &str) -> AssetDetailDto {
+        AssetDetailDto {
+            id: Uuid::nil(),
+            parent_asset_id: None,
+            asset_type: asset_type.into(),
+            name: "Bristol".into(),
+            status: "active".into(),
+            city: None,
+            state_province: None,
+            str_eligible: false,
+            str_listing_active: false,
+        }
+    }
+
+    fn child(asset_type: &str) -> AssetChildDto {
+        AssetChildDto {
+            id: Uuid::from_u128(1),
+            name: "1".into(),
+            asset_type: asset_type.into(),
+            status: "active".into(),
+        }
+    }
+
+    #[test]
+    fn multi_family_parent_with_children_opens_hub() {
+        let kids = vec![child("multi_family"), child("multi_family")];
+        assert!(is_multi_unit_parent(&parent("multi_family"), &kids));
+    }
+
+    #[test]
+    fn leaf_property_without_children_is_not_hub() {
+        assert!(!is_multi_unit_parent(&parent("multi_family"), &[]));
+    }
+
+    #[test]
+    fn nested_row_is_unit_regardless_of_type_string() {
+        let mut unit = parent("multi_family");
+        unit.parent_asset_id = Some(Uuid::from_u128(9));
+        assert!(is_unit(&unit));
     }
 }

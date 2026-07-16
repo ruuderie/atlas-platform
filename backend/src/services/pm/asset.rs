@@ -90,7 +90,13 @@ impl AssetService {
             portfolio_id: Set(Some(input.portfolio_id)),
             parent_asset_id: Set(input.parent_asset_id),
             owner_user_id: Set(None),
-            asset_type: Set(input.property_type.to_string()),
+            asset_type: Set(if input.parent_asset_id.is_some() {
+                // G-10 discriminator for nested rentable units. `property_type`
+                // (single_family / multi_family / …) remains in `attributes`.
+                "real_estate_unit".to_string()
+            } else {
+                "real_estate_property".to_string()
+            }),
             name: Set(input.name),
             serial_or_folio_number: Set(Some(serial_or_folio)),
             status: Set("active".to_string()),

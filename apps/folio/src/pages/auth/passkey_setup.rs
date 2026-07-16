@@ -15,14 +15,35 @@ enum PasskeySetupState {
     Done,
 }
 
+async fn resolve_after_passkey_dest(continue_label: RwSignal<String>) -> &'static str {
+    crate::auth::invalidate_session_cache();
+    match crate::auth::get_session().await {
+        Ok(info) => {
+            let path = crate::auth::after_passkey_setup_path(&info);
+            continue_label.set(if path == "/onboarding" {
+                "Taking you to setup…".into()
+            } else {
+                "Taking you to your dashboard…".into()
+            });
+            path
+        }
+        // Soft-fail: keep historical behavior if /me is briefly unavailable.
+        Err(_) => "/onboarding",
+    }
+}
+
 #[component]
 pub fn PasskeySetup() -> impl IntoView {
     let nav = StoredValue::new(use_navigate());
     let state = RwSignal::new(PasskeySetupState::Idle);
     let error_msg = RwSignal::new(Option::<String>::None);
+    let continue_label = RwSignal::new("Taking you to setup…".to_string());
 
     let handle_skip = move |_| {
-        nav.with_value(|n| n("/onboarding", Default::default()));
+        leptos::task::spawn_local(async move {
+            let dest = resolve_after_passkey_dest(continue_label).await;
+            nav.with_value(|n| n(dest, Default::default()));
+        });
     };
 
     let handle_setup = move |_| {
@@ -36,7 +57,8 @@ pub fn PasskeySetup() -> impl IntoView {
             match crate::utils::passkey_js::create_passkey().await {
                 Ok(_credential_json) => {
                     state.set(PasskeySetupState::Done);
-                    nav.with_value(|n| n("/onboarding", Default::default()));
+                    let dest = resolve_after_passkey_dest(continue_label).await;
+                    nav.with_value(|n| n(dest, Default::default()));
                 }
                 Err(e) => {
                     state.set(PasskeySetupState::Idle);
@@ -145,7 +167,7 @@ pub fn PasskeySetup() -> impl IntoView {
                                 <span class="material-symbols-outlined login-icon-fill" style="font-size:40px">"key"</span>
                             </div>
                             <h1 class="login-auth-h1">"Passkey saved"</h1>
-                            <p class="login-auth-sub">"Taking you to setup…"</p>
+                            <p class="login-auth-sub">{move || continue_label.get()}</p>
                         </div>
                     </Show>
 

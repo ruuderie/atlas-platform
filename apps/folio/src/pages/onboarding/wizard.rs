@@ -935,4 +935,24 @@ mod tests {
         // We still gate on passkey first.
         assert_eq!(pick_dest(false, true), "/auth/passkey-setup");
     }
+
+    #[test]
+    fn after_passkey_setup_goes_home_when_onboarding_already_complete() {
+        use crate::auth::{after_passkey_setup_path, FolioRole, SessionInfo};
+        let info = SessionInfo {
+            user_id: uuid::Uuid::nil(),
+            tenant_id: None,
+            email: "a@b.co".into(),
+            display_name: None,
+            folio_role: FolioRole::Landlord,
+            has_passkey: true,
+            onboarding_complete: true,
+            wizard_steps_completed: 2,
+            wizard_steps_total: 3,
+            wizard_dismissed: false,
+            has_str_assets: false,
+            active_lease_type: None,
+        };
+        assert_eq!(after_passkey_setup_path(&info), "/l");
+    }
 }

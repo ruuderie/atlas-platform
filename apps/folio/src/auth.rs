@@ -361,6 +361,37 @@ pub async fn get_session() -> Result<SessionInfo, ServerFnError> {
     res
 }
 
+/// Drop the WASM session cache so the next `get_session()` hits `/api/folio/me`.
+/// Call after passkey register (or any mutation that changes `has_passkey` /
+/// `onboarding_complete`) so routing does not use a stale incomplete snapshot.
+pub fn invalidate_session_cache() {
+    #[cfg(not(feature = "ssr"))]
+    client_cache::clear();
+}
+
+/// Post-login / post-passkey destination from a live `SessionInfo`.
+///
+/// Passkey-setup skip/complete should use [`after_passkey_setup_path`] instead —
+/// that path ignores `has_passkey` so "Maybe later" does not loop back here.
+pub fn post_auth_path(info: &SessionInfo) -> &'static str {
+    if !info.has_passkey {
+        "/auth/passkey-setup"
+    } else if !info.onboarding_complete {
+        "/onboarding"
+    } else {
+        info.folio_role.home_path()
+    }
+}
+
+/// Where to go after passkey setup or skip. Does not re-require a passkey.
+pub fn after_passkey_setup_path(info: &SessionInfo) -> &'static str {
+    if !info.onboarding_complete {
+        "/onboarding"
+    } else {
+        info.folio_role.home_path()
+    }
+}
+
 /// Minimal auth identity for flows that run *before* Folio RBAC exists.
 ///
 /// Fresh magic-link users often have a valid `session` cookie but

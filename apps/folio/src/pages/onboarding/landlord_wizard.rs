@@ -244,6 +244,21 @@ pub fn LandlordWizard() -> impl IntoView {
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
     crate::pages::landlord::referrals::use_referral_attribution("landlord");
 
+    // Completed landlords must not be trapped on /onboarding (e.g. after
+    // passkey-setup historically hard-coded that path).
+    let nav_home = StoredValue::new(leptos_router::hooks::use_navigate());
+    Effect::new(move |_| {
+        leptos::task::spawn_local(async move {
+            crate::auth::invalidate_session_cache();
+            if let Ok(info) = crate::auth::get_session().await {
+                if info.onboarding_complete {
+                    let dest = info.folio_role.home_path().to_string();
+                    nav_home.with_value(|n| n(&dest, Default::default()));
+                }
+            }
+        });
+    });
+
     let invite_sig: RwSignal<Option<ResolvedInviteCode>> = RwSignal::new(None);
     let code_resource = Resource::new(code_key, |code| resolve_invite_code(code));
 
