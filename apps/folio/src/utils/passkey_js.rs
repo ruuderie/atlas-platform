@@ -169,28 +169,48 @@ pub async fn create_passkey() -> Result<String, String> {
 
 /// Trigger the browser's native passkey authentication prompt.
 ///
+/// `email` may be empty for discoverable (resident-key) login; the backend still
+/// requires the field to be present on both start and finish.
+///
 /// 1. Fetches an assertion challenge from `POST /api/passkeys/start-login`.
 /// 2. Calls `navigator.credentials.get()` via the inline JS bridge.
-/// 3. POSTs the assertion to `POST /api/passkeys/finish-login`.
+/// 3. POSTs `{ email, response }` to `POST /api/passkeys/finish-login`.
 ///
 /// Returns the server's finish-login response body on success.
-pub async fn authenticate_passkey() -> Result<String, String> {
+pub async fn authenticate_passkey(email: &str) -> Result<String, String> {
     #[cfg(feature = "hydrate")]
     {
-        let challenge_json = post_json("/api/passkeys/start-login", "{}").await?;
+        let email = email.trim();
+        let start_body = serde_json::json!({ "email": email }).to_string();
+        let (challenge_json, passkey_session) =
+            post_json_capturing_passkey_session("/api/passkeys/start-login", &start_body).await?;
 
         let assertion_json = webauthn_get_js(&challenge_json)
             .await
-            .map_err(|e| map_js_error(e))?
+            .map_err(map_js_error)?
             .as_string()
             .ok_or_else(|| "Unexpected non-string result from WebAuthn bridge".to_string())?;
 
-        let response = post_json("/api/passkeys/finish-login", &assertion_json).await?;
+        let assertion_val: serde_json::Value = serde_json::from_str(&assertion_json)
+            .map_err(|e| format!("Invalid assertion JSON from browser: {e}"))?;
+        let finish_body = serde_json::json!({
+            "email": email,
+            "response": assertion_val,
+        })
+        .to_string();
+
+        let response = post_json_with_passkey_session(
+            "/api/passkeys/finish-login",
+            &finish_body,
+            passkey_session.as_deref(),
+        )
+        .await?;
         Ok(response)
     }
 
     #[cfg(not(feature = "hydrate"))]
     {
+        let _ = email;
         Err("WebAuthn is a browser-only API.".to_string())
     }
 }
@@ -200,6 +220,15 @@ pub async fn authenticate_passkey() -> Result<String, String> {
 /// POST JSON to a same-origin URL via gloo-net fetch, forwarding session cookies.
 #[cfg(feature = "hydrate")]
 async fn post_json(url: &str, body: &str) -> Result<String, String> {
+    post_json_with_passkey_session(url, body, None).await
+}
+
+/// Like [`post_json`], and captures `x-passkey-session` from the start-login response.
+#[cfg(feature = "hydrate")]
+async fn post_json_capturing_passkey_session(
+    url: &str,
+    body: &str,
+) -> Result<(String, Option<String>), String> {
     use gloo_net::http::Request;
 
     let response = Request::post(url)
@@ -210,26 +239,62 @@ async fn post_json(url: &str, body: &str) -> Result<String, String> {
         .await
         .map_err(|e| format!("Network error: {e}"))?;
 
+    let passkey_session = response.headers().get("x-passkey-session");
+
     if !response.ok() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        let detail = body.trim();
-        if detail.is_empty() {
-            return Err(format!("Server returned HTTP {status}"));
-        }
-        // Keep the message short for UI; full body is still useful for debugging.
-        let clipped = if detail.len() > 180 {
-            format!("{}…", &detail[..180])
-        } else {
-            detail.to_string()
-        };
-        return Err(format!("Server returned HTTP {status}: {clipped}"));
+        return Err(format_http_error(response).await);
+    }
+
+    let text = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {e}"))?;
+    Ok((text, passkey_session))
+}
+
+#[cfg(feature = "hydrate")]
+async fn post_json_with_passkey_session(
+    url: &str,
+    body: &str,
+    passkey_session: Option<&str>,
+) -> Result<String, String> {
+    use gloo_net::http::Request;
+
+    let mut req = Request::post(url).header("Content-Type", "application/json");
+    if let Some(sid) = passkey_session {
+        req = req.header("x-passkey-session", sid);
+    }
+    let response = req
+        .body(body)
+        .map_err(|e| format!("Request build error: {e}"))?
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {e}"))?;
+
+    if !response.ok() {
+        return Err(format_http_error(response).await);
     }
 
     response
         .text()
         .await
         .map_err(|e| format!("Failed to read response: {e}"))
+}
+
+#[cfg(feature = "hydrate")]
+async fn format_http_error(response: gloo_net::http::Response) -> String {
+    let status = response.status();
+    let body = response.text().await.unwrap_or_default();
+    let detail = body.trim();
+    if detail.is_empty() {
+        return format!("Server returned HTTP {status}");
+    }
+    let clipped = if detail.len() > 180 {
+        format!("{}…", &detail[..180])
+    } else {
+        detail.to_string()
+    };
+    format!("Server returned HTTP {status}: {clipped}")
 }
 
 /// Map a JS error value to a user-friendly string.

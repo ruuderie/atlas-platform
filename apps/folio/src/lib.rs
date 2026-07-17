@@ -12,6 +12,8 @@ pub mod utils;
 #[cfg(feature = "ssr")]
 pub mod atlas_client;
 #[cfg(feature = "ssr")]
+pub mod passkey_proxy;
+#[cfg(feature = "ssr")]
 pub mod state;
 #[cfg(feature = "ssr")]
 pub use state::AppState;

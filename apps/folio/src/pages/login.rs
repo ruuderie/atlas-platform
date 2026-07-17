@@ -35,6 +35,18 @@ fn is_valid_email(email: &str) -> bool {
     !email.is_empty() && email.contains('@') && email.contains('.')
 }
 
+/// WebAuthn finish → plant Folio `session=` cookie from the JSON token → SessionInfo.
+async fn complete_passkey_login(email: &str) -> Result<crate::auth::SessionInfo, String> {
+    let body = crate::utils::passkey_js::authenticate_passkey(email).await?;
+    let token = crate::auth::token_from_passkey_finish_body(&body).ok_or_else(|| {
+        "Passkey succeeded but no session token was returned. Try a magic link.".to_string()
+    })?;
+    crate::auth::invalidate_session_cache();
+    crate::auth::establish_session_from_token(token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Read `#auth-email` into the signal so Continue works if the user typed
 /// before hydrate attached `on:input` (uncontrolled SSR input).
 fn sync_email_from_dom(email: RwSignal<String>) {
@@ -164,27 +176,17 @@ fn AuthPanel() -> impl IntoView {
         if passkey_pending.get() {
             return;
         }
+        sync_email_from_dom(email);
+        let email_for_auth = email.get().trim().to_string();
         passkey_pending.set(true);
         err.set(None);
         screen.set(LoginScreen::PasskeyPrompt);
         leptos::task::spawn_local(async move {
-            match crate::utils::passkey_js::authenticate_passkey().await {
-                Ok(_) => match crate::auth::get_session().await {
-                    Ok(info) => {
-                        let dest = if !info.has_passkey {
-                            "/auth/passkey-setup"
-                        } else if !info.onboarding_complete {
-                            "/onboarding"
-                        } else {
-                            info.folio_role.home_path()
-                        };
-                        navigate.with_value(|n| n(dest, Default::default()));
-                    }
-                    Err(e) => {
-                        err.set(Some(e.to_string()));
-                        passkey_pending.set(false);
-                    }
-                },
+            match complete_passkey_login(&email_for_auth).await {
+                Ok(info) => {
+                    let dest = crate::auth::post_auth_path(&info);
+                    navigate.with_value(|n| n(dest, Default::default()));
+                }
                 Err(e) => {
                     err.set(Some(e));
                     passkey_pending.set(false);
@@ -197,26 +199,16 @@ fn AuthPanel() -> impl IntoView {
         if passkey_pending.get() {
             return;
         }
+        sync_email_from_dom(email);
+        let email_for_auth = email.get().trim().to_string();
         err.set(None);
         passkey_pending.set(true);
         leptos::task::spawn_local(async move {
-            match crate::utils::passkey_js::authenticate_passkey().await {
-                Ok(_) => match crate::auth::get_session().await {
-                    Ok(info) => {
-                        let dest = if !info.has_passkey {
-                            "/auth/passkey-setup"
-                        } else if !info.onboarding_complete {
-                            "/onboarding"
-                        } else {
-                            info.folio_role.home_path()
-                        };
-                        navigate.with_value(|n| n(dest, Default::default()));
-                    }
-                    Err(e) => {
-                        err.set(Some(e.to_string()));
-                        passkey_pending.set(false);
-                    }
-                },
+            match complete_passkey_login(&email_for_auth).await {
+                Ok(info) => {
+                    let dest = crate::auth::post_auth_path(&info);
+                    navigate.with_value(|n| n(dest, Default::default()));
+                }
                 Err(e) => {
                     err.set(Some(e));
                     passkey_pending.set(false);

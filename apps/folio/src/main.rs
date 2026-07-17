@@ -208,6 +208,8 @@ async fn proxy_passkeys_to_atlas(
         header::CONTENT_TYPE,
         header::HeaderName::from_static("x-forwarded-host"),
         header::HeaderName::from_static("x-forwarded-for"),
+        // Correlates start-login ↔ finish-login when the HttpOnly cookie is missing.
+        header::HeaderName::from_static("x-passkey-session"),
     ] {
         if let Some(val) = headers.get(&name) {
             upstream_req = upstream_req.header(&name, val);
@@ -223,26 +225,28 @@ async fn proxy_passkeys_to_atlas(
         Ok(upstream) => {
             let status = axum::http::StatusCode::from_u16(upstream.status().as_u16())
                 .unwrap_or(axum::http::StatusCode::BAD_GATEWAY);
-            let mut builder = axum::response::Response::builder().status(status);
+            // Multi Set-Cookie: see `folio::passkey_proxy` (unit-tested).
+            let mut upstream_headers = axum::http::HeaderMap::new();
             for (k, v) in upstream.headers().iter() {
-                if matches!(
-                    k.as_str(),
-                    "transfer-encoding" | "connection" | "keep-alive" | "content-length"
+                if let (Ok(name), Ok(val)) = (
+                    axum::http::HeaderName::from_bytes(k.as_str().as_bytes()),
+                    axum::http::HeaderValue::from_bytes(v.as_bytes()),
                 ) {
-                    continue;
+                    upstream_headers.append(name, val);
                 }
-                builder = builder.header(k, v);
             }
+            let set_cookies = upstream
+                .headers()
+                .get_all(reqwest::header::SET_COOKIE)
+                .iter()
+                .filter_map(|v| axum::http::HeaderValue::from_bytes(v.as_bytes()).ok());
+            let out_headers =
+                folio::passkey_proxy::merge_proxied_response_headers(&upstream_headers, set_cookies);
             let bytes = upstream.bytes().await.unwrap_or_default();
-            builder
-                .body(axum::body::Body::from(bytes))
-                .unwrap_or_else(|_| {
-                    (
-                        axum::http::StatusCode::BAD_GATEWAY,
-                        "Failed to build proxied response",
-                    )
-                        .into_response()
-                })
+            let mut res = axum::response::Response::new(axum::body::Body::from(bytes));
+            *res.status_mut() = status;
+            *res.headers_mut() = out_headers;
+            res
         }
         Err(e) => {
             eprintln!("[folio] passkey proxy to {url} failed: {e}");

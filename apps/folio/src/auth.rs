@@ -586,6 +586,139 @@ pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
     }
 }
 
+/// After WebAuthn `finish-login`, plant the `session=` cookie on the Folio origin.
+///
+/// Passkey finish is proxied through Folio → Atlas. Relying solely on the
+/// proxied `Set-Cookie` has been flaky (multi-value Set-Cookie + browser fetch).
+/// finish-login also returns `{ "token": "…" }` in the JSON body — we validate
+/// that token via `/api/folio/me` and set the cookie via `ResponseOptions`,
+/// matching magic-link verify.
+#[server(EstablishSessionFromToken, "/api")]
+pub async fn establish_session_from_token(token: String) -> Result<SessionInfo, ServerFnError> {
+    let token = token.trim().to_string();
+    if token.is_empty() {
+        return Err(ServerFnError::new("Empty session token"));
+    }
+
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::{extract, ResponseOptions};
+
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let proxy = crate::atlas_client::folio_proxy_headers(&headers);
+
+        // Plant cookie on Folio origin first so a subsequent check_session works
+        // even if this response's body path is slow / partial.
+        if let Some(resp) = use_context::<ResponseOptions>() {
+            if let Ok(cookie_val) =
+                axum::http::HeaderValue::from_str(&session_cookie_header(&token))
+            {
+                resp.insert_header(axum::http::header::SET_COOKIE, cookie_val);
+            }
+        }
+
+        let info = match crate::atlas_client::authenticated_get_with_headers::<SessionInfo>(
+            "/api/folio/me",
+            &token,
+            None,
+            proxy.clone(),
+        )
+        .await
+        {
+            Ok(info) => info,
+            Err(_) => {
+                // Pre-onboarding: platform session is valid but Folio RBAC may not exist.
+                #[derive(Deserialize)]
+                struct ValidateUser {
+                    id: Option<String>,
+                    email: String,
+                    first_name: Option<String>,
+                    last_name: Option<String>,
+                }
+                #[derive(Deserialize)]
+                struct ValidateResp {
+                    user: Option<ValidateUser>,
+                }
+
+                let resp = crate::atlas_client::authenticated_get_with_headers::<ValidateResp>(
+                    "/api/auth/session/validate",
+                    &token,
+                    None,
+                    proxy,
+                )
+                .await
+                .map_err(|e| ServerFnError::new(format!("Session establish failed: {e}")))?;
+
+                let user = resp
+                    .user
+                    .ok_or_else(|| ServerFnError::new("Session has no user"))?;
+                let email = user.email.trim().to_string();
+                if email.is_empty() {
+                    return Err(ServerFnError::new("Session has no email"));
+                }
+                let user_id = user
+                    .id
+                    .as_deref()
+                    .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                    .unwrap_or_else(uuid::Uuid::nil);
+                let display_name = {
+                    let n = format!(
+                        "{} {}",
+                        user.first_name.as_deref().unwrap_or(""),
+                        user.last_name.as_deref().unwrap_or("")
+                    )
+                    .trim()
+                    .to_string();
+                    if n.is_empty() {
+                        None
+                    } else {
+                        Some(n)
+                    }
+                };
+                SessionInfo {
+                    user_id,
+                    tenant_id: None,
+                    email,
+                    display_name,
+                    folio_role: FolioRole::Landlord,
+                    has_passkey: true,
+                    onboarding_complete: false,
+                    wizard_steps_completed: 0,
+                    wizard_steps_total: default_wizard_total(),
+                    wizard_dismissed: false,
+                    has_str_assets: false,
+                    active_lease_type: None,
+                }
+            }
+        };
+
+        get_server_session_cache()
+            .insert(token, info.clone())
+            .await;
+        Ok(info)
+    }
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = token;
+        Err(ServerFnError::new("establish_session_from_token is SSR-only"))
+    }
+}
+
+/// Pull `token` from a passkey finish-login JSON body.
+pub fn token_from_passkey_finish_body(body: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.get("token")
+                .and_then(|t| t.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+        })
+}
+
 /// Verify a magic-link token and return the Folio session.
 ///
 /// # Why this is not a simple round-trip
@@ -720,6 +853,41 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
 //
 // Note: extract_bearer_token is SSR-only (cfg(feature = "ssr")).
 // Those tests are compiled only when running cargo test with --features ssr.
+
+#[cfg(test)]
+mod passkey_finish_token_tests {
+    use super::token_from_passkey_finish_body;
+
+    /// REGRESSION: Folio plants `session=` from finish-login JSON `token` when
+    /// proxied Set-Cookie is missing. Empty / absent token must not look like success.
+    #[test]
+    fn extracts_token_from_finish_login_body() {
+        let body = r#"{"user":{"email":"a@b.com"},"token":"sess-xyz"}"#;
+        assert_eq!(
+            token_from_passkey_finish_body(body).as_deref(),
+            Some("sess-xyz")
+        );
+    }
+
+    #[test]
+    fn rejects_missing_or_blank_token() {
+        assert!(token_from_passkey_finish_body(r#"{"user":{}}"#).is_none());
+        assert!(token_from_passkey_finish_body(r#"{"token":""}"#).is_none());
+        assert!(token_from_passkey_finish_body(r#"{"token":"   "}"#).is_none());
+        assert!(token_from_passkey_finish_body("not-json").is_none());
+    }
+
+    #[test]
+    fn documents_skip_serializing_gap_without_manual_token_field() {
+        // Backend SessionResponse.token is #[serde(skip_serializing)]. Without the
+        // manual insert in login_finish, Folio cannot establish_session_from_token.
+        let body = r#"{"user":{"id":"00000000-0000-0000-0000-000000000001","email":"a@b.com"}}"#;
+        assert!(
+            token_from_passkey_finish_body(body).is_none(),
+            "body without token must fail closed so login surfaces an error"
+        );
+    }
+}
 
 #[cfg(test)]
 mod probe_tests {

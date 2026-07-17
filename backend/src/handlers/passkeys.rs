@@ -494,9 +494,6 @@ pub async fn login_finish(
             )
         })?;
 
-    let cookie = session_cookie_header(&session_response.token, 86_400);
-    let clear_pk_session = "passkey_session=; Path=/api/passkeys; HttpOnly; Max-Age=0";
-
     metrics::PASSKEY_AUTH_SUCCESS
         .with_label_values(&["unknown", &app_instance_id])
         .inc();
@@ -510,25 +507,46 @@ pub async fn login_finish(
         status = "success"
     );
 
-    let mut response_json = serde_json::to_value(&session_response)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    if let serde_json::Value::Object(ref mut map) = response_json {
-        map.insert(
-            "token".to_string(),
-            serde_json::Value::String(session_response.token.clone()),
-        );
-    }
+    let response_json = passkey_finish_login_json(&session_response)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let (session_cookie, clear_pk_session) =
+        passkey_finish_login_cookies(&session_response.token);
 
     Ok((
         StatusCode::OK,
         [
-            (header::SET_COOKIE, cookie.clone()),
-            (header::SET_COOKIE, clear_pk_session.to_string()),
+            (header::SET_COOKIE, session_cookie),
+            (header::SET_COOKIE, clear_pk_session),
         ],
         Json(response_json),
     )
         .into_response())
+}
+
+/// Passkey finish-login JSON for Folio / clients that cannot rely solely on
+/// proxied `Set-Cookie`. `SessionResponse.token` is `#[serde(skip_serializing)]`
+/// (magic-link / OTP security), so we re-insert `token` for this endpoint only.
+pub fn passkey_finish_login_json(
+    session: &crate::models::session::SessionResponse,
+) -> Result<serde_json::Value, String> {
+    let mut response_json =
+        serde_json::to_value(session).map_err(|e| e.to_string())?;
+    if let serde_json::Value::Object(ref mut map) = response_json {
+        map.insert(
+            "token".to_string(),
+            serde_json::Value::String(session.token.clone()),
+        );
+    }
+    Ok(response_json)
+}
+
+/// Dual Set-Cookie values for finish-login: plant `session=` and clear the
+/// short-lived `passkey_session` challenge cookie.
+pub fn passkey_finish_login_cookies(token: &str) -> (String, String) {
+    (
+        session_cookie_header(token, 86_400),
+        "passkey_session=; Path=/api/passkeys; HttpOnly; Max-Age=0".to_string(),
+    )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
