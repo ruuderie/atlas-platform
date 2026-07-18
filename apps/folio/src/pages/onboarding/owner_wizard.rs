@@ -107,7 +107,7 @@ pub fn OwnerWizard() -> impl IntoView {
 
     let ctx_body = ViewFn::from(|| {
         view! {
-            <p class="wiz-ctx-p">"Your owner portal gives you read-only visibility into your portfolio managed by your property manager."</p>
+            <p class="wiz-ctx-p">"See statements and performance for properties your manager runs."</p>
             <ul class="wiz-ctx-list">
                 <li><span class="ms msf">"check_circle"</span>"Monthly owner statements"</li>
                 <li><span class="ms msf">"check_circle"</span>"Real-time occupancy & income"</li>
@@ -120,7 +120,7 @@ pub fn OwnerWizard() -> impl IntoView {
     view! {
         <WizardShell steps=STEPS.to_vec() current_idx=current_idx persona_pill="Owner"
             persona_icon="account_balance" accent_color="#7c3aed" panel_bg="#140f20"
-            ctx_headline="Welcome to your Owner Portal" ctx_body=ctx_body invite_code=invite_sig
+            ctx_headline="Owner portal" ctx_body=ctx_body invite_code=invite_sig
             on_next=on_next on_prev=on_prev is_last_step=is_last next_label=next_label>
 
             // ── Step 1: Identity & Profile ──────────────────────────────────

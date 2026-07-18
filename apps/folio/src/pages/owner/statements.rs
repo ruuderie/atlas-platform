@@ -110,7 +110,7 @@ pub fn OwnerStatements() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Owner Statements"</h1>
-                    <p class="page-subtitle">"Monthly financial overview across all properties"</p>
+                    <p class="page-subtitle">"Monthly statements"</p>
                 </div>
                 <div class="page-actions">
                     <span class="owner-readonly-badge">"👁 Read Only"</span>

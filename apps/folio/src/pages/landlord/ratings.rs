@@ -19,7 +19,7 @@ pub fn LandlordRatings() -> impl IntoView {
             <PageHeader
                 title=Signal::derive(|| "Rate contractors".to_string())
                 subtitle=Signal::derive(|| {
-                    "G-27 sessions after work orders complete — job photos as evidence.".to_string()
+                    "Rate contractors after work orders finish — job photos as evidence.".to_string()
                 })
             />
             {move || project_note.get().map(|pid| {
@@ -39,10 +39,10 @@ pub fn LandlordRatings() -> impl IntoView {
                     <div>
                         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
                             <strong>"Pending contractor sessions"</strong>
-                            <StatusPill label="G-27".to_string() tone=StatusPillTone::Info/>
+                            <StatusPill label="Ratings".to_string() tone=StatusPillTone::Info/>
                         </div>
                         <p class="proj-section__hint" style="margin-top:0.35rem;">
-                            "ScorecardWidget dimensions · photos from case vault"
+                            "Rate quality using job photos"
                         </p>
                     </div>
                 </div>
@@ -54,8 +54,8 @@ pub fn LandlordRatings() -> impl IntoView {
 
             <PendingRatingsPage
                 title="Sessions"
-                subtitle="Opened by case_resolved (landlord or vendor complete / log-paid)."
-                empty_message="No pending contractor ratings. If you expected one: confirm Folio app_instance, assigned vendor, landlord rater, and Contractor Performance template deploy."
+                subtitle="Opened when a work order is completed."
+                empty_message="No pending contractor ratings. Complete a work order with an assigned vendor to open a session."
                 default_session_label="Contractor rating"
             />
         </div>

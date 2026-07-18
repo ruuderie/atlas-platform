@@ -6,102 +6,18 @@ use crate::components::page_header::PageHeader;
 use crate::components::property_tab_bar::{PropertyTab, PropertyTabBar};
 use crate::components::stat_card::StatCard;
 use crate::components::status_pill::{StatusPill, StatusPillTone};
+use crate::pages::landlord::asset_api::{
+    get_asset_children, get_asset_for_dispatch, get_projects_for_asset, AssetChildDto,
+    AssetDetailDto,
+};
 use crate::pages::landlord::asset_detail::AssetDetail as LeafAssetDetail;
+use crate::pages::landlord::maintenance_queue::{
+    list_maintenance_tickets, CaseStatus, MaintenanceSummary,
+};
+use crate::pages::landlord::unit_detail::UnitDetailPage;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AssetDetailDto {
-    id: Uuid,
-    parent_asset_id: Option<Uuid>,
-    asset_type: String,
-    name: String,
-    status: String,
-    city: Option<String>,
-    state_province: Option<String>,
-    str_eligible: bool,
-    #[serde(default)]
-    str_listing_active: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AssetChildDto {
-    id: Uuid,
-    name: String,
-    asset_type: String,
-    status: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ProjectSummaryDto {
-    id: Uuid,
-    title: String,
-    status: String,
-    estimated_cost_cents: Option<i64>,
-    actual_spent_cents: i64,
-    child_count: usize,
-}
-
-#[cfg(feature = "ssr")]
-fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
-    crate::auth::extract_bearer_token(headers)
-}
-
-#[server(GetAssetForDispatch, "/api")]
-pub async fn get_asset_for_dispatch(id: Uuid) -> Result<AssetDetailDto, ServerFnError> {
-    use axum::http::HeaderMap;
-    use leptos_axum::extract;
-    let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = extract_token(&headers)
-        .ok_or_else(|| ServerFnError::new("No session token"))?;
-    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
-    crate::atlas_client::authenticated_get_with_headers(
-        &format!("/api/folio/assets/{id}"),
-        &token,
-        None,
-        proxy,
-    )
-    .await
-    .map_err(ServerFnError::new)
-}
-
-#[server(GetAssetChildren, "/api")]
-pub async fn get_asset_children(id: Uuid) -> Result<Vec<AssetChildDto>, ServerFnError> {
-    use axum::http::HeaderMap;
-    use leptos_axum::extract;
-    let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = extract_token(&headers)
-        .ok_or_else(|| ServerFnError::new("No session token"))?;
-    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
-    crate::atlas_client::authenticated_get_with_headers(
-        &format!("/api/folio/assets/{id}/children"),
-        &token,
-        None,
-        proxy,
-    )
-    .await
-    .map_err(ServerFnError::new)
-}
-
-#[server(GetProjectsForAsset, "/api")]
-pub async fn get_projects_for_asset(asset_id: Uuid) -> Result<Vec<ProjectSummaryDto>, ServerFnError> {
-    use axum::http::HeaderMap;
-    use leptos_axum::extract;
-    let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = extract_token(&headers)
-        .ok_or_else(|| ServerFnError::new("No session token"))?;
-    let proxy = crate::atlas_client::folio_proxy_headers(&headers);
-    crate::atlas_client::authenticated_get_with_headers(
-        &format!("/api/folio/projects?asset_id={asset_id}"),
-        &token,
-        None,
-        proxy,
-    )
-    .await
-    .map_err(ServerFnError::new)
-}
 
 fn is_multi_unit_parent(a: &AssetDetailDto, children: &[AssetChildDto]) -> bool {
     // Hierarchy is authoritative. Onboarding stores PropertyType strings
@@ -182,6 +98,9 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
     .join(", ");
 
     let units: Vec<AssetChildDto> = children;
+    let mut scope = units.iter().map(|u| u.id).collect::<Vec<_>>();
+    scope.push(asset_id);
+    let scope_ids_sig = RwSignal::new(scope);
     let units_sig = RwSignal::new(units);
     let tab = RwSignal::new(PropertyTab::Overview);
 
@@ -189,6 +108,43 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
         move || asset_id,
         |aid| async move { get_projects_for_asset(aid).await.unwrap_or_default() },
     );
+
+    let tickets = Resource::new(|| (), |_| async move { list_maintenance_tickets().await });
+
+    let activity_items = Signal::derive(move || {
+        let scope = scope_ids_sig.get();
+        tickets
+            .get()
+            .and_then(|r| r.ok())
+            .map(|items: Vec<MaintenanceSummary>| {
+                items
+                    .into_iter()
+                    .filter(|t| {
+                        t.asset_id
+                            .map(|aid| scope.contains(&aid))
+                            .unwrap_or(false)
+                    })
+                    .filter(|t| {
+                        matches!(
+                            CaseStatus::from_str(&t.status),
+                            CaseStatus::Open | CaseStatus::InProgress
+                        )
+                    })
+                    .take(8)
+                    .map(|t| ActivityRailItem {
+                        id: t.id.to_string(),
+                        kind_label: "WO".into(),
+                        title: t.subject,
+                        meta: format!("{} · {}", t.status, t.priority),
+                        href: FolioRoute::LandlordMaintenanceDetail
+                            .path()
+                            .replace(":id", &t.id.to_string()),
+                        tone: StatusPillTone::Warn,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    });
 
     let maint_href = FolioRoute::LandlordMaintenance.path().to_string();
     let title_sig = Signal::derive({
@@ -223,7 +179,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                 title=title_sig
                 subtitle=subtitle_sig
             >
-                <a class="folio-btn folio-btn--primary" href=FolioRoute::LandlordMaintenanceNew.path()>
+                <a class="folio-btn folio-btn--primary press" href=FolioRoute::LandlordMaintenanceNew.path()>
                     "New work order"
                 </a>
             </PageHeader>
@@ -287,7 +243,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                             <div class="proj-section__head">
                                 <div>
                                     <h3 class="proj-section__title">"Projects"</h3>
-                                    <p class="proj-section__hint">"G-13 renovation_project"</p>
+                                    <p class="proj-section__hint">"Renovation projects"</p>
                                 </div>
                             </div>
                             <Suspense fallback=|| view! { <div class="folio-empty--compact">"Loading…"</div> }>
@@ -330,7 +286,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                         </section>
                     </div>
                     <ActivityRail
-                        items=Signal::derive(|| Vec::<ActivityRailItem>::new())
+                        items=activity_items
                         see_all_href=maint_href.clone()
                     />
                 </div>
@@ -365,53 +321,10 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
     }
 }
 
-#[component]
-fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
-    let name = asset.name.clone();
-    let str_mode = asset.str_eligible;
-    let parent = asset.parent_asset_id;
-    let wo_new = FolioRoute::LandlordMaintenanceNew.path();
-
-    view! {
-        <div class="landlord-list-page">
-            <PageHeader
-                title=Signal::derive(move || name.clone())
-                subtitle=Signal::derive(move || -> String {
-                    if str_mode {
-                        "Unit · short-term rental".into()
-                    } else {
-                        "Unit · long-term rental".into()
-                    }
-                })
-            >
-                <a class="folio-btn folio-btn--primary" href=wo_new>"Create WO"</a>
-            </PageHeader>
-            {parent.map(|pid| {
-                view! {
-                    <PropertyTabBar
-                        asset_id=pid
-                        active=Signal::derive(|| PropertyTab::Units)
-                    />
-                }
-            })}
-            <section class="proj-section">
-                <div class="proj-section__head">
-                    <div>
-                        <h3 class="proj-section__title">"Spaces"</h3>
-                        <p class="proj-section__hint">"G-10 unit_space — spaces API"</p>
-                    </div>
-                </div>
-                <div class="folio-empty--compact">
-                    "Add kitchens, bathrooms, and other spaces to target work orders."
-                </div>
-            </section>
-        </div>
-    }
-}
-
 #[cfg(test)]
 mod dispatch_tests {
-    use super::{is_multi_unit_parent, is_unit, AssetChildDto, AssetDetailDto};
+    use super::{is_multi_unit_parent, is_unit};
+    use crate::pages::landlord::asset_api::{AssetChildDto, AssetDetailDto};
     use uuid::Uuid;
 
     fn parent(asset_type: &str) -> AssetDetailDto {

@@ -175,8 +175,7 @@ pub enum FolioRoute {
     LandlordMaintenanceDetail, // /l/maintenance/:id
     LandlordProjectDetail, // /l/projects/:id
     LandlordSyndication,
-    // LandlordMeridian removed — nav footer now uses LandlordMeridianConfig directly.
-    // Kept as a comment to avoid future confusion about /l/meridian intent.
+    LandlordMeridian, // /l/meridian — KPI overview
     LandlordMeridianConfig,
     LandlordRatings,
     LandlordAccountBilling,
@@ -185,6 +184,11 @@ pub enum FolioRoute {
     LandlordSystems, // /l/systems — portfolio building systems
     LandlordInspections,
     LandlordViolations,
+    LandlordDeals,           // /l/deals
+    LandlordDealDetail,      // /l/deals/:id
+    LandlordDealStructure,   // /l/deals/:id/structure
+    LandlordBuyers,          // /l/buyers
+    LandlordMarketplace,     // /l/marketplace
     LandlordTenantProfile, // /l/tenants/:id — landlord view of a counterparty tenant
     LandlordCommunications, // /l/communications — multi-party messaging
     LandlordNotifications, // /l/notifications  — notification inbox + channel prefs
@@ -309,7 +313,7 @@ impl FolioRoute {
             Self::LandlordMaintenanceDetail => "/l/maintenance/:id",
             Self::LandlordProjectDetail => "/l/projects/:id",
             Self::LandlordSyndication => "/l/syndication",
-            // LandlordMeridian path removed (variant removed — was /l/meridian).
+            Self::LandlordMeridian => "/l/meridian",
             Self::LandlordMeridianConfig => "/l/meridian/configure",
             Self::LandlordRatings => "/l/ratings",
             Self::LandlordAccountBilling => "/l/account/billing",
@@ -318,6 +322,11 @@ impl FolioRoute {
             Self::LandlordSystems => "/l/systems",
             Self::LandlordInspections => "/l/inspections",
             Self::LandlordViolations => "/l/violations",
+            Self::LandlordDeals => "/l/deals",
+            Self::LandlordDealDetail => "/l/deals/:id",
+            Self::LandlordDealStructure => "/l/deals/:id/structure",
+            Self::LandlordBuyers => "/l/buyers",
+            Self::LandlordMarketplace => "/l/marketplace",
             Self::LandlordTenantProfile => "/l/tenants/:id",
             Self::LandlordCommunications => "/l/communications",
             Self::LandlordNotifications => "/l/notifications",
@@ -451,6 +460,7 @@ mod tests {
         let routes = [
             FolioRoute::LandlordDashboard,
             FolioRoute::LandlordAssets,
+            FolioRoute::LandlordMeridian,
             FolioRoute::LandlordMeridianConfig,
             FolioRoute::LandlordAccountBilling,
             FolioRoute::TenantDashboard,
@@ -493,8 +503,8 @@ mod tests {
     // ── Key route paths ───────────────────────────────────────────────────────
 
     #[test]
-    fn meridian_config_path_is_configure() {
-        // GAP-1 regression: nav footer must go to /l/meridian/configure, not /l/meridian
+    fn meridian_paths() {
+        assert_eq!(FolioRoute::LandlordMeridian.path(), "/l/meridian");
         assert_eq!(
             FolioRoute::LandlordMeridianConfig.path(),
             "/l/meridian/configure"
@@ -567,9 +577,13 @@ mod tests {
             (FolioRoute::Settings, "/settings"),
             (FolioRoute::PmcPortfolioMap, "/pmc/map"),
             (FolioRoute::StrHostListingIndex, "/s/listings"),
+            (FolioRoute::LandlordMeridian, "/l/meridian"),
             (FolioRoute::LandlordMeridianConfig, "/l/meridian/configure"),
             (FolioRoute::Login, "/login"),
         ];
+        for (route, expected) in routes_and_paths {
+            assert_eq!(route.path(), expected);
+        }
         let paths: Vec<_> = routes_and_paths.iter().map(|(r, _)| r.path()).collect();
         let unique: std::collections::HashSet<_> = paths.iter().collect();
         assert_eq!(
@@ -640,11 +654,17 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
             label: None,
             items: &[
                 NavItem::new(FolioRoute::LandlordDashboard, "Dashboard", NavIcon::Home),
-                NavItem::new(FolioRoute::LandlordPortfolio, "Portfolio", NavIcon::Domain),
                 NavItem::new(FolioRoute::LandlordAssets, "Assets", NavIcon::Apartment),
                 NavItem::new(FolioRoute::LandlordLeases, "Leases", NavIcon::Description),
                 NavItem::new(FolioRoute::LandlordLeads, "Leads", NavIcon::PersonSearch),
                 NavItem::new(FolioRoute::LandlordMap, "Map", NavIcon::Map),
+            ],
+        },
+        NavGroup {
+            label: Some("Deal Ops"),
+            items: &[
+                NavItem::new(FolioRoute::LandlordDeals, "Deals", NavIcon::Handshake),
+                NavItem::new(FolioRoute::LandlordBuyers, "Buyers", NavIcon::People),
             ],
         },
         NavGroup {
@@ -656,12 +676,29 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
                     NavIcon::Build,
                 ),
                 NavItem::new(FolioRoute::LandlordRatings, "Ratings", NavIcon::BarChart),
+                NavItem::new(FolioRoute::LandlordVault, "Vault", NavIcon::Folder),
+                NavItem::new(FolioRoute::LandlordSystems, "Systems", NavIcon::Build),
+                NavItem::new(FolioRoute::LandlordVendors, "Vendors", NavIcon::Handyman),
+                NavItem::new(
+                    FolioRoute::LandlordMarketplace,
+                    "Marketplace",
+                    NavIcon::Handyman,
+                ),
+                NavItem::new(
+                    FolioRoute::LandlordInspections,
+                    "Inspections",
+                    NavIcon::Verified,
+                ),
+                NavItem::new(
+                    FolioRoute::LandlordViolations,
+                    "Violations",
+                    NavIcon::Report,
+                ),
                 NavItem::new(
                     FolioRoute::LandlordCampaigns,
                     "Campaigns",
                     NavIcon::Campaign,
                 ),
-                NavItem::new(FolioRoute::LandlordVendors, "Vendors", NavIcon::Handyman),
                 NavItem::new(
                     FolioRoute::LandlordReservations,
                     "Reservations",
@@ -716,7 +753,7 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
     ],
     footer_items: &[
         NavItem::new(
-            FolioRoute::LandlordMeridianConfig,
+            FolioRoute::LandlordMeridian,
             "Analytics",
             NavIcon::BarChart,
         ),

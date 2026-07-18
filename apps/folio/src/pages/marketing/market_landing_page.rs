@@ -760,7 +760,7 @@ fn MktgPersonas(#[prop(default = None)] override_block: Option<PersonasBlock>) -
             "coral".to_string(),
             "1–20 units".to_string(),
             vec![
-                "Portfolio overview & analytics".to_string(),
+                "Dashboard and reports".to_string(),
                 "Automated rent reminders".to_string(),
                 "Lease templates & e-sign".to_string(),
                 "Maintenance dispatch".to_string(),
@@ -784,7 +784,7 @@ fn MktgPersonas(#[prop(default = None)] override_block: Option<PersonasBlock>) -
             "gold".to_string(),
             "Airbnb + direct".to_string(),
             vec![
-                "Unified booking calendar".to_string(),
+                "Booking calendar".to_string(),
                 "Channel sync".to_string(),
                 "Guest messaging".to_string(),
                 "Vacation rental licensing & compliance".to_string(),
@@ -890,7 +890,7 @@ fn MktgFeatures(#[prop(default = None)] override_block: Option<FeatureGridBlock>
         ("build", "Maintenance tracking", "Tenants report issues, you approve the work, contractors receive the job and send invoices — all in one place."),
         ("calendar_month", "Vacation rental calendar", "Airbnb, VRBO, Booking.com and your own direct bookings in one calendar. No double-bookings, ever."),
         ("verified_user", "Compliance reminders", "Vacation rental permits, fair housing requirements, and local registration renewals — tracked automatically so nothing slips."),
-        ("analytics", "Portfolio dashboard", "See your income, vacancies, and maintenance costs across every property at a glance."),
+        ("analytics", "Portfolio dashboard", "See income, vacancies, and maintenance costs across every property."),
         ("campaign", "Vacancy marketing", "List your vacancy, collect applications, screen tenants, and convert to a signed lease — one workflow."),
         ("groups", "Contractor marketplace", "Find vetted contractors, send them work orders, receive invoices, and leave reviews — all inside Folio."),
         ("language", "Multi-country", "United States · Canada — with more markets on the way."),
@@ -1011,7 +1011,7 @@ fn MktgStr(#[prop(default = None)] override_block: Option<CardSectionBlock>) -> 
             "Most landlord software treats vacation rentals as an afterthought. Folio treats them as a first-class product — one calendar, one inbox, one platform.".to_string()
         });
     let default_items = vec![
-        ("calendar_month", "Unified booking calendar", "Airbnb, VRBO, Booking.com and your own direct bookings in one drag-and-drop calendar. Block dates, set minimums, sync instantly."),
+        ("calendar_month", "Booking calendar", "Airbnb, VRBO, Booking.com and your own direct bookings in one calendar. Block dates, set minimums, sync instantly."),
         ("verified_user", "Permits & compliance", "Vacation rental permit tracking, renewal reminders, and local registration filings — so you never get caught operating without a license."),
         ("payments", "Collect directly from guests", "Take deposits, damage holds, and nightly rates from guests without paying a middleman's fee stack."),
     ];
@@ -1075,7 +1075,7 @@ fn MktgInternational(
     let eyebrow = override_block
         .as_ref()
         .and_then(|block| block.eyebrow.clone())
-        .unwrap_or_else(|| "Global reach".to_string());
+        .unwrap_or_else(|| "Where Folio works".to_string());
     let heading = override_block
         .as_ref()
         .and_then(|block| block.heading.clone())
@@ -1155,7 +1155,7 @@ fn MktgPayments(
     let subhead = override_block
         .as_ref()
         .and_then(|block| block.subhead.clone())
-        .unwrap_or_else(|| "The unified ledger handles every rail — ACH, EFT, and card — and automatically splits payments between principal, fees, and reserves.".to_string());
+        .unwrap_or_else(|| "Payments in one ledger — ACH, EFT, and card — with automatic splits for principal, fees, and reserves.".to_string());
     let default_rails = vec![
         (
             "💳",
@@ -1611,7 +1611,7 @@ fn MktgAppPreview() -> impl IntoView {
                                 // TAB 1: Dashboard
                                 <div class="asp-panel" data-tab="1">
                                     <div class="asp-page-title">"Welcome back, Sarah!"</div>
-                                    <div class="asp-page-sub">"Here's what's happening across your portfolio today."</div>
+                                    <div class="asp-page-sub">"Today's numbers"</div>
                                     <div class="asp-stat-grid">
                                         <div class="asp-stat-card">
                                             <div class="asp-stat-icon">"🏠"</div>

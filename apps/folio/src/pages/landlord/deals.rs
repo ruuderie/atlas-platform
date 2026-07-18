@@ -7,6 +7,8 @@ use leptos_router::hooks::use_query_map;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::nav::FolioRoute;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DealSummary {
     pub id: Uuid,
@@ -197,10 +199,10 @@ pub fn LandlordDeals() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Deal Ops"</h1>
-                    <p class="page-subtitle">"Wholesaling + Creative Finance · shared acquire / disposition rails"</p>
+                    <p class="page-subtitle">"Wholesaling and creative finance deals"</p>
                 </div>
                 <div class="page-actions">
-                    <a class="btn btn-ghost btn-sm" href="/l/buyers">"Buyers"</a>
+                    <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a>
                     <button class="btn btn-primary btn-sm" on:click=move |_| show_add.set(true)>"+ New"</button>
                 </div>
             </div>
@@ -208,11 +210,11 @@ pub fn LandlordDeals() -> impl IntoView {
             <div class="flex gap-2 mb-4">
                 <a
                     class=move || if track.get() == "wholesale" { "btn btn-primary btn-sm" } else { "btn btn-ghost btn-sm" }
-                    href="/l/deals?track=wholesale"
+                    href=format!("{}?track=wholesale", FolioRoute::LandlordDeals.path())
                 >"Wholesale"</a>
                 <a
                     class=move || if track.get() == "creative_finance" { "btn btn-primary btn-sm" } else { "btn btn-ghost btn-sm" }
-                    href="/l/deals?track=creative_finance"
+                    href=format!("{}?track=creative_finance", FolioRoute::LandlordDeals.path())
                 >"Creative Finance"</a>
             </div>
 
@@ -262,7 +264,9 @@ pub fn LandlordDeals() -> impl IntoView {
                                                                 each=move || col.clone()
                                                                 key=|d| d.id
                                                                 children=move |d| {
-                                                                    let href = format!("/l/deals/{}", d.id);
+                                                                    let href = FolioRoute::LandlordDealDetail
+                                                                        .path()
+                                                                        .replace(":id", &d.id.to_string());
                                                                     let addr = d.property_address.clone();
                                                                     let offer = fmt_money(d.offer_cents.or(d.deal_amount_cents));
                                                                     let arv = fmt_money(d.arv_cents);

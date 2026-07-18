@@ -270,7 +270,7 @@ fn BrokerFeatures(
         ("home_work",    "Listing management",           "Manage all your active, pending, and closed listings in one place. Track price changes, days on market, and showing history per property."),
         ("group",        "Buyer & seller CRM",           "Every buyer and seller has a profile with their timeline, preferences, offers, and communication history. Never lose track of a deal."),
         ("payments",     "Commission tracking",          "Define commission splits per deal or per agent. Folio calculates what you're owed at close and keeps a running ledger."),
-        ("person",       "Agent accounts",               "Add agents under your brokerage license. They see only their own deals and clients. You see everything. Full visibility, clear access control."),
+        ("person",       "Agent accounts",               "Add agents under your brokerage license. They see only their own deals and clients. You see everything."),
         ("gavel",        "License & compliance",         "Track your brokerage license renewal, agent certifications, E&O insurance, and fair housing deadlines — all in one place."),
         ("analytics",    "Brokerage analytics",          "GCI by agent, conversion rates, average days to close, and deal volume trends — dashboards built for running a team, not filing taxes."),
         ("calendar_month", "Showing & appointment scheduler", "Coordinate showings across your team. Buyers, sellers, and agents see the same calendar with no double bookings."),
@@ -369,7 +369,7 @@ fn BrokerAgents() -> impl IntoView {
                         ("assignment", "Deal assignment",
                          "Assign buyers, sellers, and listings to agents. Reassign instantly when a deal changes hands or your team shifts."),
                         ("supervisor_account", "Broker oversight",
-                         "Full visibility across every agent, every deal, and every commission in flight — at all times."),
+                         "See every agent's deals and commissions."),
                     ].iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-str-card">
                             <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>

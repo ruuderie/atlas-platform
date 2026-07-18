@@ -84,7 +84,7 @@ fn BrandPanel() -> impl IntoView {
                     <span class="login-logo-mark">"F"</span>
                     <span class="login-logo-text">"Folio"</span>
                 </a>
-                <p class="login-brand-tagline">"Your portfolio. Finally under control."</p>
+                <p class="login-brand-tagline">"Property management, without the mess."</p>
 
                 <div class="login-brand-hero-copy">
                     <p class="login-brand-headline">
@@ -95,7 +95,7 @@ fn BrandPanel() -> impl IntoView {
                         <em>"they actually are."</em>
                     </p>
                     <p class="login-brand-subline">
-                        "One platform for rent collection, leases, maintenance, vacation rentals, and compliance — built for serious operators."
+                        "Rent collection, leases, maintenance, vacation rentals, and compliance — in one place."
                     </p>
                 </div>
 

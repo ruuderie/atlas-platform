@@ -75,6 +75,10 @@ struct AssetSummary {
     pub serial_or_folio_number: Option<String>,
     pub status: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[serde(default)]
+    pub str_eligible: bool,
+    #[serde(default)]
+    pub str_listing_active: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,6 +173,8 @@ async fn list_assets(
             serial_or_folio_number: a.serial_or_folio_number,
             status: a.status,
             created_at: a.created_at,
+            str_eligible: a.str_eligible,
+            str_listing_active: a.str_listing_active,
         })
         .collect();
 
@@ -306,6 +312,8 @@ async fn list_asset_children(
             serial_or_folio_number: a.serial_or_folio_number,
             status: a.status,
             created_at: a.created_at,
+            str_eligible: a.str_eligible,
+            str_listing_active: a.str_listing_active,
         })
         .collect();
 
@@ -563,13 +571,21 @@ struct MapPin {
     pub city: Option<String>,
     pub state_province: Option<String>,
     pub postal_code: Option<String>,
+    /// Open / in-progress / scheduled maintenance on this asset or its children.
+    pub open_wo_count: i64,
+    /// Soonest scheduled_at among open maintenance cases (ISO), if any.
+    pub next_wo_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub str_eligible: bool,
 }
 
 async fn list_assets_map(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    use crate::types::pm::PmCaseType;
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use std::collections::HashMap;
+
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
     let assets = crate::entities::atlas_asset::Entity::find()
@@ -580,6 +596,60 @@ async fn list_assets_map(
             tracing::error!(%tenant_id, "list_assets_map error: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+    // Child → parent for rolling unit WOs up to a building pin.
+    let parent_of: HashMap<uuid::Uuid, uuid::Uuid> = assets
+        .iter()
+        .filter_map(|a| a.parent_asset_id.map(|p| (a.id, p)))
+        .collect();
+
+    let cases = crate::entities::atlas_case::Entity::find()
+        .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
+        .filter(
+            crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::Maintenance.to_string()),
+        )
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_assets_map maintenance error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let mut open_wo_by_asset: HashMap<uuid::Uuid, i64> = HashMap::new();
+    let mut next_wo_by_asset: HashMap<uuid::Uuid, chrono::DateTime<chrono::Utc>> = HashMap::new();
+    for c in cases {
+        let status = c.status.to_ascii_lowercase();
+        let is_open = matches!(
+            status.as_str(),
+            "open" | "in_progress" | "scheduled" | "assigned"
+        );
+        if !is_open {
+            continue;
+        }
+        let Some(aid) = c.asset_id else { continue };
+        // Prefer parent pin when the WO is on a unit.
+        let pin_key = parent_of.get(&aid).copied().unwrap_or(aid);
+        *open_wo_by_asset.entry(pin_key).or_insert(0) += 1;
+        *open_wo_by_asset.entry(aid).or_insert(0) += 1;
+        if let Some(when) = c.scheduled_at {
+            next_wo_by_asset
+                .entry(pin_key)
+                .and_modify(|cur| {
+                    if when < *cur {
+                        *cur = when;
+                    }
+                })
+                .or_insert(when);
+            next_wo_by_asset
+                .entry(aid)
+                .and_modify(|cur| {
+                    if when < *cur {
+                        *cur = when;
+                    }
+                })
+                .or_insert(when);
+        }
+    }
 
     let pins: Vec<MapPin> = assets
         .into_iter()
@@ -604,6 +674,9 @@ async fn list_assets_map(
                 city: a.city,
                 state_province: a.state_province,
                 postal_code: a.postal_code,
+                open_wo_count: *open_wo_by_asset.get(&a.id).unwrap_or(&0),
+                next_wo_at: next_wo_by_asset.get(&a.id).copied(),
+                str_eligible: a.str_eligible,
             })
         })
         .collect();

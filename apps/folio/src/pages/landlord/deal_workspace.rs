@@ -7,6 +7,7 @@ use leptos_router::hooks::use_params_map;
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::components::nav::FolioRoute;
 use crate::pages::landlord::deals::fetch_deals;
 
 #[derive(Debug, Deserialize)]
@@ -168,13 +169,15 @@ pub fn DealWorkspace() -> impl IntoView {
             <Suspense fallback=|| view! { <div class="doc-empty">"Loading…"</div> }>
                 {move || deal.get().map(|res| match res {
                     Ok(d) => {
-                        let structure_href = format!("/l/deals/{}/structure", d.id);
+                        let structure_href = FolioRoute::LandlordDealStructure
+                            .path()
+                            .replace(":id", &d.id.to_string());
                         let is_cf = d.track == "creative_finance";
                         let is_ws = d.track == "wholesale";
                         view! {
                             <div class="page-header">
                                 <div>
-                                    <a class="text-sm" href="/l/deals">"← Deal Ops"</a>
+                                    <a class="text-sm" href=FolioRoute::LandlordDeals.path()>"← Deal Ops"</a>
                                     <h1 class="page-title">{d.property_address.clone()}</h1>
                                     <p class="page-subtitle">
                                         {d.track.clone()}" · "{d.status.clone()}" · "{d.opportunity_type.clone()}

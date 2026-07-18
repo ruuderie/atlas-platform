@@ -563,8 +563,8 @@ pub fn OnboardingWizard() -> impl IntoView {
                 <Show when=move || current_step() == WizardStep::Jurisdiction>
                     <div class="ob-step-anim">
                         <p class="ob-step-label">"Step "{move || current_idx.get()}" of "{total - 2}</p>
-                        <h1 style="font-size:20px; font-weight:700; color:#191c1e; margin:0 0 4px;">"Operating Jurisdiction"</h1>
-                        <p style="font-size:14px; color:#45464d; margin:0 0 24px;">"Where are your properties located? This sets tax, compliance, and payment rails."</p>
+                        <h1 style="font-size:20px; font-weight:700; color:#191c1e; margin:0 0 4px;">"Where are your properties?"</h1>
+                        <p style="font-size:14px; color:#45464d; margin:0 0 24px;">"This sets tax, compliance, and payment methods."</p>
 
                         <div class="ob-card" style="display:flex; flex-direction:column; gap:12px;">
                             {[

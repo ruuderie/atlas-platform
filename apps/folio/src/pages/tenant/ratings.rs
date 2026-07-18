@@ -148,7 +148,7 @@ fn dims_to_session(dims: Vec<DimensionDto>) -> Vec<SessionDimension> {
         .collect()
 }
 
-/// Shared pending-ratings UI for tenant (post_checkout) and landlord (case_resolved).
+/// Shared pending-ratings UI for tenant (post_checkout) and landlord (work-order complete).
 #[component]
 pub fn PendingRatingsPage(
     title: &'static str,
@@ -186,8 +186,8 @@ pub fn PendingRatingsPage(
                                 match pending.get() {
                                     Some(Ok(list)) if list.is_empty() => {
                                         view! {
-                                            <div class="page-placeholder">
-                                                <p>{empty_message}</p>
+                                            <div class="folio-empty">
+                                                <p class="folio-empty__sub">{empty_message}</p>
                                             </div>
                                         }.into_any()
                                     }

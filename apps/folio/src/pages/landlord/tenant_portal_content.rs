@@ -22,7 +22,7 @@ pub fn TenantPortalContent() -> impl IntoView {
         <div class="landlord-list-page">
             <PageHeader
                 title=Signal::derive(|| "Tenant portal".to_string())
-                subtitle=Signal::derive(|| "Content management — coming later".to_string())
+                subtitle=Signal::derive(|| "Coming soon".to_string())
             />
             {move || {
                 let id = asset_id.get();

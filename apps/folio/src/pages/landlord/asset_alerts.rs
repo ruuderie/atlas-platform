@@ -121,7 +121,7 @@ pub fn AssetAlerts() -> impl IntoView {
                 <div>
                     <a href="/l/assets" class="back-link">"← Back to Assets"</a>
                     <h1 class="page-title">"Asset Alerts"</h1>
-                    <p class="page-subtitle">"Configure real-time alerts for asset " <code class="font-mono text-xs">{aid_disp}</code></p>
+                    <p class="page-subtitle">"Alerts for asset " <code class="font-mono text-xs">{aid_disp}</code></p>
                 </div>
                 <div class="page-actions">
                     <button

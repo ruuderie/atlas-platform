@@ -65,7 +65,7 @@ fn str_channels() -> Vec<StrChannel> {
             name: "TripAdvisor",
             icon: "🦉",
             category: "OTA",
-            desc: "Review-driven discovery, global reach",
+            desc: "Review-driven discovery across markets",
             fee_pct: Some(3.0),
         },
         StrChannel {

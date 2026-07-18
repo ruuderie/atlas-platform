@@ -192,7 +192,7 @@ pub fn WorkOrderDetail() -> impl IntoView {
                                         }
                                     }
                                 >
-                                    {move || if completing.get() { "Completing…" } else { "Mark complete → G-27" }}
+                                    {move || if completing.get() { "Completing…" } else { "Mark complete & rate" }}
                                 </button>
                             </Show>
                         }.into_any()

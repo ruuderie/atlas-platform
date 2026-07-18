@@ -429,7 +429,7 @@ pub fn UnitAppliances() -> impl IntoView {
                 <div class="appl-header-left">
                     <h1 class="appl-title">"Unit Appliances"</h1>
                     <p class="appl-subtitle">
-                        "Lifecycle tracking for all appliances across your entire portfolio"
+                        "Appliances in your units"
                     </p>
                 </div>
             </div>

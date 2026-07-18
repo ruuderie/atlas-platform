@@ -1134,7 +1134,7 @@ pub fn LandlordWizard() -> impl IntoView {
                             <span class="ms msf" style="font-size:28px;color:#f59e0b;">"dashboard"</span>
                             <div class="wiz-na-text">
                                 <div class="wiz-na-label">"Explore your dashboard"</div>
-                                <div class="wiz-na-desc">"See your full portfolio at a glance"</div>
+                                <div class="wiz-na-desc">"Open your dashboard"</div>
                             </div>
                             <span class="ms wiz-na-arrow">"arrow_forward"</span>
                         </a>

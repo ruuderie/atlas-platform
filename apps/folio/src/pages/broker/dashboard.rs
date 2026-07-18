@@ -17,7 +17,7 @@ pub fn BrokerDashboard() -> impl IntoView {
         <div class="page-header">
             <h1 class="page-title">{move || format!("Broker Office — {}", name())}</h1>
             <p class="page-subtitle">
-                "Office-level oversight: agent performance, listing inventory, compliance, and revenue."
+                "Agents, listings, compliance, and revenue."
             </p>
         </div>
         <div class="stat-grid">
@@ -47,7 +47,7 @@ pub fn BrokerListings() -> impl IntoView {
     view! {
         <div class="page-header">
             <h1 class="page-title">"All Office Listings"</h1>
-            <p class="page-subtitle">"Complete inventory across all agents in this brokerage."</p>
+            <p class="page-subtitle">"Listings from every agent."</p>
         </div>
         <div class="empty-state">
             <p>"No listings yet. Listings appear here once agents create them."</p>

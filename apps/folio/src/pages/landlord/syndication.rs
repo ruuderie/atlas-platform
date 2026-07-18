@@ -9,8 +9,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
+use crate::components::nav::FolioRoute;
+use crate::pages::landlord::catalog::list_catalog_entries;
 
 // ── Static channel definitions ─────────────────────────────────────────────
 
@@ -108,13 +109,14 @@ fn all_channels() -> Vec<Channel> {
 
 #[component]
 pub fn LandlordSyndication() -> impl IntoView {
-    // Local toggle state for each channel (in production persisted to backend)
+    // Preview toggles only — no landlord-facing channel-prefs API yet.
     let enabled_channels: RwSignal<std::collections::HashSet<&'static str>> = RwSignal::new({
         let mut s = std::collections::HashSet::new();
-        s.insert("atlas_network"); // Atlas always on
+        s.insert("atlas_network");
         s
     });
-
+    let save_msg = RwSignal::new(String::new());
+    let catalog = Resource::new(|| (), |_| async move { list_catalog_entries().await });
     let channels = all_channels();
 
     view! {
@@ -123,13 +125,16 @@ pub fn LandlordSyndication() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Syndication"</h1>
-                    <p class="page-subtitle">"Choose which listing networks receive your active property inventory"</p>
+                    <p class="page-subtitle">"Listing inventory and channel destinations"</p>
                 </div>
                 <div class="page-actions">
+                    <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordCatalog.path()>"Open catalog"</a>
                     <button
                         class="btn btn-primary btn-sm"
                         on:click=move |_| {
-                            // In production: save channel selections to tenant settings
+                            save_msg.set(
+                                "Channel preferences are not persisted yet — no landlord syndication API. Atlas Network remains the live destination for catalog listings.".into(),
+                            );
                         }
                     >
                         "Save Preferences"
@@ -137,10 +142,15 @@ pub fn LandlordSyndication() -> impl IntoView {
                 </div>
             </div>
 
-            // ── Overview KPIs ──
+            <Show when=move || !save_msg.get().is_empty()>
+                <div class="syndic-notice" style="margin-bottom:1rem;">
+                    <span>{move || save_msg.get()}</span>
+                </div>
+            </Show>
+
             <div class="kpi-row" style="margin-bottom:1.25rem;">
                 <div class="kpi-card">
-                    <span class="kpi-label">"Active Channels"</span>
+                    <span class="kpi-label">"Active Channels (preview)"</span>
                     <span class="kpi-value" style="color:var(--green)">
                         {move || enabled_channels.get().len().to_string()}
                     </span>
@@ -152,15 +162,20 @@ pub fn LandlordSyndication() -> impl IntoView {
                     </span>
                 </div>
                 <div class="kpi-card">
-                    <span class="kpi-label">"Est. Monthly Reach"</span>
-                    <span class="kpi-value" style="color:var(--cobalt)">"140M+"</span>
+                    <span class="kpi-label">"Catalog listings"</span>
+                    <span class="kpi-value" style="color:var(--cobalt)">
+                        {move || catalog
+                            .get()
+                            .and_then(|r| r.ok())
+                            .map(|items| items.len().to_string())
+                            .unwrap_or_else(|| "—".into())}
+                    </span>
                 </div>
             </div>
 
-            // ── Atlas Network always-on notice ──
             <div class="syndic-notice">
                 <span class="syndic-notice-icon">"⚡"</span>
-                <span>"Atlas Network syndication is always active for your listings."</span>
+                <span>"Atlas Network syndication is always active for your catalog listings. External channel toggles below are preview-only until a landlord prefs API ships."</span>
             </div>
 
             // ── Channel groups ──

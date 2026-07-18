@@ -108,7 +108,7 @@ pub fn LandlordDigitalVault() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Digital Vault"</h1>
-                    <p class="page-subtitle">"Centralized document repository — leases, permits, certificates, and more"</p>
+                    <p class="page-subtitle">"Leases, permits, certificates, and shared files"</p>
                 </div>
                 <div class="page-actions">
                     <button class="btn btn-ghost btn-sm" on:click=move |_| refresh.update(|n| *n += 1)>"↻ Refresh"</button>

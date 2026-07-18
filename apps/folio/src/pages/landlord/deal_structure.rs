@@ -5,6 +5,7 @@ use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
+use crate::components::nav::FolioRoute;
 use crate::pages::landlord::deals::fetch_deals;
 use crate::pages::landlord::deal_workspace::post_deal_action;
 
@@ -87,7 +88,9 @@ pub fn DealStructure() -> impl IntoView {
             <Suspense fallback=|| view! { <div class="doc-empty">"Loading…"</div> }>
                 {move || deal.get().map(|res| match res {
                     Ok(d) => {
-                        let back = format!("/l/deals/{}", d.id);
+                        let back = FolioRoute::LandlordDealDetail
+                            .path()
+                            .replace(":id", &d.id.to_string());
                         view! {
                             <div class="page-header">
                                 <div>

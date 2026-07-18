@@ -193,7 +193,7 @@ fn ProjectDetailBody(
     view! {
         <PageHeader
             title=Signal::derive(move || title.clone())
-            subtitle=Signal::derive(|| "Renovation project · G-13 + G-22".to_string())
+            subtitle=Signal::derive(|| "Renovation project".to_string())
         >
             <StatusPill label=status.clone() tone=StatusPillTone::Warn/>
             <a class="folio-btn folio-btn--primary" href=add_wo>"Add work order"</a>
@@ -259,7 +259,7 @@ fn ProjectDetailBody(
                     <div class="proj-section__head">
                         <div>
                             <h3 class="proj-section__title">"Work orders"</h3>
-                            <p class="proj-section__hint">"Each WO: cost, vendor, G-27 on complete"</p>
+                            <p class="proj-section__hint">"Each work order: cost, vendor, rating on complete"</p>
                         </div>
                         <span class="proj-section__hint">{format!("{} WOs", children.len())}</span>
                     </div>
@@ -291,7 +291,7 @@ fn ProjectDetailBody(
             <aside>
                 <section class="proj-section" style="margin-bottom:1rem;">
                     <div class="proj-section__head">
-                        <h3 class="proj-section__title">"G-27 project rollup"</h3>
+                        <h3 class="proj-section__title">"Contractor ratings"</h3>
                     </div>
                     <div style="padding:1rem 1.25rem;">
                         <Suspense fallback=|| view! { <p class="proj-section__hint">"Loading rollup…"</p> }>
@@ -359,7 +359,7 @@ fn ProjectDetailBody(
                                 }
                                 _ => view! {
                                     <p class="proj-section__hint">
-                                        "No G-27 data yet. Complete child WOs to open rating sessions."
+                                        "No ratings yet. Complete child work orders to open rating sessions."
                                     </p>
                                 }.into_any(),
                             }}

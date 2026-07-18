@@ -747,9 +747,9 @@ fn PmAppPreview() -> impl IntoView {
 
                             <main class="asp-main">
 
-                                // TAB 1: Portfolio overview
+                                // TAB 1: Dashboard
                                 <div class="asp-panel" data-tab="1">
-                                    <div class="asp-page-title">"Portfolio Overview"</div>
+                                    <div class="asp-page-title">"Dashboard"</div>
                                     <div class="asp-page-sub">"147 units · 23 owners · 96.3% occupancy"</div>
                                     <div class="asp-stat-grid">
                                         <div class="asp-stat-card"><div class="asp-stat-label">"Units managed"</div><div class="asp-stat-value">"147"</div><div class="asp-stat-delta asp-delta-up">"↑ 12 this qtr"</div></div>
@@ -843,7 +843,7 @@ fn PmAppPreview() -> impl IntoView {
                                 // TAB 5: Reports
                                 <div class="asp-panel" data-tab="5">
                                     <div class="asp-page-title">"Reports & Analytics"</div>
-                                    <div class="asp-page-sub">"Portfolio-wide KPIs and owner-ready exports"</div>
+                                    <div class="asp-page-sub">"KPIs and owner-ready exports"</div>
                                     <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
                                         <div class="asp-stat-card"><div class="asp-stat-label">"Collection rate · Jul"</div><div class="asp-stat-value" style="color:#2dd4bf;">"98.6%"</div></div>
                                         <div class="asp-stat-card"><div class="asp-stat-label">"Revenue per door"</div><div class="asp-stat-value">"$1,240"</div></div>

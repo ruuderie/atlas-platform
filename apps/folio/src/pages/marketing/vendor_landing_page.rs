@@ -700,7 +700,7 @@ fn VendorFeatures(
         ("receipt_long",   "One-tap invoicing",      "Build an invoice from a job template in 60 seconds. Send it directly to the property manager. No spreadsheets. No email chains."),
         ("account_balance","24-hour payment",        "Approved invoices pay out via ACH within 24 hours. Know exactly when money is coming and never chase a check again."),
         ("star",           "Atlas Score reputation", "Every completed job builds your Atlas Score — a verified reputation engine based on response time, work quality, reliability, and pricing accuracy."),
-        ("trending_up",    "Job analytics",          "See your earnings, job history, response rate, and client ratings at a glance. Know what's working and where you can grow."),
+        ("trending_up",    "Job analytics",          "Earnings, job history, response rate, and client ratings — so you know what's working."),
         ("groups",         "Multi-tech accounts",    "Running a crew? Business plan lets you add technicians under your company profile. Each gets their own login and job queue."),
         ("local_shipping", "Branded company profile","Customize your Folio profile with your business name, logo, trade specialties, and service area to stand out in every search."),
     ];

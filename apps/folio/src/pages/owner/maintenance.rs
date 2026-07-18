@@ -129,7 +129,7 @@ pub fn OwnerMaintenanceApproval() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Maintenance & Inspections"</h1>
-                    <p class="page-subtitle">"Portfolio-wide view of all open cases and scheduled inspections"</p>
+                    <p class="page-subtitle">"Open maintenance and inspections"</p>
                 </div>
                 <div class="page-actions">
                     <span class="owner-readonly-badge">"👁 Read Only"</span>

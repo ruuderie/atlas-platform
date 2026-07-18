@@ -45,9 +45,9 @@ impl MigrationTrait for Migration {
                         "heading": "One platform. Every person in the deal.",
                         "subhead": "Folio issues role-based portals so every role sees exactly what they need.",
                         "items": [
-                          {"icon": "🏠", "title": "Independent Landlord", "subhead": "1–20 units", "accent": "coral", "bullets": ["Portfolio overview & analytics", "Automated rent reminders", "Lease templates & e-sign", "Maintenance dispatch"]},
+                          {"icon": "🏠", "title": "Independent Landlord", "subhead": "1–20 units", "accent": "coral", "bullets": ["Dashboard and reports", "Automated rent reminders", "Lease templates & e-sign", "Maintenance dispatch"]},
                           {"icon": "💼", "title": "Property Manager", "subhead": "Any size", "accent": "teal", "bullets": ["Multi-client portfolio", "Owner statements & reports", "Branded tenant portal", "Owner disbursement & fees"]},
-                          {"icon": "🏨", "title": "Vacation Rental Host", "subhead": "Airbnb + direct", "accent": "gold", "bullets": ["Unified booking calendar", "Channel sync", "Guest messaging", "Vacation rental licensing & compliance"]},
+                          {"icon": "🏨", "title": "Vacation Rental Host", "subhead": "Airbnb + direct", "accent": "gold", "bullets": ["Booking calendar", "Channel sync", "Guest messaging", "Vacation rental licensing & compliance"]},
                           {"icon": "🏡", "title": "Tenant", "subhead": "Renter portal", "accent": "green", "bullets": ["Pay rent online", "Submit maintenance requests", "View & sign lease", "Track move-in docs"]},
                           {"icon": "🔧", "title": "Vendor / Contractor", "subhead": "Work order portal", "accent": "orange", "bullets": ["Receive job dispatches", "Submit invoices", "Schedule management", "Marketplace profile"]}
                         ]
@@ -81,15 +81,15 @@ impl MigrationTrait for Migration {
                         "heading": "Your vacation rental, fully under control.",
                         "subhead": "One calendar, one inbox, one platform for short-term rentals.",
                         "items": [
-                          {"icon": "calendar_month", "title": "Unified booking calendar", "desc": "Direct and OTA bookings in one drag-and-drop calendar."},
+                          {"icon": "calendar_month", "title": "Booking calendar", "desc": "Direct and OTA bookings in one drag-and-drop calendar."},
                           {"icon": "verified_user", "title": "Permits & compliance", "desc": "Permit tracking, renewal reminders, and local registration support."},
                           {"icon": "payments", "title": "Collect directly from guests", "desc": "Take deposits, damage holds, and nightly rates from guests."}
                         ]
                       },
                       {
                         "type": "markets",
-                        "eyebrow": "Global reach",
-                        "heading": "Built for the Americas. Ready for the world.",
+                        "eyebrow": "Where Folio works",
+                        "heading": "Built for the Americas. Expanding from there.",
                         "items": [
                           {"flag": "🇺🇸", "name": "United States", "desc": "All 50 states · Federal fair housing · ACH + card"},
                           {"flag": "🇨🇦", "name": "Canada", "desc": "ON · BC · QC · PIPEDA-compliant · EFT rails"},

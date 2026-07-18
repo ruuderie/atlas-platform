@@ -290,7 +290,7 @@ pub fn MaintenanceQueue() -> impl IntoView {
                             "Schedule"
                         </a>
                         <a class="folio-btn folio-btn--ghost" href=FolioRoute::LandlordRatings.path()>
-                            "G-27 ratings"
+                            "Ratings"
                         </a>
                     </div>
                 </div>

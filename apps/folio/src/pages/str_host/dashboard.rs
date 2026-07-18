@@ -91,7 +91,7 @@ pub fn StrHostDashboard() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"STR Dashboard"</h1>
-                    <p class="page-subtitle">"Short-term rental operations at a glance"</p>
+                    <p class="page-subtitle">"Check-ins, bookings, and work orders"</p>
                 </div>
                 <div class="page-actions">
                     <a href="/s/calendar" class="btn btn-ghost btn-sm">"📅 Calendar"</a>

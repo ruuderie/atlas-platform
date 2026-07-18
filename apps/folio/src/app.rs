@@ -24,7 +24,8 @@ use crate::pages::landlord::{
     digital_vault::LandlordDigitalVault, inspections::Inspections, leads::Leads,
     lease_detail::LeaseDetail, leases::Leases, ledger::Ledger,
     listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
-    map_portfolio::MapPortfolio, meridian_config::MeridianConfigurator,
+    map_portfolio::MapPortfolio, meridian::MeridianAnalytics,
+    meridian_config::MeridianConfigurator,
     notifications::NotificationsPage, portfolio::Portfolio,
     project_detail::ProjectDetail, property_documents::PropertyDocuments,
     property_hub::AssetRouteDispatch, property_systems::PropertySystems,
@@ -246,6 +247,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/deals/:id/structure") view=DealStructure/>
                     <Route path=path!("/buyers")        view=LandlordBuyers/>
                     <Route path=path!("/account/billing")view=LandlordAccountBilling/>
+                    <Route path=path!("/meridian") view=MeridianAnalytics/>
                     <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
                     <Route path=path!("/ratings") view=LandlordRatings/>
                     <Route path=path!("/team")           view=LandlordTeam/>

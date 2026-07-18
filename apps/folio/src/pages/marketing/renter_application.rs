@@ -2,16 +2,15 @@
 //
 // Renter Application — /apply/:property_id
 //
-// Public (unauthenticated) multi-step rental application.
-// Step 1: Personal info. Step 2: Income & employment. Step 3: References.
-// Step 4: Consent + submit. Posts to /api/folio/applications/public.
-// ─────────────────────────────────────────────────────────────────────────────
+// Multi-step rental application. Submits to POST /api/folio/applications
+// (authenticated — applicant must have a Folio session).
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-// ── Server function ───────────────────────────────────────────────────────────
+use crate::auth::get_session;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenterApplicationInput {
@@ -28,14 +27,69 @@ pub struct RenterApplicationInput {
     pub consented: bool,
 }
 
+#[derive(Serialize)]
+struct SubmitApplicationBody {
+    asset_id: Uuid,
+    applicant_user_id: Uuid,
+    jurisdiction: String,
+    monthly_income_cents: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct SubmitApplicationResponse {
+    id: Uuid,
+    #[allow(dead_code)]
+    screening_status: String,
+}
+
 #[server(SubmitRenterApplication, "/api")]
 pub async fn submit_renter_application(
     app: RenterApplicationInput,
 ) -> Result<String, server_fn::error::ServerFnError> {
-    Ok("app_stub_id".to_string())
-}
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
 
-// ── Component ─────────────────────────────────────────────────────────────────
+    if !app.consented {
+        return Err(server_fn::error::ServerFnError::new(
+            "Consent is required to submit an application.",
+        ));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers).ok_or_else(|| {
+        server_fn::error::ServerFnError::new(
+            "Sign in to Folio before submitting a rental application.",
+        )
+    })?;
+    let session = get_session().await?;
+
+    let asset_id = Uuid::parse_str(app.property_id.trim()).map_err(|_| {
+        server_fn::error::ServerFnError::new("Invalid property id in application URL.")
+    })?;
+
+    let monthly_income_cents = app
+        .monthly_income
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse::<i64>()
+        .ok()
+        .map(|dollars| dollars.saturating_mul(100));
+
+    let body = SubmitApplicationBody {
+        asset_id,
+        applicant_user_id: session.user_id,
+        jurisdiction: "US".into(),
+        monthly_income_cents,
+    };
+    let resp = crate::atlas_client::authenticated_post::<
+        SubmitApplicationBody,
+        SubmitApplicationResponse,
+    >("/api/folio/applications", &token, None, &body)
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    Ok(resp.id.to_string())
+}
 
 #[component]
 pub fn RenterApplication() -> impl IntoView {
@@ -92,7 +146,6 @@ pub fn RenterApplication() -> impl IntoView {
 
     view! {
         <div class="apply-layout">
-            // ── Brand header ──
             <div class="apply-header">
                 <div class="apply-logo">"⚡ Atlas"</div>
                 <div class="apply-subtitle">"Rental Application"</div>
@@ -113,7 +166,6 @@ pub fn RenterApplication() -> impl IntoView {
                 view! {
                     <div class="apply-card">
 
-                        // Step bar
                         <div class="wiz-steps" style="margin-bottom:1.5rem;">
                             <div class=move || format!("wiz-step {}", if step.get() >= 1 { "wiz-step--active" } else { "" })>"1 Personal"</div>
                             <div class="wiz-step-divider"></div>
@@ -128,7 +180,6 @@ pub fn RenterApplication() -> impl IntoView {
                             <div class="wiz-error-banner">"⚠ " {e}</div>
                         })}
 
-                        // ── Step 1: Personal ──
                         <Show when=move || step.get() == 1>
                             <div class="apply-section-title">"Personal Information"</div>
                             <div class="apply-two-col">
@@ -171,7 +222,6 @@ pub fn RenterApplication() -> impl IntoView {
                             </div>
                         </Show>
 
-                        // ── Step 2: Income ──
                         <Show when=move || step.get() == 2>
                             <div class="apply-section-title">"Income & Employment"</div>
                             <div class="form-field">
@@ -207,7 +257,6 @@ pub fn RenterApplication() -> impl IntoView {
                             </div>
                         </Show>
 
-                        // ── Step 3: References ──
                         <Show when=move || step.get() == 3>
                             <div class="apply-section-title">"Personal Reference"</div>
                             <div class="form-field">
@@ -230,7 +279,6 @@ pub fn RenterApplication() -> impl IntoView {
                             </div>
                         </Show>
 
-                        // ── Step 4: Consent + Submit ──
                         <Show when=move || step.get() == 4>
                             <div class="apply-section-title">"Review & Submit"</div>
                             <div class="wiz-confirm-table">

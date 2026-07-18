@@ -3,6 +3,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
+use crate::components::nav::FolioRoute;
 use crate::pages::landlord::deals::fetch_deals;
 
 fn is_buyer(opp_type: &str) -> bool {
@@ -42,15 +43,15 @@ pub fn LandlordBuyers() -> impl IntoView {
                     </p>
                 </div>
                 <div class="page-actions">
-                    <a class="btn btn-ghost btn-sm" href="/l/deals">"← Deals"</a>
+                    <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordDeals.path()>"← Deals"</a>
                 </div>
             </div>
 
             <div class="flex gap-2 mb-4">
                 <a class=move || if track.get()=="wholesale"{"btn btn-primary btn-sm"}else{"btn btn-ghost btn-sm"}
-                   href="/l/buyers?track=wholesale">"Cash buyers"</a>
+                   href=format!("{}?track=wholesale", FolioRoute::LandlordBuyers.path())>"Cash buyers"</a>
                 <a class=move || if track.get()=="creative_finance"{"btn btn-primary btn-sm"}else{"btn btn-ghost btn-sm"}
-                   href="/l/buyers?track=creative_finance">"Tenant buyers"</a>
+                   href=format!("{}?track=creative_finance", FolioRoute::LandlordBuyers.path())>"Tenant buyers"</a>
             </div>
 
             <Suspense fallback=|| view!{ <div class="doc-empty">"Loading…"</div> }>
@@ -75,7 +76,9 @@ pub fn LandlordBuyers() -> impl IntoView {
                                     </thead>
                                     <tbody>
                                         {buyers.into_iter().map(|b| {
-                                            let href = format!("/l/deals/{}", b.id);
+                                            let href = FolioRoute::LandlordDealDetail
+                                                .path()
+                                                .replace(":id", &b.id.to_string());
                                             view! {
                                                 <tr>
                                                     <td class="p-2"><a href=href>{b.property_address}</a></td>

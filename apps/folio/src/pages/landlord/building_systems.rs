@@ -438,7 +438,7 @@ pub fn BuildingSystems() -> impl IntoView {
                 <div class="bsys-header-left">
                     <h1 class="bsys-title">"Building Systems"</h1>
                     <p class="bsys-subtitle">
-                        "Lifecycle tracking for elevators, HVAC, fire safety, and all shared infrastructure"
+                        "Elevators, HVAC, and building systems"
                     </p>
                 </div>
             </div>

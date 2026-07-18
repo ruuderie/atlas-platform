@@ -8,6 +8,10 @@
 
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::auth::get_session;
+use crate::pages::landlord::leases::{list_leases, LeaseStatus};
 
 // ── Server function ───────────────────────────────────────────────────────────
 
@@ -20,31 +24,88 @@ pub struct MaintenanceRequest {
     pub unit_access: String,
 }
 
+#[derive(Serialize)]
+struct CreateTicketBody {
+    asset_id: Uuid,
+    reported_by_user_id: Uuid,
+    category: String,
+    description: String,
+    is_emergency: bool,
+    voice_note_r2_key: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct IdResp {
+    id: Uuid,
+}
+
+fn map_maintenance_category(raw: &str) -> &'static str {
+    match raw {
+        "plumbing" => "plumbing",
+        "electrical" => "electrical",
+        "hvac" => "hvac",
+        "appliance" => "appliance",
+        "structural" => "structural",
+        "pest" => "pest",
+        "roofing" => "roofing",
+        // UI-only labels collapse to API `general`
+        "locksmith" | "other" | _ => "general",
+    }
+}
+
 #[server(SubmitMaintenanceRequest, "/api")]
 pub async fn submit_maintenance_request(
     req: MaintenanceRequest,
 ) -> Result<String, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
-    let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let _token = session_token(&headers)?;
-    Ok("case_stub".to_string())
-}
 
-#[cfg(feature = "ssr")]
-fn session_token(
-    headers: &axum::http::HeaderMap,
-) -> Result<String, server_fn::error::ServerFnError> {
-    headers
-        .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| {
-            s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            })
-        })
-        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let session = get_session().await?;
+
+    let leases = list_leases().await?;
+    let asset_id = leases
+        .iter()
+        .find(|l| LeaseStatus::from_str(&l.status) == LeaseStatus::Active)
+        .and_then(|l| l.asset_id)
+        .or_else(|| leases.iter().find_map(|l| l.asset_id))
+        .ok_or_else(|| {
+            server_fn::error::ServerFnError::new(
+                "No unit on your lease — contact your landlord before requesting maintenance.",
+            )
+        })?;
+
+    let category = map_maintenance_category(&req.category).to_string();
+    let is_emergency = req.urgency == "emergency";
+    let description = {
+        let mut parts = vec![req.subject.clone()];
+        if !req.description.trim().is_empty() {
+            parts.push(req.description.clone());
+        }
+        parts.push(format!("Unit access: {}", req.unit_access.replace('_', " ")));
+        parts.push(format!("Urgency: {}", req.urgency));
+        parts.join("\n\n")
+    };
+
+    let body = CreateTicketBody {
+        asset_id,
+        reported_by_user_id: session.user_id,
+        category,
+        description,
+        is_emergency,
+        voice_note_r2_key: None,
+    };
+    let resp = crate::atlas_client::authenticated_post::<CreateTicketBody, IdResp>(
+        "/api/folio/maintenance",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    Ok(resp.id.to_string())
 }
 
 // ── Category data ─────────────────────────────────────────────────────────────

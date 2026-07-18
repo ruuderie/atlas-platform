@@ -11,9 +11,9 @@ _The primary operator. Nothing else works until this works._
 
 | Status | Page | Stitch dir | Leptos module | Route | Backend handler |
 |--------|------|-----------|---------------|-------|-----------------|
-| `[x]` | Dashboard | `l_dashboard` | `pages/landlord/dashboard.rs` | `/l` | `portfolio.rs` (summary) |
-| `[x]` | Portfolio | `l_portfolio` | `pages/landlord/portfolio.rs` | `/l/portfolio` | `portfolio.rs` |
-| `[x]` | Assets | `l_assets` | `pages/landlord/assets.rs` | `/l/assets` | `asset.rs` |
+| `[x]` | Dashboard (LTR/STR/All modes) | `l_dashboard` | `pages/landlord/dashboard.rs` | `/l` | `assets.rs`, `leases`, `maintenance` |
+| `[x]` | Portfolio (redirect → Assets) | `l_portfolio` | `pages/landlord/portfolio.rs` | `/l/portfolio` → `/l/assets` | backend G-portfolio stays isolation-only |
+| `[x]` | Assets (operator portfolio gallery) | `l_assets` | `pages/landlord/assets.rs` | `/l/assets` | `assets.rs` |
 | `[x]` | Leases | `l_leases` | `pages/landlord/leases.rs` | `/l/leases` | `lease.rs` |
 | `[x]` | Leads | `l_leads` | `pages/landlord/leads.rs` | `/l/leads` | `opportunity.rs` |
 | `[x]` | Campaigns | `l_campaigns` | `pages/landlord/campaigns.rs` | `/l/campaigns` | `campaign.rs` |
@@ -26,15 +26,19 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Lease Detail | `l_lease_detail` | `pages/landlord/lease_detail.rs` | `/l/leases/:id` | `leases.rs` |
 | `[x]` | Tenant Profile | `l_tenant_profile` | `pages/landlord/tenant_profile.rs` | `/l/tenants/:id` | `users.rs` (new) |
 | `[x]` | Maintenance Queue | `l_maintenance_queue` | `pages/landlord/maintenance_queue.rs` | `/l/maintenance` | `maintenance.rs` |
-| `[ ]` | Meridian Analytics | `l_meridian` | `pages/landlord/meridian.rs` | `/l/meridian` | `analytics` (G-27) |
+| `[x]` | Meridian Analytics | `l_meridian` | `pages/landlord/meridian.rs` | `/l/meridian` | `reporting.rs` (`GET /api/folio/analytics/landlord`) |
 | `[x]` | Ledger | `l_ledger` | `pages/landlord/ledger.rs` | `/l/ledger` | `billing.rs` |
 | `[x]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/communications` | `atlas_ws_room.rs` |
 | `[x]` | Notifications | `l_notifications` | `pages/landlord/notifications.rs` | `/l/notifications` | `atlas_notification.rs` |
-| `[x]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
+| `[x]` | Ops Map (status / maintenance / STR layers) | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `assets.rs` (`GET /api/folio/assets/map`) |
 | `[x]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
 | `[x]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
 | `[x]` | Violations | `l_violations` | `pages/landlord/violations.rs` | `/l/violations` | `violations.rs` |
 | `[x]` | Building Systems | `l_building_systems` | `pages/landlord/building_systems.rs` | `/l/systems` | `asset.rs` |
+| `[x]` | Deal Ops | `l_deal_workspace` / creative finance | `pages/landlord/deals.rs` | `/l/deals` | `wholesale` / deals |
+| `[x]` | Deal Workspace | `l_deal_workspace` | `pages/landlord/deal_workspace.rs` | `/l/deals/:id` | deals |
+| `[x]` | Deal Structure | `l_deal_structure` | `pages/landlord/deal_structure.rs` | `/l/deals/:id/structure` | deals |
+| `[x]` | Buyers | `l_tenant_buyer_pipeline` | `pages/landlord/buyers.rs` | `/l/buyers` | deals |
 | `[x]` | Unit Appliances | `l_unit_appliances` | `pages/landlord/unit_appliances.rs` | `/l/appliances` | `asset.rs` |
 | `[x]` | Syndication | `l_syndication` | `pages/landlord/syndication.rs` | `/l/syndication` | `syndication_admin.rs` |
 | `[x]` | Wholesaling | `l_wholesaling` | `pages/landlord/wholesaling.rs` | `/l/wholesaling` | TBD |
@@ -46,6 +50,12 @@ _The primary operator. Nothing else works until this works._
 
 ---
 
+## P0c — Landlord IA parity (operator-real) — done
+
+> Assets = property list; `/l/portfolio` redirects; unit = first-class workspace; Deal Ops in nav; Dashboard LTR/STR/All; Map ops layers. Prompt: `docs/private/prompts/stitch_to_leptos_prompt.md`.
+
+---
+
 ## P0b — Multi-unit hub / Projects / G-27 (production bar)
 
 > Stitch is complete under `designs/stitch/project_pm/folio/`. Implement via `docs/private/prompts/stitch_to_leptos_prompt.md`: API mapping → token map → `Resource`/`Suspense`/skeleton → parity. No stubs, no CDN Tailwind ports, no mock data in `view!`. Quality bar: see implement plan **Production quality bar**.
@@ -53,7 +63,7 @@ _The primary operator. Nothing else works until this works._
 | Status | Page | Stitch dir | Leptos module | Route | Backend handler |
 |--------|------|-----------|---------------|-------|-----------------|
 | `[x]` | Property Hub | `l_property_hub` | `pages/landlord/property_hub.rs` | `/l/assets/:id` (parent dispatch) | `assets.rs`, `maintenance.rs`, `projects.rs` |
-| `[x]` | Unit Detail | `l_unit_detail` | `pages/landlord/property_hub.rs` (UnitDetailPage) | `/l/assets/:id` (unit dispatch) | `assets.rs` |
+| `[x]` | Unit workspace (first-class) | `l_unit_detail` | `pages/landlord/unit_detail.rs` | `/l/assets/:id` (unit dispatch) | `assets.rs`, `leases`, `household`, `maintenance` |
 | `[x]` | Nested Building Systems | `l_building_systems` | `pages/landlord/property_systems.rs` | `/l/assets/:id/systems` | `building_systems.rs` |
 | `[x]` | Property Documents | `l_property_documents` | `pages/landlord/property_documents.rs` | `/l/assets/:id/documents` | `assets.rs` (compose), `vault.rs` |
 | `[x]` | Work Order Create | `l_work_order_create` | `pages/landlord/work_order_create.rs` | `/l/maintenance/new` | `maintenance.rs` |
@@ -128,9 +138,9 @@ _Standard mode, `listing_mode = str`. Folio hosts who run short-term rentals._
 | `[x]` | Reservation Manifest | `s_reservation_manifest` | `pages/str_host/reservations.rs` | `/s/reservations` | `reservation.rs` |
 | `[x]` | Listing Detail | `s_listing_detail` | `pages/str_host/listing.rs` | `/s/listings/:id` | `catalog.rs` |
 | `[x]` | Pricing Rules | `s_pricing_rules` | `pages/str_host/pricing.rs` | `/s/pricing` | `catalog.rs` |
-| `[x]` | Channel Manager | `s_channel_manager` | `pages/str_host/channels.rs` | `/s/channels` | `syndication_admin.rs` |
+| `[~]` | Channel Manager | `s_channel_manager` | `pages/str_host/channels.rs` | `/s/channels` | **blocked: no Folio OTA channels persistence API** |
 | `[x]` | Guest Messaging | `s_guest_messaging` | `pages/str_host/messages.rs` | `/s/messages` | `comms.rs` |
-| `[x]` | Reviews | `s_reviews` | `pages/str_host/reviews.rs` | `/s/reviews` | TBD |
+| `[~]` | Reviews | `s_reviews` | `pages/str_host/reviews.rs` | `/s/reviews` | **blocked: no Folio STR reviews API** |
 | `[x]` | Syndication | `s_syndication` | `pages/str_host/syndication.rs` | `/s/syndication` | `syndication_admin.rs` |
 | `[x]` | Incidents / Violations | `s_incidents` | `pages/str_host/incidents.rs` | `/s/incidents` | `case.rs` |
 | `[x]` | Violation Filing | `s_violation_filing` | `pages/str_host/violation_file.rs` | `/s/violations/new` | `case.rs` |
@@ -178,28 +188,43 @@ _Folio-hosted public surfaces (not Network Instance)._
 
 ---
 
+## Parked — blocked: no Folio API (this epic)
+
+Do **not** invent backends here. Keep nav/routes if already scaffolded; UI stays honest empty or marketing-only.
+
+| Namespace | Routes | Notes |
+|-----------|--------|-------|
+| Agent | `/a/**` | Product + APIs out of scope |
+| Broker | `/br/**` (nav `/b/**` orphans) | Product + APIs out of scope |
+| Guest | `/g/**` | Nav orphans; guest page set not built |
+| STR reviews / OTA channels | `/s/reviews`, `/s/channels` | Mock until persistence APIs |
+| Cohost marketplace | (if present) | No marketplace API |
+| Tenant portal CMS | `/l/assets/:id/portal` | Intentional stub — CMS out of scope |
+
+---
+
 ## Progress Summary
 
 ```
-P0 Landlord:  31 done / 31 total   ████████████████████████ 100%
-P0b Multi-unit: 0 done / 10 total  ░░░░░░░░░░░░░░░░░░░░░░░░   0%  ← current epic
+P0 Landlord:  32 done / 32 total   ████████████████████████ 100%
+P0b Multi-unit: 10 done / 10 total ████████████████████████ 100%
 P1 Tenant:    14 done / 14 total   ████████████████████████ 100%
 P2 Vendor:     6 done /  6 total   ████████████████████████ 100%
 P3 PMC:        6 done /  6 total   ████████████████████████ 100%
-P4 STR Host:  11 done / 11 total   ████████████████████████ 100%
+P4 STR Host:   9 done / 11 (+2 parked) ██████████████████░░ 82%
 P5 Owner:      5 done /  5 total   ████████████████████████ 100%
 P6 Wizards:    4 done /  4 total   ████████████████████████ 100%
 P7 Public:     8 done /  8 total   ████████████████████████ 100%
 ─────────────────────────────────────────────────────────
-Total:        85 done / 95 tracked (P0b in progress)
+Total: wired cores complete; agent/broker/guest/STR reviews-channels parked
 ```
 
-*Last updated: 2026-07-14. P0b multi-unit hub / Projects / G-27 production bar opened.*
+*Last updated: 2026-07-17. Folio API wiring epic: placeholders → existing `/api/folio/*`; Meridian thin analytics; park no-API surfaces.*
 
 <!-- session 2026-06-28: meridian_config.rs (G-27 dashboard/rules/surfaces), ltr_listings.rs, str_listings.rs, ni_signup.rs -->
 
 ---
 
-*Last updated: 2026-06-27. Source: `designs/stitch/project_pm/folio/ROUTES.md`*
+*Source: `designs/stitch/project_pm/folio/ROUTES.md`*
 
 <!-- session 2026-06-27: asset_detail.rs (G-13 + G-21 timeline, G-22 contractor panel), vendors.rs (full vendor grid + asset picker) -->

@@ -2,7 +2,7 @@
 //
 // PMC Client Detail — /pmc/clients/:id
 //
-// Full portfolio snapshot for a single client account.
+// Properties and units for a single client account.
 // Shows all properties, active leases, and quick-action links.
 // Data from /api/folio/pm/clients/{account_id}.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ pub fn PmcClientDetail() -> impl IntoView {
                 <div>
                     <a href="/pmc/clients" class="back-link">"← Client Book"</a>
                     <h1 class="page-title">"Client Detail"</h1>
-                    <p class="page-subtitle">"Full portfolio snapshot for this managed account"</p>
+                    <p class="page-subtitle">"Properties and units for this client"</p>
                 </div>
                 <div class="page-actions">
                     <a href="/pmc/maintenance" class="btn btn-ghost btn-sm">"🔧 Maintenance"</a>
@@ -180,7 +180,7 @@ pub fn PmcClientDetail() -> impl IntoView {
                                                 <div class="pmc-portfolio-chip">
                                                     <span class="pmc-portfolio-chip-icon">"🏘"</span>
                                                     <span class="pmc-portfolio-chip-id font-mono text-xs">{short}</span>
-                                                    <a href=format!("/l/portfolio") class="btn btn-ghost btn-sm">"View"</a>
+                                                    <a href="/l/assets" class="btn btn-ghost btn-sm">"View"</a>
                                                 </div>
                                             }
                                         }

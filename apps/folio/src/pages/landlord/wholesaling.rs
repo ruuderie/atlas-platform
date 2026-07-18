@@ -8,6 +8,8 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::nav::FolioRoute;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WholesaleSummary {
     pub id: Uuid,
@@ -226,8 +228,8 @@ pub fn LandlordWholesaling() -> impl IntoView {
                 <div>
                     <h1 class="page-title">"Wholesaling"</h1>
                     <p class="page-subtitle">
-                        "Ugly-house MAO pipeline · "
-                        <a href="/l/deals?track=wholesale">"Open Deal Ops →"</a>
+                        "Cash-offer leads · "
+                        <a href=format!("{}?track=wholesale", FolioRoute::LandlordDeals.path())>"Open Deal Ops →"</a>
                     </p>
                 </div>
                 <div class="page-actions">
@@ -271,7 +273,9 @@ pub fn LandlordWholesaling() -> impl IntoView {
                                                                 let arv = lead.arv_cents.map(fmt_k).unwrap_or_else(|| "—".to_string());
                                                                 let offer = lead.offer_cents.or(lead.deal_amount_cents).map(fmt_k).unwrap_or_else(|| "—".to_string());
                                                                 let date = lead.created_at.chars().take(10).collect::<String>();
-                                                                let href = format!("/l/deals/{}", lead.id);
+                                                                let href = FolioRoute::LandlordDealDetail
+                                                                    .path()
+                                                                    .replace(":id", &lead.id.to_string());
                                                                 view! {
                                                                     <a class="wholesale-card" href=href>
                                                                         <div class="wholesale-card-addr">{addr}</div>

@@ -9,6 +9,9 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::auth::get_session;
 
 // ── Server function ───────────────────────────────────────────────────────────
 
@@ -25,11 +28,79 @@ pub struct VendorOnboardInput {
     pub insured: bool,
 }
 
+#[derive(Serialize)]
+struct CreateVendorBody {
+    user_id: Uuid,
+    business_name: String,
+    trade_type: String,
+    license_number: Option<String>,
+    license_state: Option<String>,
+    is_emergency_available: bool,
+    hourly_rate_cents: Option<i64>,
+    is_insured: bool,
+    is_bonded: bool,
+}
+
+#[derive(Deserialize)]
+struct CreateVendorResponse {
+    id: Uuid,
+}
+
+fn map_trade_to_api(ui: &str) -> &'static str {
+    match ui {
+        "plumbing" => "plumber",
+        "electrical" => "electrician",
+        "hvac" => "hvac",
+        "roofing" => "roofer",
+        "painting" => "painter",
+        "landscaping" => "landscaper",
+        "cleaning" => "cleaner",
+        "locksmith" | "pest_control" | "general" | _ => "general",
+    }
+}
+
 #[server(SubmitVendorOnboard, "/api")]
 pub async fn submit_vendor_onboard(
     input: VendorOnboardInput,
 ) -> Result<String, server_fn::error::ServerFnError> {
-    Ok("vendor_stub".to_string())
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers).ok_or_else(|| {
+        server_fn::error::ServerFnError::new("Sign in to complete vendor onboarding.")
+    })?;
+    let session = get_session().await?;
+
+    let primary_trade = input
+        .trades
+        .first()
+        .map(|t| map_trade_to_api(t).to_string())
+        .unwrap_or_else(|| "general".into());
+
+    let _invite = input.invite_token;
+    let _contact = (input.contact_name, input.email, input.phone, input.coverage_area);
+
+    let body = CreateVendorBody {
+        user_id: session.user_id,
+        business_name: input.business_name,
+        trade_type: primary_trade,
+        license_number: input.license_number,
+        license_state: None,
+        is_emergency_available: false,
+        hourly_rate_cents: None,
+        is_insured: input.insured,
+        is_bonded: false,
+    };
+    let resp = crate::atlas_client::authenticated_post::<CreateVendorBody, CreateVendorResponse>(
+        "/api/folio/vendors",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    Ok(resp.id.to_string())
 }
 
 // ── Trade options ─────────────────────────────────────────────────────────────

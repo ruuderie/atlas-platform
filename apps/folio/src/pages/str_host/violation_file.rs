@@ -1,16 +1,14 @@
 // apps/folio/src/pages/str_host/violation_file.rs
 //
 // STR Violation Filing — /s/violations/new
-//
-// Form for STR hosts to file a violation/incident against a guest or property.
-// POSTs to /api/folio/cases with case_type=violation.
-// ─────────────────────────────────────────────────────────────────────────────
+// POSTs to /api/folio/violations.
 
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-// ── Server function ───────────────────────────────────────────────────────────
+use crate::pages::landlord::assets::list_assets;
+use crate::pages::landlord::violations::ViolationRecord;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileViolationInput {
@@ -20,36 +18,88 @@ pub struct FileViolationInput {
     pub category: String,
 }
 
+#[derive(Serialize)]
+struct FileViolationHttpBody {
+    asset_id: Uuid,
+    contract_id: Option<Uuid>,
+    reservation_id: Option<Uuid>,
+    category: String,
+    subject: String,
+    description: String,
+    cure_days: Option<u8>,
+    evidence_notes: Option<String>,
+}
+
+fn map_str_category(ui: &str) -> &'static str {
+    match ui {
+        "property_damage" => "property_damage",
+        "noise_complaint" | "noise" => "noise",
+        "unauthorized_guests" => "unauthorized_occupant",
+        "party_gathering" => "unauthorized_party",
+        "smoking" => "smoking_in_unit",
+        "pet_violation" => "unauthorized_pet",
+        "over_occupancy" => "over_occupancy",
+        "check_out_late" | "other" | _ => "other",
+    }
+}
+
 #[server(FileStrViolation, "/api")]
 pub async fn file_str_violation(
     input: FileViolationInput,
 ) -> Result<String, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
+
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let _token = session_token(&headers)?;
-    // POST /api/folio/cases  (case_type = violation)
-    // body: { subject, description, priority, case_type: "violation", category }
-    Ok("case_stub_id".to_string())
-}
+    let token = crate::auth::extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
 
-#[cfg(feature = "ssr")]
-fn session_token(
-    headers: &axum::http::HeaderMap,
-) -> Result<String, server_fn::error::ServerFnError> {
-    headers
-        .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| {
-            s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            })
-        })
-        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
-}
+    let assets = list_assets().await?;
+    let asset_id = assets
+        .iter()
+        .find(|a| a.str_eligible)
+        .or_else(|| assets.iter().find(|a| a.parent_asset_id.is_some()))
+        .or_else(|| assets.first())
+        .map(|a| a.id)
+        .ok_or_else(|| {
+            server_fn::error::ServerFnError::new(
+                "No property available to file a violation against.",
+            )
+        })?;
 
-// ── Component ─────────────────────────────────────────────────────────────────
+    let category = map_str_category(&input.category).to_string();
+    let evidence_notes = {
+        let mut notes = Vec::new();
+        if !input.priority.is_empty() {
+            notes.push(format!("Priority: {}", input.priority));
+        }
+        if notes.is_empty() {
+            None
+        } else {
+            Some(notes.join("\n"))
+        }
+    };
+
+    let body = FileViolationHttpBody {
+        asset_id,
+        contract_id: None,
+        reservation_id: None,
+        category,
+        subject: input.subject,
+        description: input.description,
+        cure_days: None,
+        evidence_notes,
+    };
+    let resp = crate::atlas_client::authenticated_post::<FileViolationHttpBody, ViolationRecord>(
+        "/api/folio/violations",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))?;
+    Ok(resp.id.to_string())
+}
 
 #[component]
 pub fn StrViolationFiling() -> impl IntoView {
@@ -126,7 +176,7 @@ pub fn StrViolationFiling() -> impl IntoView {
                                 <option value="party_gathering">"Party / Gathering"</option>
                                 <option value="smoking">"Smoking"</option>
                                 <option value="pet_violation">"Pet Violation"</option>
-                                <option value="check_out_late">"Late Check-Out"</option>
+                                <option value="over_occupancy">"Over Occupancy"</option>
                                 <option value="other">"Other"</option>
                             </select>
                         </div>

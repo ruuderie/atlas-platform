@@ -581,7 +581,7 @@ pub fn LandlordTeam() -> impl IntoView {
                                 <Show when=move || modal_role.get() == "property_manager">
                                     <div style="background:rgba(2,132,199,.06); border:1px solid rgba(2,132,199,.15); border-radius:8px; padding:12px 14px; font-size:12px; color:#0369a1; margin-bottom:14px; line-height:1.6; display:flex; align-items:flex-start; gap:8px;">
                                         <span class="ms msf" style="font-size:15px; flex-shrink:0; margin-top:1px;">"info"</span>
-                                        "This PM will be linked to your account as their employer. You remain the admin. A property management agreement (G-11 contract) will be created when they accept."
+                                        "This PM will be linked to your account as their employer. You remain the admin. A property management agreement will be created when they accept."
                                     </div>
                                 </Show>
 
