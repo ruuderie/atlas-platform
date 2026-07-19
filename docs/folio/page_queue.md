@@ -81,10 +81,18 @@ _The primary operator. Nothing else works until this works._
 | `/l/campaigns` | Outreach | Create campaign | wired |
 | `/l/ledger` | Audit trail | Post charge | wired |
 | `/l/deals/:id` | Deal ops | Advance stage | wired |
-| `/l/assets/:id/alerts` | Alert prefs | Persist prefs | **API missing — confirm** |
-| `/l/syndication` | Channel prefs | Persist toggles | **API missing — confirm** |
-| `/l/reservations` | STR stay ops | Hold/confirm/check-in | backlog (APIs exist) |
-| `/l/tenants/:id` | Applications | Approve/reject | backlog (PATCH exists) |
+| `/l/assets/:id/alerts` | Alert prefs | Persist prefs | wired (`GET`/`PUT …/alert-prefs`) |
+| `/l/syndication` | Channel prefs | Read / deep-link only | **no persist API** (Save demoted) |
+| `/l/reservations` | STR stay ops | Hold/confirm/check-in | wired (existing reservation APIs) |
+| `/l/tenants/:id` | Applications | Approve/reject | wired (`PATCH …/decision`) |
+| `/l/assets/:id` (Danger) | Soft archive | Type `DELETE` + blockers | wired (`POST …/archive`) |
+| `/l/assets/:unitId/history` | Unit timeline | Historical lease / payments / maint | wired (`/history/lease`, `/history/payments`, `/history/maintenance`) |
+| `/l/assets/:id` (hub) | Nested create | Add unit + New project | wired (`parent_asset_id`, `POST /projects`) |
+| `/l/assets/:id` (unit Spaces) | Nested create | Add space | wired |
+| `/l/assets/:id` (Lease & household) | Household writes | Add/depart occupant + vehicle | wired |
+| `/l/maintenance/:id` · history expense | Expense ↔ WO | Link cost to unit WO (`related_case_id`) or standalone | wired |
+| `/l/systems` · appliances | Retire → inactive | Reason + replace chain | wired (`POST …/retire`) |
+| `/l/vault` | Document vault | Presign → R2 → register | wired (`POST …/vault/presign`) |
 
 ---
 
@@ -229,9 +237,16 @@ Do **not** invent backends here. Keep nav/routes if already scaffolded; UI stays
 | Agent | `/a/**` | Product + APIs out of scope |
 | Broker | `/br/**` (nav `/b/**` orphans) | Product + APIs out of scope |
 | Guest | `/g/**` | Nav orphans; guest page set not built |
-| STR reviews / OTA channels | `/s/reviews`, `/s/channels` | Mock until persistence APIs |
+| STR reviews / OTA channels | `/s/reviews`, `/s/channels`, `/s/pricing`, `/s/listings/:id` | Honest empty / read-only until persistence APIs |
 | Cohost marketplace | (if present) | No marketplace API |
 | Tenant portal CMS | `/l/assets/:id/portal` | Intentional stub — CMS out of scope |
+| Syndication channel persist | `/l/syndication` Save | Explicitly excluded — no GET/PUT channels API |
+| Deal lease-option create-on-page | `/l/buyers` | CTA to Deal Ops disposition (wired) |
+| Communications start room | `/l/comms` | Messaging graph |
+| Campaign enroll | Campaigns | Marketing |
+| Vendor create without Atlas `user_id` | Vendors | Identity/onboarding |
+| STR historical reservation import | Unit history | After LTR unit history ships |
+| Hard physical purge of history | Archive | Soft-archive only |
 
 ---
 
@@ -251,7 +266,7 @@ P7 Public:     8 done /  8 total   ███████████████
 Total: wired cores complete; agent/broker/guest/STR reviews-channels parked
 ```
 
-*Last updated: 2026-07-17. Folio API wiring epic: placeholders → existing `/api/folio/*`; Meridian thin analytics; park no-API surfaces.*
+*Last updated: 2026-07-18. Gaps-close epic: unit History timelines + historical lease / payment / maint sheets; nested unit/space create; household writes; hub projects; honesty on syndication/billing/STR host.*
 
 <!-- session 2026-06-28: meridian_config.rs (G-27 dashboard/rules/surfaces), ltr_listings.rs, str_listings.rs, ni_signup.rs -->
 
