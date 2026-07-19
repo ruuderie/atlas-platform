@@ -9,7 +9,11 @@
 // Categories: 14 (LTR + STR-specific)
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -43,6 +47,9 @@ pub enum CureStatus {
 }
 
 impl CureStatus {
+    /// Terminal / transition targets for Open rows (excludes Open itself).
+    pub const TRANSITIONS: &'static [Self] = &[Self::Cured, Self::Escalated, Self::Dismissed];
+
     pub fn from_str(s: &str) -> Self {
         match s {
             "open" => Self::Open,
@@ -50,6 +57,17 @@ impl CureStatus {
             "escalated" => Self::Escalated,
             "dismissed" => Self::Dismissed,
             _ => Self::Unknown,
+        }
+    }
+
+    /// Wire value for PATCH `/api/folio/violations/{id}/status`.
+    pub const fn api_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Cured => "cured",
+            Self::Escalated => "escalated",
+            Self::Dismissed => "dismissed",
+            Self::Unknown => "open",
         }
     }
 
@@ -111,6 +129,23 @@ pub enum ViolCategory {
 }
 
 impl ViolCategory {
+    pub const ALL: &'static [Self] = &[
+        Self::Noise,
+        Self::UnauthorizedOccupant,
+        Self::UnauthorizedPet,
+        Self::UnauthorizedVehicle,
+        Self::PropertyDamage,
+        Self::LeaseBreach,
+        Self::Subletting,
+        Self::FailureToMaintain,
+        Self::IllegalActivity,
+        Self::Hoarding,
+        Self::SmokingInUnit,
+        Self::UnauthorizedParty,
+        Self::OverOccupancy,
+        Self::Other,
+    ];
+
     pub fn from_str(s: &str) -> Self {
         match s {
             "noise" => Self::Noise,
@@ -128,6 +163,25 @@ impl ViolCategory {
             "over_occupancy" => Self::OverOccupancy,
             "other" => Self::Other,
             _ => Self::Unknown,
+        }
+    }
+
+    pub const fn api_str(self) -> &'static str {
+        match self {
+            Self::Noise => "noise",
+            Self::UnauthorizedOccupant => "unauthorized_occupant",
+            Self::UnauthorizedPet => "unauthorized_pet",
+            Self::UnauthorizedVehicle => "unauthorized_vehicle",
+            Self::PropertyDamage => "property_damage",
+            Self::LeaseBreach => "lease_breach",
+            Self::Subletting => "subletting",
+            Self::FailureToMaintain => "failure_to_maintain",
+            Self::IllegalActivity => "illegal_activity",
+            Self::Hoarding => "hoarding",
+            Self::SmokingInUnit => "smoking_in_unit",
+            Self::UnauthorizedParty => "unauthorized_party",
+            Self::OverOccupancy => "over_occupancy",
+            Self::Other | Self::Unknown => "other",
         }
     }
 
@@ -208,8 +262,66 @@ impl StatusFilter {
 pub fn Violations() -> impl IntoView {
     let (status_filter, set_status) = signal(StatusFilter::All);
     let (search_query, set_search) = signal(String::new());
+    let refresh = RwSignal::new(0u32);
+    let show_file = RwSignal::new(false);
+    let file_asset = RwSignal::new(String::new());
+    let file_category = RwSignal::new(ViolCategory::Noise.api_str().to_string());
+    let file_subject = RwSignal::new(String::new());
+    let file_description = RwSignal::new(String::new());
+    let file_cure_days = RwSignal::new(String::new());
+    let filing = RwSignal::new(false);
+    let file_err = RwSignal::new(None::<String>);
 
-    let violations = Resource::new(|| (), |_| async move { list_violations().await });
+    let violations = Resource::new(move || refresh.get(), |_| async move { list_violations().await });
+    let assets = Resource::new(
+        move || show_file.get(),
+        |open| async move {
+            if !open {
+                return Ok::<Vec<AssetPickerItem>, server_fn::error::ServerFnError>(vec![]);
+            }
+            list_assets_for_picker().await
+        },
+    );
+
+    let on_file = move |_| {
+        let asset_id = file_asset.get().trim().to_string();
+        let subject = file_subject.get().trim().to_string();
+        let description = file_description.get().trim().to_string();
+        let category = file_category.get();
+        if asset_id.is_empty() || subject.is_empty() {
+            file_err.set(Some("Asset and subject are required.".into()));
+            return;
+        }
+        let cure_days = {
+            let s = file_cure_days.get().trim().to_string();
+            if s.is_empty() {
+                None
+            } else {
+                match s.parse::<u8>() {
+                    Ok(n) => Some(n),
+                    Err(_) => {
+                        file_err.set(Some("Cure days must be a number.".into()));
+                        return;
+                    }
+                }
+            }
+        };
+        filing.set(true);
+        file_err.set(None);
+        spawn_local(async move {
+            match file_violation(asset_id, category, subject, description, cure_days).await {
+                Ok(_) => {
+                    show_file.set(false);
+                    file_subject.set(String::new());
+                    file_description.set(String::new());
+                    file_cure_days.set(String::new());
+                    refresh.update(|n| *n += 1);
+                }
+                Err(e) => file_err.set(Some(e.to_string())),
+            }
+            filing.set(false);
+        });
+    };
 
     view! {
         <div class="viol-page">
@@ -219,32 +331,44 @@ pub fn Violations() -> impl IntoView {
                     <h1 class="viol-title">"Violations"</h1>
                     <p class="viol-subtitle">"Compliance queue — cure deadlines and escalation status."</p>
                 </div>
-                // KPI badges
-                <Suspense fallback=|| view! { <div class="viol-kpi-skel"/> }>
-                    {move || violations.get().map(|res| {
-                        let (open, escalated) = res.as_ref().map(|v| {
-                            let open = v.iter().filter(|r| CureStatus::from_str(&r.cure_status) == CureStatus::Open).count();
-                            let esc  = v.iter().filter(|r| CureStatus::from_str(&r.cure_status) == CureStatus::Escalated).count();
-                            (open, esc)
-                        }).unwrap_or((0, 0));
-                        view! {
-                            <div class="viol-kpi-strip">
-                                <div class="viol-kpi">
-                                    <span class="material-symbols-outlined" style="font-size:14px;color:#d97706">"radio_button_unchecked"</span>
-                                    <span class="viol-kpi-val">{open}</span>
-                                    <span class="viol-kpi-label">"Open"</span>
-                                </div>
-                                {(escalated > 0).then(|| view! {
-                                    <div class="viol-kpi viol-kpi--escalated">
-                                        <span class="material-symbols-outlined" style="font-size:14px;">"warning"</span>
-                                        <span class="viol-kpi-val">{escalated}</span>
-                                        <span class="viol-kpi-label">"Escalated"</span>
-                                    </div>
-                                })}
-                            </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                    <button
+                        type="button"
+                        class="folio-btn folio-btn--primary press"
+                        on:click=move |_| {
+                            file_err.set(None);
+                            show_file.set(true);
                         }
-                    })}
-                </Suspense>
+                    >
+                        "+ File Violation"
+                    </button>
+                    // KPI badges
+                    <Suspense fallback=|| view! { <div class="viol-kpi-skel"/> }>
+                        {move || violations.get().map(|res| {
+                            let (open, escalated) = res.as_ref().map(|v| {
+                                let open = v.iter().filter(|r| CureStatus::from_str(&r.cure_status) == CureStatus::Open).count();
+                                let esc  = v.iter().filter(|r| CureStatus::from_str(&r.cure_status) == CureStatus::Escalated).count();
+                                (open, esc)
+                            }).unwrap_or((0, 0));
+                            view! {
+                                <div class="viol-kpi-strip">
+                                    <div class="viol-kpi">
+                                        <span class="material-symbols-outlined" style="font-size:14px;color:#d97706">"radio_button_unchecked"</span>
+                                        <span class="viol-kpi-val">{open}</span>
+                                        <span class="viol-kpi-label">"Open"</span>
+                                    </div>
+                                    {(escalated > 0).then(|| view! {
+                                        <div class="viol-kpi viol-kpi--escalated">
+                                            <span class="material-symbols-outlined" style="font-size:14px;">"warning"</span>
+                                            <span class="viol-kpi-val">{escalated}</span>
+                                            <span class="viol-kpi-label">"Escalated"</span>
+                                        </div>
+                                    })}
+                                </div>
+                            }
+                        })}
+                    </Suspense>
+                </div>
             </div>
 
             // ── Filter bar ────────────────────────────────────────────
@@ -302,11 +426,87 @@ pub fn Violations() -> impl IntoView {
                                 </div>
                             }.into_any()
                         } else {
-                            view! { <ViolTable records=filtered/> }.into_any()
+                            view! { <ViolTable records=filtered refresh=refresh/> }.into_any()
                         }
                     }
                 })}
             </Suspense>
+
+            <Show when=move || show_file.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"File Violation"</h3>
+                            <button type="button" class="modal-close" on:click=move |_| show_file.set(false)>"✕"</button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <div class="form-field">
+                                <label class="form-label">"Asset *"</label>
+                                <select class="form-select" on:change=move |ev| file_asset.set(event_target_value(&ev))>
+                                    <option value="">"Select asset…"</option>
+                                    {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
+                                        let id = a.id.to_string();
+                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        view! { <option value=id>{label}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Category *"</label>
+                                <select class="form-select" on:change=move |ev| file_category.set(event_target_value(&ev))>
+                                    {ViolCategory::ALL.iter().copied().map(|c| {
+                                        view! { <option value=c.api_str()>{c.label()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Subject *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    prop:value=file_subject
+                                    on:input=move |ev| file_subject.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Description"</label>
+                                <textarea
+                                    class="form-input"
+                                    rows="3"
+                                    prop:value=file_description
+                                    on:input=move |ev| file_description.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Cure Days (optional)"</label>
+                                <input
+                                    type="number"
+                                    class="form-input"
+                                    min="1"
+                                    max="90"
+                                    placeholder="e.g. 10"
+                                    prop:value=file_cure_days
+                                    on:input=move |ev| file_cure_days.set(event_target_value(&ev))
+                                />
+                            </div>
+                            {move || file_err.get().map(|e| view! {
+                                <p class="viol-error-text">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-ghost" on:click=move |_| show_file.set(false)>"Cancel"</button>
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                disabled=move || filing.get() || file_subject.get().trim().is_empty()
+                                on:click=on_file
+                            >
+                                {move || if filing.get() { "Filing…" } else { "File Violation" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }
@@ -314,7 +514,7 @@ pub fn Violations() -> impl IntoView {
 // ── Table component ───────────────────────────────────────────────────────────
 
 #[component]
-fn ViolTable(records: Vec<ViolationRecord>) -> impl IntoView {
+fn ViolTable(records: Vec<ViolationRecord>, refresh: RwSignal<u32>) -> impl IntoView {
     view! {
         <div class="viol-table-wrap">
             <table class="viol-table">
@@ -327,6 +527,7 @@ fn ViolTable(records: Vec<ViolationRecord>) -> impl IntoView {
                         <th class="viol-th">"Type"</th>
                         <th class="viol-th">"Cure Deadline"</th>
                         <th class="viol-th">"Filed"</th>
+                        <th class="viol-th">"Action"</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -339,6 +540,10 @@ fn ViolTable(records: Vec<ViolationRecord>) -> impl IntoView {
                         let filed       = v.filed_at.format("%Y-%m-%d").to_string();
                         let is_escalated= status == CureStatus::Escalated;
                         let row_cls     = if is_escalated { "viol-row viol-row--escalated" } else { "viol-row" };
+                        let is_open     = status == CureStatus::Open;
+                        let vid         = v.id.to_string();
+                        let pending     = RwSignal::new(false);
+                        let row_err     = RwSignal::new(None::<String>);
                         view! {
                             <tr class=row_cls>
                                 <td class="viol-td">
@@ -366,6 +571,44 @@ fn ViolTable(records: Vec<ViolationRecord>) -> impl IntoView {
                                 </td>
                                 <td class="viol-td viol-td--deadline">{deadline}</td>
                                 <td class="viol-td">{filed}</td>
+                                <td class="viol-td">
+                                    {if is_open {
+                                        let vid2 = vid.clone();
+                                        view! {
+                                            <div style="display:flex;flex-direction:column;gap:0.25rem;">
+                                                <select
+                                                    class="form-select"
+                                                    style="min-width:8rem;font-size:0.75rem;"
+                                                    prop:disabled=move || pending.get()
+                                                    on:change=move |ev| {
+                                                        let next = event_target_value(&ev);
+                                                        if next.is_empty() { return; }
+                                                        let id = vid2.clone();
+                                                        pending.set(true);
+                                                        row_err.set(None);
+                                                        spawn_local(async move {
+                                                            match update_violation_status(id, next, None).await {
+                                                                Ok(_) => refresh.update(|n| *n += 1),
+                                                                Err(e) => row_err.set(Some(e.to_string())),
+                                                            }
+                                                            pending.set(false);
+                                                        });
+                                                    }
+                                                >
+                                                    <option value="">"Update…"</option>
+                                                    {CureStatus::TRANSITIONS.iter().copied().map(|s| {
+                                                        view! { <option value=s.api_str()>{s.as_str()}</option> }
+                                                    }).collect_view()}
+                                                </select>
+                                                {move || row_err.get().map(|e| view! {
+                                                    <span style="color:#b91c1c;font-size:0.7rem;">{e}</span>
+                                                })}
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! { <span style="color:var(--folio-muted);">"\u{2014}"</span> }.into_any()
+                                    }}
+                                </td>
                             </tr>
                         }
                     }).collect_view()}
@@ -433,4 +676,105 @@ pub async fn list_violations() -> Result<Vec<ViolationRecord>, server_fn::error:
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Violations list failed: {e}")))
+}
+
+#[derive(Serialize)]
+struct FileViolationBody {
+    asset_id: Uuid,
+    contract_id: Option<Uuid>,
+    reservation_id: Option<Uuid>,
+    category: String,
+    subject: String,
+    description: String,
+    cure_days: Option<u8>,
+    evidence_notes: Option<String>,
+}
+
+/// POST /api/folio/violations
+#[server(FileViolation, "/api")]
+pub async fn file_violation(
+    asset_id: String,
+    category: String,
+    subject: String,
+    description: String,
+    cure_days: Option<u8>,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let asset_id = Uuid::parse_str(asset_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid asset ID"))?;
+    if ViolCategory::ALL
+        .iter()
+        .all(|c| c.api_str() != category.as_str())
+    {
+        return Err(server_fn::error::ServerFnError::new("Invalid category"));
+    }
+    if subject.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Subject is required"));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let body = FileViolationBody {
+        asset_id,
+        contract_id: None,
+        reservation_id: None,
+        category,
+        subject: subject.trim().to_string(),
+        description,
+        cure_days,
+        evidence_notes: None,
+    };
+    let resp = crate::atlas_client::authenticated_post::<FileViolationBody, ViolationRecord>(
+        "/api/folio/violations",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("File violation failed: {e}")))?;
+    Ok(resp.id)
+}
+
+#[derive(Serialize)]
+struct UpdateCureStatusBody {
+    status: String,
+    resolution_notes: Option<String>,
+}
+
+/// PATCH /api/folio/violations/{id}/status
+#[server(UpdateViolationStatus, "/api")]
+pub async fn update_violation_status(
+    violation_id: String,
+    status: String,
+    resolution_notes: Option<String>,
+) -> Result<(), server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let _ = Uuid::parse_str(violation_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid violation ID"))?;
+    if !matches!(status.as_str(), "cured" | "escalated" | "dismissed") {
+        return Err(server_fn::error::ServerFnError::new("Invalid cure status"));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let body = UpdateCureStatusBody {
+        status,
+        resolution_notes,
+    };
+    crate::atlas_client::authenticated_patch::<UpdateCureStatusBody, ViolationRecord>(
+        &format!("/api/folio/violations/{violation_id}/status"),
+        &token,
+        body,
+    )
+    .await
+    .map(|_| ())
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Status update failed: {e}")))
 }

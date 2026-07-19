@@ -12,9 +12,11 @@
 // Both paths write the same G-22 record — there is no dual source of truth.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-use crate::components::nav::{FolioRoute, NavIcon};
+use crate::components::nav::NavIcon;
 
 // ── Response types (mirror backend shapes) ────────────────────────────────────
 
@@ -82,52 +84,109 @@ impl VendorStatus {
     }
 }
 
+/// Trade type for create — mirrors backend `TradeType` (snake_case wire values).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VendorTradeType {
+    Plumber,
+    Electrician,
+    Hvac,
+    GeneralContractor,
+    Roofer,
+    Painter,
+    Landscaper,
+    Cleaner,
+    Inspector,
+    General,
+}
+
+impl VendorTradeType {
+    pub const ALL: &'static [Self] = &[
+        Self::Plumber,
+        Self::Electrician,
+        Self::Hvac,
+        Self::GeneralContractor,
+        Self::Roofer,
+        Self::Painter,
+        Self::Landscaper,
+        Self::Cleaner,
+        Self::Inspector,
+        Self::General,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Plumber => "plumber",
+            Self::Electrician => "electrician",
+            Self::Hvac => "hvac",
+            Self::GeneralContractor => "general_contractor",
+            Self::Roofer => "roofer",
+            Self::Painter => "painter",
+            Self::Landscaper => "landscaper",
+            Self::Cleaner => "cleaner",
+            Self::Inspector => "inspector",
+            Self::General => "general",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Plumber => "Plumbing",
+            Self::Electrician => "Electrical",
+            Self::Hvac => "HVAC",
+            Self::GeneralContractor => "General Contractor",
+            Self::Roofer => "Roofing",
+            Self::Painter => "Painting",
+            Self::Landscaper => "Landscaping",
+            Self::Cleaner => "Cleaning",
+            Self::Inspector => "Inspection",
+            Self::General => "General",
+        }
+    }
+}
+
 /// Trade categories used for filtering.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TradeFilter {
     All,
-    Plumbing,
-    Electrical,
+    Plumber,
+    Electrician,
     Hvac,
-    Roofing,
-    Carpentry,
-    Painting,
-    Flooring,
-    Landscaping,
-    Cleaning,
-    Inspection,
+    Roofer,
+    Painter,
+    Landscaper,
+    Cleaner,
+    Inspector,
+    GeneralContractor,
     General,
 }
 
 impl TradeFilter {
     pub const ALL: &'static [Self] = &[
         Self::All,
-        Self::Plumbing,
-        Self::Electrical,
+        Self::Plumber,
+        Self::Electrician,
         Self::Hvac,
-        Self::Roofing,
-        Self::Carpentry,
-        Self::Painting,
-        Self::Flooring,
-        Self::Landscaping,
-        Self::Cleaning,
-        Self::Inspection,
+        Self::Roofer,
+        Self::Painter,
+        Self::Landscaper,
+        Self::Cleaner,
+        Self::Inspector,
+        Self::GeneralContractor,
         Self::General,
     ];
 
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::All => "all",
-            Self::Plumbing => "plumbing",
-            Self::Electrical => "electrical",
+            Self::Plumber => "plumber",
+            Self::Electrician => "electrician",
             Self::Hvac => "hvac",
-            Self::Roofing => "roofing",
-            Self::Carpentry => "carpentry",
-            Self::Painting => "painting",
-            Self::Flooring => "flooring",
-            Self::Landscaping => "landscaping",
-            Self::Cleaning => "cleaning",
-            Self::Inspection => "inspection",
+            Self::Roofer => "roofer",
+            Self::Painter => "painter",
+            Self::Landscaper => "landscaper",
+            Self::Cleaner => "cleaner",
+            Self::Inspector => "inspector",
+            Self::GeneralContractor => "general_contractor",
             Self::General => "general",
         }
     }
@@ -135,16 +194,15 @@ impl TradeFilter {
     pub const fn label(self) -> &'static str {
         match self {
             Self::All => "All Trades",
-            Self::Plumbing => "Plumbing",
-            Self::Electrical => "Electrical",
+            Self::Plumber => "Plumbing",
+            Self::Electrician => "Electrical",
             Self::Hvac => "HVAC",
-            Self::Roofing => "Roofing",
-            Self::Carpentry => "Carpentry",
-            Self::Painting => "Painting",
-            Self::Flooring => "Flooring",
-            Self::Landscaping => "Landscaping",
-            Self::Cleaning => "Cleaning",
-            Self::Inspection => "Inspection",
+            Self::Roofer => "Roofing",
+            Self::Painter => "Painting",
+            Self::Landscaper => "Landscaping",
+            Self::Cleaner => "Cleaning",
+            Self::Inspector => "Inspection",
+            Self::GeneralContractor => "General Contractor",
             Self::General => "General",
         }
     }
@@ -152,17 +210,15 @@ impl TradeFilter {
     pub const fn material_icon(self) -> &'static str {
         match self {
             Self::All => "handyman",
-            Self::Plumbing => "plumbing",
-            Self::Electrical => "electric_bolt",
+            Self::Plumber => "plumbing",
+            Self::Electrician => "electric_bolt",
             Self::Hvac => "thermostat",
-            Self::Roofing => "roofing",
-            Self::Carpentry => "carpenter",
-            Self::Painting => "format_paint",
-            Self::Flooring => "layers",
-            Self::Landscaping => "grass",
-            Self::Cleaning => "cleaning_services",
-            Self::Inspection => "fact_check",
-            Self::General => "build",
+            Self::Roofer => "roofing",
+            Self::Painter => "format_paint",
+            Self::Landscaper => "grass",
+            Self::Cleaner => "cleaning_services",
+            Self::Inspector => "fact_check",
+            Self::GeneralContractor | Self::General => "build",
         }
     }
 }
@@ -173,8 +229,42 @@ impl TradeFilter {
 pub fn Vendors() -> impl IntoView {
     let (trade_filter, set_trade_filter) = signal(TradeFilter::All);
     let (search_query, set_search_query) = signal(String::new());
+    let refresh = RwSignal::new(0u32);
+    let show_add = RwSignal::new(false);
+    let new_biz = RwSignal::new(String::new());
+    let new_trade = RwSignal::new(VendorTradeType::General.as_str().to_string());
+    let new_user_id = RwSignal::new(String::new());
+    let new_emerg = RwSignal::new(false);
+    let creating = RwSignal::new(false);
+    let create_err = RwSignal::new(None::<String>);
 
-    let vendors = Resource::new(|| (), |_| async move { list_vendors().await });
+    let vendors = Resource::new(move || refresh.get(), |_| async move { list_vendors().await });
+
+    let on_create = move |_| {
+        let biz = new_biz.get().trim().to_string();
+        let uid = new_user_id.get().trim().to_string();
+        if biz.is_empty() || uid.is_empty() {
+            create_err.set(Some("Business name and user ID are required.".into()));
+            return;
+        }
+        let trade = new_trade.get();
+        let emerg = new_emerg.get();
+        creating.set(true);
+        create_err.set(None);
+        spawn_local(async move {
+            match create_vendor(uid, biz, trade, emerg).await {
+                Ok(_) => {
+                    show_add.set(false);
+                    new_biz.set(String::new());
+                    new_user_id.set(String::new());
+                    new_emerg.set(false);
+                    refresh.update(|n| *n += 1);
+                }
+                Err(e) => create_err.set(Some(e.to_string())),
+            }
+            creating.set(false);
+        });
+    };
 
     view! {
         <div class="vendors-page">
@@ -187,12 +277,19 @@ pub fn Vendors() -> impl IntoView {
                          pre-fill dispatch when creating work orders."
                     </p>
                 </div>
-                <a href=FolioRoute::LandlordMaintenance.path() class="vendors-add-btn">
+                <button
+                    type="button"
+                    class="vendors-add-btn"
+                    on:click=move |_| {
+                        create_err.set(None);
+                        show_add.set(true);
+                    }
+                >
                     <span class="material-symbols-outlined" style="font-size:18px;">
                         {NavIcon::Build.as_str()}
                     </span>
                     "Add Vendor"
-                </a>
+                </button>
             </div>
 
             // ── Filter bar ────────────────────────────────────────────────
@@ -285,6 +382,96 @@ pub fn Vendors() -> impl IntoView {
                     }
                 })}
             </Suspense>
+
+            <Show when=move || show_add.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Add Vendor"</h3>
+                            <button
+                                type="button"
+                                class="modal-close"
+                                on:click=move |_| show_add.set(false)
+                            >
+                                "✕"
+                            </button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <div class="form-field">
+                                <label class="form-label">"Business Name *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Acme Plumbing LLC"
+                                    prop:value=new_biz
+                                    on:input=move |ev| new_biz.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Trade Type"</label>
+                                <select
+                                    class="form-select"
+                                    on:change=move |ev| new_trade.set(event_target_value(&ev))
+                                >
+                                    {VendorTradeType::ALL.iter().copied().map(|t| {
+                                        let val = t.as_str();
+                                        let label = t.label();
+                                        view! { <option value=val>{label}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"User ID (UUID) *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Vendor atlas user UUID"
+                                    prop:value=new_user_id
+                                    on:input=move |ev| new_user_id.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label" style="display:flex;align-items:center;gap:0.5rem;">
+                                    <input
+                                        type="checkbox"
+                                        class="form-checkbox"
+                                        prop:checked=move || new_emerg.get()
+                                        on:change=move |ev: web_sys::Event| {
+                                            let el = event_target::<web_sys::HtmlInputElement>(&ev);
+                                            new_emerg.set(el.checked());
+                                        }
+                                    />
+                                    "Available for emergency calls"
+                                </label>
+                            </div>
+                            {move || create_err.get().map(|e| view! {
+                                <p class="vendor-assign-msg vendor-assign-msg--error">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button
+                                type="button"
+                                class="btn btn-ghost"
+                                on:click=move |_| show_add.set(false)
+                            >
+                                "Cancel"
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                disabled=move || {
+                                    creating.get()
+                                        || new_biz.get().trim().is_empty()
+                                        || new_user_id.get().trim().is_empty()
+                                }
+                                on:click=on_create
+                            >
+                                {move || if creating.get() { "Adding…" } else { "Add Vendor" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }
@@ -508,6 +695,73 @@ fn VendorGridSkeleton() -> impl IntoView {
 #[cfg(feature = "ssr")]
 fn extract_token_from_headers(headers: &axum::http::HeaderMap) -> Option<String> {
     crate::auth::extract_bearer_token(headers)
+}
+
+#[derive(Serialize)]
+struct CreateVendorBody {
+    user_id: Uuid,
+    business_name: String,
+    trade_type: String,
+    license_number: Option<String>,
+    license_state: Option<String>,
+    is_emergency_available: bool,
+    hourly_rate_cents: Option<i64>,
+    is_insured: bool,
+    is_bonded: bool,
+}
+
+#[derive(Deserialize)]
+struct CreateVendorResponse {
+    id: Uuid,
+}
+
+/// POST /api/folio/vendors
+#[server(CreateVendor, "/api")]
+pub async fn create_vendor(
+    user_id: String,
+    business_name: String,
+    trade_type: String,
+    is_emergency_available: bool,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let user_id = Uuid::parse_str(user_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid user ID"))?;
+    if business_name.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Business name is required"));
+    }
+    if VendorTradeType::ALL
+        .iter()
+        .all(|t| t.as_str() != trade_type.as_str())
+    {
+        return Err(server_fn::error::ServerFnError::new("Invalid trade type"));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token_from_headers(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let body = CreateVendorBody {
+        user_id,
+        business_name: business_name.trim().to_string(),
+        trade_type,
+        license_number: None,
+        license_state: None,
+        is_emergency_available,
+        hourly_rate_cents: None,
+        is_insured: false,
+        is_bonded: false,
+    };
+    let resp = crate::atlas_client::authenticated_post::<CreateVendorBody, CreateVendorResponse>(
+        "/api/folio/vendors",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Create vendor failed: {e}")))?;
+    Ok(resp.id)
 }
 
 /// GET /api/folio/vendors — full vendor list for this tenant.

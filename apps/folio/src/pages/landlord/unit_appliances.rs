@@ -15,8 +15,11 @@
 
 use chrono::{NaiveDate, Utc};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
@@ -169,7 +172,7 @@ fn appliance_type(a: &ApplianceDetail) -> String {
         .to_string()
 }
 
-fn appliance_type_label(t: &str) -> &str {
+fn appliance_type_label(t: &str) -> &'static str {
     match t {
         "refrigerator" => "Refrigerator",
         "washer" => "Washer",
@@ -221,22 +224,83 @@ fn meta_str<'a>(m: Option<&'a serde_json::Value>, key: &str) -> Option<String> {
     m?.get(key)?.as_str().map(|s| s.to_string())
 }
 
+/// Appliance type — mirrors backend `ApplianceType` snake_case.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApplianceTypeOpt {
+    Refrigerator,
+    Washer,
+    Dryer,
+    WasherDryerCombo,
+    WaterHeater,
+    Boiler,
+    HvacUnit,
+    Dishwasher,
+    OvenRange,
+    GarbageDisposal,
+    PoolPump,
+    GarageDoorOpener,
+    AirHandler,
+    WaterSoftener,
+    Other,
+}
+
+impl ApplianceTypeOpt {
+    pub const ALL: &'static [Self] = &[
+        Self::Refrigerator,
+        Self::Washer,
+        Self::Dryer,
+        Self::WasherDryerCombo,
+        Self::WaterHeater,
+        Self::Boiler,
+        Self::HvacUnit,
+        Self::Dishwasher,
+        Self::OvenRange,
+        Self::GarbageDisposal,
+        Self::PoolPump,
+        Self::GarageDoorOpener,
+        Self::AirHandler,
+        Self::WaterSoftener,
+        Self::Other,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Refrigerator => "refrigerator",
+            Self::Washer => "washer",
+            Self::Dryer => "dryer",
+            Self::WasherDryerCombo => "washer_dryer_combo",
+            Self::WaterHeater => "water_heater",
+            Self::Boiler => "boiler",
+            Self::HvacUnit => "hvac_unit",
+            Self::Dishwasher => "dishwasher",
+            Self::OvenRange => "oven_range",
+            Self::GarbageDisposal => "garbage_disposal",
+            Self::PoolPump => "pool_pump",
+            Self::GarageDoorOpener => "garage_door_opener",
+            Self::AirHandler => "air_handler",
+            Self::WaterSoftener => "water_softener",
+            Self::Other => "other",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        appliance_type_label(self.as_str())
+    }
+}
+
 // ── Server function ───────────────────────────────────────────────────────────
+
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
 
 #[server(FetchAppliances, "/api")]
 pub async fn fetch_appliances() -> Result<Vec<ApplianceDetail>, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = headers
-        .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| {
-            s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            })
-        })
+    let token = extract_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Vec<ApplianceDetail>>(
         "/api/folio/appliances",
@@ -245,6 +309,73 @@ pub async fn fetch_appliances() -> Result<Vec<ApplianceDetail>, server_fn::error
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Fetch appliances failed: {e}")))
+}
+
+/// POST /api/folio/assets/{unit_id}/appliances
+#[server(CreateUnitAppliance, "/api")]
+pub async fn create_unit_appliance(
+    unit_id: String,
+    name: String,
+    make: String,
+    model: String,
+    appliance_type: String,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let unit_id = Uuid::parse_str(unit_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid unit ID"))?;
+    if name.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Name is required"));
+    }
+    if ApplianceTypeOpt::ALL
+        .iter()
+        .all(|t| t.as_str() != appliance_type.as_str())
+    {
+        return Err(server_fn::error::ServerFnError::new("Invalid appliance type"));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let body = serde_json::json!({
+        "unit_id": unit_id,
+        "name": name.trim(),
+        "serial_number": null,
+        "warranty_expiry_date": null,
+        "install_date": null,
+        "condition": null,
+        "metadata": {
+            "metadata_version": 1,
+            "appliance_type": appliance_type,
+            "make": make.trim(),
+            "model": model.trim(),
+            "year_manufactured": null,
+            "fuel_type": null,
+            "installer_sp_id": null,
+            "warranty_provider": null,
+            "warranty_contact": null,
+            "purchase_price_cents": null,
+            "replacement_cost_cents": null,
+            "service_interval_days": null
+        }
+    });
+
+    #[derive(Deserialize)]
+    struct Resp {
+        id: Uuid,
+    }
+
+    let resp = crate::atlas_client::authenticated_post::<serde_json::Value, Resp>(
+        &format!("/api/folio/assets/{unit_id}/appliances"),
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Create appliance failed: {e}")))?;
+    Ok(resp.id)
 }
 
 // ── KPI strip ─────────────────────────────────────────────────────────────────
@@ -421,6 +552,51 @@ pub fn UnitAppliances() -> impl IntoView {
     let appliances = Resource::new(move || refetch_count.get(), |_| fetch_appliances());
     let search = RwSignal::new(String::new());
     let cat_filter = RwSignal::new(ApplianceCategory::All);
+    let show_add = RwSignal::new(false);
+    let new_unit = RwSignal::new(String::new());
+    let new_name = RwSignal::new(String::new());
+    let new_make = RwSignal::new(String::new());
+    let new_model = RwSignal::new(String::new());
+    let new_type = RwSignal::new(ApplianceTypeOpt::Refrigerator.as_str().to_string());
+    let creating = RwSignal::new(false);
+    let create_err = RwSignal::new(None::<String>);
+
+    let assets = Resource::new(
+        move || show_add.get(),
+        |open| async move {
+            if !open {
+                return Ok::<Vec<AssetPickerItem>, server_fn::error::ServerFnError>(vec![]);
+            }
+            list_assets_for_picker().await
+        },
+    );
+
+    let on_create = move |_| {
+        let unit_id = new_unit.get().trim().to_string();
+        let name = new_name.get().trim().to_string();
+        let make = new_make.get();
+        let model = new_model.get();
+        let appliance_type = new_type.get();
+        if unit_id.is_empty() || name.is_empty() {
+            create_err.set(Some("Unit and name are required.".into()));
+            return;
+        }
+        creating.set(true);
+        create_err.set(None);
+        spawn_local(async move {
+            match create_unit_appliance(unit_id, name, make, model, appliance_type).await {
+                Ok(_) => {
+                    show_add.set(false);
+                    new_name.set(String::new());
+                    new_make.set(String::new());
+                    new_model.set(String::new());
+                    refetch_count.update(|n| *n += 1);
+                }
+                Err(e) => create_err.set(Some(e.to_string())),
+            }
+            creating.set(false);
+        });
+    };
 
     view! {
         <div class="appl-page">
@@ -432,6 +608,16 @@ pub fn UnitAppliances() -> impl IntoView {
                         "Appliances in your units"
                     </p>
                 </div>
+                <button
+                    type="button"
+                    class="folio-btn folio-btn--primary press"
+                    on:click=move |_| {
+                        create_err.set(None);
+                        show_add.set(true);
+                    }
+                >
+                    "+ Add Appliance"
+                </button>
             </div>
 
             // KPI strip
@@ -529,6 +715,82 @@ pub fn UnitAppliances() -> impl IntoView {
                     }
                 })}
             </Suspense>
+
+            <Show when=move || show_add.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Add Appliance"</h3>
+                            <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <div class="form-field">
+                                <label class="form-label">"Unit *"</label>
+                                <select class="form-select" on:change=move |ev| new_unit.set(event_target_value(&ev))>
+                                    <option value="">"Select unit…"</option>
+                                    {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
+                                        let id = a.id.to_string();
+                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        view! { <option value=id>{label}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Name *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Kitchen Refrigerator"
+                                    prop:value=new_name
+                                    on:input=move |ev| new_name.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Make"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Samsung"
+                                    prop:value=new_make
+                                    on:input=move |ev| new_make.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Model"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="RF28R7351SG"
+                                    prop:value=new_model
+                                    on:input=move |ev| new_model.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Appliance Type *"</label>
+                                <select class="form-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
+                                    {ApplianceTypeOpt::ALL.iter().copied().map(|t| {
+                                        view! { <option value=t.as_str()>{t.label()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            {move || create_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                disabled=move || creating.get() || new_name.get().trim().is_empty()
+                                on:click=on_create
+                            >
+                                {move || if creating.get() { "Saving…" } else { "Add Appliance" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }

@@ -55,6 +55,56 @@ fn session_token(
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
 }
 
+fn is_acquire(opp_type: &str) -> bool {
+    matches!(
+        opp_type,
+        "wholesale_lead" | "creative_finance_acquisition"
+    )
+}
+
+/// Next pipeline stage for this deal's track / opportunity type.
+fn next_stage(track: &str, opportunity_type: &str, current: &str) -> Option<&'static str> {
+    let cols: &[&str] = if is_acquire(opportunity_type) {
+        if track == "creative_finance" {
+            &[
+                "new",
+                "prescreened",
+                "offer_structured",
+                "cya_closing",
+                "owned_or_optioned",
+            ]
+        } else {
+            &[
+                "new",
+                "prescreened",
+                "offer_out",
+                "under_contract",
+                "title_clear",
+                "marketing",
+                "assigned_or_closed",
+            ]
+        }
+    } else if track == "creative_finance" {
+        &[
+            "buyer_lead",
+            "prescreen_pass",
+            "ara_deposit",
+            "installed",
+            "exercise_cashout",
+        ]
+    } else {
+        &[
+            "buyer_lead",
+            "prescreen_pass",
+            "deposit_held",
+            "assigned",
+            "closed",
+        ]
+    };
+    let idx = cols.iter().position(|s| *s == current)?;
+    cols.get(idx + 1).copied()
+}
+
 #[component]
 pub fn DealWorkspace() -> impl IntoView {
     let params = use_params_map();
@@ -174,6 +224,8 @@ pub fn DealWorkspace() -> impl IntoView {
                             .replace(":id", &d.id.to_string());
                         let is_cf = d.track == "creative_finance";
                         let is_ws = d.track == "wholesale";
+                        let advance_to = next_stage(&d.track, &d.opportunity_type, &d.status)
+                            .map(|s| s.to_string());
                         view! {
                             <div class="page-header">
                                 <div>
@@ -183,8 +235,34 @@ pub fn DealWorkspace() -> impl IntoView {
                                         {d.track.clone()}" · "{d.status.clone()}" · "{d.opportunity_type.clone()}
                                     </p>
                                 </div>
-                                <div class="page-actions">
-                                    <a class="btn btn-ghost btn-sm" href=structure_href>"Structure offer"</a>
+                                <div class="page-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                                    {advance_to.map(|stage| {
+                                        let stage_click = stage.clone();
+                                        let label = format!("Advance → {}", stage.replace('_', " "));
+                                        view! {
+                                            <button
+                                                type="button"
+                                                class="folio-btn folio-btn--primary press"
+                                                on:click=move |_| {
+                                                    let Some(deal_id) = id.get() else { return };
+                                                    let stage = stage_click.clone();
+                                                    spawn_local(async move {
+                                                        let body = serde_json::json!({ "stage": stage });
+                                                        match post_deal_action(deal_id, "advance".into(), body).await {
+                                                            Ok(_) => {
+                                                                msg.set("Stage advanced".into());
+                                                                refresh.update(|n| *n += 1);
+                                                            }
+                                                            Err(e) => msg.set(e.to_string()),
+                                                        }
+                                                    });
+                                                }
+                                            >
+                                                {label}
+                                            </button>
+                                        }
+                                    })}
+                                    <a class="folio-btn folio-btn--ghost press" href=structure_href>"Structure offer"</a>
                                 </div>
                             </div>
 

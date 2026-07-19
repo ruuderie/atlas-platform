@@ -6,6 +6,7 @@
 use leptos::prelude::*;
 use leptos_router::components::A;
 
+use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::components::stat_card::StatCard;
 use crate::pages::landlord::ledger::{list_ledger_entries, EntryStatus, LedgerEntrySummary};
@@ -75,11 +76,26 @@ pub fn Billing() -> impl IntoView {
     view! {
         <div class="landlord-list-page">
             <PageHeader title=title subtitle=subtitle>
-                <A href="/l/ledger" attr:class="folio-btn folio-btn--ghost">
+                <A href=FolioRoute::LandlordLedger.path() attr:class="folio-btn folio-btn--ghost press">
                     <span class="material-symbols-outlined">"account_balance"</span>
                     "Full ledger"
                 </A>
             </PageHeader>
+            <nav class="folio-related" aria-label="Related">
+                <span class="folio-related__label">"Related"</span>
+                <ul class="folio-related__list">
+                    <li>
+                        <A href=FolioRoute::LandlordLedger.path() attr:class="folio-related__link press">
+                            "Ledger"
+                        </A>
+                    </li>
+                    <li>
+                        <A href=FolioRoute::LandlordAccountBilling.path() attr:class="folio-related__link press">
+                            "Account billing"
+                        </A>
+                    </li>
+                </ul>
+            </nav>
 
             <div class="folio-stat-grid" style="margin-bottom:1.5rem">
                 <StatCard label="Outstanding" value=outstanding icon="payments" />

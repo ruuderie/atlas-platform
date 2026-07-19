@@ -1,4 +1,5 @@
 use crate::auth::SessionInfo;
+use crate::components::global_search::GlobalSearch;
 use crate::components::nav::{SidebarNav, LANDLORD_NAV};
 use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 use crate::components::scorecard_nudge_host::ScorecardNudgeHost;
@@ -34,6 +35,9 @@ pub fn LandlordLayout() -> impl IntoView {
                 })}
             </Suspense>
             <main class="folio-main">
+                <div class="folio-main__toolbar">
+                    <GlobalSearch/>
+                </div>
                 // Onboarding banner — shown until passkey + wizard complete
                 <Suspense fallback=|| view! { <div/> }>
                     {move || session.get().map(|r| {

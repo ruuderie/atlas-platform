@@ -15,9 +15,12 @@
 // Data source: GET /api/folio/ledger → all atlas_ledger_entries for tenant.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::components::nav::NavIcon;
+use crate::pages::landlord::leases::list_leases;
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -202,6 +205,97 @@ impl ChargeType {
     }
 }
 
+/// Ad-hoc charge types accepted by `POST /api/folio/ledger/charge`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AdHocChargeType {
+    LateFee,
+    MaintenanceReimbursement,
+    Incidental,
+    SecurityDepositDeduction,
+    UtilityChargeback,
+    Other,
+}
+
+impl AdHocChargeType {
+    const ALL: &'static [Self] = &[
+        Self::LateFee,
+        Self::MaintenanceReimbursement,
+        Self::Incidental,
+        Self::SecurityDepositDeduction,
+        Self::UtilityChargeback,
+        Self::Other,
+    ];
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::LateFee => "late_fee",
+            Self::MaintenanceReimbursement => "maintenance_reimbursement",
+            Self::Incidental => "incidental",
+            Self::SecurityDepositDeduction => "security_deposit_deduction",
+            Self::UtilityChargeback => "utility_chargeback",
+            Self::Other => "other",
+        }
+    }
+
+    const fn label(self) -> &'static str {
+        match self {
+            Self::LateFee => "Late fee",
+            Self::MaintenanceReimbursement => "Maintenance reimbursement",
+            Self::Incidental => "Incidental",
+            Self::SecurityDepositDeduction => "Security deposit deduction",
+            Self::UtilityChargeback => "Utility chargeback",
+            Self::Other => "Other",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|t| t.as_str() == s)
+    }
+}
+
+/// ISO currency for ad-hoc charges — mirrors backend `Currency`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ChargeCurrency {
+    Usd,
+    Brl,
+    Dop,
+    Htg,
+}
+
+impl ChargeCurrency {
+    const ALL: &'static [Self] = &[Self::Usd, Self::Brl, Self::Dop, Self::Htg];
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Usd => "USD",
+            Self::Brl => "BRL",
+            Self::Dop => "DOP",
+            Self::Htg => "HTG",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|c| c.as_str().eq_ignore_ascii_case(s))
+    }
+}
+
+/// Billable entity for landlord ad-hoc charges (lease/contract today).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BillableEntityType {
+    AtlasContract,
+}
+
+impl BillableEntityType {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::AtlasContract => "atlas_contract",
+        }
+    }
+}
+
 /// Status filter used in the filter bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StatusFilter {
@@ -261,7 +355,95 @@ pub fn Ledger() -> impl IntoView {
     let (type_filter, set_type) = signal(Option::<ChargeType>::None);
     let (search_query, set_search) = signal(String::new());
 
-    let entries = Resource::new(|| (), |_| async move { list_ledger_entries().await });
+    let refresh = RwSignal::new(0u32);
+    let entries = Resource::new(
+        move || refresh.get(),
+        |_| async move { list_ledger_entries().await },
+    );
+
+    let show_charge = RwSignal::new(false);
+    let lease_id = RwSignal::new(String::new());
+    let charge_type = RwSignal::new(AdHocChargeType::LateFee.as_str().to_string());
+    let description = RwSignal::new(String::new());
+    let amount = RwSignal::new(String::new());
+    let currency = RwSignal::new(ChargeCurrency::Usd.as_str().to_string());
+    let due_date = RwSignal::new(String::new());
+    let creating = RwSignal::new(false);
+    let create_err = RwSignal::new(None::<String>);
+
+    let leases = Resource::new(
+        move || show_charge.get(),
+        |open| async move {
+            if !open {
+                return Ok(vec![]);
+            }
+            list_leases().await
+        },
+    );
+
+    let on_post_charge = move |_| {
+        let lid = lease_id.get().trim().to_string();
+        let desc = description.get().trim().to_string();
+        let amt_raw = amount.get().trim().to_string();
+        if lid.is_empty() || desc.is_empty() || amt_raw.is_empty() {
+            create_err.set(Some("Lease, description, and amount are required.".into()));
+            return;
+        }
+        let Ok(lease_uuid) = Uuid::parse_str(&lid) else {
+            create_err.set(Some("Invalid lease.".into()));
+            return;
+        };
+        let Some(ct) = AdHocChargeType::from_str(&charge_type.get()) else {
+            create_err.set(Some("Invalid charge type.".into()));
+            return;
+        };
+        let Some(cur) = ChargeCurrency::from_str(&currency.get()) else {
+            create_err.set(Some("Invalid currency.".into()));
+            return;
+        };
+        let Ok(dollars) = amt_raw.parse::<f64>() else {
+            create_err.set(Some("Amount must be a number.".into()));
+            return;
+        };
+        let cents = (dollars * 100.0).round() as i64;
+        if cents <= 0 {
+            create_err.set(Some("Amount must be greater than zero.".into()));
+            return;
+        }
+        let due = {
+            let d = due_date.get().trim().to_string();
+            if d.is_empty() {
+                None
+            } else {
+                Some(d)
+            }
+        };
+        creating.set(true);
+        create_err.set(None);
+        spawn_local(async move {
+            match create_ad_hoc_charge(
+                BillableEntityType::AtlasContract.as_str().to_string(),
+                lease_uuid,
+                desc,
+                ct.as_str().to_string(),
+                cents,
+                cur.as_str().to_string(),
+                due,
+            )
+            .await
+            {
+                Ok(_) => {
+                    show_charge.set(false);
+                    description.set(String::new());
+                    amount.set(String::new());
+                    due_date.set(String::new());
+                    refresh.update(|n| *n += 1);
+                }
+                Err(e) => create_err.set(Some(e.to_string())),
+            }
+            creating.set(false);
+        });
+    };
 
     view! {
         <div class="le-page">
@@ -271,41 +453,53 @@ pub fn Ledger() -> impl IntoView {
                     <h1 class="le-title">"Ledger"</h1>
                     <p class="le-subtitle">"All billable events across your portfolio — rent, fees, reimbursements."</p>
                 </div>
-                // KPI strip — totals derived from the entry list
-                <Suspense fallback=|| view! { <div class="le-kpi-skel"/> }>
-                    {move || entries.get().map(|res| {
-                        let (outstanding, total_paid) = res.as_ref().map(|v| {
-                            let out = v.iter()
-                                .filter(|e| matches!(EntryStatus::from_str(&e.status), EntryStatus::Pending | EntryStatus::Processing))
-                                .map(|e| e.gross_amount_cents)
-                                .sum::<i64>();
-                            let paid = v.iter()
-                                .filter(|e| EntryStatus::from_str(&e.status) == EntryStatus::Paid)
-                                .map(|e| e.net_amount_cents)
-                                .sum::<i64>();
-                            (out, paid)
-                        }).unwrap_or((0, 0));
-                        let currency = res.as_ref().ok()
-                            .and_then(|v| v.first().map(|e| e.currency.clone()))
-                            .unwrap_or_else(|| "USD".to_string());
-                        view! {
-                            <div class="le-kpi-strip">
-                                <div class="le-kpi">
-                                    <span class="le-kpi-label">"Outstanding"</span>
-                                    <span class="le-kpi-val le-kpi-val--alert">
-                                        {format_amount(outstanding, &currency)}
-                                    </span>
-                                </div>
-                                <div class="le-kpi">
-                                    <span class="le-kpi-label">"Collected (net)"</span>
-                                    <span class="le-kpi-val le-kpi-val--green">
-                                        {format_amount(total_paid, &currency)}
-                                    </span>
-                                </div>
-                            </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.75rem;">
+                    <button
+                        type="button"
+                        class="folio-btn folio-btn--primary press"
+                        on:click=move |_| {
+                            create_err.set(None);
+                            show_charge.set(true);
                         }
-                    })}
-                </Suspense>
+                    >
+                        "Post charge"
+                    </button>
+                    // KPI strip — totals derived from the entry list
+                    <Suspense fallback=|| view! { <div class="le-kpi-skel"/> }>
+                        {move || entries.get().map(|res| {
+                            let (outstanding, total_paid) = res.as_ref().map(|v| {
+                                let out = v.iter()
+                                    .filter(|e| matches!(EntryStatus::from_str(&e.status), EntryStatus::Pending | EntryStatus::Processing))
+                                    .map(|e| e.gross_amount_cents)
+                                    .sum::<i64>();
+                                let paid = v.iter()
+                                    .filter(|e| EntryStatus::from_str(&e.status) == EntryStatus::Paid)
+                                    .map(|e| e.net_amount_cents)
+                                    .sum::<i64>();
+                                (out, paid)
+                            }).unwrap_or((0, 0));
+                            let currency = res.as_ref().ok()
+                                .and_then(|v| v.first().map(|e| e.currency.clone()))
+                                .unwrap_or_else(|| "USD".to_string());
+                            view! {
+                                <div class="le-kpi-strip">
+                                    <div class="le-kpi">
+                                        <span class="le-kpi-label">"Outstanding"</span>
+                                        <span class="le-kpi-val le-kpi-val--alert">
+                                            {format_amount(outstanding, &currency)}
+                                        </span>
+                                    </div>
+                                    <div class="le-kpi">
+                                        <span class="le-kpi-label">"Collected (net)"</span>
+                                        <span class="le-kpi-val le-kpi-val--green">
+                                            {format_amount(total_paid, &currency)}
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        })}
+                    </Suspense>
+                </div>
             </div>
 
             // ── Filter bar ────────────────────────────────────────────
@@ -400,6 +594,17 @@ pub fn Ledger() -> impl IntoView {
                                     </span>
                                     <p class="le-empty-title">"No entries"</p>
                                     <p class="le-empty-sub">"Adjust filters or post a new charge."</p>
+                                    <button
+                                        type="button"
+                                        class="folio-btn folio-btn--primary press"
+                                        style="margin-top:1rem;"
+                                        on:click=move |_| {
+                                            create_err.set(None);
+                                            show_charge.set(true);
+                                        }
+                                    >
+                                        "Post charge"
+                                    </button>
                                 </div>
                             }.into_any()
                         } else {
@@ -408,6 +613,106 @@ pub fn Ledger() -> impl IntoView {
                     }
                 })}
             </Suspense>
+
+            <Show when=move || show_charge.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Post charge"</h3>
+                            <button type="button" class="modal-close" on:click=move |_| show_charge.set(false)>"✕"</button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <div class="form-field">
+                                <label class="form-label">"Lease *"</label>
+                                <select
+                                    class="form-select"
+                                    on:change=move |ev| lease_id.set(event_target_value(&ev))
+                                >
+                                    <option value="">"Select lease…"</option>
+                                    {move || leases.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|l| {
+                                        let id = l.id.to_string();
+                                        let label = format!(
+                                            "{} · {} · {}",
+                                            &id[..8.min(id.len())],
+                                            l.status,
+                                            format_amount(l.monthly_rent_cents.unwrap_or(0), &l.currency),
+                                        );
+                                        view! { <option value=id>{label}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Charge type *"</label>
+                                <select
+                                    class="form-select"
+                                    on:change=move |ev| charge_type.set(event_target_value(&ev))
+                                >
+                                    {AdHocChargeType::ALL.iter().copied().map(|t| {
+                                        view! { <option value=t.as_str()>{t.label()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Description *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Payment 7 days past due"
+                                    prop:value=description
+                                    on:input=move |ev| description.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Amount *"</label>
+                                <input
+                                    type="number"
+                                    class="form-input"
+                                    min="0"
+                                    step="0.01"
+                                    prop:value=amount
+                                    on:input=move |ev| amount.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Currency *"</label>
+                                <select
+                                    class="form-select"
+                                    on:change=move |ev| currency.set(event_target_value(&ev))
+                                >
+                                    {ChargeCurrency::ALL.iter().copied().map(|c| {
+                                        view! { <option value=c.as_str()>{c.as_str()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Due date"</label>
+                                <input
+                                    type="date"
+                                    class="form-input"
+                                    prop:value=due_date
+                                    on:input=move |ev| due_date.set(event_target_value(&ev))
+                                />
+                            </div>
+                            {move || create_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="folio-btn folio-btn--ghost" on:click=move |_| show_charge.set(false)>
+                                "Cancel"
+                            </button>
+                            <button
+                                type="button"
+                                class="folio-btn folio-btn--primary"
+                                disabled=move || creating.get()
+                                on:click=on_post_charge
+                            >
+                                {move || if creating.get() { "Posting…" } else { "Post charge" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }
@@ -541,4 +846,79 @@ pub async fn list_ledger_entries(
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Ledger list failed: {e}")))
+}
+
+#[derive(Serialize)]
+struct CreateAdHocChargeBody {
+    billable_entity_type: String,
+    billable_entity_id: Uuid,
+    description: String,
+    charge_type: String,
+    gross_amount_cents: i64,
+    currency: String,
+    due_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CreateAdHocChargeResponse {
+    ledger_entry_id: Uuid,
+}
+
+/// POST /api/folio/ledger/charge
+#[server(CreateAdHocCharge, "/api")]
+pub async fn create_ad_hoc_charge(
+    billable_entity_type: String,
+    billable_entity_id: Uuid,
+    description: String,
+    charge_type: String,
+    gross_amount_cents: i64,
+    currency: String,
+    due_date: Option<String>,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    if billable_entity_type != BillableEntityType::AtlasContract.as_str() {
+        return Err(server_fn::error::ServerFnError::new(
+            "Unsupported billable entity type",
+        ));
+    }
+    if AdHocChargeType::from_str(&charge_type).is_none() {
+        return Err(server_fn::error::ServerFnError::new("Invalid charge type"));
+    }
+    if ChargeCurrency::from_str(&currency).is_none() {
+        return Err(server_fn::error::ServerFnError::new("Invalid currency"));
+    }
+    if description.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Description is required"));
+    }
+    if gross_amount_cents <= 0 {
+        return Err(server_fn::error::ServerFnError::new(
+            "Amount must be greater than zero",
+        ));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let body = CreateAdHocChargeBody {
+        billable_entity_type,
+        billable_entity_id,
+        description: description.trim().to_string(),
+        charge_type,
+        gross_amount_cents,
+        currency,
+        due_date,
+    };
+    let resp =
+        crate::atlas_client::authenticated_post::<CreateAdHocChargeBody, CreateAdHocChargeResponse>(
+            "/api/folio/ledger/charge",
+            &token,
+            None,
+            &body,
+        )
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Post charge failed: {e}")))?;
+    Ok(resp.ledger_entry_id)
 }

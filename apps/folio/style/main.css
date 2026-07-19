@@ -303,6 +303,296 @@ body { background: var(--folio-bg); color: var(--folio-text); }
   }
 }
 
+.folio-layout--landlord .folio-main__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.5rem 0 1rem;
+}
+
+.folio-search-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--folio-border, #e6e8ea);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: var(--folio-muted, #45464d);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.folio-search-trigger__kbd {
+  margin-left: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #f2f4f6;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.folio-search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 1rem 1rem;
+}
+
+.folio-search-panel {
+  width: min(36rem, 100%);
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.folio-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e6e8ea;
+}
+
+.folio-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  color: #191c1e;
+  background: transparent;
+}
+
+.folio-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  max-height: min(22rem, 50vh);
+  overflow: auto;
+}
+
+.folio-search-row {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  color: #191c1e;
+}
+
+.folio-search-row--active,
+.folio-search-row:hover {
+  background: #f2f4f6;
+}
+
+.folio-search-row__group {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  min-width: 5.5rem;
+}
+
+.folio-search-row__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.folio-search-empty {
+  padding: 1.25rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.folio-related {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin: -0.75rem 0 1.25rem;
+}
+
+.folio-related__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.folio-related__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.folio-related__link {
+  display: inline-flex;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.folio-setup__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.folio-setup__heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0 0 0.65rem;
+}
+
+.folio-setup__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  border: 1px solid rgba(198, 198, 205, 0.35);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.folio-setup__row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.folio-setup__list li:last-child .folio-setup__row {
+  border-bottom: none;
+}
+
+.folio-setup__icon {
+  color: #0f172a;
+  font-size: 1.25rem;
+}
+
+.folio-setup__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.folio-setup__title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #191c1e;
+}
+
+.folio-setup__purpose {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.folio-setup__chevron {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+.folio-form-page {
+  max-width: 40rem;
+}
+
+.folio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid rgba(198, 198, 205, 0.35);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+
+.folio-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+}
+
+.folio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.folio-field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.folio-field__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.folio-input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(198, 198, 205, 0.55);
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.9rem;
+  color: #191c1e;
+}
+
+.folio-input:focus {
+  outline: none;
+  border-color: #0f172a;
+}
+
+.folio-error {
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.folio-muted {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.leases-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 /* ── Landlord page primitives (Stitch) ───────────────────────────────────── */
 .folio-page-header {
   display: flex;
@@ -1022,8 +1312,45 @@ a.landlord-card:active {
 .quick-link:hover { background: rgba(99,102,241,0.2); border-color: var(--folio-accent); }
 
 /* ── Page chrome ─────────────────────────────────────────────────────────── */
-.page-header { margin-bottom: 1.5rem; }
-.page-title  { font-size: 1.5rem; font-weight: 600; }
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.page-title  { font-size: 1.5rem; font-weight: 700; color: #191c1e; letter-spacing: -0.02em; }
+.page-subtitle { font-size: 0.9rem; color: #64748b; margin-top: 0.25rem; }
+.page-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+/* Legacy .btn aliases → Folio landlord tokens (pages still using stitch class names) */
+.folio-layout--landlord .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  background: #f2f4f6;
+  color: #0f172a;
+}
+.folio-layout--landlord .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.75rem; }
+.folio-layout--landlord .btn-primary {
+  background: #0f172a;
+  color: #fff;
+}
+.folio-layout--landlord .btn-ghost {
+  background: transparent;
+  border-color: #e6e8ea;
+  color: #0f172a;
+}
+.folio-layout--landlord .btn:active { transform: scale(0.97); }
+.folio-layout--landlord .main-area { max-width: 72rem; }
 
 /* ── Stat grid ───────────────────────────────────────────────────────────── */
 .stat-grid {

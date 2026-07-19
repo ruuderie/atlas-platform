@@ -1,6 +1,7 @@
 pub mod account_billing;
 pub mod asset_alerts;
 pub mod asset_api;
+pub mod asset_create;
 pub mod asset_detail;
 pub mod assets;
 pub mod billing;
@@ -13,8 +14,10 @@ pub mod dashboard;
 pub mod digital_vault;
 pub mod inspections;
 pub mod leads;
+pub mod lease_create;
 pub mod lease_detail;
 pub mod leases;
+pub mod setup;
 pub mod ledger;
 pub mod listing_preview;
 pub mod maintenance_queue;

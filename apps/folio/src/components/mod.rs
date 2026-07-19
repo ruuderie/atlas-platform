@@ -1,4 +1,5 @@
 pub mod activity_rail;
+pub mod global_search;
 pub mod interruptible_sheet;
 pub mod lang;
 pub mod layouts;
@@ -8,6 +9,7 @@ pub mod nav;
 pub mod network_invite_panel;
 pub mod onboarding_banner;
 pub mod page_header;
+pub mod related_links;
 pub mod photo_lightbox;
 pub mod property_tab_bar;
 pub mod scorecard_nudge_host;

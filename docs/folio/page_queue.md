@@ -14,7 +14,10 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Dashboard (LTR/STR/All modes) | `l_dashboard` | `pages/landlord/dashboard.rs` | `/l` | `assets.rs`, `leases`, `maintenance` |
 | `[x]` | Portfolio (redirect → Assets) | `l_portfolio` | `pages/landlord/portfolio.rs` | `/l/portfolio` → `/l/assets` | backend G-portfolio stays isolation-only |
 | `[x]` | Assets (operator portfolio gallery) | `l_assets` | `pages/landlord/assets.rs` | `/l/assets` | `assets.rs` |
+| `[x]` | Add property | — | `pages/landlord/asset_create.rs` | `/l/assets/new` | `assets.rs` POST |
 | `[x]` | Leases | `l_leases` | `pages/landlord/leases.rs` | `/l/leases` | `lease.rs` |
+| `[x]` | New lease | — | `pages/landlord/lease_create.rs` | `/l/leases/new` | `leases.rs` POST |
+| `[x]` | Setup index | — | `pages/landlord/setup.rs` | `/l/setup` | (deep links) |
 | `[x]` | Leads | `l_leads` | `pages/landlord/leads.rs` | `/l/leads` | `opportunity.rs` |
 | `[x]` | Campaigns | `l_campaigns` | `pages/landlord/campaigns.rs` | `/l/campaigns` | `campaign.rs` |
 | `[x]` | Billing | `l_billing` | `pages/landlord/billing.rs` | `/l/billing` | `billing.rs` |
@@ -53,6 +56,35 @@ _The primary operator. Nothing else works until this works._
 ## P0c — Landlord IA parity (operator-real) — done
 
 > Assets = property list; `/l/portfolio` redirects; unit = first-class workspace; Deal Ops in nav; Dashboard LTR/STR/All; Map ops layers. Prompt: `docs/private/prompts/stitch_to_leptos_prompt.md`.
+
+### Operator nav contract (2026-07)
+
+- **Primary rail (~8):** Dashboard, Assets, Leases, Maintenance, Deals, Map, Messages, Billing.
+- **Footer:** Setup (`/l/setup`), Analytics, Account, Settings — config/rare tools live in Setup, not the rail.
+- **Hierarchy:** Related links on hubs (Assets → Vault/Systems/Appliances; Maintenance → Vendors/Marketplace/Inspections; Deals → Buyers; Billing → Ledger; Messages → Notifications).
+- **Global search:** Cmd/Ctrl+K in landlord shell (nav, Setup, create actions, assets/leases/WOs).
+- **Create surfaces:** `/l/leases/new`, `/l/assets/new` (+ CTAs on list/unit/dashboard).
+
+### Action matrix (purpose → must-have write)
+
+| Route | Job | Must-have | Status |
+|-------|-----|-----------|--------|
+| `/l/leases` | Manage contracts | Create lease | wired (`/l/leases/new`) |
+| `/l/assets` | Holdings inventory | Add property | wired (`/l/assets/new`) |
+| `/l/str` | STR permits | Register permit | wired |
+| `/l/violations` | Compliance queue | File + status | wired |
+| `/l/systems` | Systems registry | Add system | wired |
+| `/l/appliances` | Appliance lifecycle | Add appliance | wired |
+| `/l/vendors` / marketplace | Contractor network | Add vendor | wired (needs atlas `user_id`) |
+| `/l/vault` | Document vault | Register document | wired (metadata / r2_key) |
+| `/l/leads` | Prospect pipeline | Create + lifecycle | wired |
+| `/l/campaigns` | Outreach | Create campaign | wired |
+| `/l/ledger` | Audit trail | Post charge | wired |
+| `/l/deals/:id` | Deal ops | Advance stage | wired |
+| `/l/assets/:id/alerts` | Alert prefs | Persist prefs | **API missing — confirm** |
+| `/l/syndication` | Channel prefs | Persist toggles | **API missing — confirm** |
+| `/l/reservations` | STR stay ops | Hold/confirm/check-in | backlog (APIs exist) |
+| `/l/tenants/:id` | Applications | Approve/reject | backlog (PATCH exists) |
 
 ---
 

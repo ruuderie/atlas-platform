@@ -15,8 +15,11 @@
 
 use chrono::{NaiveDate, Utc};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
@@ -181,7 +184,7 @@ fn system_type(sys: &BuildingSystemDetail) -> String {
 }
 
 /// Human-readable system type label.
-fn system_type_label(t: &str) -> &str {
+fn system_type_label(t: &str) -> &'static str {
     match t {
         "elevator" => "Elevator",
         "escalator" => "Escalator",
@@ -243,7 +246,106 @@ fn condition_class(c: Option<&str>) -> &'static str {
     }
 }
 
+/// Building system type — mirrors backend `BuildingSystemType` snake_case.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuildingSystemTypeOpt {
+    Elevator,
+    Escalator,
+    FireSuppression,
+    FireAlarm,
+    EmergencyLighting,
+    CommonAreaHvac,
+    Boiler,
+    CoolingTower,
+    Chiller,
+    Generator,
+    ElectricalPanel,
+    TransformerVault,
+    RoofDrainSystem,
+    SewerLift,
+    BackflowPreventer,
+    Roof,
+    Facade,
+    ParkingStructure,
+    Pool,
+    Spa,
+    GymEquipment,
+    SecuritySystem,
+    AccessControl,
+    Intercom,
+    Other,
+}
+
+impl BuildingSystemTypeOpt {
+    pub const ALL: &'static [Self] = &[
+        Self::Elevator,
+        Self::Escalator,
+        Self::FireSuppression,
+        Self::FireAlarm,
+        Self::EmergencyLighting,
+        Self::CommonAreaHvac,
+        Self::Boiler,
+        Self::CoolingTower,
+        Self::Chiller,
+        Self::Generator,
+        Self::ElectricalPanel,
+        Self::TransformerVault,
+        Self::RoofDrainSystem,
+        Self::SewerLift,
+        Self::BackflowPreventer,
+        Self::Roof,
+        Self::Facade,
+        Self::ParkingStructure,
+        Self::Pool,
+        Self::Spa,
+        Self::GymEquipment,
+        Self::SecuritySystem,
+        Self::AccessControl,
+        Self::Intercom,
+        Self::Other,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Elevator => "elevator",
+            Self::Escalator => "escalator",
+            Self::FireSuppression => "fire_suppression",
+            Self::FireAlarm => "fire_alarm",
+            Self::EmergencyLighting => "emergency_lighting",
+            Self::CommonAreaHvac => "common_area_hvac",
+            Self::Boiler => "boiler",
+            Self::CoolingTower => "cooling_tower",
+            Self::Chiller => "chiller",
+            Self::Generator => "generator",
+            Self::ElectricalPanel => "electrical_panel",
+            Self::TransformerVault => "transformer_vault",
+            Self::RoofDrainSystem => "roof_drain_system",
+            Self::SewerLift => "sewer_lift",
+            Self::BackflowPreventer => "backflow_preventer",
+            Self::Roof => "roof",
+            Self::Facade => "facade",
+            Self::ParkingStructure => "parking_structure",
+            Self::Pool => "pool",
+            Self::Spa => "spa",
+            Self::GymEquipment => "gym_equipment",
+            Self::SecuritySystem => "security_system",
+            Self::AccessControl => "access_control",
+            Self::Intercom => "intercom",
+            Self::Other => "other",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        system_type_label(self.as_str())
+    }
+}
+
 // ── Server function ───────────────────────────────────────────────────────────
+
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
 
 #[server(FetchBuildingSystems, "/api")]
 pub async fn fetch_building_systems(
@@ -251,15 +353,7 @@ pub async fn fetch_building_systems(
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = headers
-        .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| {
-            s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            })
-        })
+    let token = extract_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     crate::atlas_client::authenticated_get::<Vec<BuildingSystemDetail>>(
         "/api/folio/systems",
@@ -268,6 +362,74 @@ pub async fn fetch_building_systems(
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Fetch systems failed: {e}")))
+}
+
+/// POST /api/folio/assets/{property_id}/systems
+#[server(CreateBuildingSystem, "/api")]
+pub async fn create_building_system(
+    property_id: String,
+    name: String,
+    system_type: String,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let property_id = Uuid::parse_str(property_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid property ID"))?;
+    if name.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Name is required"));
+    }
+    if BuildingSystemTypeOpt::ALL
+        .iter()
+        .all(|t| t.as_str() != system_type.as_str())
+    {
+        return Err(server_fn::error::ServerFnError::new("Invalid system type"));
+    }
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let body = serde_json::json!({
+        "property_id": property_id,
+        "name": name.trim(),
+        "serial_number": null,
+        "next_inspection_date": null,
+        "cert_expiry_date": null,
+        "condition": null,
+        "metadata": {
+            "metadata_version": 1,
+            "system_type": system_type,
+            "make": null,
+            "model": null,
+            "serial_number": null,
+            "year_installed": null,
+            "certificate_type": "none",
+            "certificate_issuer": null,
+            "certificate_number": null,
+            "contractor_sp_id": null,
+            "service_contract_expiry": null,
+            "replacement_cost_cents": null,
+            "useful_life_years": null,
+            "is_building_wide": null,
+            "location_notes": null
+        }
+    });
+
+    #[derive(Deserialize)]
+    struct Resp {
+        id: Uuid,
+    }
+
+    let resp = crate::atlas_client::authenticated_post::<serde_json::Value, Resp>(
+        &format!("/api/folio/assets/{property_id}/systems"),
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Create system failed: {e}")))?;
+    Ok(resp.id)
 }
 
 // ── KPI strip ─────────────────────────────────────────────────────────────────
@@ -283,10 +445,6 @@ fn BsysKpiStrip(systems: Vec<BuildingSystemDetail>) -> impl IntoView {
     let due_soon = systems
         .iter()
         .filter(|s| Urgency::from_system(s) == Urgency::DueSoon)
-        .count();
-    let no_date = systems
-        .iter()
-        .filter(|s| Urgency::from_system(s) == Urgency::Unknown)
         .count();
     // Cert expiring ≤30 days
     let cert_exp = systems
@@ -427,9 +585,49 @@ fn BsysGridSkeleton() -> impl IntoView {
 
 #[component]
 pub fn BuildingSystems() -> impl IntoView {
-    let systems = Resource::new(|| (), |_| fetch_building_systems());
+    let refresh = RwSignal::new(0u32);
+    let systems = Resource::new(move || refresh.get(), |_| fetch_building_systems());
     let search = RwSignal::new(String::new());
     let cat_filter = RwSignal::new(SystemCategory::All);
+    let show_add = RwSignal::new(false);
+    let new_property = RwSignal::new(String::new());
+    let new_name = RwSignal::new(String::new());
+    let new_type = RwSignal::new(BuildingSystemTypeOpt::Elevator.as_str().to_string());
+    let creating = RwSignal::new(false);
+    let create_err = RwSignal::new(None::<String>);
+
+    let assets = Resource::new(
+        move || show_add.get(),
+        |open| async move {
+            if !open {
+                return Ok::<Vec<AssetPickerItem>, server_fn::error::ServerFnError>(vec![]);
+            }
+            list_assets_for_picker().await
+        },
+    );
+
+    let on_create = move |_| {
+        let property_id = new_property.get().trim().to_string();
+        let name = new_name.get().trim().to_string();
+        let system_type = new_type.get();
+        if property_id.is_empty() || name.is_empty() {
+            create_err.set(Some("Property and name are required.".into()));
+            return;
+        }
+        creating.set(true);
+        create_err.set(None);
+        spawn_local(async move {
+            match create_building_system(property_id, name, system_type).await {
+                Ok(_) => {
+                    show_add.set(false);
+                    new_name.set(String::new());
+                    refresh.update(|n| *n += 1);
+                }
+                Err(e) => create_err.set(Some(e.to_string())),
+            }
+            creating.set(false);
+        });
+    };
 
     view! {
         <div class="bsys-page">
@@ -441,6 +639,16 @@ pub fn BuildingSystems() -> impl IntoView {
                         "Elevators, HVAC, and building systems"
                     </p>
                 </div>
+                <button
+                    type="button"
+                    class="folio-btn folio-btn--primary press"
+                    on:click=move |_| {
+                        create_err.set(None);
+                        show_add.set(true);
+                    }
+                >
+                    "+ Add System"
+                </button>
             </div>
 
             // KPI strip
@@ -541,6 +749,62 @@ pub fn BuildingSystems() -> impl IntoView {
                     }
                 })}
             </Suspense>
+
+            <Show when=move || show_add.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Add Building System"</h3>
+                            <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <div class="form-field">
+                                <label class="form-label">"Property *"</label>
+                                <select class="form-select" on:change=move |ev| new_property.set(event_target_value(&ev))>
+                                    <option value="">"Select property…"</option>
+                                    {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
+                                        let id = a.id.to_string();
+                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        view! { <option value=id>{label}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Name *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Main Elevator"
+                                    prop:value=new_name
+                                    on:input=move |ev| new_name.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"System Type *"</label>
+                                <select class="form-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
+                                    {BuildingSystemTypeOpt::ALL.iter().copied().map(|t| {
+                                        view! { <option value=t.as_str()>{t.label()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            {move || create_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                disabled=move || creating.get() || new_name.get().trim().is_empty()
+                                on:click=on_create
+                            >
+                                {move || if creating.get() { "Saving…" } else { "Add System" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }

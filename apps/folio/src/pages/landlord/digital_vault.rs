@@ -26,7 +26,72 @@ pub struct DocumentSummary {
     pub created_at: String,
 }
 
+/// Document type — mirrors backend `PmDocumentType` snake_case values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VaultDocumentType {
+    LeaseAgreement,
+    StrPermit,
+    InsurancePolicy,
+    InspectionReport,
+    TitleDeed,
+    IdDocument,
+    MaintenanceReceipt,
+    SecurityDepositReceipt,
+    ContractorLicense,
+    CondominioStatement,
+}
+
+impl VaultDocumentType {
+    pub const ALL: &'static [Self] = &[
+        Self::LeaseAgreement,
+        Self::StrPermit,
+        Self::InsurancePolicy,
+        Self::InspectionReport,
+        Self::TitleDeed,
+        Self::IdDocument,
+        Self::MaintenanceReceipt,
+        Self::SecurityDepositReceipt,
+        Self::ContractorLicense,
+        Self::CondominioStatement,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::LeaseAgreement => "lease_agreement",
+            Self::StrPermit => "str_permit",
+            Self::InsurancePolicy => "insurance_policy",
+            Self::InspectionReport => "inspection_report",
+            Self::TitleDeed => "title_deed",
+            Self::IdDocument => "id_document",
+            Self::MaintenanceReceipt => "maintenance_receipt",
+            Self::SecurityDepositReceipt => "security_deposit_receipt",
+            Self::ContractorLicense => "contractor_license",
+            Self::CondominioStatement => "condominio_statement",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::LeaseAgreement => "Lease Agreement",
+            Self::StrPermit => "STR Permit",
+            Self::InsurancePolicy => "Insurance Policy",
+            Self::InspectionReport => "Inspection Report",
+            Self::TitleDeed => "Title Deed",
+            Self::IdDocument => "ID Document",
+            Self::MaintenanceReceipt => "Maintenance Receipt",
+            Self::SecurityDepositReceipt => "Security Deposit Receipt",
+            Self::ContractorLicense => "Contractor License",
+            Self::CondominioStatement => "Condomínio Statement",
+        }
+    }
+}
+
 // ── Server functions ──────────────────────────────────────────────────────────
+
+#[cfg(feature = "ssr")]
+fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    crate::auth::extract_bearer_token(headers)
+}
 
 #[server(LLFetchVaultDocs, "/api")]
 pub async fn ll_fetch_vault_docs(
@@ -35,7 +100,8 @@ pub async fn ll_fetch_vault_docs(
     use axum::http::HeaderMap;
     use leptos_axum::extract;
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = session_token(&headers)?;
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
     let url = match entity_type {
         Some(et) => format!("/api/folio/vault/documents?entity_type={et}"),
         None => "/api/folio/vault/documents".to_string(),
@@ -45,20 +111,76 @@ pub async fn ll_fetch_vault_docs(
         .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
-#[cfg(feature = "ssr")]
-fn session_token(
-    headers: &axum::http::HeaderMap,
-) -> Result<String, server_fn::error::ServerFnError> {
-    headers
-        .get("cookie")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| {
-            s.split(';').find_map(|p| {
-                let p = p.trim();
-                p.strip_prefix("session=").map(|t| t.to_string())
-            })
-        })
-        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))
+#[derive(Serialize)]
+struct RegisterDocumentBody {
+    entity_type: String,
+    entity_id: Uuid,
+    document_type: String,
+    r2_key: String,
+    mime_type: Option<String>,
+    size_bytes: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct RegisterDocumentResponse {
+    id: Uuid,
+}
+
+/// POST /api/folio/vault/documents — register metadata after R2 upload.
+#[server(RegisterVaultDocument, "/api")]
+pub async fn register_vault_document(
+    entity_type: String,
+    entity_id: String,
+    document_type: String,
+    r2_key: String,
+    mime_type: Option<String>,
+) -> Result<Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    if entity_type.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Entity type is required"));
+    }
+    if r2_key.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("R2 key is required"));
+    }
+    if VaultDocumentType::ALL
+        .iter()
+        .all(|t| t.as_str() != document_type.as_str())
+    {
+        return Err(server_fn::error::ServerFnError::new("Invalid document type"));
+    }
+    let entity_id = Uuid::parse_str(entity_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid entity ID"))?;
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    let mime = mime_type
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    let body = RegisterDocumentBody {
+        entity_type: entity_type.trim().to_string(),
+        entity_id,
+        document_type,
+        r2_key: r2_key.trim().to_string(),
+        mime_type: mime,
+        size_bytes: None,
+    };
+    let resp =
+        crate::atlas_client::authenticated_post::<RegisterDocumentBody, RegisterDocumentResponse>(
+            "/api/folio/vault/documents",
+            &token,
+            None,
+            &body,
+        )
+        .await
+        .map_err(|e| {
+            server_fn::error::ServerFnError::new(format!("Register document failed: {e}"))
+        })?;
+    Ok(resp.id)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,8 +221,48 @@ pub fn LandlordDigitalVault() -> impl IntoView {
     let refresh = RwSignal::new(0u32);
     let cat_filter = RwSignal::new("all".to_string());
     let selected_doc = RwSignal::new(None::<DocumentSummary>);
+    let show_register = RwSignal::new(false);
+
+    let reg_entity_type = RwSignal::new("atlas_assets".to_string());
+    let reg_entity_id = RwSignal::new(String::new());
+    let reg_doc_type = RwSignal::new(VaultDocumentType::LeaseAgreement.as_str().to_string());
+    let reg_r2_key = RwSignal::new(String::new());
+    let reg_mime = RwSignal::new(String::new());
+    let registering = RwSignal::new(false);
+    let reg_err = RwSignal::new(None::<String>);
 
     let docs_res = Resource::new(move || refresh.get(), |_| ll_fetch_vault_docs(None));
+
+    let on_register = move |_| {
+        let entity_type = reg_entity_type.get().trim().to_string();
+        let entity_id = reg_entity_id.get().trim().to_string();
+        let document_type = reg_doc_type.get();
+        let r2_key = reg_r2_key.get().trim().to_string();
+        if entity_type.is_empty() || entity_id.is_empty() || r2_key.is_empty() {
+            reg_err.set(Some("Entity type, entity ID, and R2 key are required.".into()));
+            return;
+        }
+        let mime = {
+            let m = reg_mime.get().trim().to_string();
+            if m.is_empty() { None } else { Some(m) }
+        };
+        registering.set(true);
+        reg_err.set(None);
+        spawn_local(async move {
+            match register_vault_document(entity_type, entity_id, document_type, r2_key, mime).await
+            {
+                Ok(_) => {
+                    show_register.set(false);
+                    reg_entity_id.set(String::new());
+                    reg_r2_key.set(String::new());
+                    reg_mime.set(String::new());
+                    refresh.update(|n| *n += 1);
+                }
+                Err(e) => reg_err.set(Some(e.to_string())),
+            }
+            registering.set(false);
+        });
+    };
 
     view! {
         <div class="main-area">
@@ -112,8 +274,14 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                 </div>
                 <div class="page-actions">
                     <button class="btn btn-ghost btn-sm" on:click=move |_| refresh.update(|n| *n += 1)>"↻ Refresh"</button>
-                    <button class="btn btn-primary btn-sm" disabled=true title="Upload via R2 presign (Phase 7)">
-                        "+ Upload Document"
+                    <button
+                        class="btn btn-primary btn-sm"
+                        on:click=move |_| {
+                            reg_err.set(None);
+                            show_register.set(true);
+                        }
+                    >
+                        "+ Register Document"
                     </button>
                 </div>
             </div>
@@ -230,6 +398,93 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                     }
                 })}
             </Suspense>
+
+            // ── Register document modal ──
+            <Show when=move || show_register.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:32rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Register Document"</h3>
+                            <button class="modal-close" on:click=move |_| show_register.set(false)>"✕"</button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <p class="folio-empty__sub" style="margin:0;">
+                                "Paste the R2 object key after upload. File upload UI comes later."
+                            </p>
+                            <div class="form-field">
+                                <label class="form-label">"Entity Type *"</label>
+                                <select
+                                    class="form-select"
+                                    on:change=move |ev| reg_entity_type.set(event_target_value(&ev))
+                                >
+                                    <option value="atlas_assets">"atlas_assets"</option>
+                                    <option value="atlas_contracts">"atlas_contracts"</option>
+                                    <option value="atlas_applications">"atlas_applications"</option>
+                                    <option value="atlas_service_providers">"atlas_service_providers"</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Entity ID (UUID) *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="Related entity UUID"
+                                    prop:value=reg_entity_id
+                                    on:input=move |ev| reg_entity_id.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"Document Type *"</label>
+                                <select
+                                    class="form-select"
+                                    on:change=move |ev| reg_doc_type.set(event_target_value(&ev))
+                                >
+                                    {VaultDocumentType::ALL.iter().copied().map(|t| {
+                                        view! { <option value=t.as_str()>{t.label()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"R2 Key *"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="pm/leases/tenant_xyz/lease.pdf"
+                                    prop:value=reg_r2_key
+                                    on:input=move |ev| reg_r2_key.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label">"MIME Type (optional)"</label>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="application/pdf"
+                                    prop:value=reg_mime
+                                    on:input=move |ev| reg_mime.set(event_target_value(&ev))
+                                />
+                            </div>
+                            {move || reg_err.get().map(|e| view! {
+                                <p class="text-red-400" style="font-size:0.875rem;">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-ghost" on:click=move |_| show_register.set(false)>"Cancel"</button>
+                            <button
+                                class="btn btn-primary"
+                                disabled=move || {
+                                    registering.get()
+                                        || reg_entity_id.get().trim().is_empty()
+                                        || reg_r2_key.get().trim().is_empty()
+                                }
+                                on:click=on_register
+                            >
+                                {move || if registering.get() { "Registering…" } else { "Register" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
 
             // ── Detail modal ──
             <Show when=move || selected_doc.get().is_some()>

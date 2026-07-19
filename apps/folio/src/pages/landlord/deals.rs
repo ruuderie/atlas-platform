@@ -202,10 +202,17 @@ pub fn LandlordDeals() -> impl IntoView {
                     <p class="page-subtitle">"Wholesaling and creative finance deals"</p>
                 </div>
                 <div class="page-actions">
-                    <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a>
-                    <button class="btn btn-primary btn-sm" on:click=move |_| show_add.set(true)>"+ New"</button>
+                    <a class="folio-btn folio-btn--ghost press" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a>
+                    <button class="folio-btn folio-btn--primary press" on:click=move |_| show_add.set(true)>"+ New"</button>
                 </div>
             </div>
+            <nav class="folio-related" aria-label="Related">
+                <span class="folio-related__label">"Related"</span>
+                <ul class="folio-related__list">
+                    <li><a class="folio-related__link press" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a></li>
+                    <li><a class="folio-related__link press" href="/l/wholesaling">"Wholesaling"</a></li>
+                </ul>
+            </nav>
 
             <div class="flex gap-2 mb-4">
                 <a

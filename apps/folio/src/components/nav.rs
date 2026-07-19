@@ -74,6 +74,8 @@ pub enum NavIcon {
     ChevronRight, // breadcrumb separator
     ArrowBack,    // back-navigation link
     Login,        // sign-in / check-in icon
+    Tune,         // Setup (Salesforce-style config index)
+    Search,       // global finder
 }
 
 impl NavIcon {
@@ -128,6 +130,8 @@ impl NavIcon {
             Self::ChevronRight => "chevron_right",
             Self::ArrowBack => "arrow_back",
             Self::Login => "login",
+            Self::Tune => "tune",
+            Self::Search => "search",
         }
     }
 }
@@ -161,7 +165,10 @@ pub enum FolioRoute {
     LandlordAssetDocuments, // /l/assets/:id/documents
     LandlordAssetPortal, // /l/assets/:id/portal — CMS stub
     LandlordLeases,
+    LandlordLeaseCreate, // /l/leases/new
     LandlordLeaseDetail, // /l/leases/:id
+    LandlordAssetsCreate, // /l/assets/new
+    LandlordSetup,       // /l/setup — Salesforce-style config index
     LandlordLeads,
     LandlordCampaigns,
     LandlordBilling,
@@ -182,6 +189,7 @@ pub enum FolioRoute {
     LandlordMap,
     LandlordVault,
     LandlordSystems, // /l/systems — portfolio building systems
+    LandlordAppliances, // /l/appliances
     LandlordInspections,
     LandlordViolations,
     LandlordDeals,           // /l/deals
@@ -299,7 +307,10 @@ impl FolioRoute {
             Self::LandlordAssetDocuments => "/l/assets/:id/documents",
             Self::LandlordAssetPortal => "/l/assets/:id/portal",
             Self::LandlordLeases => "/l/leases",
+            Self::LandlordLeaseCreate => "/l/leases/new",
             Self::LandlordLeaseDetail => "/l/leases/:id",
+            Self::LandlordAssetsCreate => "/l/assets/new",
+            Self::LandlordSetup => "/l/setup",
             Self::LandlordLeads => "/l/leads",
             Self::LandlordCampaigns => "/l/campaigns",
             Self::LandlordBilling => "/l/billing",
@@ -320,6 +331,7 @@ impl FolioRoute {
             Self::LandlordMap => "/l/map",
             Self::LandlordVault => "/l/vault",
             Self::LandlordSystems => "/l/systems",
+            Self::LandlordAppliances => "/l/appliances",
             Self::LandlordInspections => "/l/inspections",
             Self::LandlordViolations => "/l/violations",
             Self::LandlordDeals => "/l/deals",
@@ -512,6 +524,30 @@ mod tests {
     }
 
     #[test]
+    fn landlord_setup_and_create_paths() {
+        assert_eq!(FolioRoute::LandlordSetup.path(), "/l/setup");
+        assert_eq!(FolioRoute::LandlordLeaseCreate.path(), "/l/leases/new");
+        assert_eq!(FolioRoute::LandlordAssetsCreate.path(), "/l/assets/new");
+    }
+
+    #[test]
+    fn landlord_nav_is_lean_job_rail() {
+        let primary: Vec<_> = LANDLORD_NAV
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter().map(|i| i.route))
+            .collect();
+        assert_eq!(primary.len(), 8, "primary rail must stay ~8 job destinations");
+        assert!(primary.contains(&FolioRoute::LandlordAssets));
+        assert!(primary.contains(&FolioRoute::LandlordDeals));
+        assert!(!primary.contains(&FolioRoute::LandlordLeads));
+        assert!(!primary.contains(&FolioRoute::LandlordVault));
+        let footer: Vec<_> = LANDLORD_NAV.footer_items.iter().map(|i| i.route).collect();
+        assert!(footer.contains(&FolioRoute::LandlordSetup));
+        assert!(footer.contains(&FolioRoute::LandlordMeridian));
+    }
+
+    #[test]
     fn settings_path() {
         assert_eq!(FolioRoute::Settings.path(), "/settings");
     }
@@ -649,109 +685,29 @@ pub struct NavConfig {
 
 pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
     role_label: "Landlord Portal",
-    groups: &[
-        NavGroup {
-            label: None,
-            items: &[
-                NavItem::new(FolioRoute::LandlordDashboard, "Dashboard", NavIcon::Home),
-                NavItem::new(FolioRoute::LandlordAssets, "Assets", NavIcon::Apartment),
-                NavItem::new(FolioRoute::LandlordLeases, "Leases", NavIcon::Description),
-                NavItem::new(FolioRoute::LandlordLeads, "Leads", NavIcon::PersonSearch),
-                NavItem::new(FolioRoute::LandlordMap, "Map", NavIcon::Map),
-            ],
-        },
-        NavGroup {
-            label: Some("Deal Ops"),
-            items: &[
-                NavItem::new(FolioRoute::LandlordDeals, "Deals", NavIcon::Handshake),
-                NavItem::new(FolioRoute::LandlordBuyers, "Buyers", NavIcon::People),
-            ],
-        },
-        NavGroup {
-            label: Some("Operations"),
-            items: &[
-                NavItem::new(
-                    FolioRoute::LandlordMaintenance,
-                    "Maintenance",
-                    NavIcon::Build,
-                ),
-                NavItem::new(FolioRoute::LandlordRatings, "Ratings", NavIcon::BarChart),
-                NavItem::new(FolioRoute::LandlordVault, "Vault", NavIcon::Folder),
-                NavItem::new(FolioRoute::LandlordSystems, "Systems", NavIcon::Build),
-                NavItem::new(FolioRoute::LandlordVendors, "Vendors", NavIcon::Handyman),
-                NavItem::new(
-                    FolioRoute::LandlordMarketplace,
-                    "Marketplace",
-                    NavIcon::Handyman,
-                ),
-                NavItem::new(
-                    FolioRoute::LandlordInspections,
-                    "Inspections",
-                    NavIcon::Verified,
-                ),
-                NavItem::new(
-                    FolioRoute::LandlordViolations,
-                    "Violations",
-                    NavIcon::Report,
-                ),
-                NavItem::new(
-                    FolioRoute::LandlordCampaigns,
-                    "Campaigns",
-                    NavIcon::Campaign,
-                ),
-                NavItem::new(
-                    FolioRoute::LandlordReservations,
-                    "Reservations",
-                    NavIcon::EventAvailable,
-                ),
-                NavItem::new(FolioRoute::LandlordCatalog, "Catalog", NavIcon::Inventory2),
-            ],
-        },
-        NavGroup {
-            label: Some("Finance"),
-            items: &[
-                NavItem::new(FolioRoute::LandlordBilling, "Billing", NavIcon::ReceiptLong),
-                NavItem::new(
-                    FolioRoute::LandlordLedger,
-                    "Ledger",
-                    NavIcon::AccountBalance,
-                ),
-            ],
-        },
-        NavGroup {
-            label: Some("Connect"),
-            items: &[
-                NavItem::new(
-                    FolioRoute::LandlordCommunications,
-                    "Messages",
-                    NavIcon::Inbox,
-                ),
-                NavItem::new(
-                    FolioRoute::LandlordNotifications,
-                    "Notifications",
-                    NavIcon::Campaign,
-                ),
-                NavItem::new(FolioRoute::LandlordTeam, "Network", NavIcon::Group),
-                NavItem::new(FolioRoute::LandlordReferrals, "Referrals", NavIcon::Campaign),
-            ],
-        },
-        NavGroup {
-            label: Some("Compliance"),
-            items: &[
-                NavItem::new(
-                    FolioRoute::LandlordStrCompliance,
-                    "STR Compliance",
-                    NavIcon::Gavel,
-                ),
-                NavItem::new(
-                    FolioRoute::LandlordSyndication,
-                    "Syndication",
-                    NavIcon::SyncAlt,
-                ),
-            ],
-        },
-    ],
+    groups: &[NavGroup {
+        label: None,
+        items: &[
+            NavItem::new(FolioRoute::LandlordDashboard, "Dashboard", NavIcon::Home),
+            NavItem::new(FolioRoute::LandlordAssets, "Assets", NavIcon::Apartment),
+            NavItem::new(FolioRoute::LandlordLeases, "Leases", NavIcon::Description),
+            NavItem::new(
+                FolioRoute::LandlordMaintenance,
+                "Maintenance",
+                NavIcon::Build,
+            ),
+            NavItem::new(FolioRoute::LandlordDeals, "Deals", NavIcon::Handshake),
+            NavItem::new(FolioRoute::LandlordMap, "Map", NavIcon::Map),
+            NavItem::new(
+                FolioRoute::LandlordCommunications,
+                "Messages",
+                NavIcon::Inbox,
+            ),
+            NavItem::new(FolioRoute::LandlordBilling, "Billing", NavIcon::ReceiptLong),
+        ],
+    }],
     footer_items: &[
+        NavItem::new(FolioRoute::LandlordSetup, "Setup", NavIcon::Tune),
         NavItem::new(
             FolioRoute::LandlordMeridian,
             "Analytics",

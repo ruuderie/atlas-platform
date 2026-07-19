@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::nav::{FolioRoute, NavIcon};
+use leptos_router::components::A;
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -102,6 +103,10 @@ pub fn Leases() -> impl IntoView {
                     <h1 class="leases-title">"Leases"</h1>
                     <p class="leases-subtitle">"Rental contracts across your portfolio."</p>
                 </div>
+                <A href=FolioRoute::LandlordLeaseCreate.path() attr:class="folio-btn folio-btn--primary press">
+                    <span class="material-symbols-outlined">"add"</span>
+                    "New lease"
+                </A>
             </div>
 
             // ── Filter bar ────────────────────────────────────────────
@@ -175,6 +180,11 @@ pub fn Leases() -> impl IntoView {
                                     <p class="leases-empty-sub">
                                         "Try a different status filter or create a new lease."
                                     </p>
+                                    <div style="margin-top:1rem">
+                                        <A href=FolioRoute::LandlordLeaseCreate.path() attr:class="folio-btn folio-btn--primary press">
+                                            "New lease"
+                                        </A>
+                                    </div>
                                 </div>
                             }.into_any()
                         } else {

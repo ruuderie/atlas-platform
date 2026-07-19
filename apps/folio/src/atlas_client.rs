@@ -268,6 +268,10 @@ pub async fn authenticated_post_with_headers<B: Serialize, T: DeserializeOwned>(
         crate::auth::expire_browser_session_if_unauthorized(&err);
         return Err(err);
     }
+    // Handle empty 204 bodies (e.g. POST /api/folio/deals/{id}/advance)
+    if res.status() == reqwest::StatusCode::NO_CONTENT {
+        return serde_json::from_value::<T>(serde_json::Value::Null).map_err(|_| String::new());
+    }
     res.json::<T>().await.map_err(|e| e.to_string())
 }
 

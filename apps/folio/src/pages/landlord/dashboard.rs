@@ -227,7 +227,7 @@ pub fn LandlordDashboard() -> impl IntoView {
     view! {
         <div class="landlord-dash">
             <PageHeader title=title subtitle=subtitle>
-                <A href=FolioRoute::LandlordLeases.path() attr:class="folio-btn folio-btn--primary press">
+                <A href=FolioRoute::LandlordLeaseCreate.path() attr:class="folio-btn folio-btn--primary press">
                     <span class="material-symbols-outlined">"add"</span>
                     "New lease"
                 </A>
@@ -415,7 +415,7 @@ pub fn LandlordDashboard() -> impl IntoView {
                     </div>
                     <div class="folio-section-card__body">
                         <div class="folio-quick-actions">
-                            <A href=FolioRoute::LandlordLeases.path() attr:class="folio-quick-action">
+                            <A href=FolioRoute::LandlordLeaseCreate.path() attr:class="folio-quick-action">
                                 <span class="material-symbols-outlined folio-quick-action__icon">"description"</span>
                                 "Add a lease"
                                 <span class="material-symbols-outlined folio-quick-action__chevron">"chevron_right"</span>

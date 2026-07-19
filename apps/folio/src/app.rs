@@ -18,25 +18,22 @@ use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
 // Landlord pages
 use crate::pages::landlord::{
     account_billing::LandlordAccountBilling, asset_alerts::AssetAlerts,
-    assets::Assets, billing::Billing, building_systems::BuildingSystems, campaigns::Campaigns,
-    catalog::Catalog, communications::Communications,
-    contractor_marketplace::ContractorMarketplace, dashboard::LandlordDashboard,
-    digital_vault::LandlordDigitalVault, inspections::Inspections, leads::Leads,
-    lease_detail::LeaseDetail, leases::Leases, ledger::Ledger,
-    listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
-    map_portfolio::MapPortfolio, meridian::MeridianAnalytics,
-    meridian_config::MeridianConfigurator,
-    notifications::NotificationsPage, portfolio::Portfolio,
-    project_detail::ProjectDetail, property_documents::PropertyDocuments,
-    property_hub::AssetRouteDispatch, property_systems::PropertySystems,
-    ratings::LandlordRatings, referrals::LandlordReferrals,
-    reservations::LandlordReservations, str_compliance::StrCompliance,
+    asset_create::AssetCreate, assets::Assets, billing::Billing,
+    building_systems::BuildingSystems, campaigns::Campaigns, catalog::Catalog,
+    communications::Communications, contractor_marketplace::ContractorMarketplace,
+    dashboard::LandlordDashboard, digital_vault::LandlordDigitalVault, inspections::Inspections,
+    leads::Leads, lease_create::LeaseCreate, lease_detail::LeaseDetail, leases::Leases,
+    ledger::Ledger, listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
+    map_portfolio::MapPortfolio, meridian::MeridianAnalytics, meridian_config::MeridianConfigurator,
+    notifications::NotificationsPage, portfolio::Portfolio, project_detail::ProjectDetail,
+    property_documents::PropertyDocuments, property_hub::AssetRouteDispatch,
+    property_systems::PropertySystems, ratings::LandlordRatings, referrals::LandlordReferrals,
+    reservations::LandlordReservations, setup::LandlordSetup, str_compliance::StrCompliance,
     syndication::LandlordSyndication, team::LandlordTeam,
     tenant_portal_content::TenantPortalContent, tenant_profile::TenantProfile,
     unit_appliances::UnitAppliances, vendors::Vendors, violations::Violations,
     wholesaling::LandlordWholesaling, deals::LandlordDeals, deal_workspace::DealWorkspace,
-    deal_structure::DealStructure, buyers::LandlordBuyers,
-    work_order_create::WorkOrderCreate,
+    deal_structure::DealStructure, buyers::LandlordBuyers, work_order_create::WorkOrderCreate,
     work_order_detail::WorkOrderDetail,
 };
 
@@ -210,6 +207,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("")               view=LandlordDashboard/>
                     <Route path=path!("/portfolio")     view=Portfolio/>
                     <Route path=path!("/assets")        view=Assets/>
+                    <Route path=path!("/assets/new")    view=AssetCreate/>
                     <Route path=path!("/assets/:id")    view=AssetRouteDispatch/>
                     <Route path=path!("/assets/:id/preview") view=ListingNetworkPreview/>
                     <Route path=path!("/assets/:id/alerts")  view=AssetAlerts/>
@@ -217,6 +215,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/assets/:id/systems") view=PropertySystems/>
                     <Route path=path!("/assets/:id/portal") view=TenantPortalContent/>
                     <Route path=path!("/leases")        view=Leases/>
+                    <Route path=path!("/leases/new")    view=LeaseCreate/>
                     <Route path=path!("/leases/:id")    view=LeaseDetail/>
                     <Route path=path!("/tenants/:id")   view=TenantProfile/>
                     <Route path=path!("/maintenance")   view=MaintenanceQueue/>
@@ -246,6 +245,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/deals/:id")     view=DealWorkspace/>
                     <Route path=path!("/deals/:id/structure") view=DealStructure/>
                     <Route path=path!("/buyers")        view=LandlordBuyers/>
+                    <Route path=path!("/setup")         view=LandlordSetup/>
                     <Route path=path!("/account/billing")view=LandlordAccountBilling/>
                     <Route path=path!("/meridian") view=MeridianAnalytics/>
                     <Route path=path!("/meridian/configure") view=MeridianConfigurator/>

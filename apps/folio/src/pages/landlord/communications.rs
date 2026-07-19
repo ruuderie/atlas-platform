@@ -397,6 +397,16 @@ pub fn Communications() -> impl IntoView {
                     <h1 class="comms-sidebar-title">"Messages"</h1>
                     <SupportThreadButton on_open=on_support_open />
                 </div>
+                <nav class="folio-related" aria-label="Related" style="padding:0 1rem 0.75rem;">
+                    <span class="folio-related__label">"Related"</span>
+                    <ul class="folio-related__list">
+                        <li>
+                            <a class="folio-related__link press" href=crate::components::nav::FolioRoute::LandlordNotifications.path()>
+                                "Notifications"
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
 
                 <Suspense fallback=|| view! {
                     <div class="comms-thread-skel-list">

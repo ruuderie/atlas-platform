@@ -12,6 +12,26 @@ use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
+use crate::components::related_links::{RelatedLink, RelatedLinks};
+
+const ASSET_RELATED: &[RelatedLink] = &[
+    RelatedLink {
+        route: FolioRoute::LandlordVault,
+        label: "Vault",
+    },
+    RelatedLink {
+        route: FolioRoute::LandlordSystems,
+        label: "Systems",
+    },
+    RelatedLink {
+        route: FolioRoute::LandlordAppliances,
+        label: "Appliances",
+    },
+    RelatedLink {
+        route: FolioRoute::LandlordCatalog,
+        label: "Catalog",
+    },
+];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssetSummary {
@@ -74,7 +94,12 @@ pub fn Assets() -> impl IntoView {
                     <span class="material-symbols-outlined">"map"</span>
                     "Map"
                 </A>
+                <A href=FolioRoute::LandlordAssetsCreate.path() attr:class="folio-btn folio-btn--primary press">
+                    <span class="material-symbols-outlined">"add"</span>
+                    "Add property"
+                </A>
             </PageHeader>
+            <RelatedLinks links=ASSET_RELATED />
 
             <div class="landlord-filter-bar">
                 <div class="landlord-search-wrap">
@@ -158,8 +183,13 @@ pub fn Assets() -> impl IntoView {
                                     <span class="material-symbols-outlined folio-empty__icon">"apartment"</span>
                                     <p class="folio-empty__heading">"No assets yet"</p>
                                     <p class="folio-empty__sub">
-                                        "Register a property during onboarding to start your holdings list."
+                                        "Add a property to start your holdings list."
                                     </p>
+                                    <div style="margin-top:1rem">
+                                        <A href=FolioRoute::LandlordAssetsCreate.path() attr:class="folio-btn folio-btn--primary press">
+                                            "Add property"
+                                        </A>
+                                    </div>
                                 </div>
                             }.into_any()
                         } else {

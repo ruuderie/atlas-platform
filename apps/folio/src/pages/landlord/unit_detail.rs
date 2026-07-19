@@ -173,6 +173,16 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                     }
                 })
             >
+                <a
+                    class="folio-btn folio-btn--ghost press"
+                    href=format!(
+                        "{}?asset_id={}",
+                        FolioRoute::LandlordLeaseCreate.path(),
+                        unit_id
+                    )
+                >
+                    "New lease"
+                </a>
                 <a class="folio-btn folio-btn--primary press" href=move || wo_new.get()>"Create WO"</a>
             </PageHeader>
 
@@ -337,8 +347,15 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                 <p class="folio-empty__sub">
                                     "Household and vehicles appear when a lease is linked to this unit."
                                 </p>
-                                <a class="folio-btn folio-btn--primary press" href=FolioRoute::LandlordLeases.path()>
-                                    "Go to leases"
+                                <a
+                                    class="folio-btn folio-btn--primary press"
+                                    href=format!(
+                                        "{}?asset_id={}",
+                                        FolioRoute::LandlordLeaseCreate.path(),
+                                        unit_id
+                                    )
+                                >
+                                    "New lease"
                                 </a>
                             </div>
                         }.into_any(),

@@ -274,25 +274,31 @@ pub fn MaintenanceQueue() -> impl IntoView {
                     <h1 class="mq-title">"Maintenance"</h1>
                     <p class="mq-subtitle">"Work orders and scheduled inspections across your portfolio."</p>
                     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
-                        <a class="folio-btn folio-btn--primary" href=FolioRoute::LandlordMaintenanceNew.path()>
+                        <a class="folio-btn folio-btn--primary press" href=FolioRoute::LandlordMaintenanceNew.path()>
                             "New work order"
                         </a>
                         <a
-                            class="folio-btn folio-btn--ghost"
+                            class="folio-btn folio-btn--ghost press"
                             href=format!("{}?mode=paid", FolioRoute::LandlordMaintenanceNew.path())
                         >
                             "Log paid"
                         </a>
                         <a
-                            class="folio-btn folio-btn--ghost"
+                            class="folio-btn folio-btn--ghost press"
                             href=format!("{}?mode=schedule", FolioRoute::LandlordMaintenanceNew.path())
                         >
                             "Schedule"
                         </a>
-                        <a class="folio-btn folio-btn--ghost" href=FolioRoute::LandlordRatings.path()>
-                            "Ratings"
-                        </a>
                     </div>
+                    <nav class="folio-related" aria-label="Related" style="margin-top:0.75rem;">
+                        <span class="folio-related__label">"Related"</span>
+                        <ul class="folio-related__list">
+                            <li><a class="folio-related__link press" href=FolioRoute::LandlordVendors.path()>"Vendors"</a></li>
+                            <li><a class="folio-related__link press" href=FolioRoute::LandlordMarketplace.path()>"Marketplace"</a></li>
+                            <li><a class="folio-related__link press" href=FolioRoute::LandlordInspections.path()>"Inspections"</a></li>
+                            <li><a class="folio-related__link press" href=FolioRoute::LandlordRatings.path()>"Ratings"</a></li>
+                        </ul>
+                    </nav>
                 </div>
                 // KPI badges
                 <div class="mq-kpi-strip">
