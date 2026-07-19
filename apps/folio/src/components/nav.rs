@@ -161,6 +161,11 @@ pub enum FolioRoute {
     LandlordPortfolio,
     LandlordAssets,
     LandlordAssetDetail, // /l/assets/:id — hub | unit | leaf dispatch
+    LandlordUnitHistory, // /l/assets/:id/history — unit History tab deep link
+    LandlordHistoricalLease, // /l/assets/:id/history/lease
+    LandlordUnitPaymentHistory, // /l/assets/:id/history/payments
+    LandlordUnitMaintenanceHistory, // /l/assets/:id/history/maintenance
+    LandlordAssetArchive, // /l/assets/:id/archive — danger-zone deep link
     LandlordAssetSystems, // /l/assets/:id/systems
     LandlordAssetDocuments, // /l/assets/:id/documents
     LandlordAssetPortal, // /l/assets/:id/portal — CMS stub
@@ -303,6 +308,11 @@ impl FolioRoute {
             Self::LandlordPortfolio => "/l/portfolio",
             Self::LandlordAssets => "/l/assets",
             Self::LandlordAssetDetail => "/l/assets/:id",
+            Self::LandlordUnitHistory => "/l/assets/:id/history",
+            Self::LandlordHistoricalLease => "/l/assets/:id/history/lease",
+            Self::LandlordUnitPaymentHistory => "/l/assets/:id/history/payments",
+            Self::LandlordUnitMaintenanceHistory => "/l/assets/:id/history/maintenance",
+            Self::LandlordAssetArchive => "/l/assets/:id/archive",
             Self::LandlordAssetSystems => "/l/assets/:id/systems",
             Self::LandlordAssetDocuments => "/l/assets/:id/documents",
             Self::LandlordAssetPortal => "/l/assets/:id/portal",
@@ -528,6 +538,40 @@ mod tests {
         assert_eq!(FolioRoute::LandlordSetup.path(), "/l/setup");
         assert_eq!(FolioRoute::LandlordLeaseCreate.path(), "/l/leases/new");
         assert_eq!(FolioRoute::LandlordAssetsCreate.path(), "/l/assets/new");
+    }
+
+    #[test]
+    fn landlord_unit_history_and_archive_paths() {
+        assert_eq!(
+            FolioRoute::LandlordUnitHistory.path(),
+            "/l/assets/:id/history"
+        );
+        assert_eq!(
+            FolioRoute::LandlordHistoricalLease.path(),
+            "/l/assets/:id/history/lease"
+        );
+        assert_eq!(
+            FolioRoute::LandlordUnitPaymentHistory.path(),
+            "/l/assets/:id/history/payments"
+        );
+        assert_eq!(
+            FolioRoute::LandlordUnitMaintenanceHistory.path(),
+            "/l/assets/:id/history/maintenance"
+        );
+        assert_eq!(
+            FolioRoute::LandlordAssetArchive.path(),
+            "/l/assets/:id/archive"
+        );
+        let primary: Vec<_> = LANDLORD_NAV
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter().map(|i| i.route))
+            .collect();
+        assert!(!primary.contains(&FolioRoute::LandlordUnitHistory));
+        assert!(!primary.contains(&FolioRoute::LandlordHistoricalLease));
+        assert!(!primary.contains(&FolioRoute::LandlordUnitPaymentHistory));
+        assert!(!primary.contains(&FolioRoute::LandlordUnitMaintenanceHistory));
+        assert!(!primary.contains(&FolioRoute::LandlordAssetArchive));
     }
 
     #[test]

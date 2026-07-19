@@ -21,9 +21,10 @@ use crate::pages::landlord::{
     asset_create::AssetCreate, assets::Assets, billing::Billing,
     building_systems::BuildingSystems, campaigns::Campaigns, catalog::Catalog,
     communications::Communications, contractor_marketplace::ContractorMarketplace,
-    dashboard::LandlordDashboard, digital_vault::LandlordDigitalVault, inspections::Inspections,
-    leads::Leads, lease_create::LeaseCreate, lease_detail::LeaseDetail, leases::Leases,
-    ledger::Ledger, listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
+    dashboard::LandlordDashboard, digital_vault::LandlordDigitalVault,
+    historical_lease_create::HistoricalLeaseCreate, inspections::Inspections, leads::Leads,
+    lease_create::LeaseCreate, lease_detail::LeaseDetail, leases::Leases, ledger::Ledger,
+    listing_preview::ListingNetworkPreview, maintenance_queue::MaintenanceQueue,
     map_portfolio::MapPortfolio, meridian::MeridianAnalytics, meridian_config::MeridianConfigurator,
     notifications::NotificationsPage, portfolio::Portfolio, project_detail::ProjectDetail,
     property_documents::PropertyDocuments, property_hub::AssetRouteDispatch,
@@ -31,7 +32,8 @@ use crate::pages::landlord::{
     reservations::LandlordReservations, setup::LandlordSetup, str_compliance::StrCompliance,
     syndication::LandlordSyndication, team::LandlordTeam,
     tenant_portal_content::TenantPortalContent, tenant_profile::TenantProfile,
-    unit_appliances::UnitAppliances, vendors::Vendors, violations::Violations,
+    unit_appliances::UnitAppliances, unit_maintenance_history::UnitMaintenanceHistory,
+    unit_payment_history::UnitPaymentHistory, vendors::Vendors, violations::Violations,
     wholesaling::LandlordWholesaling, deals::LandlordDeals, deal_workspace::DealWorkspace,
     deal_structure::DealStructure, buyers::LandlordBuyers, work_order_create::WorkOrderCreate,
     work_order_detail::WorkOrderDetail,
@@ -209,6 +211,11 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/assets")        view=Assets/>
                     <Route path=path!("/assets/new")    view=AssetCreate/>
                     <Route path=path!("/assets/:id")    view=AssetRouteDispatch/>
+                    <Route path=path!("/assets/:id/history") view=AssetRouteDispatch/>
+                    <Route path=path!("/assets/:id/history/lease") view=HistoricalLeaseCreate/>
+                    <Route path=path!("/assets/:id/history/payments") view=UnitPaymentHistory/>
+                    <Route path=path!("/assets/:id/history/maintenance") view=UnitMaintenanceHistory/>
+                    <Route path=path!("/assets/:id/archive") view=AssetRouteDispatch/>
                     <Route path=path!("/assets/:id/preview") view=ListingNetworkPreview/>
                     <Route path=path!("/assets/:id/alerts")  view=AssetAlerts/>
                     <Route path=path!("/assets/:id/documents") view=PropertyDocuments/>
