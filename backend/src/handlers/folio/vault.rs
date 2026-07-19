@@ -10,22 +10,23 @@
 //!
 //! # Upload flow
 //!
-//! The client uploads directly to Cloudflare R2 (presigned PUT URL, generated
-//! by a future `/api/folio/vault/presign` endpoint in Phase 7).
-//! Once the upload completes, the client calls `POST /api/folio/vault/documents`
-//! with the confirmed `r2_key` — this creates the `atlas_document` registry entry.
+//! The client uploads directly to Cloudflare R2 (presigned PUT URL from
+//! `POST /api/folio/vault/presign`). Once the upload completes, the client calls
+//! `POST /api/folio/vault/documents` with the confirmed `r2_key`.
 //!
 //! # Data source
 //!
 //! `atlas_documents` (G-14) + `attachment` (G-02).
 //! No net-new tables.
 
+use aws_sdk_s3::Client;
+use aws_sdk_s3::presigning::PresigningConfig;
 use axum::{
     Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
-    response::IntoResponse,
-    routing::get,
+    response::{IntoResponse, Response},
+    routing::{get, post},
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -38,11 +39,114 @@ use crate::services::pm::vault::{PmDocumentType, VaultService};
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
+        .route("/api/folio/vault/presign", post(presign_upload))
         .route(
             "/api/folio/vault/documents",
             get(list_documents).post(register_document),
         )
         .route("/api/folio/vault/documents/{id}", get(get_document))
+}
+
+#[derive(Debug, Deserialize)]
+struct PresignUploadInput {
+    pub filename: String,
+    pub content_type: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PresignUploadResponse {
+    pub upload_url: String,
+    pub r2_key: String,
+}
+
+fn validate_presign_input(filename: &str, content_type: &str) -> Result<(), StatusCode> {
+    if filename.trim().is_empty() {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let content_type = content_type.trim();
+    if content_type.is_empty() || !content_type.contains('/') {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    Ok(())
+}
+
+/// POST /api/folio/vault/presign — Cloudflare R2 PUT URL for vault uploads.
+async fn presign_upload(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<PresignUploadInput>,
+) -> Result<Response, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    validate_presign_input(&input.filename, &input.content_type)?;
+    let filename = input.filename.trim();
+    let content_type = input.content_type.trim();
+
+    let access_key = std::env::var("R2_ACCESS_KEY_ID").unwrap_or_default();
+    let secret = std::env::var("R2_SECRET_ACCESS_KEY").unwrap_or_default();
+    let endpoint = std::env::var("R2_ENDPOINT").unwrap_or_default();
+    if access_key.is_empty() || endpoint.is_empty() {
+        return Ok((
+            StatusCode::NOT_IMPLEMENTED,
+            "R2 not configured for this environment",
+        )
+            .into_response());
+    }
+
+    let ext = filename
+        .rsplit('.')
+        .next()
+        .unwrap_or("bin")
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(8)
+        .collect::<String>();
+    let ext = if ext.is_empty() {
+        "bin".to_string()
+    } else {
+        ext
+    };
+    let r2_key = format!(
+        "folio/{}/vault/{}.{}",
+        tenant_id,
+        Uuid::new_v4(),
+        ext
+    );
+
+    let credentials =
+        aws_sdk_s3::config::Credentials::new(&access_key, &secret, None, None, "cloudflare");
+    let s3_config = aws_sdk_s3::config::Builder::new()
+        .credentials_provider(credentials)
+        .region(aws_sdk_s3::config::Region::new("auto"))
+        .endpoint_url(&endpoint)
+        .build();
+    let client = Client::from_conf(s3_config);
+
+    let expires_in = std::time::Duration::from_secs(3600);
+    let presigning_config =
+        PresigningConfig::expires_in(expires_in).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let presigned = client
+        .put_object()
+        .bucket("atlas-tenant-vault")
+        .key(&r2_key)
+        .content_type(content_type)
+        .presigned(presigning_config)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "vault presign: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok((
+        StatusCode::OK,
+        axum::response::Json(PresignUploadResponse {
+            upload_url: presigned.uri().to_string(),
+            r2_key,
+        }),
+    )
+        .into_response())
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -219,4 +323,26 @@ async fn get_document(
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     crate::extractors::tenant::resolve_tenant_id(db, user_id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn presign_rejects_empty_filename() {
+        assert!(validate_presign_input("", "application/pdf").is_err());
+        assert!(validate_presign_input("   ", "application/pdf").is_err());
+    }
+
+    #[test]
+    fn presign_rejects_bad_mime() {
+        assert!(validate_presign_input("a.pdf", "").is_err());
+        assert!(validate_presign_input("a.pdf", "pdf").is_err());
+    }
+
+    #[test]
+    fn presign_accepts_valid() {
+        assert!(validate_presign_input("lease.pdf", "application/pdf").is_ok());
+    }
 }

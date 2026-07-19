@@ -34,7 +34,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::user;
-use crate::services::pm::lease::{CreateLeaseInput, LeaseService};
+use crate::services::pm::lease::{
+    CounterpartyKind, CreateHistoricalLeaseInput, CreateLeaseInput, LeaseService, OfflinePerson,
+};
 use crate::types::pm::{Currency, GuaranteeType};
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -42,6 +44,10 @@ use crate::types::pm::{Currency, GuaranteeType};
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/leases", get(list_leases).post(create_lease))
+        .route(
+            "/api/folio/leases/historical",
+            axum::routing::post(create_historical_lease),
+        )
         .route("/api/folio/leases/{id}", get(get_lease))
         .route("/api/folio/leases/{id}/invoices", get(list_lease_invoices))
 }
@@ -118,7 +124,91 @@ struct CreateLeaseResponse {
     pub id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateHistoricalLeaseHttpInput {
+    pub asset_id: Uuid,
+    /// `atlas_user` | `offline_person`
+    pub counterparty_kind: String,
+    pub counterparty_user_id: Option<Uuid>,
+    pub offline_name: Option<String>,
+    pub offline_phone: Option<String>,
+    pub offline_email: Option<String>,
+    pub offline_notes: Option<String>,
+    pub monthly_rent_cents: i64,
+    pub currency: String,
+    pub guarantee_type: String,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: Option<chrono::NaiveDate>,
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
+
+/// POST /api/folio/leases/historical — backfill lease (offline tenant OK).
+async fn create_historical_lease(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<CreateHistoricalLeaseHttpInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let kind = CounterpartyKind::parse(&input.counterparty_kind).ok_or_else(|| {
+        tracing::warn!(
+            %tenant_id,
+            kind = %input.counterparty_kind,
+            "create_historical_lease: invalid counterparty_kind"
+        );
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let guarantee_type = GuaranteeType::try_from(input.guarantee_type.clone()).map_err(|_| {
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+    let currency = Currency::try_from(input.currency.clone()).map_err(|_| {
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let offline_person = match kind {
+        CounterpartyKind::OfflinePerson => Some(OfflinePerson {
+            name: input.offline_name.unwrap_or_default(),
+            phone: input.offline_phone,
+            email: input.offline_email,
+            notes: input.offline_notes,
+        }),
+        CounterpartyKind::AtlasUser => None,
+    };
+
+    let id = LeaseService::create_historical_lease(
+        &db,
+        tenant_id,
+        CreateHistoricalLeaseInput {
+            asset_id: input.asset_id,
+            counterparty_kind: kind,
+            counterparty_user_id: input.counterparty_user_id,
+            offline_person,
+            monthly_rent_cents: input.monthly_rent_cents,
+            currency,
+            start_date: input.start_date,
+            end_date: input.end_date,
+            guarantee_type,
+        },
+    )
+    .await
+    .map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("required") {
+            tracing::warn!(%tenant_id, "create_historical_lease validation: {msg}");
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            tracing::error!(%tenant_id, "create_historical_lease: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    })?;
+
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateLeaseResponse { id }),
+    ))
+}
 
 /// GET /api/folio/leases
 async fn list_leases(

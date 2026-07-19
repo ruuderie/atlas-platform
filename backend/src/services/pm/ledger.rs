@@ -123,6 +123,60 @@ impl PmLedgerService {
         Ok(id)
     }
 
+    /// Void a single non-terminal ledger entry (operator correction).
+    pub async fn void_entry(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        ledger_entry_id: Uuid,
+    ) -> Result<()> {
+        let entry = atlas_ledger_entry::Entity::find_by_id(ledger_entry_id)
+            .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow!("ledger entry {ledger_entry_id} not found"))?;
+
+        if matches!(entry.status.as_str(), "voided" | "refunded") {
+            return Ok(());
+        }
+        if entry.status == "paid" {
+            anyhow::bail!("cannot void a paid entry; refund instead");
+        }
+
+        let mut am: atlas_ledger_entry::ActiveModel = entry.into();
+        am.status = Set("voided".to_owned());
+        am.update(db).await?;
+        Ok(())
+    }
+
+    /// Void all ledger entries tagged with a period series id in reconciliation_note.
+    pub async fn void_series(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        series_id: Uuid,
+    ) -> Result<usize> {
+        let tag = format!("[period_series:{series_id}]");
+        let entries = atlas_ledger_entry::Entity::find()
+            .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
+            .all(db)
+            .await?;
+
+        let mut count = 0usize;
+        for entry in entries {
+            let note = entry.reconciliation_note.as_deref().unwrap_or("");
+            if !note.contains(&tag) {
+                continue;
+            }
+            if matches!(entry.status.as_str(), "voided" | "refunded" | "paid") {
+                continue;
+            }
+            let mut am: atlas_ledger_entry::ActiveModel = entry.into();
+            am.status = Set("voided".to_owned());
+            am.update(db).await?;
+            count += 1;
+        }
+        Ok(count)
+    }
+
     // ── mark_paid_for_tenant ──────────────────────────────────────────────────
 
     /// Transition a ledger entry to `paid` status with tenant ID guard.

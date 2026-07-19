@@ -2,6 +2,7 @@ pub mod aggregates; // G-33/PMC — Per-client aggregate metrics (single CTE SQL
 pub mod appliance; // G-10 lifecycle — Appliance tracking (ApplianceMetadata + lifecycle alerts)
 pub mod applications;
 pub mod asset;
+pub mod asset_archive; // Soft-archive + alert prefs + period month expansion
 pub mod attribution; // Phase 6 — Multi-channel attribution touchpoints (G20)
 pub mod attribution_hooks; // Attribution conversion helpers for payment flows
 pub mod building_system; // G-10 lifecycle — Building system tracking (elevator, roof, HVAC, fire suppression)

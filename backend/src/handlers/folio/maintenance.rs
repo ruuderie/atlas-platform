@@ -33,7 +33,7 @@
 
 use axum::{
     Router,
-    extract::{Extension, Json, Path},
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, patch, post},
@@ -181,6 +181,9 @@ struct LogPaidInput {
     service_provider_id: Option<Uuid>,
     /// Optional renovation project to link via G-22.
     project_id: Option<Uuid>,
+    /// When set, record cost on this existing work order instead of creating a new case.
+    /// Must belong to the same tenant and preferably the same asset.
+    pub related_case_id: Option<Uuid>,
 }
 
 /// HTTP input for scheduling an inspection (maps to ScheduleInspectionInput).
@@ -198,20 +201,33 @@ pub struct ScheduleInspectionHttpInput {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-/// GET /api/folio/maintenance
+#[derive(Debug, Deserialize)]
+struct ListTicketsQuery {
+    /// Scope picker/list to one unit or property.
+    pub asset_id: Option<Uuid>,
+}
+
+/// GET /api/folio/maintenance?asset_id=
 async fn list_tickets(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
+    Query(query): Query<ListTicketsQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     use crate::types::pm::PmCaseType;
 
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    let cases = crate::entities::atlas_case::Entity::find()
+    let mut finder = crate::entities::atlas_case::Entity::find()
         .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
         .filter(
             crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::Maintenance.to_string()),
-        )
+        );
+    if let Some(aid) = query.asset_id {
+        finder = finder.filter(crate::entities::atlas_case::Column::AssetId.eq(aid));
+    }
+
+    let cases = finder
+        .order_by_desc(crate::entities::atlas_case::Column::CreatedAt)
         .all(&db)
         .await
         .map_err(|e| {
@@ -420,6 +436,10 @@ async fn complete_ticket(
 }
 
 /// POST /api/folio/maintenance/log-paid
+///
+/// Two modes:
+/// - **Linked:** `related_case_id` set → attach cost to that work order (no new case).
+/// - **Standalone:** create a closed off-platform expense case on the asset.
 async fn log_paid_ticket(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -428,6 +448,63 @@ async fn log_paid_ticket(
     use crate::types::pm::{PmCaseType, PmRelationshipType};
 
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    if input.actual_cost_cents < 0 {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    // ── Link expense to an existing work order ───────────────────────────────
+    if let Some(case_id) = input.related_case_id {
+        let c = crate::entities::atlas_case::Entity::find_by_id(case_id)
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::NOT_FOUND)?;
+        if c.tenant_id != tenant_id {
+            return Err(StatusCode::NOT_FOUND);
+        }
+        if c.asset_id.is_some() && c.asset_id != Some(input.asset_id) {
+            tracing::warn!(
+                %tenant_id,
+                %case_id,
+                case_asset = ?c.asset_id,
+                input_asset = %input.asset_id,
+                "log_paid: related_case_id asset mismatch"
+            );
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+
+        let mut meta = c.case_metadata.clone().unwrap_or_else(|| serde_json::json!({}));
+        if let Some(obj) = meta.as_object_mut() {
+            obj.insert("expense_linked".into(), serde_json::json!(true));
+            if let Some(d) = &input.description {
+                obj.insert("expense_note".into(), serde_json::Value::String(d.clone()));
+            }
+            if !input.subject.trim().is_empty() {
+                obj.insert(
+                    "expense_label".into(),
+                    serde_json::Value::String(input.subject.trim().to_string()),
+                );
+            }
+        }
+
+        let mut am: crate::entities::atlas_case::ActiveModel = c.into();
+        am.actual_cost_cents = Set(Some(input.actual_cost_cents));
+        am.case_metadata = Set(Some(meta));
+        if let Some(sp) = input.service_provider_id {
+            am.assigned_service_provider_id = Set(Some(sp));
+        }
+        am.update(&db).await.map_err(|e| {
+            tracing::error!(%tenant_id, %case_id, "log_paid link update: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        return Ok((
+            StatusCode::OK,
+            axum::response::Json(CreateTicketResponse { id: case_id }),
+        ));
+    }
+
+    // ── Standalone historical / off-platform expense ─────────────────────────
     if input.subject.trim().is_empty() {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }

@@ -42,6 +42,8 @@ use crate::entities::{atlas_asset, user};
 use crate::services::pm::appliance::{
     ApplianceService, CreateApplianceInput, UpdateApplianceLifecycleInput,
 };
+use crate::services::pm::asset_archive::{AssetArchiveService, RetireReason};
+use serde::Serialize;
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -60,6 +62,7 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
             "/api/folio/appliances/{id}/lifecycle",
             patch(update_lifecycle),
         )
+        .route("/api/folio/appliances/{id}/retire", post(retire_appliance))
         // Platform-level alert query (any asset_type)
         .route("/api/folio/appliances/alerts", get(get_alerts))
 }
@@ -164,6 +167,58 @@ async fn update_lifecycle(
         })?;
 
     Ok(StatusCode::OK)
+}
+
+#[derive(Debug, Deserialize)]
+struct RetireHttpInput {
+    pub reason: String,
+    pub replaced_by_id: Option<Uuid>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct RetireResponse {
+    pub id: Uuid,
+    pub status: &'static str,
+}
+
+/// POST /api/folio/appliances/{id}/retire — status → inactive + replace chain.
+async fn retire_appliance(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(appliance_id): Path<Uuid>,
+    Json(input): Json<RetireHttpInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let reason = RetireReason::parse(&input.reason).ok_or_else(|| {
+        tracing::warn!(%tenant_id, reason = %input.reason, "retire_appliance: bad reason");
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    AssetArchiveService::retire(
+        &db,
+        tenant_id,
+        appliance_id,
+        "appliance",
+        reason,
+        input.replaced_by_id,
+        input.notes,
+    )
+    .await
+    .map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("not found") {
+            StatusCode::NOT_FOUND
+        } else {
+            tracing::error!(%tenant_id, %appliance_id, "retire_appliance: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    })?;
+
+    Ok(axum::response::Json(RetireResponse {
+        id: appliance_id,
+        status: "inactive",
+    }))
 }
 
 /// GET /api/folio/appliances/alerts?days=30

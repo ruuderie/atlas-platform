@@ -58,6 +58,15 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         // ── Ledger routes (G-03 read + ad-hoc charge write) ─────────────────
         .route("/api/folio/ledger", get(list_ledger_entries))
         .route("/api/folio/ledger/charge", post(create_ad_hoc_charge))
+        .route(
+            "/api/folio/ledger/period-charges",
+            post(create_period_charges),
+        )
+        .route(
+            "/api/folio/ledger/period-charges/{series_id}/void",
+            post(void_period_series),
+        )
+        .route("/api/folio/ledger/{id}/void", post(void_ledger_entry))
 }
 
 /// Unauthenticated routes — webhook endpoints authenticate via their own
@@ -606,4 +615,177 @@ async fn create_ad_hoc_charge(
             status: "pending",
         }),
     ))
+}
+
+/// Entry kinds for period / history money rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LedgerEntryKind {
+    Charge,
+    Payment,
+    ExternalMarkedPaid,
+}
+
+impl LedgerEntryKind {
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            "charge" => Some(Self::Charge),
+            "payment" => Some(Self::Payment),
+            "external_marked_paid" => Some(Self::ExternalMarkedPaid),
+            _ => None,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Charge => "charge",
+            Self::Payment => "payment",
+            Self::ExternalMarkedPaid => "external_marked_paid",
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct CreatePeriodChargesInput {
+    pub billable_entity_type: String,
+    pub billable_entity_id: Uuid,
+    /// `charge` | `payment` | `external_marked_paid`
+    pub kind: String,
+    pub description: String,
+    pub gross_amount_cents: i64,
+    pub currency: String,
+    /// Payment method label (cash, check, ach, …) — stored in note.
+    pub method: Option<String>,
+    pub start_month: chrono::NaiveDate,
+    pub end_month: chrono::NaiveDate,
+}
+
+#[derive(Debug, Serialize)]
+struct CreatePeriodChargesResponse {
+    pub series_id: Uuid,
+    pub entry_ids: Vec<Uuid>,
+    pub months: Vec<String>,
+}
+
+/// POST /api/folio/ledger/period-charges — expand month range into N ledger rows.
+async fn create_period_charges(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<CreatePeriodChargesInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::services::pm::asset_archive::expand_month_range;
+    use sea_orm::ActiveModelTrait;
+    use sea_orm::ActiveValue::Set as SeaSet;
+
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let kind = LedgerEntryKind::parse(&input.kind).ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+    let currency = crate::types::pm::Currency::try_from(input.currency.clone())
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    let months = expand_month_range(input.start_month, input.end_month).map_err(|e| {
+        tracing::warn!(%tenant_id, %e, "create_period_charges: bad range");
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let series_id = Uuid::new_v4();
+    let method = input.method.as_deref().unwrap_or("");
+    let mut entry_ids = Vec::with_capacity(months.len());
+    let mut month_labels = Vec::with_capacity(months.len());
+
+    for month in &months {
+        let label = month.format("%Y-%m").to_string();
+        month_labels.push(label.clone());
+        let note = format!(
+            "[period_series:{series_id}][{}][{method}] {} ({label})",
+            kind.as_str(),
+            input.description
+        );
+
+        let status = match kind {
+            LedgerEntryKind::Charge => "pending",
+            LedgerEntryKind::Payment | LedgerEntryKind::ExternalMarkedPaid => "paid",
+        };
+
+        let id = PmLedgerService::create_pending(
+            &db,
+            tenant_id,
+            &input.billable_entity_type,
+            input.billable_entity_id,
+            None,
+            input.gross_amount_cents,
+            currency,
+            method,
+            Some(*month),
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "create_period_charges: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        let mut am = crate::entities::atlas_ledger_entry::ActiveModel {
+            id: SeaSet(id),
+            reconciliation_note: SeaSet(Some(note)),
+            ..Default::default()
+        };
+        if status == "paid" {
+            am.status = SeaSet("paid".into());
+            am.paid_at = SeaSet(Some(chrono::Utc::now()));
+        }
+        am.update(&db).await.map_err(|e| {
+            tracing::error!(%tenant_id, %id, "create_period_charges patch: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        entry_ids.push(id);
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreatePeriodChargesResponse {
+            series_id,
+            entry_ids,
+            months: month_labels,
+        }),
+    ))
+}
+
+/// POST /api/folio/ledger/period-charges/{series_id}/void
+async fn void_period_series(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    axum::extract::Path(series_id): axum::extract::Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let count = PmLedgerService::void_series(&db, tenant_id, series_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %series_id, "void_period_series: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(axum::response::Json(serde_json::json!({
+        "series_id": series_id,
+        "voided_count": count,
+    })))
+}
+
+/// POST /api/folio/ledger/{id}/void
+async fn void_ledger_entry(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    PmLedgerService::void_entry(&db, tenant_id, id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if msg.contains("cannot void") {
+                StatusCode::CONFLICT
+            } else {
+                tracing::error!(%tenant_id, %id, "void_ledger_entry: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+    Ok(StatusCode::NO_CONTENT)
 }

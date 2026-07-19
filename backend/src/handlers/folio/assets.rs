@@ -21,15 +21,20 @@ use axum::{
     Router,
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
-    response::IntoResponse,
-    routing::get,
+    response::{IntoResponse, Response},
+    routing::{get, post, put},
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::user;
 use crate::services::pm::asset::{AssetService, CreateUnitInput};
+use crate::services::pm::asset_archive::{
+    validate_alert_types, ArchiveBlocker, AssetAlertType, AssetArchiveService,
+};
 use crate::services::pm::record_relationship::RecordRelationshipService;
 use crate::types::pm::PropertyType;
 
@@ -59,6 +64,148 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
             "/api/folio/assets/{id}/contractor",
             get(get_asset_contractor),
         )
+        .route("/api/folio/assets/{id}/archive", post(archive_asset))
+        .route(
+            "/api/folio/assets/{id}/alert-prefs",
+            get(get_alert_prefs).put(put_alert_prefs),
+        )
+}
+
+#[derive(Debug, Serialize)]
+struct ArchiveBlockedBody {
+    error: &'static str,
+    blockers: Vec<ArchiveBlocker>,
+}
+
+/// POST /api/folio/assets/{id}/archive — soft-archive (status=decommissioned).
+async fn archive_asset(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<Response, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let blockers = AssetArchiveService::collect_blockers(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %asset_id, "archive blockers: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if !blockers.is_empty() {
+        return Ok((
+            StatusCode::CONFLICT,
+            axum::response::Json(ArchiveBlockedBody {
+                error: "archive_blocked",
+                blockers,
+            }),
+        )
+            .into_response());
+    }
+
+    AssetArchiveService::archive(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "archive_asset: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[derive(Debug, Serialize)]
+struct AlertPrefsResponse {
+    pub enabled: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AlertPrefsBody {
+    pub enabled: Vec<String>,
+}
+
+/// GET /api/folio/assets/{id}/alert-prefs
+async fn get_alert_prefs(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::atlas_asset;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let asset = atlas_asset::Entity::find_by_id(asset_id)
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let enabled = asset
+        .attributes
+        .as_ref()
+        .and_then(|a| a.get("folio_alert_prefs"))
+        .and_then(|p| p.get("enabled"))
+        .and_then(|e| e.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            AssetAlertType::defaults()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect()
+        });
+
+    Ok(axum::response::Json(AlertPrefsResponse { enabled }))
+}
+
+/// PUT /api/folio/assets/{id}/alert-prefs
+async fn put_alert_prefs(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Json(body): Json<AlertPrefsBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::atlas_asset;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let enabled = validate_alert_types(&body.enabled).map_err(|e| {
+        tracing::warn!(%tenant_id, %e, "put_alert_prefs validation");
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let asset = atlas_asset::Entity::find_by_id(asset_id)
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut attrs = asset
+        .attributes
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({}));
+    if let Some(obj) = attrs.as_object_mut() {
+        obj.insert(
+            "folio_alert_prefs".into(),
+            serde_json::json!({ "enabled": enabled }),
+        );
+    }
+
+    let mut am: atlas_asset::ActiveModel = asset.into();
+    am.attributes = Set(Some(attrs));
+    am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "put_alert_prefs: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(axum::response::Json(AlertPrefsResponse { enabled }))
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -145,21 +292,33 @@ struct AssetDetail {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+#[derive(Debug, Deserialize)]
+struct ListAssetsQuery {
+    /// When true, include soft-archived (`decommissioned`) assets. Default: hide them.
+    pub show_archived: Option<bool>,
+}
+
 /// GET /api/folio/assets
 async fn list_assets(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
+    Query(query): Query<ListAssetsQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let show_archived = query.show_archived.unwrap_or(false);
 
-    let assets = crate::entities::atlas_asset::Entity::find()
-        .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id))
-        .all(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!(%tenant_id, "list_assets error: {e:#}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let mut finder = crate::entities::atlas_asset::Entity::find()
+        .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id));
+    if !show_archived {
+        finder = finder.filter(
+            crate::entities::atlas_asset::Column::Status.ne("decommissioned"),
+        );
+    }
+
+    let assets = finder.all(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, "list_assets error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     let summaries: Vec<AssetSummary> = assets
         .into_iter()
