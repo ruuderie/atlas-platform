@@ -42,6 +42,7 @@ gloo-net   = "0.6.0"
 web-sys    = { version = "0.3.91", features = [
     "HtmlElement", "Document", "HtmlDocument", "Window",
     "HtmlAnchorElement", "HtmlInputElement",
+    "File", "FileList", "Blob",
     "Storage", "Location", "Navigator",
 ] }
 js-sys     = "0.3.92"

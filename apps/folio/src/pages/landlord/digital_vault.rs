@@ -6,6 +6,7 @@
 // certificates, inspection reports, etc.). Reuses /api/folio/vault/documents.
 // ─────────────────────────────────────────────────────────────────────────────
 
+use leptos::html::Input;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
@@ -126,6 +127,50 @@ struct RegisterDocumentResponse {
     id: Uuid,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PresignUploadResponse {
+    pub upload_url: String,
+    pub r2_key: String,
+}
+
+#[derive(Serialize)]
+struct PresignUploadBody {
+    filename: String,
+    content_type: String,
+}
+
+/// POST /api/folio/vault/presign — R2 PUT URL + object key.
+#[server(PresignVaultUpload, "/api")]
+pub async fn presign_vault_upload(
+    filename: String,
+    content_type: String,
+) -> Result<PresignUploadResponse, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    if filename.trim().is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Filename is required"));
+    }
+    if content_type.trim().is_empty() || !content_type.contains('/') {
+        return Err(server_fn::error::ServerFnError::new("Content type is required"));
+    }
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let body = PresignUploadBody {
+        filename: filename.trim().to_string(),
+        content_type: content_type.trim().to_string(),
+    };
+    crate::atlas_client::authenticated_post::<PresignUploadBody, PresignUploadResponse>(
+        "/api/folio/vault/presign",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Presign failed: {e}")))
+}
+
 /// POST /api/folio/vault/documents — register metadata after R2 upload.
 #[server(RegisterVaultDocument, "/api")]
 pub async fn register_vault_document(
@@ -183,6 +228,53 @@ pub async fn register_vault_document(
     Ok(resp.id)
 }
 
+/// Browser PUT to the R2 presigned URL (hydrate / WASM only).
+#[cfg(target_arch = "wasm32")]
+async fn put_file_to_presign(
+    upload_url: &str,
+    content_type: &str,
+    bytes: &[u8],
+) -> Result<(), String> {
+    let body = js_sys::Uint8Array::from(bytes);
+    let resp = gloo_net::http::Request::put(upload_url)
+        .header("Content-Type", content_type)
+        .body(body)
+        .map_err(|e| format!("Upload request build failed: {e}"))?
+        .send()
+        .await
+        .map_err(|e| format!("Upload failed: {e}"))?;
+    if !resp.ok() {
+        return Err(format!("Upload failed: HTTP {}", resp.status()));
+    }
+    Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn read_input_file(
+    input: &web_sys::HtmlInputElement,
+) -> Result<(Vec<u8>, String, String), String> {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+    let files = input.files().ok_or_else(|| "No file selected".to_string())?;
+    let file = files.get(0).ok_or_else(|| "No file selected".to_string())?;
+    let name = file.name();
+    let content_type = {
+        let t = file.type_();
+        if t.is_empty() {
+            "application/octet-stream".to_string()
+        } else {
+            t
+        }
+    };
+    let buf = JsFuture::from(file.array_buffer())
+        .await
+        .map_err(|e| format!("Could not read file: {e:?}"))?;
+    let array = js_sys::Uint8Array::new(&buf);
+    let mut bytes = vec![0u8; array.length() as usize];
+    array.copy_to(&mut bytes);
+    Ok((bytes, name, content_type))
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn doc_icon(cat: &str) -> &'static str {
@@ -218,6 +310,7 @@ fn doc_label(category: &str) -> String {
 
 #[component]
 pub fn LandlordDigitalVault() -> impl IntoView {
+    let q = leptos_router::hooks::use_query_map();
     let refresh = RwSignal::new(0u32);
     let cat_filter = RwSignal::new("all".to_string());
     let selected_doc = RwSignal::new(None::<DocumentSummary>);
@@ -226,10 +319,25 @@ pub fn LandlordDigitalVault() -> impl IntoView {
     let reg_entity_type = RwSignal::new("atlas_assets".to_string());
     let reg_entity_id = RwSignal::new(String::new());
     let reg_doc_type = RwSignal::new(VaultDocumentType::LeaseAgreement.as_str().to_string());
-    let reg_r2_key = RwSignal::new(String::new());
-    let reg_mime = RwSignal::new(String::new());
+    let file_input_el: NodeRef<Input> = NodeRef::new();
+    let selected_file_name = RwSignal::new(String::new());
     let registering = RwSignal::new(false);
     let reg_err = RwSignal::new(None::<String>);
+
+    Effect::new(move |_| {
+        let map = q.get();
+        if let Some(et) = map.get("entity_type") {
+            if !et.is_empty() {
+                reg_entity_type.set(et);
+            }
+        }
+        if let Some(eid) = map.get("entity_id") {
+            if !eid.is_empty() {
+                reg_entity_id.set(eid);
+                show_register.set(true);
+            }
+        }
+    });
 
     let docs_res = Resource::new(move || refresh.get(), |_| ll_fetch_vault_docs(None));
 
@@ -237,28 +345,64 @@ pub fn LandlordDigitalVault() -> impl IntoView {
         let entity_type = reg_entity_type.get().trim().to_string();
         let entity_id = reg_entity_id.get().trim().to_string();
         let document_type = reg_doc_type.get();
-        let r2_key = reg_r2_key.get().trim().to_string();
-        if entity_type.is_empty() || entity_id.is_empty() || r2_key.is_empty() {
-            reg_err.set(Some("Entity type, entity ID, and R2 key are required.".into()));
+        if entity_type.is_empty() || entity_id.is_empty() {
+            reg_err.set(Some("Entity type and entity ID are required.".into()));
             return;
         }
-        let mime = {
-            let m = reg_mime.get().trim().to_string();
-            if m.is_empty() { None } else { Some(m) }
+        let Some(input) = file_input_el.get() else {
+            reg_err.set(Some("Choose a file to upload.".into()));
+            return;
         };
         registering.set(true);
         reg_err.set(None);
         spawn_local(async move {
-            match register_vault_document(entity_type, entity_id, document_type, r2_key, mime).await
+            #[cfg(target_arch = "wasm32")]
             {
-                Ok(_) => {
-                    show_register.set(false);
-                    reg_entity_id.set(String::new());
-                    reg_r2_key.set(String::new());
-                    reg_mime.set(String::new());
-                    refresh.update(|n| *n += 1);
+                match read_input_file(&input).await {
+                    Ok((bytes, filename, content_type)) => {
+                        match presign_vault_upload(filename, content_type.clone()).await {
+                            Ok(presign) => {
+                                match put_file_to_presign(
+                                    &presign.upload_url,
+                                    &content_type,
+                                    &bytes,
+                                )
+                                .await
+                                {
+                                    Ok(()) => {
+                                        match register_vault_document(
+                                            entity_type,
+                                            entity_id,
+                                            document_type,
+                                            presign.r2_key,
+                                            Some(content_type),
+                                        )
+                                        .await
+                                        {
+                                            Ok(_) => {
+                                                show_register.set(false);
+                                                reg_entity_id.set(String::new());
+                                                selected_file_name.set(String::new());
+                                                refresh.update(|n| *n += 1);
+                                            }
+                                            Err(e) => reg_err.set(Some(e.to_string())),
+                                        }
+                                    }
+                                    Err(e) => reg_err.set(Some(e)),
+                                }
+                            }
+                            Err(e) => reg_err.set(Some(e.to_string())),
+                        }
+                    }
+                    Err(e) => reg_err.set(Some(e)),
                 }
-                Err(e) => reg_err.set(Some(e.to_string())),
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let _ = (input, entity_type, entity_id, document_type);
+                reg_err.set(Some(
+                    "File upload runs in the browser after hydrate.".into(),
+                ));
             }
             registering.set(false);
         });
@@ -409,18 +553,43 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                         </div>
                         <div class="modal-body space-y-4">
                             <p class="folio-empty__sub" style="margin:0;">
-                                "Paste the R2 object key after upload. File upload UI comes later."
+                                "Upload a file — we get a secure upload link, store the object, then register it in your vault."
                             </p>
+                            <div class="form-field">
+                                <label class="form-label">"File *"</label>
+                                <input
+                                    type="file"
+                                    class="form-input"
+                                    node_ref=file_input_el
+                                    on:change=move |ev| {
+                                        let el = event_target::<web_sys::HtmlInputElement>(&ev);
+                                        let name = el
+                                            .files()
+                                            .and_then(|f| f.get(0))
+                                            .map(|f| f.name())
+                                            .unwrap_or_default();
+                                        selected_file_name.set(name);
+                                    }
+                                />
+                                {move || {
+                                    let n = selected_file_name.get();
+                                    if n.is_empty() {
+                                        ().into_any()
+                                    } else {
+                                        view! { <p class="folio-empty__sub" style="margin:0.35rem 0 0;">{n}</p> }.into_any()
+                                    }
+                                }}
+                            </div>
                             <div class="form-field">
                                 <label class="form-label">"Entity Type *"</label>
                                 <select
                                     class="form-select"
                                     on:change=move |ev| reg_entity_type.set(event_target_value(&ev))
                                 >
-                                    <option value="atlas_assets">"atlas_assets"</option>
-                                    <option value="atlas_contracts">"atlas_contracts"</option>
-                                    <option value="atlas_applications">"atlas_applications"</option>
-                                    <option value="atlas_service_providers">"atlas_service_providers"</option>
+                                    <option value="atlas_assets">"Asset"</option>
+                                    <option value="atlas_contracts">"Lease / contract"</option>
+                                    <option value="atlas_applications">"Application"</option>
+                                    <option value="atlas_service_providers">"Vendor"</option>
                                 </select>
                             </div>
                             <div class="form-field">
@@ -444,26 +613,6 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"R2 Key *"</label>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder="pm/leases/tenant_xyz/lease.pdf"
-                                    prop:value=reg_r2_key
-                                    on:input=move |ev| reg_r2_key.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"MIME Type (optional)"</label>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder="application/pdf"
-                                    prop:value=reg_mime
-                                    on:input=move |ev| reg_mime.set(event_target_value(&ev))
-                                />
-                            </div>
                             {move || reg_err.get().map(|e| view! {
                                 <p class="text-red-400" style="font-size:0.875rem;">{e}</p>
                             })}
@@ -475,11 +624,11 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                 disabled=move || {
                                     registering.get()
                                         || reg_entity_id.get().trim().is_empty()
-                                        || reg_r2_key.get().trim().is_empty()
+                                        || selected_file_name.get().trim().is_empty()
                                 }
                                 on:click=on_register
                             >
-                                {move || if registering.get() { "Registering…" } else { "Register" }}
+                                {move || if registering.get() { "Uploading…" } else { "Upload & register" }}
                             </button>
                         </div>
                     </div>

@@ -1,7 +1,8 @@
 //! Landlord reservations — `/l/reservations`
-//! Wired to `GET /api/folio/reservations`.
+//! Wired to `GET /api/folio/reservations` + lifecycle POSTs.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -47,7 +48,26 @@ impl ReservationFilter {
             Self::Confirmed => s == "confirmed",
             Self::Hold => s == "hold" || s == "pending",
             Self::CheckedIn => s == "checked_in",
-            Self::Cancelled => s == "cancelled" || s == "no_show",
+            Self::Cancelled => s == "cancelled" || s == "no_show" || s == "checked_out",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReservationAction {
+    Confirm,
+    CheckIn,
+    CheckOut,
+    Cancel,
+}
+
+impl ReservationAction {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Confirm => "Confirm",
+            Self::CheckIn => "Check in",
+            Self::CheckOut => "Check out",
+            Self::Cancel => "Cancel",
         }
     }
 }
@@ -56,15 +76,54 @@ fn status_tone(status: &str) -> StatusPillTone {
     match status.to_ascii_lowercase().as_str() {
         "confirmed" | "checked_in" => StatusPillTone::Ok,
         "hold" | "pending" => StatusPillTone::Warn,
-        "cancelled" | "no_show" => StatusPillTone::Danger,
+        "cancelled" | "no_show" | "checked_out" => StatusPillTone::Danger,
         _ => StatusPillTone::Neutral,
+    }
+}
+
+fn is_terminal(status: &str) -> bool {
+    matches!(
+        status.to_ascii_lowercase().as_str(),
+        "cancelled" | "no_show" | "checked_out"
+    )
+}
+
+fn primary_action(status: &str) -> Option<ReservationAction> {
+    match status.to_ascii_lowercase().as_str() {
+        "hold" | "pending" => Some(ReservationAction::Confirm),
+        "confirmed" => Some(ReservationAction::CheckIn),
+        "checked_in" => Some(ReservationAction::CheckOut),
+        _ => None,
     }
 }
 
 #[component]
 pub fn LandlordReservations() -> impl IntoView {
     let filter = RwSignal::new(ReservationFilter::All);
-    let reservations = Resource::new(|| (), |_| async move { list_reservations().await });
+    let refresh = RwSignal::new(0u32);
+    let action_err = RwSignal::new(None::<String>);
+    let action_pending = RwSignal::new(None::<Uuid>);
+    let reservations = Resource::new(move || refresh.get(), |_| async move { list_reservations().await });
+
+    let run_action = move |id: Uuid, action: ReservationAction| {
+        action_pending.set(Some(id));
+        action_err.set(None);
+        spawn_local(async move {
+            let result = match action {
+                ReservationAction::Confirm => reservation_confirm(id.to_string()).await,
+                ReservationAction::CheckIn => reservation_check_in(id.to_string()).await,
+                ReservationAction::CheckOut => reservation_check_out(id.to_string()).await,
+                ReservationAction::Cancel => {
+                    reservation_cancel(id.to_string(), None).await
+                }
+            };
+            match result {
+                Ok(_) => refresh.update(|n| *n += 1),
+                Err(e) => action_err.set(Some(e.to_string())),
+            }
+            action_pending.set(None);
+        });
+    };
 
     view! {
         <div class="landlord-list-page">
@@ -76,6 +135,10 @@ pub fn LandlordReservations() -> impl IntoView {
                     "Map"
                 </a>
             </PageHeader>
+
+            {move || action_err.get().map(|e| view! {
+                <p style="color:#b91c1c;margin-bottom:0.75rem;font-size:0.875rem;">{e}</p>
+            })}
 
             <div class="landlord-filter-chips" style="margin-bottom:1rem;">
                 {[
@@ -142,6 +205,9 @@ pub fn LandlordReservations() -> impl IntoView {
                                             r.currency
                                         );
                                         let tone = status_tone(&r.status);
+                                        let rid = r.id;
+                                        let primary = primary_action(&r.status);
+                                        let can_cancel = !is_terminal(&r.status);
                                         view! {
                                             <div class="landlord-card landlord-card--static">
                                                 <div class="landlord-card__top">
@@ -153,6 +219,31 @@ pub fn LandlordReservations() -> impl IntoView {
                                                 <p class="landlord-card__meta" style="font-family:monospace;font-size:0.7rem;">
                                                     {r.id.to_string().chars().take(8).collect::<String>()}
                                                 </p>
+                                                <div class="unit-actions" style="margin-top:0.75rem;">
+                                                    {primary.map(|action| {
+                                                        let a = action;
+                                                        view! {
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--primary press"
+                                                                disabled=move || action_pending.get() == Some(rid)
+                                                                on:click=move |_| run_action(rid, a)
+                                                            >
+                                                                {a.label()}
+                                                            </button>
+                                                        }
+                                                    })}
+                                                    {can_cancel.then(|| view! {
+                                                        <button
+                                                            type="button"
+                                                            class="folio-btn folio-btn--ghost press"
+                                                            disabled=move || action_pending.get() == Some(rid)
+                                                            on:click=move |_| run_action(rid, ReservationAction::Cancel)
+                                                        >
+                                                            "Cancel"
+                                                        </button>
+                                                    })}
+                                                </div>
                                             </div>
                                         }
                                     }).collect_view()}
@@ -185,4 +276,61 @@ pub async fn list_reservations() -> Result<Vec<ReservationSummary>, server_fn::e
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Reservation list failed: {e}")))
+}
+
+#[cfg(feature = "ssr")]
+async fn post_reservation_action(
+    id: &str,
+    suffix: &str,
+    body: serde_json::Value,
+) -> Result<ReservationSummary, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let rid = Uuid::parse_str(id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid reservation ID"))?;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    crate::atlas_client::authenticated_post::<serde_json::Value, ReservationSummary>(
+        &format!("/api/folio/reservations/{rid}/{suffix}"),
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Reservation {suffix} failed: {e}")))
+}
+
+#[server(ReservationConfirm, "/api")]
+pub async fn reservation_confirm(
+    reservation_id: String,
+) -> Result<ReservationSummary, server_fn::error::ServerFnError> {
+    post_reservation_action(&reservation_id, "confirm", serde_json::json!({})).await
+}
+
+#[server(ReservationCheckIn, "/api")]
+pub async fn reservation_check_in(
+    reservation_id: String,
+) -> Result<ReservationSummary, server_fn::error::ServerFnError> {
+    post_reservation_action(&reservation_id, "check-in", serde_json::json!({})).await
+}
+
+#[server(ReservationCheckOut, "/api")]
+pub async fn reservation_check_out(
+    reservation_id: String,
+) -> Result<ReservationSummary, server_fn::error::ServerFnError> {
+    post_reservation_action(&reservation_id, "check-out", serde_json::json!({})).await
+}
+
+#[server(ReservationCancel, "/api")]
+pub async fn reservation_cancel(
+    reservation_id: String,
+    reason: Option<String>,
+) -> Result<ReservationSummary, server_fn::error::ServerFnError> {
+    post_reservation_action(
+        &reservation_id,
+        "cancel",
+        serde_json::json!({ "reason": reason }),
+    )
+    .await
 }

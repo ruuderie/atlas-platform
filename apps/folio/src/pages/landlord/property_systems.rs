@@ -131,8 +131,21 @@ pub fn PropertySystems() -> impl IntoView {
                 {move || match systems.get() {
                     Some(Ok(list)) if list.is_empty() => view! {
                         <div class="folio-empty">
-                            <p>"No building systems registered on this property."</p>
-                            <p class="proj-section__hint">"Use Add System to register elevators, HVAC, and life-safety equipment."</p>
+                            <p>"No building systems on this property yet."</p>
+                            <p class="proj-section__hint">
+                                "Register elevators, HVAC, roof, and life-safety gear here — you do not need the portfolio Systems page."
+                            </p>
+                            <button
+                                type="button"
+                                class="folio-btn folio-btn--primary press"
+                                style="margin-top:1rem;"
+                                on:click=move |_| {
+                                    create_err.set(None);
+                                    show_add.set(true);
+                                }
+                            >
+                                "Add system"
+                            </button>
                         </div>
                     }.into_any(),
                     Some(Ok(list)) => view! {

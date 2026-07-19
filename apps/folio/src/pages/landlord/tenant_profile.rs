@@ -13,6 +13,7 @@
 // landlord's own contracts are accessible (403 otherwise).
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +60,22 @@ pub enum ApplicationStatus {
     Unknown,
 }
 
+/// PATCH …/decision body vocabulary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApplicationDecision {
+    Approved,
+    Denied,
+}
+
+impl ApplicationDecision {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Approved => "approved",
+            Self::Denied => "denied",
+        }
+    }
+}
+
 impl ApplicationStatus {
     pub fn from_str(s: &str) -> Self {
         match s {
@@ -69,6 +86,10 @@ impl ApplicationStatus {
             "pending" => Self::Pending,
             _ => Self::Unknown,
         }
+    }
+
+    pub const fn is_decidable(self) -> bool {
+        matches!(self, Self::Submitted | Self::Pending)
     }
 
     pub const fn as_str(self) -> &'static str {
@@ -166,7 +187,12 @@ pub fn TenantProfile() -> impl IntoView {
         |_| async move { crate::pages::landlord::leases::list_leases().await },
     );
 
-    let applications = Resource::new(|| (), |_| async move { list_applications().await });
+    let app_refresh = RwSignal::new(0u32);
+    let applications = Resource::new(move || app_refresh.get(), |_| async move { list_applications().await });
+    let decide_err = RwSignal::new(None::<String>);
+    let decide_pending = RwSignal::new(None::<uuid::Uuid>);
+    let deny_for = RwSignal::new(None::<uuid::Uuid>);
+    let deny_reason = RwSignal::new(String::new());
 
     view! {
         <div class="tp-page">
@@ -328,6 +354,9 @@ pub fn TenantProfile() -> impl IntoView {
                             </span>
                             "Rental Applications"
                         </h2>
+                        {move || decide_err.get().map(|e| view! {
+                            <p class="tp-empty-text" style="color:#b91c1c;">{e}</p>
+                        })}
                         <Suspense fallback=|| view! { <div class="tp-skel tp-skel--table"/> }>
                             {move || {
                                 let uid = user_id();
@@ -360,11 +389,14 @@ pub fn TenantProfile() -> impl IntoView {
                                                             <th class="tp-app-th">"Income"</th>
                                                             <th class="tp-app-th">"Submitted"</th>
                                                             <th class="tp-app-th">"Decided"</th>
+                                                            <th class="tp-app-th">"Actions"</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {related.into_iter().map(|app| {
+                                                            let app_id = app.id;
                                                             let status = ApplicationStatus::from_str(&app.status);
+                                                            let decidable = status.is_decidable();
                                                             let screening = ScreeningResult::from_parts(
                                                                 app.screening_passed,
                                                                 &app.screening_status,
@@ -396,6 +428,97 @@ pub fn TenantProfile() -> impl IntoView {
                                                                     <td class="tp-app-td tp-app-td--mono">{income}</td>
                                                                     <td class="tp-app-td">{submitted}</td>
                                                                     <td class="tp-app-td">{decided}</td>
+                                                                    <td class="tp-app-td">
+                                                                        {if decidable {
+                                                                            view! {
+                                                                                <div class="unit-actions" style="gap:0.35rem;">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        class="folio-btn folio-btn--primary press"
+                                                                                        style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                                                                                        disabled=move || decide_pending.get() == Some(app_id)
+                                                                                        on:click=move |_| {
+                                                                                            decide_pending.set(Some(app_id));
+                                                                                            decide_err.set(None);
+                                                                                            deny_for.set(None);
+                                                                                            spawn_local(async move {
+                                                                                                match decide_application(
+                                                                                                    app_id.to_string(),
+                                                                                                    ApplicationDecision::Approved.as_str().to_string(),
+                                                                                                    None,
+                                                                                                ).await {
+                                                                                                    Ok(_) => app_refresh.update(|n| *n += 1),
+                                                                                                    Err(e) => decide_err.set(Some(e.to_string())),
+                                                                                                }
+                                                                                                decide_pending.set(None);
+                                                                                            });
+                                                                                        }
+                                                                                    >
+                                                                                        "Approve"
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        class="folio-btn folio-btn--ghost press"
+                                                                                        style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                                                                                        disabled=move || decide_pending.get() == Some(app_id)
+                                                                                        on:click=move |_| {
+                                                                                            deny_for.set(Some(app_id));
+                                                                                            deny_reason.set(String::new());
+                                                                                            decide_err.set(None);
+                                                                                        }
+                                                                                    >
+                                                                                        "Deny"
+                                                                                    </button>
+                                                                                </div>
+                                                                                <Show when=move || deny_for.get() == Some(app_id)>
+                                                                                    <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.35rem;">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            class="form-input"
+                                                                                            placeholder="Denial reason (required)"
+                                                                                            prop:value=move || deny_reason.get()
+                                                                                            on:input=move |ev| deny_reason.set(event_target_value(&ev))
+                                                                                        />
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            class="folio-btn folio-btn--primary press"
+                                                                                            style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                                                                                            disabled=move || {
+                                                                                                decide_pending.get() == Some(app_id)
+                                                                                                    || deny_reason.get().trim().is_empty()
+                                                                                            }
+                                                                                            on:click=move |_| {
+                                                                                                let reason = deny_reason.get().trim().to_string();
+                                                                                                if reason.is_empty() {
+                                                                                                    decide_err.set(Some("Denial requires a reason.".into()));
+                                                                                                    return;
+                                                                                                }
+                                                                                                decide_pending.set(Some(app_id));
+                                                                                                spawn_local(async move {
+                                                                                                    match decide_application(
+                                                                                                        app_id.to_string(),
+                                                                                                        ApplicationDecision::Denied.as_str().to_string(),
+                                                                                                        Some(reason),
+                                                                                                    ).await {
+                                                                                                        Ok(_) => {
+                                                                                                            deny_for.set(None);
+                                                                                                            app_refresh.update(|n| *n += 1);
+                                                                                                        }
+                                                                                                        Err(e) => decide_err.set(Some(e.to_string())),
+                                                                                                    }
+                                                                                                    decide_pending.set(None);
+                                                                                                });
+                                                                                            }
+                                                                                        >
+                                                                                            "Confirm deny"
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </Show>
+                                                                            }.into_any()
+                                                                        } else {
+                                                                            ().into_any()
+                                                                        }}
+                                                                    </td>
                                                                 </tr>
                                                             }
                                                         }).collect_view()}
@@ -491,4 +614,55 @@ pub async fn list_applications() -> Result<Vec<ApplicationRecord>, server_fn::er
     )
     .await
     .map_err(|e| server_fn::error::ServerFnError::new(format!("Applications failed: {e}")))
+}
+
+#[derive(Serialize)]
+struct DecideApplicationBody {
+    decision: String,
+    reason: Option<String>,
+}
+
+/// PATCH /api/folio/applications/{id}/decision
+#[server(DecideApplication, "/api")]
+pub async fn decide_application(
+    application_id: String,
+    decision: String,
+    reason: Option<String>,
+) -> Result<ApplicationRecord, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let decision_enum = match decision.as_str() {
+        "approved" => ApplicationDecision::Approved,
+        "denied" => ApplicationDecision::Denied,
+        _ => {
+            return Err(server_fn::error::ServerFnError::new(
+                "Decision must be approved or denied",
+            ))
+        }
+    };
+    if decision_enum == ApplicationDecision::Denied
+        && reason.as_deref().map(str::trim).unwrap_or("").is_empty()
+    {
+        return Err(server_fn::error::ServerFnError::new(
+            "Denial requires a reason",
+        ));
+    }
+    let application_id = uuid::Uuid::parse_str(application_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid application ID"))?;
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let body = DecideApplicationBody {
+        decision: decision_enum.as_str().to_string(),
+        reason,
+    };
+    crate::atlas_client::authenticated_patch::<DecideApplicationBody, ApplicationRecord>(
+        &format!("/api/folio/applications/{application_id}/decision"),
+        &token,
+        body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Decision failed: {e}")))
 }

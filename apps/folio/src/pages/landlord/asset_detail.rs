@@ -13,6 +13,7 @@
 //   GET / POST / DELETE via /api/folio/assets/{id}/contractor + /api/folio/relationships
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 
@@ -770,8 +771,101 @@ fn AssetDetailContent(
                         }}
                     </div>
 
+                    <AssetArchivePanel asset_id=asset_id.clone()/>
+
                 </aside>
             </div>
+        </div>
+    }
+}
+
+/// Soft-archive (type DELETE) for leaf assets shown on asset detail.
+#[component]
+fn AssetArchivePanel(asset_id: String) -> impl IntoView {
+    use crate::pages::landlord::asset_api::{archive_folio_asset, ArchiveBlockerDto};
+
+    let archive_confirm = RwSignal::new(String::new());
+    let archive_pending = RwSignal::new(false);
+    let archive_err = RwSignal::new(None::<String>);
+    let archive_blockers = RwSignal::new(Vec::<ArchiveBlockerDto>::new());
+    let archived_ok = RwSignal::new(false);
+    let aid = asset_id.clone();
+
+    view! {
+        <div class="asset-detail-card" style="border-color:#fecaca;">
+            <p class="asset-section-label" style="color:#b91c1c;">"Danger zone"</p>
+            <p class="asset-meta-empty" style="margin-bottom:0.75rem;">
+                "Archive hides this asset from the default Assets list. Type DELETE to confirm."
+            </p>
+            {move || if archived_ok.get() {
+                view! { <p style="color:#15803d;font-size:0.875rem;">"Asset archived."</p> }.into_any()
+            } else {
+                view! {
+                    <div style="display:flex;flex-direction:column;gap:0.65rem;">
+                        <input
+                            class="form-input"
+                            type="text"
+                            placeholder="Type DELETE"
+                            autocomplete="off"
+                            prop:value=move || archive_confirm.get()
+                            on:input=move |ev| archive_confirm.set(event_target_value(&ev))
+                        />
+                        <button
+                            type="button"
+                            class="asset-action-btn"
+                            style="background:#b91c1c;color:#fff;"
+                            prop:disabled=move || {
+                                archive_pending.get()
+                                    || archive_confirm.get().trim() != "DELETE"
+                            }
+                            on:click={
+                                let aid = aid.clone();
+                                move |_| {
+                                    if archive_confirm.get().trim() != "DELETE" {
+                                        archive_err.set(Some("Type DELETE to confirm.".into()));
+                                        return;
+                                    }
+                                    archive_pending.set(true);
+                                    archive_err.set(None);
+                                    let id = aid.clone();
+                                    spawn_local(async move {
+                                        match archive_folio_asset(id).await {
+                                            Ok(outcome) => {
+                                                if outcome.archived {
+                                                    archived_ok.set(true);
+                                                } else {
+                                                    archive_blockers.set(outcome.blockers);
+                                                    archive_err.set(Some(
+                                                        "Resolve blockers before archive.".into(),
+                                                    ));
+                                                }
+                                            }
+                                            Err(e) => archive_err.set(Some(e.to_string())),
+                                        }
+                                        archive_pending.set(false);
+                                    });
+                                }
+                            }
+                        >
+                            {move || if archive_pending.get() { "Archiving…" } else { "Archive asset" }}
+                        </button>
+                        {move || archive_err.get().map(|e| view! {
+                            <p style="color:#b91c1c;font-size:0.8rem;">{e}</p>
+                        })}
+                        {move || {
+                            let blockers = archive_blockers.get();
+                            if blockers.is_empty() {
+                                return ().into_any();
+                            }
+                            view! {
+                                <ul style="margin:0;padding-left:1.1rem;font-size:0.8rem;">
+                                    {blockers.into_iter().map(|b| view! { <li>{b.message}</li> }).collect_view()}
+                                </ul>
+                            }.into_any()
+                        }}
+                    </div>
+                }.into_any()
+            }}
         </div>
     }
 }

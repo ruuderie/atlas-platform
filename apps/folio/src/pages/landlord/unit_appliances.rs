@@ -40,6 +40,65 @@ pub struct ApplianceDetail {
 
 // ── Local enums ───────────────────────────────────────────────────────────────
 
+/// Active vs inactive (retired) filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatusFilter {
+    Active,
+    Inactive,
+    All,
+}
+
+impl StatusFilter {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Active => "Active",
+            Self::Inactive => "Inactive",
+            Self::All => "All statuses",
+        }
+    }
+
+    fn matches(self, status: &str) -> bool {
+        let s = status.to_ascii_lowercase();
+        let inactive = s == "inactive" || s == "retired" || s == "decommissioned";
+        match self {
+            Self::All => true,
+            Self::Active => !inactive,
+            Self::Inactive => inactive,
+        }
+    }
+}
+
+/// Retire reason — matches backend `RetireReason`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RetireReasonOpt {
+    Replaced,
+    Failed,
+    Sold,
+    Other,
+}
+
+impl RetireReasonOpt {
+    pub const ALL: &'static [Self] = &[Self::Replaced, Self::Failed, Self::Sold, Self::Other];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Replaced => "replaced",
+            Self::Failed => "failed",
+            Self::Sold => "sold",
+            Self::Other => "other",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Replaced => "Replaced",
+            Self::Failed => "Failed",
+            Self::Sold => "Sold",
+            Self::Other => "Other",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ApplianceCategory {
     All,
@@ -378,6 +437,43 @@ pub async fn create_unit_appliance(
     Ok(resp.id)
 }
 
+/// POST /api/folio/appliances/{id}/retire
+#[server(RetireUnitAppliance, "/api")]
+pub async fn retire_unit_appliance(
+    appliance_id: String,
+    reason: String,
+    notes: Option<String>,
+) -> Result<(), server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let appliance_id = Uuid::parse_str(appliance_id.trim())
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid appliance ID"))?;
+    if RetireReasonOpt::ALL
+        .iter()
+        .all(|r| r.as_str() != reason.as_str())
+    {
+        return Err(server_fn::error::ServerFnError::new("Invalid retire reason"));
+    }
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let body = serde_json::json!({
+        "reason": reason,
+        "replaced_by_id": null,
+        "notes": notes,
+    });
+    let _: serde_json::Value = crate::atlas_client::authenticated_post(
+        &format!("/api/folio/appliances/{appliance_id}/retire"),
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Retire failed: {e}")))?;
+    Ok(())
+}
+
 // ── KPI strip ─────────────────────────────────────────────────────────────────
 
 #[component]
@@ -441,7 +537,7 @@ fn ApplKpiStrip(appliances: Vec<ApplianceDetail>) -> impl IntoView {
 // ── Appliance card ────────────────────────────────────────────────────────────
 
 #[component]
-fn ApplCard(appl: ApplianceDetail) -> impl IntoView {
+fn ApplCard(appl: ApplianceDetail, on_retired: RwSignal<u32>) -> impl IntoView {
     let urgency = Urgency::from_appliance(&appl);
     let at = appliance_type(&appl);
     let at_label = appliance_type_label(&at).to_string();
@@ -462,6 +558,12 @@ fn ApplCard(appl: ApplianceDetail) -> impl IntoView {
         .and_then(|v| v.as_u64())
         .map(|y| y.to_string());
     let fuel = meta_str(m, "fuel_type");
+    let appl_id = appl.id;
+    let is_active = StatusFilter::Active.matches(&appl.status);
+    let show_retire = RwSignal::new(false);
+    let retire_reason = RwSignal::new(RetireReasonOpt::Replaced.as_str().to_string());
+    let retiring = RwSignal::new(false);
+    let retire_err = RwSignal::new(None::<String>);
 
     let make_model: Option<String> = match (make, model) {
         (Some(mk), Some(md)) => Some(format!("{mk} {md}")),
@@ -521,6 +623,70 @@ fn ApplCard(appl: ApplianceDetail) -> impl IntoView {
                     <span class="appl-date-val">{war_date}</span>
                 </div>
             </div>
+
+            {is_active.then(|| view! {
+                <div style="margin-top:0.75rem;">
+                    <Show when=move || !show_retire.get()>
+                        <button
+                            type="button"
+                            class="folio-btn folio-btn--ghost press"
+                            style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                            on:click=move |_| show_retire.set(true)
+                        >
+                            "Retire"
+                        </button>
+                    </Show>
+                    <Show when=move || show_retire.get()>
+                        <div style="display:flex;flex-direction:column;gap:0.4rem;">
+                            <select
+                                class="form-select"
+                                on:change=move |ev| retire_reason.set(event_target_value(&ev))
+                            >
+                                {RetireReasonOpt::ALL.iter().copied().map(|r| {
+                                    view! { <option value=r.as_str()>{r.label()}</option> }
+                                }).collect_view()}
+                            </select>
+                            <div style="display:flex;gap:0.35rem;">
+                                <button
+                                    type="button"
+                                    class="folio-btn folio-btn--primary press"
+                                    style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                                    disabled=move || retiring.get()
+                                    on:click=move |_| {
+                                        let reason = retire_reason.get();
+                                        retiring.set(true);
+                                        retire_err.set(None);
+                                        spawn_local(async move {
+                                            match retire_unit_appliance(
+                                                appl_id.to_string(),
+                                                reason,
+                                                None,
+                                            ).await {
+                                                Ok(()) => on_retired.update(|n| *n += 1),
+                                                Err(e) => retire_err.set(Some(e.to_string())),
+                                            }
+                                            retiring.set(false);
+                                        });
+                                    }
+                                >
+                                    {move || if retiring.get() { "Retiring…" } else { "Confirm retire" }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="folio-btn folio-btn--ghost press"
+                                    style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                                    on:click=move |_| show_retire.set(false)
+                                >
+                                    "Cancel"
+                                </button>
+                            </div>
+                            {move || retire_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.75rem;">{e}</p>
+                            })}
+                        </div>
+                    </Show>
+                </div>
+            })}
         </div>
     }
 }
@@ -551,6 +717,7 @@ pub fn UnitAppliances() -> impl IntoView {
     let refetch_count = RwSignal::new(0u32);
     let appliances = Resource::new(move || refetch_count.get(), |_| fetch_appliances());
     let search = RwSignal::new(String::new());
+    let status_filter = RwSignal::new(StatusFilter::Active);
     let cat_filter = RwSignal::new(ApplianceCategory::All);
     let show_add = RwSignal::new(false);
     let new_unit = RwSignal::new(String::new());
@@ -644,6 +811,18 @@ pub fn UnitAppliances() -> impl IntoView {
                     />
                 </div>
                 <div class="appl-chips">
+                    {[StatusFilter::Active, StatusFilter::Inactive, StatusFilter::All]
+                        .iter()
+                        .map(|&f| view! {
+                            <button
+                                class=move || if status_filter.get() == f {
+                                    "appl-chip appl-chip--active"
+                                } else { "appl-chip" }
+                                on:click=move |_| status_filter.set(f)>
+                                {f.label()}
+                            </button>
+                        })
+                        .collect::<Vec<_>>()}
                     {[
                         ApplianceCategory::All,
                         ApplianceCategory::Kitchen,
@@ -678,10 +857,13 @@ pub fn UnitAppliances() -> impl IntoView {
                     Ok(data) => {
                         let q  = search.get().to_lowercase();
                         let cf = cat_filter.get();
+                        let sf = status_filter.get();
                         let mut filtered: Vec<ApplianceDetail> = data.into_iter()
                             .filter(|a| {
                                 let at = appliance_type(a);
-                                cf.matches(&at) && (q.is_empty() || a.name.to_lowercase().contains(&q))
+                                sf.matches(&a.status)
+                                    && cf.matches(&at)
+                                    && (q.is_empty() || a.name.to_lowercase().contains(&q))
                             })
                             .collect();
 
@@ -707,7 +889,7 @@ pub fn UnitAppliances() -> impl IntoView {
                             view! {
                                 <div class="appl-grid">
                                     {filtered.into_iter().map(|appl| view! {
-                                        <ApplCard appl=appl />
+                                        <ApplCard appl=appl on_retired=refetch_count />
                                     }).collect::<Vec<_>>()}
                                 </div>
                             }.into_any()
