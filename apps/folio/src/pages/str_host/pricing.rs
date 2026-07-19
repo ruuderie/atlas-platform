@@ -108,8 +108,6 @@ fn fmt_price(cents: i64) -> String {
 #[component]
 pub fn StrPricingRules() -> impl IntoView {
     let rules = default_rules();
-    let show_add = RwSignal::new(false);
-    let saved = RwSignal::new(false);
 
     let catalog_res = Resource::new(|| (), |_| fetch_str_catalog());
 
@@ -118,18 +116,9 @@ pub fn StrPricingRules() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Pricing Rules"</h1>
-                    <p class="page-subtitle">"Configure dynamic pricing adjustments across your STR listings"</p>
-                </div>
-                <div class="page-actions">
-                    <button class="btn btn-primary btn-sm" on:click=move |_| show_add.set(true)>
-                        "+ Add Rule"
-                    </button>
+                    <p class="page-subtitle">"Base prices from catalog. Custom rate rules cannot be saved yet."</p>
                 </div>
             </div>
-
-            {move || if saved.get() {
-                view! { <div class="alert-saved-toast">"✓ Rule saved (POST to /api/folio/catalog/:id/rate-rules in Phase 7)"</div> }.into_any()
-            } else { ().into_any() }}
 
             // ── Base prices per listing ──
             <div class="owner-section">
@@ -186,43 +175,10 @@ pub fn StrPricingRules() -> impl IntoView {
                 </div>
             </div>
 
-            // ── Add Rule Modal ──
-            <Show when=move || show_add.get()>
-                <div class="modal-backdrop">
-                    <div class="modal-card" style="max-width:28rem;">
-                        <div class="modal-header">
-                            <h3 class="modal-title">"New Pricing Rule"</h3>
-                            <button class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
-                        </div>
-                        <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Rule Name"</label>
-                                <input type="text" class="form-input" placeholder="Weekend Premium" />
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"Trigger"</label>
-                                <select class="form-select">
-                                    <option>"Weekend (Fri–Sun)"</option>
-                                    <option>"Last Minute (< 3 days)"</option>
-                                    <option>"Weekly (7+ nights)"</option>
-                                    <option>"Monthly (28+ nights)"</option>
-                                    <option>"High Season (custom dates)"</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"Adjustment (%)"</label>
-                                <input type="number" class="form-input" placeholder="20 (positive = increase)" />
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
-                            <button class="btn btn-primary" on:click=move |_| {
-                                show_add.set(false); saved.set(true);
-                            }>"Save Rule"</button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
+            <div class="syndic-notice" style="margin-top:1rem;">
+                <span class="syndic-notice-icon">"⚡"</span>
+                <span>"Example rules above are illustrative. Saving custom rate rules is not available yet."</span>
+            </div>
 
         </div>
     }

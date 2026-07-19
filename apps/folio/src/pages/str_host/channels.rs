@@ -83,32 +83,19 @@ pub fn StrChannelManager() -> impl IntoView {
         s
     });
 
-    let show_keys = RwSignal::new(None::<&'static str>); // which channel's keys modal is open
-    let saved = RwSignal::new(false);
-
     view! {
         <div class="main-area">
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Channel Manager"</h1>
-                    <p class="page-subtitle">"Connect OTA channels and manage real-time availability sync"</p>
-                </div>
-                <div class="page-actions">
-                    <button
-                        class="btn btn-primary btn-sm"
-                        on:click=move |_| saved.set(true)
-                    >"Save Preferences"</button>
+                    <p class="page-subtitle">"OTA channel destinations (read-only — credentials sync not available yet)"</p>
                 </div>
             </div>
-
-            {move || if saved.get() {
-                view! { <div class="alert-saved-toast">"✓ Channel preferences saved (sync credentials via API in Phase 7)"</div> }.into_any()
-            } else { ().into_any() }}
 
             // ── Atlas always-on ──
             <div class="syndic-notice">
                 <span class="syndic-notice-icon">"⚡"</span>
-                <span>"Atlas Network STR channel is always active with zero channel fees."</span>
+                <span>"Atlas Network STR channel is always active. Other channel preferences cannot be saved here yet."</span>
             </div>
 
             // ── KPIs ──
@@ -159,67 +146,18 @@ pub fn StrChannelManager() -> impl IntoView {
                                         type="checkbox"
                                         class="syndic-toggle-input"
                                         prop:checked=move || enabled.get().contains(ch_id)
-                                        disabled=is_atlas
-                                        on:change=move |ev: web_sys::Event| {
-                                            let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
-                                            if let Some(el) = el {
-                                                enabled.update(|s| {
-                                                    if el.checked() { s.insert(ch_id); }
-                                                    else { s.remove(ch_id); }
-                                                });
-                                                saved.set(false);
-                                            }
-                                        }
+                                        disabled=true
                                     />
                                     <span class="syndic-toggle-track"></span>
                                 </label>
                                 <span class="syndic-toggle-label">
-                                    {move || if enabled.get().contains(ch_id) { "Connected" } else { "Disabled" }}
+                                    {if is_atlas { "Connected" } else { "Not available" }}
                                 </span>
-                                {if !is_atlas {
-                                    view! {
-                                        <button
-                                            class="btn btn-ghost btn-sm"
-                                            style="margin-left:auto;"
-                                            on:click=move |_| show_keys.set(Some(ch_id))
-                                        >"🔑 API Keys"</button>
-                                    }.into_any()
-                                } else { ().into_any() }}
                             </div>
                         </div>
                     }
                 }).collect::<Vec<_>>()}
             </div>
-
-            // ── API Keys Modal ──
-            <Show when=move || show_keys.get().is_some()>
-                <div class="modal-backdrop">
-                    <div class="modal-card" style="max-width:28rem;">
-                        <div class="modal-header">
-                            <h3 class="modal-title">"🔑 " {move || show_keys.get().unwrap_or("")} " API Credentials"</h3>
-                            <button class="modal-close" on:click=move |_| show_keys.set(None)>"✕"</button>
-                        </div>
-                        <div class="modal-body space-y-4">
-                            <div class="viol-info-banner">
-                                <span class="viol-info-icon">"🔒"</span>
-                                <p class="viol-info-text">"Credentials are stored encrypted in the platform secrets vault. Never enter credentials into untrusted pages."</p>
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"API Key"</label>
-                                <input type="password" class="form-input" placeholder="••••••••••••••••" />
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"API Secret / Channel ID"</label>
-                                <input type="password" class="form-input" placeholder="••••••••••••••••" />
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_keys.set(None)>"Cancel"</button>
-                            <button class="btn btn-primary" on:click=move |_| show_keys.set(None)>"Save Credentials"</button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
 
         </div>
     }

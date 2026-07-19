@@ -210,7 +210,7 @@ pub fn LandlordDeals() -> impl IntoView {
                 <span class="folio-related__label">"Related"</span>
                 <ul class="folio-related__list">
                     <li><a class="folio-related__link press" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a></li>
-                    <li><a class="folio-related__link press" href="/l/wholesaling">"Wholesaling"</a></li>
+                    <li><a class="folio-related__link press" href="/l/deals?track=wholesale">"Wholesaling"</a></li>
                 </ul>
             </nav>
 

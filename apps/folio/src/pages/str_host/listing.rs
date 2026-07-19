@@ -65,11 +65,10 @@ pub fn StrListingDetail() -> impl IntoView {
     let params = use_params_map();
     let asset_id = params.get().get("id").unwrap_or_default();
 
-    // Editable fields (local state — save wires to backend in Phase 7)
+    // Read-only listing fields until catalog PATCH is wired.
     let headline = RwSignal::new(String::new());
     let description = RwSignal::new(String::new());
     let loaded = RwSignal::new(false);
-    let saved = RwSignal::new(false);
 
     let listing_res = Resource::new(move || asset_id.clone(), |id| fetch_str_listing(id));
 
@@ -79,20 +78,9 @@ pub fn StrListingDetail() -> impl IntoView {
                 <div>
                     <a href="/s" class="back-link">"← STR Dashboard"</a>
                     <h1 class="page-title">"Listing Detail"</h1>
-                    <p class="page-subtitle">"Manage your STR listing content and settings"</p>
-                </div>
-                <div class="page-actions">
-                    <button
-                        class="btn btn-primary btn-sm"
-                        disabled=move || !loaded.get()
-                        on:click=move |_| saved.set(true)
-                    >"Save Changes"</button>
+                    <p class="page-subtitle">"Listing content (read-only — edits are not saved yet)"</p>
                 </div>
             </div>
-
-            {move || if saved.get() {
-                view! { <div class="alert-saved-toast">"✓ Listing saved (Phase 7 will persist to backend)"</div> }.into_any()
-            } else { ().into_any() }}
 
             <Suspense fallback=|| view! { <div class="doc-empty">"Loading listing…"</div> }>
                 {move || listing_res.get().map(|res| {
@@ -123,7 +111,7 @@ pub fn StrListingDetail() -> impl IntoView {
                                         <label class="form-label">"Listing Headline"</label>
                                         <input type="text" class="form-input" placeholder="Cozy downtown loft…"
                                             prop:value=move || headline.get()
-                                            on:input=move |ev| { headline.set(event_target_value(&ev)); saved.set(false); }
+                                            prop:readonly=true
                                         />
                                     </div>
 
@@ -132,7 +120,7 @@ pub fn StrListingDetail() -> impl IntoView {
                                         <label class="form-label">"Description"</label>
                                         <textarea class="form-input str-listing-textarea"
                                             placeholder="Describe your space…"
-                                            on:input=move |ev| { description.set(event_target_value(&ev)); saved.set(false); }
+                                            prop:readonly=true
                                         >
                                             {move || description.get()}
                                         </textarea>

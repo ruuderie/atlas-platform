@@ -109,13 +109,7 @@ fn all_channels() -> Vec<Channel> {
 
 #[component]
 pub fn LandlordSyndication() -> impl IntoView {
-    // Preview toggles only — no landlord-facing channel-prefs API yet.
-    let enabled_channels: RwSignal<std::collections::HashSet<&'static str>> = RwSignal::new({
-        let mut s = std::collections::HashSet::new();
-        s.insert("atlas_network");
-        s
-    });
-    let save_msg = RwSignal::new(String::new());
+    // Read-only channel catalog — no landlord-facing channel-prefs persist API yet.
     let catalog = Resource::new(|| (), |_| async move { list_catalog_entries().await });
     let channels = all_channels();
 
@@ -125,35 +119,17 @@ pub fn LandlordSyndication() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Syndication"</h1>
-                    <p class="page-subtitle">"Listing inventory and channel destinations"</p>
+                    <p class="page-subtitle">"Listing inventory and channel destinations (read-only)"</p>
                 </div>
                 <div class="page-actions">
-                    <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordCatalog.path()>"Open catalog"</a>
-                    <button
-                        class="btn btn-primary btn-sm"
-                        on:click=move |_| {
-                            save_msg.set(
-                                "Channel preferences are not persisted yet — no landlord syndication API. Atlas Network remains the live destination for catalog listings.".into(),
-                            );
-                        }
-                    >
-                        "Save Preferences"
-                    </button>
+                    <a class="btn btn-primary btn-sm" href=FolioRoute::LandlordCatalog.path()>"Open catalog"</a>
                 </div>
             </div>
 
-            <Show when=move || !save_msg.get().is_empty()>
-                <div class="syndic-notice" style="margin-bottom:1rem;">
-                    <span>{move || save_msg.get()}</span>
-                </div>
-            </Show>
-
             <div class="kpi-row" style="margin-bottom:1.25rem;">
                 <div class="kpi-card">
-                    <span class="kpi-label">"Active Channels (preview)"</span>
-                    <span class="kpi-value" style="color:var(--green)">
-                        {move || enabled_channels.get().len().to_string()}
-                    </span>
+                    <span class="kpi-label">"Active channel"</span>
+                    <span class="kpi-value" style="color:var(--green)">"1"</span>
                 </div>
                 <div class="kpi-card">
                     <span class="kpi-label">"Available Networks"</span>
@@ -175,7 +151,7 @@ pub fn LandlordSyndication() -> impl IntoView {
 
             <div class="syndic-notice">
                 <span class="syndic-notice-icon">"⚡"</span>
-                <span>"Atlas Network syndication is always active for your catalog listings. External channel toggles below are preview-only until a landlord prefs API ships."</span>
+                <span>"Atlas Network is active for catalog listings. Other channels are shown for reference — channel preferences are not configurable here yet. Manage listings in Catalog."</span>
             </div>
 
             // ── Channel groups ──
@@ -216,9 +192,7 @@ pub fn LandlordSyndication() -> impl IntoView {
                                     let is_atlas = ch_id == "atlas_network";
 
                                     view! {
-                                        <div class=move || format!("syndic-card {}",
-                                            if enabled_channels.get().contains(ch_id) { "syndic-card--on" } else { "" }
-                                        )>
+                                        <div class=format!("syndic-card {}", if is_atlas { "syndic-card--on" } else { "" })>
                                             <div class="syndic-card-top">
                                                 <span class="syndic-card-icon">{ch_icon}</span>
                                                 <div class="syndic-card-meta">
@@ -227,27 +201,15 @@ pub fn LandlordSyndication() -> impl IntoView {
                                                 </div>
                                             </div>
                                             <div class="syndic-card-toggle-row">
-                                                <label class="syndic-toggle-wrap">
-                                                    <input
-                                                        type="checkbox"
-                                                        class="syndic-toggle-input"
-                                                        prop:checked=move || enabled_channels.get().contains(ch_id)
-                                                        disabled=is_atlas
-                                                        on:change=move |ev: web_sys::Event| {
-                                                            let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
-                                                            if let Some(el) = el {
-                                                                enabled_channels.update(|s| {
-                                                                    if el.checked() { s.insert(ch_id); }
-                                                                    else { s.remove(ch_id); }
-                                                                });
-                                                            }
-                                                        }
-                                                    />
-                                                    <span class="syndic-toggle-track"></span>
-                                                </label>
                                                 <span class="syndic-toggle-label">
-                                                    {move || if enabled_channels.get().contains(ch_id) { "Active" } else { "Inactive" }}
+                                                    {if is_atlas { "Active" } else { "Not configured" }}
                                                 </span>
+                                                <a
+                                                    class="btn btn-ghost btn-sm"
+                                                    href=FolioRoute::LandlordCatalog.path()
+                                                >
+                                                    "Catalog"
+                                                </a>
                                             </div>
                                         </div>
                                     }

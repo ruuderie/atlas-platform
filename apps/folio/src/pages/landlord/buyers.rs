@@ -44,6 +44,12 @@ pub fn LandlordBuyers() -> impl IntoView {
                 </div>
                 <div class="page-actions">
                     <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordDeals.path()>"← Deals"</a>
+                    <a
+                        class="btn btn-primary btn-sm"
+                        href=format!("{}?mode=dispose", FolioRoute::LandlordDeals.path())
+                    >
+                        "New disposition"
+                    </a>
                 </div>
             </div>
 
@@ -61,7 +67,14 @@ pub fn LandlordBuyers() -> impl IntoView {
                         if buyers.is_empty() {
                             view! {
                                 <div class="doc-empty">
-                                    "No buyer leads yet. Create from Deal Ops → Disposition → + New."
+                                    <p>"No buyer leads yet."</p>
+                                    <a
+                                        class="btn btn-primary btn-sm"
+                                        style="margin-top:0.75rem;display:inline-block;"
+                                        href=format!("{}?mode=dispose", FolioRoute::LandlordDeals.path())
+                                    >
+                                        "Open Deal Ops disposition"
+                                    </a>
                                 </div>
                             }.into_any()
                         } else {

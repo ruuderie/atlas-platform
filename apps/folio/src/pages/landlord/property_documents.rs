@@ -86,7 +86,18 @@ pub fn PropertyDocuments() -> impl IntoView {
                 title=Signal::derive(|| "Documents & expenses".to_string())
                 subtitle=Signal::derive(|| "Vault files + paid work-order costs".to_string())
             >
-                <a class="folio-btn folio-btn--primary" href=FolioRoute::LandlordVault.path()>"Open vault"</a>
+                <a
+                    class="folio-btn folio-btn--primary"
+                    href=move || {
+                        format!(
+                            "{}?entity_type=atlas_assets&entity_id={}",
+                            FolioRoute::LandlordVault.path(),
+                            asset_id.get()
+                        )
+                    }
+                >
+                    "Upload for this property"
+                </a>
             </PageHeader>
             {move || {
                 let id = asset_id.get();
@@ -112,7 +123,7 @@ pub fn PropertyDocuments() -> impl IntoView {
                     Some(Ok(list)) if list.is_empty() => view! {
                         <div class="folio-empty">
                             <p>"No documents or expenses for this property yet."</p>
-                            <p class="proj-section__hint">"Upload to the vault or complete paid work orders."</p>
+                            <p class="proj-section__hint">"Upload a file for this property, or log paid work orders to show expenses here."</p>
                         </div>
                     }.into_any(),
                     Some(Ok(list)) => view! {

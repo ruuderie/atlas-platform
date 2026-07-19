@@ -3,8 +3,6 @@
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
-use crate::components::photo_lightbox::{PhotoItem, PhotoStrip};
-use crate::components::status_pill::{StatusPill, StatusPillTone};
 use crate::pages::tenant::ratings::PendingRatingsPage;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
@@ -19,7 +17,8 @@ pub fn LandlordRatings() -> impl IntoView {
             <PageHeader
                 title=Signal::derive(|| "Rate contractors".to_string())
                 subtitle=Signal::derive(|| {
-                    "Rate contractors after work orders finish — job photos as evidence.".to_string()
+                    "Rate contractors after work orders finish. Job photos appear on each session when available."
+                        .to_string()
                 })
             />
             {move || project_note.get().map(|pid| {
@@ -33,24 +32,6 @@ pub fn LandlordRatings() -> impl IntoView {
                     </p>
                 }
             })}
-
-            <section class="ratings-session" style="margin-bottom:1.5rem;">
-                <div class="ratings-session__head">
-                    <div>
-                        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                            <strong>"Pending contractor sessions"</strong>
-                            <StatusPill label="Ratings".to_string() tone=StatusPillTone::Info/>
-                        </div>
-                        <p class="proj-section__hint" style="margin-top:0.35rem;">
-                            "Rate quality using job photos"
-                        </p>
-                    </div>
-                </div>
-                <div class="ratings-photos">
-                    <p class="proj-section__hint" style="margin-bottom:0.5rem;">"Job photos (from selected session)"</p>
-                    <PhotoStrip photos=Signal::derive(|| Vec::<PhotoItem>::new())/>
-                </div>
-            </section>
 
             <PendingRatingsPage
                 title="Sessions"

@@ -153,7 +153,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                     <div class="acct-plan-desc">"Unlimited assets · Advanced analytics · Priority support"</div>
                 </div>
                 <div class="acct-plan-actions">
-                    <button class="btn btn-ghost btn-sm" disabled=true title="Billing portal (Phase 7)">"Manage Plan"</button>
+                    <span class="btn btn-ghost btn-sm" style="opacity:0.55;cursor:default;" title="Plan management is not available yet">"Not available"</span>
                 </div>
             </div>
 
@@ -203,7 +203,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                             <div class="acct-pm-label">"Stripe"</div>
                             <div class="acct-pm-sub">"Credit / debit card · Automatic billing"</div>
                         </div>
-                        <button class="btn btn-ghost btn-sm">"Configure"</button>
+                        <span class="btn btn-ghost btn-sm" style="opacity:0.55;cursor:default;">"Not available"</span>
                     </div>
                     <div class="acct-pm-card">
                         <span class="acct-pm-icon">"₿"</span>
@@ -211,7 +211,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                             <div class="acct-pm-label">"Bitcoin Lightning"</div>
                             <div class="acct-pm-sub">"Self-sovereign payments via on-chain or Lightning"</div>
                         </div>
-                        <button class="btn btn-ghost btn-sm">"Configure"</button>
+                        <span class="btn btn-ghost btn-sm" style="opacity:0.55;cursor:default;">"Not available"</span>
                     </div>
                 </div>
             </div>
@@ -299,9 +299,13 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                         <div class="text-sm font-semibold">"Cancel Subscription"</div>
                         <div class="text-xs text-on-surface-variant">"Data retained for 90 days after cancellation."</div>
                     </div>
-                    <button class="btn btn-sm" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;" disabled=true>
-                        "Contact Support"
-                    </button>
+                    <span
+                        class="btn btn-sm"
+                        style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;opacity:0.55;cursor:default;"
+                        title="Cancellation support is not available in-app yet"
+                    >
+                        "Not available"
+                    </span>
                 </div>
             </div>
 

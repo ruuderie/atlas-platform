@@ -139,7 +139,13 @@ pub fn StrCalendar() -> impl IntoView {
                 </div>
                 <div class="page-actions">
                     <a href="/s/reservations" class="btn btn-ghost btn-sm">"List View"</a>
-                    <button class="btn btn-primary btn-sm" disabled=true>"+ Block Dates"</button>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        disabled=true
+                        title="Blocking dates is not available yet"
+                    >
+                        "Block dates (not available)"
+                    </button>
                 </div>
             </div>
 
