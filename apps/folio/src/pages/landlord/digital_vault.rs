@@ -94,6 +94,115 @@ fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
     crate::auth::extract_bearer_token(headers)
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct VaultEntityOpt {
+    id: Uuid,
+    label: String,
+}
+
+#[cfg(feature = "ssr")]
+async fn load_vault_entity_opts(
+    entity_type: &str,
+    token: &str,
+) -> Result<Vec<VaultEntityOpt>, String> {
+    match entity_type {
+        "atlas_assets" => {
+            #[derive(Deserialize)]
+            struct Raw {
+                id: Uuid,
+                name: String,
+            }
+            let rows: Vec<Raw> =
+                crate::atlas_client::authenticated_get("/api/folio/assets", token, None).await?;
+            Ok(rows
+                .into_iter()
+                .map(|r| VaultEntityOpt {
+                    id: r.id,
+                    label: r.name,
+                })
+                .collect())
+        }
+        "atlas_contracts" => {
+            #[derive(Deserialize)]
+            struct Raw {
+                id: Uuid,
+                status: String,
+                start_date: Option<chrono::NaiveDate>,
+            }
+            let rows: Vec<Raw> =
+                crate::atlas_client::authenticated_get("/api/folio/leases", token, None).await?;
+            Ok(rows
+                .into_iter()
+                .map(|r| VaultEntityOpt {
+                    id: r.id,
+                    label: format!(
+                        "{} · {}",
+                        r.status.replace('_', " "),
+                        r.start_date
+                            .map(|d| d.to_string())
+                            .unwrap_or_else(|| "—".into())
+                    ),
+                })
+                .collect())
+        }
+        "atlas_applications" => {
+            #[derive(Deserialize)]
+            struct Raw {
+                id: Uuid,
+                status: String,
+                submitted_at: Option<chrono::DateTime<chrono::Utc>>,
+            }
+            let rows: Vec<Raw> =
+                crate::atlas_client::authenticated_get("/api/folio/applications", token, None)
+                    .await?;
+            Ok(rows
+                .into_iter()
+                .map(|r| VaultEntityOpt {
+                    id: r.id,
+                    label: format!(
+                        "Application · {} · {}",
+                        r.status.replace('_', " "),
+                        r.submitted_at
+                            .map(|d| d.date_naive().to_string())
+                            .unwrap_or_else(|| "—".into())
+                    ),
+                })
+                .collect())
+        }
+        "atlas_service_providers" => {
+            #[derive(Deserialize)]
+            struct Raw {
+                id: Uuid,
+                business_name: String,
+            }
+            let rows: Vec<Raw> =
+                crate::atlas_client::authenticated_get("/api/folio/vendors", token, None).await?;
+            Ok(rows
+                .into_iter()
+                .map(|r| VaultEntityOpt {
+                    id: r.id,
+                    label: r.business_name,
+                })
+                .collect())
+        }
+        _ => Ok(Vec::new()),
+    }
+}
+
+#[server(ListVaultEntityOptions, "/api")]
+async fn list_vault_entity_options(
+    entity_type: String,
+) -> Result<Vec<VaultEntityOpt>, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    load_vault_entity_opts(&entity_type, &token)
+        .await
+        .map_err(server_fn::error::ServerFnError::new)
+}
+
 #[server(LLFetchVaultDocs, "/api")]
 pub async fn ll_fetch_vault_docs(
     entity_type: Option<String>,
@@ -340,13 +449,17 @@ pub fn LandlordDigitalVault() -> impl IntoView {
     });
 
     let docs_res = Resource::new(move || refresh.get(), |_| ll_fetch_vault_docs(None));
+    let entity_opts = Resource::new(
+        move || reg_entity_type.get(),
+        |et| async move { list_vault_entity_options(et).await },
+    );
 
     let on_register = move |_| {
         let entity_type = reg_entity_type.get().trim().to_string();
         let entity_id = reg_entity_id.get().trim().to_string();
         let document_type = reg_doc_type.get();
         if entity_type.is_empty() || entity_id.is_empty() {
-            reg_err.set(Some("Entity type and entity ID are required.".into()));
+            reg_err.set(Some("Choose what this document belongs to.".into()));
             return;
         }
         let Some(input) = file_input_el.get() else {
@@ -581,26 +694,47 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                 }}
                             </div>
                             <div class="form-field">
-                                <label class="form-label">"Entity Type *"</label>
+                                <label class="form-label">"Belongs to *"</label>
                                 <select
                                     class="form-select"
-                                    on:change=move |ev| reg_entity_type.set(event_target_value(&ev))
+                                    prop:value=move || reg_entity_type.get()
+                                    on:change=move |ev| {
+                                        reg_entity_type.set(event_target_value(&ev));
+                                        reg_entity_id.set(String::new());
+                                    }
                                 >
-                                    <option value="atlas_assets">"Asset"</option>
-                                    <option value="atlas_contracts">"Lease / contract"</option>
+                                    <option value="atlas_assets">"Property / unit"</option>
+                                    <option value="atlas_contracts">"Lease"</option>
                                     <option value="atlas_applications">"Application"</option>
                                     <option value="atlas_service_providers">"Vendor"</option>
                                 </select>
                             </div>
                             <div class="form-field">
-                                <label class="form-label">"Entity ID (UUID) *"</label>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder="Related entity UUID"
-                                    prop:value=reg_entity_id
-                                    on:input=move |ev| reg_entity_id.set(event_target_value(&ev))
-                                />
+                                <label class="form-label">"Record *"</label>
+                                <Suspense fallback=|| view! { <p class="folio-empty__sub">"Loading…"</p> }>
+                                    {move || entity_opts.get().map(|res| match res {
+                                        Ok(list) if list.is_empty() => view! {
+                                            <p class="folio-empty__sub">"Nothing to attach to yet for this type."</p>
+                                        }.into_any(),
+                                        Ok(list) => view! {
+                                            <select
+                                                class="form-select"
+                                                prop:value=move || reg_entity_id.get()
+                                                on:change=move |ev| reg_entity_id.set(event_target_value(&ev))
+                                            >
+                                                <option value="">"Select…"</option>
+                                                {list.into_iter().map(|o| {
+                                                    let id = o.id.to_string();
+                                                    let label = o.label;
+                                                    view! { <option value=id>{label}</option> }
+                                                }).collect_view()}
+                                            </select>
+                                        }.into_any(),
+                                        Err(e) => view! {
+                                            <p class="text-red-400" style="font-size:0.875rem;">{e.to_string()}</p>
+                                        }.into_any(),
+                                    })}
+                                </Suspense>
                             </div>
                             <div class="form-field">
                                 <label class="form-label">"Document Type *"</label>
@@ -659,7 +793,7 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                             <dt>"Entity Type"</dt><dd>{et}</dd>
                                         })}
                                         {doc.related_entity_id.map(|eid| view! {
-                                            <dt>"Entity ID"</dt>
+                                            <dt>"Linked record"</dt>
                                             <dd class="font-mono text-xs opacity-60">{eid.to_string()}</dd>
                                         })}
                                     </dl>

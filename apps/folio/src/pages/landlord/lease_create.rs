@@ -76,9 +76,106 @@ struct AssetOpt {
     name: String,
 }
 
+/// People a landlord can put on a live lease — never typed as raw UUIDs.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TenantCandidate {
+    pub user_id: Uuid,
+    pub label: String,
+    pub source: String,
+}
+
 #[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
     crate::auth::extract_bearer_token(headers)
+}
+
+/// Applicants + prior lease counterparties, labeled by name/email.
+#[server(ListTenantCandidates, "/api")]
+pub async fn list_tenant_candidates() -> Result<Vec<TenantCandidate>, ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    use std::collections::HashMap;
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers).ok_or_else(|| ServerFnError::new("No session token"))?;
+
+    #[derive(Deserialize)]
+    struct AppRow {
+        applicant_user_id: Uuid,
+        status: String,
+    }
+    #[derive(Deserialize)]
+    struct LeaseRow {
+        counterparty_user_id: Option<Uuid>,
+        status: String,
+    }
+    #[derive(Deserialize)]
+    struct UserRow {
+        id: Uuid,
+        first_name: String,
+        last_name: String,
+        email: String,
+    }
+
+    let apps: Vec<AppRow> =
+        crate::atlas_client::authenticated_get("/api/folio/applications", &token, None)
+            .await
+            .unwrap_or_default();
+    let leases: Vec<LeaseRow> =
+        crate::atlas_client::authenticated_get("/api/folio/leases", &token, None)
+            .await
+            .unwrap_or_default();
+
+    let mut sources: HashMap<Uuid, String> = HashMap::new();
+    for a in apps {
+        sources
+            .entry(a.applicant_user_id)
+            .or_insert_with(|| format!("Application · {}", a.status.replace('_', " ")));
+    }
+    for l in leases {
+        if let Some(uid) = l.counterparty_user_id {
+            sources
+                .entry(uid)
+                .or_insert_with(|| format!("Prior lease · {}", l.status.replace('_', " ")));
+        }
+    }
+
+    let mut out = Vec::new();
+    for (uid, source) in sources {
+        let label = match crate::atlas_client::authenticated_get::<UserRow>(
+            &format!("/api/folio/users/{uid}"),
+            &token,
+            None,
+        )
+        .await
+        {
+            Ok(u) => {
+                let name = format!("{} {}", u.first_name, u.last_name)
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if u.email.is_empty() {
+                    if name.is_empty() {
+                        source.clone()
+                    } else {
+                        format!("{name} · {source}")
+                    }
+                } else if name.is_empty() {
+                    format!("{} · {source}", u.email)
+                } else {
+                    format!("{name} · {} · {source}", u.email)
+                }
+            }
+            Err(_) => source.clone(),
+        };
+        out.push(TenantCandidate {
+            user_id: uid,
+            label,
+            source,
+        });
+    }
+    out.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
+    Ok(out)
 }
 
 #[server(ListAssetsForLeaseCreate, "/api")]
@@ -141,6 +238,7 @@ pub fn LeaseCreate() -> impl IntoView {
     let q = use_query_map();
     let navigate = use_navigate();
     let assets = Resource::new(|| (), |_| list_assets_for_lease_create());
+    let tenants = Resource::new(|| (), |_| list_tenant_candidates());
 
     let asset_id = RwSignal::new(String::new());
     let counterparty = RwSignal::new(String::new());
@@ -163,7 +261,7 @@ pub fn LeaseCreate() -> impl IntoView {
 
     let title = Signal::derive(|| "New lease".to_string());
     let subtitle = Signal::derive(|| {
-        "Create a rental contract against a unit. Tenant must already have an Atlas account."
+        "Create a rental contract against a unit. Pick a tenant from applicants or prior leases."
             .to_string()
     });
 
@@ -185,7 +283,7 @@ pub fn LeaseCreate() -> impl IntoView {
                         return;
                     };
                     let Ok(cid) = Uuid::parse_str(counterparty.get().trim()) else {
-                        error.set(Some("Enter a valid tenant user UUID.".into()));
+                        error.set(Some("Select a tenant.".into()));
                         return;
                     };
                     let rent_cents = match rent.get().trim().parse::<f64>() {
@@ -247,7 +345,7 @@ pub fn LeaseCreate() -> impl IntoView {
                                     {list.into_iter().map(|a| {
                                         let id = a.id.to_string();
                                         let name = a.name;
-                                        view! { <option value=id.clone()>{name} " (" {id.clone()} ")"</option> }
+                                        view! { <option value=id>{name}</option> }
                                     }).collect_view()}
                                 </select>
                             }.into_any(),
@@ -257,14 +355,31 @@ pub fn LeaseCreate() -> impl IntoView {
                 </label>
 
                 <label class="folio-field">
-                    <span class="folio-field__label">"Tenant user ID"</span>
-                    <input
-                        class="folio-input"
-                        type="text"
-                        placeholder="UUID of counterparty user"
-                        prop:value=move || counterparty.get()
-                        on:input=move |e| counterparty.set(event_target_value(&e))
-                    />
+                    <span class="folio-field__label">"Tenant"</span>
+                    <Suspense fallback=|| view! { <p class="folio-muted">"Loading people…"</p> }>
+                        {move || tenants.get().map(|res| match res {
+                            Ok(list) if list.is_empty() => view! {
+                                <p class="folio-muted">
+                                    "No applicants or prior tenants yet. Approve an application first, or backfill an offline historical lease from the unit History tab."
+                                </p>
+                            }.into_any(),
+                            Ok(list) => view! {
+                                <select
+                                    class="folio-input"
+                                    prop:value=move || counterparty.get()
+                                    on:change=move |e| counterparty.set(event_target_value(&e))
+                                >
+                                    <option value="">"Select tenant…"</option>
+                                    {list.into_iter().map(|t| {
+                                        let id = t.user_id.to_string();
+                                        let label = t.label;
+                                        view! { <option value=id>{label}</option> }
+                                    }).collect_view()}
+                                </select>
+                            }.into_any(),
+                            Err(e) => view! { <p class="folio-error">{e.to_string()}</p> }.into_any(),
+                        })}
+                    </Suspense>
                 </label>
 
                 <div class="folio-form__row">

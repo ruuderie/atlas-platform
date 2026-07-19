@@ -4,6 +4,7 @@
 use crate::components::interruptible_sheet::InterruptibleSheet;
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
+use crate::pages::landlord::assets::{list_assets, AssetSummary};
 use leptos::prelude::*;
 use leptos_router::hooks::{use_navigate, use_query_map};
 use serde::Serialize;
@@ -122,6 +123,7 @@ pub fn WorkOrderCreate() -> impl IntoView {
     let cost = RwSignal::new(String::new());
     let error = RwSignal::new(Option::<String>::None);
     let saving = RwSignal::new(false);
+    let assets = Resource::new(|| (), |_| async move { list_assets().await });
 
     Effect::new(move |_| {
         let map = q.get();
@@ -129,6 +131,11 @@ pub fn WorkOrderCreate() -> impl IntoView {
             Some("paid") => mode.set(CreateMode::LogPaid),
             Some("schedule") => mode.set(CreateMode::Schedule),
             _ => {}
+        }
+        if let Some(aid) = map.get("asset_id") {
+            if !aid.is_empty() {
+                asset_id.set(aid);
+            }
         }
     });
 
@@ -158,9 +165,27 @@ pub fn WorkOrderCreate() -> impl IntoView {
                     <button type="button" class="folio-btn folio-btn--ghost" on:click=move |_| mode.set(CreateMode::Schedule)>"Schedule"</button>
                     <button type="button" class="folio-btn folio-btn--ghost" on:click=move |_| mode.set(CreateMode::LogPaid)>"Log paid"</button>
                 </div>
-                <label class="proj-section__hint">"Asset id (UUID)"</label>
-                <input class="landlord-search-input" style="width:100%;margin-bottom:0.75rem;" prop:value=move || asset_id.get()
-                    on:input=move |ev| asset_id.set(event_target_value(&ev))/>
+                <label class="proj-section__hint">"Unit / property"</label>
+                <Suspense fallback=|| view! { <p class="proj-section__hint">"Loading assets…"</p> }>
+                    {move || assets.get().map(|res| match res {
+                        Ok(list) => view! {
+                            <select
+                                class="landlord-search-input"
+                                style="width:100%;margin-bottom:0.75rem;"
+                                prop:value=move || asset_id.get()
+                                on:change=move |ev| asset_id.set(event_target_value(&ev))
+                            >
+                                <option value="">"Select…"</option>
+                                {list.into_iter().map(|a: AssetSummary| {
+                                    let id = a.id.to_string();
+                                    let name = a.name;
+                                    view! { <option value=id>{name}</option> }
+                                }).collect_view()}
+                            </select>
+                        }.into_any(),
+                        Err(e) => view! { <p style="color:#93000a;">{e.to_string()}</p> }.into_any(),
+                    })}
+                </Suspense>
                 <label class="proj-section__hint">"Subject"</label>
                 <input class="landlord-search-input" style="width:100%;margin-bottom:0.75rem;" prop:value=move || subject.get()
                     on:input=move |ev| subject.set(event_target_value(&ev))/>
@@ -173,8 +198,8 @@ pub fn WorkOrderCreate() -> impl IntoView {
                     <input class="landlord-search-input" style="width:100%;margin-bottom:0.75rem;" prop:value=move || cost.get()
                         on:input=move |ev| cost.set(event_target_value(&ev))/>
                 </Show>
-                {move || project_id.get().map(|pid| view! {
-                    <p class="proj-section__hint">{format!("Linked project: {pid}")}</p>
+                {move || project_id.get().map(|_| view! {
+                    <p class="proj-section__hint">"Linked to the open renovation project."</p>
                 })}
                 {move || error.get().map(|e| view! { <p style="color:#93000a;font-size:0.875rem;">{e}</p> })}
                 <button
@@ -184,7 +209,7 @@ pub fn WorkOrderCreate() -> impl IntoView {
                     on:click=move |_| {
                         error.set(None);
                         let Ok(aid) = Uuid::parse_str(&asset_id.get()) else {
-                            error.set(Some("Valid asset UUID required".into()));
+                            error.set(Some("Select a unit or property.".into()));
                             return;
                         };
                         let subj = subject.get();

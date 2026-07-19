@@ -218,20 +218,14 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                         if s.is_empty() {
                             None
                         } else {
-                            match Uuid::parse_str(&s) {
-                                Ok(u) => Some(u),
-                                Err(_) => {
-                                    error.set(Some("Related work order must be a valid UUID.".into()));
-                                    return;
-                                }
-                            }
+                            Uuid::parse_str(&s).ok()
                         }
                     };
                     pending.set(true);
                     spawn_local(async move {
                         match log_paid_with_related(aid, subj, desc, cents, related).await {
-                            Ok(id) => {
-                                success.set(Some(format!("Logged paid maintenance {id}")));
+                            Ok(_) => {
+                                success.set(Some("Logged paid maintenance.".into()));
                                 subject.set(String::new());
                                 cost.set(String::new());
                                 related_case.set(String::new());
@@ -276,13 +270,21 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                 </label>
                 <label class="folio-form__label">
                     "Related work order (optional)"
-                    <input
+                    <select
                         class="form-input"
-                        type="text"
-                        placeholder="Pick from list or paste UUID"
                         prop:value=move || related_case.get()
-                        on:input=move |ev| related_case.set(event_target_value(&ev))
-                    />
+                        on:change=move |ev| related_case.set(event_target_value(&ev))
+                    >
+                        <option value="">"None — standalone expense"</option>
+                        {move || {
+                            let list = tickets.get().and_then(|r| r.ok()).unwrap_or_default();
+                            list.into_iter().map(|t| {
+                                let id = t.id.to_string();
+                                let label = format!("{} · {}", t.subject, t.status);
+                                view! { <option value=id>{label}</option> }
+                            }).collect::<Vec<_>>()
+                        }}
+                    </select>
                 </label>
 
                 {move || error.get().map(|e| view! { <p style="color:#b91c1c;">{e}</p> })}

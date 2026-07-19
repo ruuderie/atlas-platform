@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
+use crate::pages::landlord::lease_create::list_tenant_candidates;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CounterpartyKind {
@@ -163,6 +164,7 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
     let end_date = RwSignal::new(String::new());
     let error = RwSignal::new(None::<String>);
     let pending = RwSignal::new(false);
+    let tenants = Resource::new(|| (), |_| list_tenant_candidates());
 
     let history_href = Memo::new(move |_| {
         FolioRoute::LandlordUnitHistory
@@ -214,7 +216,7 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                     let (uid, oname, ophone, oemail, onotes) = match k {
                         CounterpartyKind::AtlasUser => {
                             let Ok(u) = Uuid::parse_str(counterparty_user.get().trim()) else {
-                                error.set(Some("Enter a valid tenant user UUID.".into()));
+                                error.set(Some("Select a tenant.".into()));
                                 return;
                             };
                             (Some(u), None, None, None, None)
@@ -295,7 +297,7 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                             }
                             on:click=move |_| kind.set(CounterpartyKind::AtlasUser)
                         >
-                            "Atlas user"
+                            "Known tenant"
                         </button>
                     </div>
 
@@ -339,14 +341,31 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
 
                     <Show when=move || kind.get() == CounterpartyKind::AtlasUser>
                         <label class="folio-form__label">
-                            "Tenant user UUID"
-                            <input
-                                class="form-input"
-                                type="text"
-                                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                prop:value=move || counterparty_user.get()
-                                on:input=move |ev| counterparty_user.set(event_target_value(&ev))
-                            />
+                            "Tenant"
+                            <Suspense fallback=|| view! { <p class="proj-section__hint">"Loading people…"</p> }>
+                                {move || tenants.get().map(|res| match res {
+                                    Ok(list) if list.is_empty() => view! {
+                                        <p class="proj-section__hint">
+                                            "No applicants or prior tenants yet. Use Offline person for paper leases."
+                                        </p>
+                                    }.into_any(),
+                                    Ok(list) => view! {
+                                        <select
+                                            class="form-input"
+                                            prop:value=move || counterparty_user.get()
+                                            on:change=move |ev| counterparty_user.set(event_target_value(&ev))
+                                        >
+                                            <option value="">"Select tenant…"</option>
+                                            {list.into_iter().map(|t| {
+                                                let id = t.user_id.to_string();
+                                                let label = t.label;
+                                                view! { <option value=id>{label}</option> }
+                                            }).collect::<Vec<_>>()}
+                                        </select>
+                                    }.into_any(),
+                                    Err(e) => view! { <p style="color:#b91c1c;">{e.to_string()}</p> }.into_any(),
+                                })}
+                            </Suspense>
                         </label>
                     </Show>
                 </fieldset>

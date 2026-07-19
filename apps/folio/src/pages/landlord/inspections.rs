@@ -20,6 +20,8 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
+
 // ── API types (mirrors InspectionDetail from maintenance.rs handler) ──────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -325,6 +327,7 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
     let notes = RwSignal::new(String::new());
     let submitting = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
+    let assets = Resource::new(|| (), |_| async move { list_assets_for_picker().await });
 
     let close = move || {
         show.set(false);
@@ -335,7 +338,7 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
         let aid = asset_id.get();
         let sat = sched_at.get();
         if subj.trim().is_empty() || aid.trim().is_empty() || sat.trim().is_empty() {
-            error.set(Some("Subject, Asset ID, and Date are required.".into()));
+            error.set(Some("Subject, property, and date are required.".into()));
             return;
         }
         submitting.set(true);
@@ -380,10 +383,26 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
                             prop:value=move || subject.get()
                             on:input=move |e| subject.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Asset ID *"</label>
-                        <input class="insp-form-input" placeholder="UUID of asset"
-                            prop:value=move || asset_id.get()
-                            on:input=move |e| asset_id.set(event_target_value(&e)) />
+                        <label class="insp-form-label">"Property / unit *"</label>
+                        <Suspense fallback=|| view! { <p class="insp-form-label">"Loading…"</p> }>
+                            {move || assets.get().map(|res| match res {
+                                Ok(list) => view! {
+                                    <select
+                                        class="insp-form-input"
+                                        prop:value=move || asset_id.get()
+                                        on:change=move |e| asset_id.set(event_target_value(&e))
+                                    >
+                                        <option value="">"Select…"</option>
+                                        {list.into_iter().map(|a: AssetPickerItem| {
+                                            let id = a.id.to_string();
+                                            let name = a.name;
+                                            view! { <option value=id>{name}</option> }
+                                        }).collect_view()}
+                                    </select>
+                                }.into_any(),
+                                Err(e) => view! { <p class="insp-form-error">{e.to_string()}</p> }.into_any(),
+                            })}
+                        </Suspense>
 
                         <label class="insp-form-label">"Scheduled Date *"</label>
                         <input type="date" class="insp-form-input"

@@ -231,40 +231,9 @@ pub fn Vendors() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let refresh = RwSignal::new(0u32);
     let show_add = RwSignal::new(false);
-    let new_biz = RwSignal::new(String::new());
-    let new_trade = RwSignal::new(VendorTradeType::General.as_str().to_string());
-    let new_user_id = RwSignal::new(String::new());
-    let new_emerg = RwSignal::new(false);
-    let creating = RwSignal::new(false);
     let create_err = RwSignal::new(None::<String>);
 
     let vendors = Resource::new(move || refresh.get(), |_| async move { list_vendors().await });
-
-    let on_create = move |_| {
-        let biz = new_biz.get().trim().to_string();
-        let uid = new_user_id.get().trim().to_string();
-        if biz.is_empty() || uid.is_empty() {
-            create_err.set(Some("Business name and user ID are required.".into()));
-            return;
-        }
-        let trade = new_trade.get();
-        let emerg = new_emerg.get();
-        creating.set(true);
-        create_err.set(None);
-        spawn_local(async move {
-            match create_vendor(uid, biz, trade, emerg).await {
-                Ok(_) => {
-                    show_add.set(false);
-                    new_biz.set(String::new());
-                    new_user_id.set(String::new());
-                    new_emerg.set(false);
-                    refresh.update(|n| *n += 1);
-                }
-                Err(e) => create_err.set(Some(e.to_string())),
-            }
-            creating.set(false);
-        });
-    };
 
     view! {
         <div class="vendors-page">
@@ -288,7 +257,7 @@ pub fn Vendors() -> impl IntoView {
                     <span class="material-symbols-outlined" style="font-size:18px;">
                         {NavIcon::Build.as_str()}
                     </span>
-                    "Add Vendor"
+                    "Add vendor"
                 </button>
             </div>
 
@@ -387,7 +356,7 @@ pub fn Vendors() -> impl IntoView {
                 <div class="modal-backdrop">
                     <div class="modal-card" style="max-width:28rem;">
                         <div class="modal-header">
-                            <h3 class="modal-title">"Add Vendor"</h3>
+                            <h3 class="modal-title">"Add vendor"</h3>
                             <button
                                 type="button"
                                 class="modal-close"
@@ -397,53 +366,9 @@ pub fn Vendors() -> impl IntoView {
                             </button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Business Name *"</label>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder="Acme Plumbing LLC"
-                                    prop:value=new_biz
-                                    on:input=move |ev| new_biz.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"Trade Type"</label>
-                                <select
-                                    class="form-select"
-                                    on:change=move |ev| new_trade.set(event_target_value(&ev))
-                                >
-                                    {VendorTradeType::ALL.iter().copied().map(|t| {
-                                        let val = t.as_str();
-                                        let label = t.label();
-                                        view! { <option value=val>{label}</option> }
-                                    }).collect_view()}
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">"User ID (UUID) *"</label>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder="Vendor atlas user UUID"
-                                    prop:value=new_user_id
-                                    on:input=move |ev| new_user_id.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label" style="display:flex;align-items:center;gap:0.5rem;">
-                                    <input
-                                        type="checkbox"
-                                        class="form-checkbox"
-                                        prop:checked=move || new_emerg.get()
-                                        on:change=move |ev: web_sys::Event| {
-                                            let el = event_target::<web_sys::HtmlInputElement>(&ev);
-                                            new_emerg.set(el.checked());
-                                        }
-                                    />
-                                    "Available for emergency calls"
-                                </label>
-                            </div>
+                            <p class="folio-empty__sub" style="margin:0;">
+                                "Vendors must already have an Atlas account. Invite-by-email is not available in this release — we won’t ask you to paste IDs."
+                            </p>
                             {move || create_err.get().map(|e| view! {
                                 <p class="vendor-assign-msg vendor-assign-msg--error">{e}</p>
                             })}
@@ -454,19 +379,15 @@ pub fn Vendors() -> impl IntoView {
                                 class="btn btn-ghost"
                                 on:click=move |_| show_add.set(false)
                             >
-                                "Cancel"
+                                "Close"
                             </button>
                             <button
                                 type="button"
                                 class="btn btn-primary"
-                                disabled=move || {
-                                    creating.get()
-                                        || new_biz.get().trim().is_empty()
-                                        || new_user_id.get().trim().is_empty()
-                                }
-                                on:click=on_create
+                                disabled=true
+                                title="Vendor invite is not available yet"
                             >
-                                {move || if creating.get() { "Adding…" } else { "Add Vendor" }}
+                                "Not available"
                             </button>
                         </div>
                     </div>

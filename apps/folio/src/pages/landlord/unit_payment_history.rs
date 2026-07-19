@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::pages::landlord::leases::list_leases;
+use crate::pages::landlord::ledger::{list_ledger_entries, LedgerEntrySummary};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum LedgerKind {
@@ -67,6 +68,15 @@ struct PeriodChargesResp {
 #[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
     crate::auth::extract_bearer_token(headers)
+}
+
+/// Parse `[period_series:{uuid}]` tags written into ledger notes.
+pub fn series_id_from_note(note: &str) -> Option<Uuid> {
+    const PREFIX: &str = "[period_series:";
+    let start = note.find(PREFIX)? + PREFIX.len();
+    let rest = &note[start..];
+    let end = rest.find(']')?;
+    Uuid::parse_str(&rest[..end]).ok()
 }
 
 /// Inclusive calendar-month count between YYYY-MM-01 dates (client preview).
@@ -186,7 +196,12 @@ pub fn UnitPaymentHistory() -> impl IntoView {
             .unwrap_or(Uuid::nil())
     });
 
+    let refresh = RwSignal::new(0u32);
     let leases = Resource::new(|| (), |_| async move { list_leases().await });
+    let ledger = Resource::new(
+        move || refresh.get(),
+        |_| async move { list_ledger_entries().await },
+    );
     let lease_id = RwSignal::new(String::new());
     let mode = RwSignal::new(EntryMode::Period);
     let kind = RwSignal::new(LedgerKind::Charge);
@@ -196,8 +211,7 @@ pub fn UnitPaymentHistory() -> impl IntoView {
     let method = RwSignal::new(String::new());
     let start_month = RwSignal::new(String::new());
     let end_month = RwSignal::new(String::new());
-    let series_id = RwSignal::new(String::new());
-    let void_entry_id = RwSignal::new(String::new());
+    let last_series = RwSignal::new(None::<Uuid>);
     let error = RwSignal::new(None::<String>);
     let success = RwSignal::new(None::<String>);
     let pending = RwSignal::new(false);
@@ -262,6 +276,9 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                             </div>
                         }.into_any();
                     }
+                    let lease_options = unit_leases.clone();
+                    let lease_ids: std::collections::HashSet<_> =
+                        unit_leases.into_iter().map(|l| l.id).collect();
                     view! {
                         <form
                             class="folio-form"
@@ -336,16 +353,13 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                     )
                                     .await
                                     .map(|r| {
-                                        series_id.set(r.series_id.to_string());
-                                        format!(
-                                            "Created {} entries · series {}",
-                                            r.entry_ids.len(),
-                                            r.series_id
-                                        )
+                                        last_series.set(Some(r.series_id));
+                                        format!("Saved {} ledger entries.", r.entry_ids.len())
                                     });
                                     match result {
                                         Ok(msg) => {
                                             success.set(Some(msg));
+                                            refresh.update(|n| *n += 1);
                                             pending.set(false);
                                         }
                                         Err(e) => {
@@ -363,7 +377,7 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                     prop:value=move || lease_id.get()
                                     on:change=move |ev| lease_id.set(event_target_value(&ev))
                                 >
-                                    {unit_leases.into_iter().map(|l| {
+                                    {lease_options.into_iter().map(|l| {
                                         let id = l.id.to_string();
                                         let label = format!(
                                             "{} · {} · {}",
@@ -375,7 +389,7 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                                 .map(|d| d.to_string())
                                                 .unwrap_or_else(|| "—".into())
                                         );
-                                        view! { <option value=id.clone()>{label}</option> }
+                                        view! { <option value=id>{label}</option> }
                                     }).collect::<Vec<_>>()}
                                 </select>
                             </label>
@@ -508,67 +522,133 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                             </button>
                         </form>
 
-                        <section class="proj-section" style="margin-top:2rem;">
-                            <h3 class="proj-section__title">"Void"</h3>
-                            <p class="proj-section__hint">"Void a period series or a single ledger entry."</p>
-                            <div class="folio-form">
-                                <label class="folio-form__label">
-                                    "Series ID"
-                                    <input
-                                        class="form-input"
-                                        type="text"
-                                        prop:value=move || series_id.get()
-                                        on:input=move |ev| series_id.set(event_target_value(&ev))
-                                    />
-                                </label>
+                        {move || last_series.get().map(|sid| view! {
+                            <div class="unit-actions" style="margin-top:1rem;">
                                 <button
                                     type="button"
                                     class="folio-btn folio-btn--ghost press"
                                     on:click=move |_| {
-                                        error.set(None);
-                                        let Ok(sid) = Uuid::parse_str(series_id.get().trim()) else {
-                                            error.set(Some("Enter a valid series UUID.".into()));
-                                            return;
-                                        };
                                         spawn_local(async move {
                                             match void_period_series(sid).await {
-                                                Ok(n) => success.set(Some(format!("Voided {n} entries."))),
+                                                Ok(n) => {
+                                                    success.set(Some(format!("Voided {n} entries in that series.")));
+                                                    last_series.set(None);
+                                                    refresh.update(|n| *n += 1);
+                                                }
                                                 Err(e) => error.set(Some(e.to_string())),
                                             }
                                         });
                                     }
                                 >
-                                    "Void series"
-                                </button>
-                                <label class="folio-form__label">
-                                    "Entry ID"
-                                    <input
-                                        class="form-input"
-                                        type="text"
-                                        prop:value=move || void_entry_id.get()
-                                        on:input=move |ev| void_entry_id.set(event_target_value(&ev))
-                                    />
-                                </label>
-                                <button
-                                    type="button"
-                                    class="folio-btn folio-btn--ghost press"
-                                    on:click=move |_| {
-                                        error.set(None);
-                                        let Ok(eid) = Uuid::parse_str(void_entry_id.get().trim()) else {
-                                            error.set(Some("Enter a valid entry UUID.".into()));
-                                            return;
-                                        };
-                                        spawn_local(async move {
-                                            match void_ledger_entry(eid).await {
-                                                Ok(()) => success.set(Some("Entry voided.".into())),
-                                                Err(e) => error.set(Some(e.to_string())),
-                                            }
-                                        });
-                                    }
-                                >
-                                    "Void entry"
+                                    "Void series just saved"
                                 </button>
                             </div>
+                        })}
+
+                        <section class="proj-section" style="margin-top:2rem;">
+                            <h3 class="proj-section__title">"Ledger on this unit"</h3>
+                            <p class="proj-section__hint">"Void a charge or an entire period series from the row."</p>
+                            <Suspense fallback=|| view! { <div class="folio-empty--compact">"Loading ledger…"</div> }>
+                                {move || {
+                                    let ids = lease_ids.clone();
+                                    let rows: Vec<LedgerEntrySummary> = ledger
+                                        .get()
+                                        .and_then(|r| r.ok())
+                                        .unwrap_or_default()
+                                        .into_iter()
+                                        .filter(|e| {
+                                            e.billable_entity_type == "atlas_contract"
+                                                && ids.contains(&e.billable_entity_id)
+                                        })
+                                        .take(40)
+                                        .collect();
+                                    if rows.is_empty() {
+                                        return view! {
+                                            <div class="folio-empty--compact">"No ledger entries for this unit’s leases yet."</div>
+                                        }.into_any();
+                                    }
+                                    view! {
+                                        <For
+                                            each=move || rows.clone()
+                                            key=|e| e.id
+                                            children=move |e: LedgerEntrySummary| {
+                                                let eid = e.id;
+                                                let series = e
+                                                    .description
+                                                    .as_deref()
+                                                    .and_then(series_id_from_note)
+                                                    .or_else(|| {
+                                                        e.reconciliation_note
+                                                            .as_deref()
+                                                            .and_then(series_id_from_note)
+                                                    });
+                                                let amt = format!(
+                                                    "${:.2} {}",
+                                                    e.gross_amount_cents as f64 / 100.0,
+                                                    e.currency
+                                                );
+                                                let label = e
+                                                    .description
+                                                    .clone()
+                                                    .unwrap_or_else(|| e.status.clone());
+                                                let can_void = e.status != "voided"
+                                                    && e.status != "refunded"
+                                                    && e.status != "waived";
+                                                view! {
+                                                    <div class="hub-activity-rail__row">
+                                                        <div class="hub-activity-rail__body">
+                                                            <p class="hub-activity-rail__row-title">{amt}</p>
+                                                            <p class="hub-activity-rail__row-meta">
+                                                                {format!("{} · {}", e.status, label)}
+                                                            </p>
+                                                        </div>
+                                                        <Show when=move || can_void>
+                                                            <div class="unit-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    class="folio-btn folio-btn--ghost press"
+                                                                    on:click=move |_| {
+                                                                        spawn_local(async move {
+                                                                            match void_ledger_entry(eid).await {
+                                                                                Ok(()) => {
+                                                                                    success.set(Some("Entry voided.".into()));
+                                                                                    refresh.update(|n| *n += 1);
+                                                                                }
+                                                                                Err(err) => error.set(Some(err.to_string())),
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                >
+                                                                    "Void"
+                                                                </button>
+                                                                {series.map(|sid| view! {
+                                                                    <button
+                                                                        type="button"
+                                                                        class="folio-btn folio-btn--ghost press"
+                                                                        on:click=move |_| {
+                                                                            spawn_local(async move {
+                                                                                match void_period_series(sid).await {
+                                                                                    Ok(n) => {
+                                                                                        success.set(Some(format!("Voided {n} entries.")));
+                                                                                        refresh.update(|n| *n += 1);
+                                                                                    }
+                                                                                    Err(err) => error.set(Some(err.to_string())),
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    >
+                                                                        "Void series"
+                                                                    </button>
+                                                                })}
+                                                            </div>
+                                                        </Show>
+                                                    </div>
+                                                }
+                                            }
+                                        />
+                                    }.into_any()
+                                }}
+                            </Suspense>
                         </section>
                     }.into_any()
                 }}
@@ -592,5 +672,14 @@ mod tests {
     #[test]
     fn month_count_rejects_inverted() {
         assert_eq!(inclusive_month_count("2025-06", "2025-01"), None);
+    }
+
+    #[test]
+    fn parses_period_series_tag() {
+        let note = "[period_series:11111111-1111-1111-1111-111111111111][charge][cash] Rent (2025-01)";
+        assert_eq!(
+            series_id_from_note(note),
+            Some(Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap())
+        );
     }
 }
