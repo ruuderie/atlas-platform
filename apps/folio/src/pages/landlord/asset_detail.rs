@@ -18,6 +18,7 @@ use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 
 use crate::components::nav::{FolioRoute, NavIcon};
+use crate::components::page_header::PageHeader;
 
 // ── Response types (mirror backend shapes) ────────────────────────────────────
 
@@ -513,35 +514,29 @@ fn AssetDetailContent(
                 // ── LEFT COLUMN ─────────────────────────────────────────────
                 <div class="asset-detail-main">
 
-                    // Header card
-                    <div class="asset-detail-card asset-header-card">
-                        <div class="asset-type-icon-wrap">
-                            <span class="material-symbols-outlined asset-type-icon">
-                                {NavIcon::Apartment.as_str()}
+                    {
+                        let title = Signal::derive({
+                            let n = asset_name.clone();
+                            move || n.clone()
+                        });
+                        let subtitle_text = address_display
+                            .clone()
+                            .unwrap_or_else(|| asset_type.replace('_', " "));
+                        let subtitle = Signal::derive(move || subtitle_text.clone());
+                        view! {
+                            <PageHeader title=title subtitle=subtitle />
+                        }
+                    }
+                    <div class="asset-header-pills">
+                        <span class="asset-type-pill">{asset_type.replace('_', " ")}</span>
+                        <span class={format!("asset-status-pill {}", status.pill_class())}>
+                            {status.as_str()}
+                        </span>
+                        {condition.map(|c| view! {
+                            <span class={format!("asset-status-pill {}", c.pill_class())}>
+                                {c.as_str()}
                             </span>
-                        </div>
-                        <div class="asset-header-info">
-                            <h1 class="asset-title">{asset_name.clone()}</h1>
-                            <div class="asset-header-pills">
-                                <span class="asset-type-pill">{asset_type.replace('_', " ")}</span>
-                                <span class={format!("asset-status-pill {}", status.pill_class())}>
-                                    {status.as_str()}
-                                </span>
-                                {condition.map(|c| view! {
-                                    <span class={format!("asset-status-pill {}", c.pill_class())}>
-                                        {c.as_str()}
-                                    </span>
-                                })}
-                            </div>
-                            {address_display.map(|addr| view! {
-                                <p class="asset-header-address">
-                                    <span class="material-symbols-outlined asset-header-address-icon">
-                                        {NavIcon::Map.as_str()}
-                                    </span>
-                                    {addr}
-                                </p>
-                            })}
-                        </div>
+                        })}
                     </div>
 
                     // Lifecycle status grid (G-10 fields)
@@ -779,78 +774,100 @@ fn AssetDetailContent(
     }
 }
 
-/// Soft-archive (type DELETE) for leaf assets shown on asset detail.
+/// Soft-archive (type DELETE) for leaf assets — muted trigger + modal, not a danger-zone card.
 #[component]
 fn AssetArchivePanel(asset_id: String) -> impl IntoView {
     use crate::pages::landlord::asset_api::{archive_folio_asset, ArchiveBlockerDto};
 
+    let show_archive = RwSignal::new(false);
     let archive_confirm = RwSignal::new(String::new());
     let archive_pending = RwSignal::new(false);
     let archive_err = RwSignal::new(None::<String>);
     let archive_blockers = RwSignal::new(Vec::<ArchiveBlockerDto>::new());
     let archived_ok = RwSignal::new(false);
-    let aid = asset_id.clone();
+    let aid = StoredValue::new(asset_id);
+
+    let on_archive = move |_| {
+        if archive_confirm.get().trim() != "DELETE" {
+            archive_err.set(Some("Type DELETE to confirm.".into()));
+            return;
+        }
+        archive_pending.set(true);
+        archive_err.set(None);
+        archive_blockers.set(vec![]);
+        let id = aid.get_value();
+        spawn_local(async move {
+            match archive_folio_asset(id).await {
+                Ok(outcome) => {
+                    if outcome.archived {
+                        archived_ok.set(true);
+                        show_archive.set(false);
+                    } else {
+                        archive_blockers.set(outcome.blockers);
+                        archive_err.set(Some(
+                            "This asset cannot be archived until the items below are resolved."
+                                .into(),
+                        ));
+                    }
+                }
+                Err(e) => archive_err.set(Some(e.to_string())),
+            }
+            archive_pending.set(false);
+        });
+    };
 
     view! {
-        <div class="asset-detail-card" style="border-color:#fecaca;">
-            <p class="asset-section-label" style="color:#b91c1c;">"Danger zone"</p>
-            <p class="asset-meta-empty" style="margin-bottom:0.75rem;">
-                "Archive hides this asset from the default Assets list. Type DELETE to confirm."
-            </p>
+        <div class="hub-archive-foot">
             {move || if archived_ok.get() {
-                view! { <p style="color:#15803d;font-size:0.875rem;">"Asset archived."</p> }.into_any()
+                view! {
+                    <p class="hub-archive-foot__ok">"Asset archived."</p>
+                }.into_any()
             } else {
                 view! {
-                    <div style="display:flex;flex-direction:column;gap:0.65rem;">
-                        <input
-                            class="form-input"
-                            type="text"
-                            placeholder="Type DELETE"
-                            autocomplete="off"
-                            prop:value=move || archive_confirm.get()
-                            on:input=move |ev| archive_confirm.set(event_target_value(&ev))
-                        />
+                    <button
+                        type="button"
+                        class="hub-archive-foot__link"
+                        on:click=move |_| {
+                            archive_err.set(None);
+                            archive_blockers.set(vec![]);
+                            archive_confirm.set(String::new());
+                            show_archive.set(true);
+                        }
+                    >
+                        "Archive asset…"
+                    </button>
+                }.into_any()
+            }}
+        </div>
+
+        <Show when=move || show_archive.get()>
+            <div class="modal-backdrop">
+                <div class="modal-card" style="max-width:28rem;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">"Archive asset"</h3>
                         <button
-                            type="button"
-                            class="asset-action-btn"
-                            style="background:#b91c1c;color:#fff;"
-                            prop:disabled=move || {
-                                archive_pending.get()
-                                    || archive_confirm.get().trim() != "DELETE"
-                            }
-                            on:click={
-                                let aid = aid.clone();
-                                move |_| {
-                                    if archive_confirm.get().trim() != "DELETE" {
-                                        archive_err.set(Some("Type DELETE to confirm.".into()));
-                                        return;
-                                    }
-                                    archive_pending.set(true);
-                                    archive_err.set(None);
-                                    let id = aid.clone();
-                                    spawn_local(async move {
-                                        match archive_folio_asset(id).await {
-                                            Ok(outcome) => {
-                                                if outcome.archived {
-                                                    archived_ok.set(true);
-                                                } else {
-                                                    archive_blockers.set(outcome.blockers);
-                                                    archive_err.set(Some(
-                                                        "Resolve blockers before archive.".into(),
-                                                    ));
-                                                }
-                                            }
-                                            Err(e) => archive_err.set(Some(e.to_string())),
-                                        }
-                                        archive_pending.set(false);
-                                    });
-                                }
-                            }
+                            class="modal-close"
+                            on:click=move |_| show_archive.set(false)
                         >
-                            {move || if archive_pending.get() { "Archiving…" } else { "Archive asset" }}
+                            <span class="material-symbols-outlined">"close"</span>
                         </button>
+                    </div>
+                    <div class="modal-body space-y-4">
+                        <p class="proj-section__hint">
+                            "Archive hides this asset from the default Assets list. Type DELETE to confirm."
+                        </p>
+                        <label class="folio-field__label">
+                            "Type DELETE"
+                            <input
+                                class="folio-input"
+                                type="text"
+                                autocomplete="off"
+                                prop:value=move || archive_confirm.get()
+                                on:input=move |ev| archive_confirm.set(event_target_value(&ev))
+                            />
+                        </label>
                         {move || archive_err.get().map(|e| view! {
-                            <p style="color:#b91c1c;font-size:0.8rem;">{e}</p>
+                            <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
                         })}
                         {move || {
                             let blockers = archive_blockers.get();
@@ -858,15 +875,37 @@ fn AssetArchivePanel(asset_id: String) -> impl IntoView {
                                 return ().into_any();
                             }
                             view! {
-                                <ul style="margin:0;padding-left:1.1rem;font-size:0.8rem;">
-                                    {blockers.into_iter().map(|b| view! { <li>{b.message}</li> }).collect_view()}
+                                <ul style="margin:0;padding-left:1.1rem;font-size:0.85rem;">
+                                    {blockers.into_iter().map(|b| view! {
+                                        <li>{b.message}</li>
+                                    }).collect_view()}
                                 </ul>
                             }.into_any()
                         }}
                     </div>
-                }.into_any()
-            }}
-        </div>
+                    <div class="modal-footer">
+                        <button
+                            class="folio-btn folio-btn--ghost"
+                            on:click=move |_| show_archive.set(false)
+                        >
+                            "Cancel"
+                        </button>
+                        <button
+                            type="button"
+                            class="folio-btn folio-btn--primary"
+                            style="background:#b91c1c;border-color:#b91c1c;"
+                            prop:disabled=move || {
+                                archive_pending.get()
+                                    || archive_confirm.get().trim() != "DELETE"
+                            }
+                            on:click=on_archive
+                        >
+                            {move || if archive_pending.get() { "Archiving…" } else { "Archive asset" }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Show>
     }
 }
 

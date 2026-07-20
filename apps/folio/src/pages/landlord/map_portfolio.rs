@@ -3,6 +3,7 @@
 //! Leaflet pins for geo-coded assets with maintenance / STR layers.
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,40 @@ pub struct MapPin {
     pub next_wo_at: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(default)]
     pub str_eligible: bool,
+    #[serde(default)]
+    pub has_occupying_lease: bool,
+}
+
+impl MapPin {
+    fn address_primary(&self) -> String {
+        let street = self.address_line_1.as_deref().unwrap_or("").trim();
+        if !street.is_empty() {
+            return street.to_string();
+        }
+        self.name.clone()
+    }
+
+    fn address_secondary(&self) -> String {
+        let street = self.address_line_1.as_deref().unwrap_or("").trim();
+        let city_line = [
+            self.city.as_deref().unwrap_or(""),
+            self.state_province.as_deref().unwrap_or(""),
+        ]
+        .iter()
+        .copied()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(", ");
+        if !street.is_empty() && street != self.name {
+            if city_line.is_empty() {
+                self.name.clone()
+            } else {
+                format!("{} · {city_line}", self.name)
+            }
+        } else {
+            city_line
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,13 +114,14 @@ pub async fn fetch_map_pins() -> Result<Vec<MapPin>, server_fn::error::ServerFnE
 fn pin_color(p: &MapPin, layer: MapLayer) -> &'static str {
     match layer {
         MapLayer::Maintenance if p.open_wo_count > 0 => "#ef4444",
-        MapLayer::Str if p.str_eligible => "#a78bfa",
-        _ => match p.status.as_str() {
-            "active" | "occupied" => "#4ade80",
-            "vacant" => "#fb923c",
-            "maintenance" => "#facc15",
-            _ => "#94a3b8",
-        },
+        MapLayer::Str if p.str_eligible => "#6366f1",
+        _ => {
+            if p.has_occupying_lease {
+                "#2563eb"
+            } else {
+                "#fb923c"
+            }
+        }
     }
 }
 
@@ -100,14 +136,12 @@ fn filter_pins(pins: &[MapPin], layer: MapLayer) -> Vec<MapPin> {
         .collect()
 }
 
-fn build_map_init_script(pins: &[MapPin], layer: MapLayer) -> String {
+fn build_map_init_script(pins: &[MapPin], layer: MapLayer, focus_asset_id: Option<Uuid>) -> String {
     let pins_json = pins
         .iter()
         .map(|p| {
-            let addr = p.address_line_1.as_deref().unwrap_or("");
-            let city = p.city.as_deref().unwrap_or("");
-            let st = p.state_province.as_deref().unwrap_or("");
-            let zip = p.postal_code.as_deref().unwrap_or("");
+            let primary = p.address_primary();
+            let secondary = p.address_secondary();
             let color = pin_color(p, layer);
             let href = FolioRoute::LandlordAssetDetail
                 .path()
@@ -122,15 +156,17 @@ fn build_map_init_script(pins: &[MapPin], layer: MapLayer) -> String {
                 .map(|d| d.format("%b %d").to_string())
                 .unwrap_or_default();
             format!(
-                r#"{{"lat":{lat},"lng":{lng},"name":{name},"status":{status},"addr":{addr},"city":{city},"state":{state},"zip":{zip},"color":{color},"href":{href},"woNew":{wo_new},"woCount":{wo},"nextWo":{next},"str":{str_el}}}"#,
+                r#"{{"id":{id},"lat":{lat},"lng":{lng},"primary":{primary},"secondary":{secondary},"occupied":{occ},"color":{color},"href":{href},"woNew":{wo_new},"woCount":{wo},"nextWo":{next},"str":{str_el}}}"#,
+                id = serde_json::to_string(&p.id.to_string()).unwrap_or_default(),
                 lat = p.latitude,
                 lng = p.longitude,
-                name = serde_json::to_string(&p.name).unwrap_or_default(),
-                status = serde_json::to_string(&p.status).unwrap_or_default(),
-                addr = serde_json::to_string(addr).unwrap_or_default(),
-                city = serde_json::to_string(city).unwrap_or_default(),
-                state = serde_json::to_string(st).unwrap_or_default(),
-                zip = serde_json::to_string(zip).unwrap_or_default(),
+                primary = serde_json::to_string(&primary).unwrap_or_default(),
+                secondary = serde_json::to_string(&secondary).unwrap_or_default(),
+                occ = if p.has_occupying_lease {
+                    "true"
+                } else {
+                    "false"
+                },
                 color = serde_json::to_string(color).unwrap_or_default(),
                 href = serde_json::to_string(&href).unwrap_or_default(),
                 wo_new = serde_json::to_string(&wo_new).unwrap_or_default(),
@@ -142,31 +178,29 @@ fn build_map_init_script(pins: &[MapPin], layer: MapLayer) -> String {
         .collect::<Vec<_>>()
         .join(",");
 
-    let center_lat = if pins.is_empty() {
-        39.5
-    } else {
-        pins.iter().map(|p| p.latitude).sum::<f64>() / pins.len() as f64
-    };
-    let center_lng = if pins.is_empty() {
-        -98.35
-    } else {
-        pins.iter().map(|p| p.longitude).sum::<f64>() / pins.len() as f64
-    };
-    let zoom = if pins.is_empty() {
-        4
+    let focused = focus_asset_id.and_then(|fid| pins.iter().find(|p| p.id == fid));
+    let (center_lat, center_lng, zoom) = if let Some(p) = focused {
+        (p.latitude, p.longitude, 15)
+    } else if pins.is_empty() {
+        (39.5, -98.35, 4)
     } else if pins.len() == 1 {
-        14
+        (pins[0].latitude, pins[0].longitude, 14)
     } else {
-        10
+        let lat = pins.iter().map(|p| p.latitude).sum::<f64>() / pins.len() as f64;
+        let lng = pins.iter().map(|p| p.longitude).sum::<f64>() / pins.len() as f64;
+        (lat, lng, 10)
     };
+    let focus_id_js = focus_asset_id
+        .map(|id| serde_json::to_string(&id.to_string()).unwrap_or_else(|_| "null".into()))
+        .unwrap_or_else(|| "null".into());
 
-    // Reset init flag so layer changes remount the map.
     format!(
         r#"
 (function() {{
   window.__atlasMapInit = false;
 
   var pins = [{pins_json}];
+  var focusId = {focus_id_js};
 
   function initMap() {{
     if (typeof L === 'undefined') {{
@@ -186,43 +220,48 @@ fn build_map_init_script(pins: &[MapPin], layer: MapLayer) -> String {
       zoomControl: true,
     }});
 
-    L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+    L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19
     }}).addTo(map);
 
+    var focusMarker = null;
     pins.forEach(function(p) {{
       var badge = p.woCount > 0
-        ? '<span style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font:700 9px/16px Inter,sans-serif;text-align:center;">' + p.woCount + '</span>'
+        ? '<span class="atlas-map-pin-badge">' + p.woCount + '</span>'
         : '';
       var icon = L.divIcon({{
-        className: '',
-        html: '<div style="position:relative;width:14px;height:14px;border-radius:50%;background:' + p.color +
-              ';border:2px solid rgba(255,255,255,0.8);box-shadow:0 2px 6px rgba(0,0,0,0.5);">' + badge + '</div>',
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
+        className: 'atlas-map-pin',
+        html: '<div class="atlas-map-pin__dot" style="background:' + p.color + ';">' + badge + '</div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
       }});
-      var addrLine = [p.addr, p.city, p.state, p.zip].filter(Boolean).join(', ');
+      var statusLabel = p.occupied ? 'Occupied' : 'Vacant';
       var woLine = p.woCount > 0
-        ? '<div style="font-size:0.75rem;color:#fca5a5;margin:6px 0;">' + p.woCount + ' open WO' + (p.nextWo ? ' · next ' + p.nextWo : '') + '</div>'
+        ? '<div class="atlas-map-popup__wo">' + p.woCount + ' open WO' + (p.nextWo ? ' · next ' + p.nextWo : '') + '</div>'
         : '';
-      var popup = '<div style="font-family:Inter,sans-serif;min-width:200px;">' +
-        '<div style="font-weight:700;font-size:0.95rem;color:#f1f5f9;margin-bottom:4px;">' + p.name + '</div>' +
-        '<div style="font-size:0.8rem;color:#94a3b8;margin-bottom:6px;">' + addrLine + '</div>' +
-        '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.7rem;font-weight:700;background:rgba(255,255,255,0.1);color:' + p.color + ';">' + p.status + '</span>' +
-        (p.str ? ' <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.7rem;font-weight:700;background:rgba(167,139,250,0.2);color:#a78bfa;">STR</span>' : '') +
+      var popup = '<div class="atlas-map-popup__inner">' +
+        '<div class="atlas-map-popup__title">' + p.primary + '</div>' +
+        (p.secondary ? '<div class="atlas-map-popup__sub">' + p.secondary + '</div>' : '') +
+        '<span class="atlas-map-popup__pill" style="color:' + p.color + ';">' + statusLabel + '</span>' +
+        (p.str ? ' <span class="atlas-map-popup__pill atlas-map-popup__pill--str">STR</span>' : '') +
         woLine +
-        '<div style="display:flex;gap:8px;margin-top:8px;">' +
-        '<a href="' + p.href + '" style="font-size:0.75rem;font-weight:700;color:#93c5fd;">Open building</a>' +
-        '<a href="' + p.woNew + '" style="font-size:0.75rem;font-weight:700;color:#fca5a5;">Create WO</a>' +
+        '<div class="atlas-map-popup__actions">' +
+        '<a href="' + p.href + '">Open building</a>' +
+        '<a href="' + p.woNew + '">Create WO</a>' +
         '</div></div>';
-      L.marker([p.lat, p.lng], {{ icon: icon }})
+      var marker = L.marker([p.lat, p.lng], {{ icon: icon }})
         .addTo(map)
         .bindPopup(popup, {{ className: 'atlas-map-popup' }});
+      if (focusId && p.id === focusId) {{
+        focusMarker = marker;
+      }}
     }});
 
-    if (pins.length > 1) {{
+    if (focusMarker) {{
+      focusMarker.openPopup();
+    }} else if (pins.length > 1) {{
       var bounds = pins.map(function(p) {{ return [p.lat, p.lng]; }});
       map.fitBounds(bounds, {{ padding: [40, 40] }});
     }}
@@ -236,6 +275,7 @@ fn build_map_init_script(pins: &[MapPin], layer: MapLayer) -> String {
 }})();
 "#,
         pins_json = pins_json,
+        focus_id_js = focus_id_js,
         center_lat = center_lat,
         center_lng = center_lng,
         zoom = zoom,
@@ -247,7 +287,7 @@ fn MapKpiStrip(pins: Vec<MapPin>) -> impl IntoView {
     let total = pins.len();
     let with_wo = pins.iter().filter(|p| p.open_wo_count > 0).count();
     let str_n = pins.iter().filter(|p| p.str_eligible).count();
-    let vacant = pins.iter().filter(|p| p.status == "vacant").count();
+    let vacant = pins.iter().filter(|p| !p.has_occupying_lease).count();
 
     view! {
         <div class="map-kpi-strip">
@@ -265,8 +305,8 @@ fn MapKpiStrip(pins: Vec<MapPin>) -> impl IntoView {
                     <span class="map-kpi-label">"With open WO"</span>
                 </div>
             </div>
-            <div class="map-kpi-card map-kpi-card--active">
-                <span class="map-kpi-icon material-symbols-outlined">"vacation"</span>
+            <div class="map-kpi-card map-kpi-card--str">
+                <span class="map-kpi-icon material-symbols-outlined">"beach_access"</span>
                 <div class="map-kpi-body">
                     <span class="map-kpi-value">{str_n}</span>
                     <span class="map-kpi-label">"STR-eligible"</span>
@@ -284,29 +324,56 @@ fn MapKpiStrip(pins: Vec<MapPin>) -> impl IntoView {
 }
 
 #[component]
+fn MapLegend() -> impl IntoView {
+    view! {
+        <div class="map-legend" aria-label="Map legend">
+            <span class="map-legend__item">
+                <span class="map-legend__dot" style="background:#2563eb;"></span>
+                "Occupied"
+            </span>
+            <span class="map-legend__item">
+                <span class="map-legend__dot" style="background:#fb923c;"></span>
+                "Vacant"
+            </span>
+            <span class="map-legend__item">
+                <span class="map-legend__dot" style="background:#ef4444;"></span>
+                "Open WO"
+            </span>
+            <span class="map-legend__item">
+                <span class="map-legend__dot" style="background:#6366f1;"></span>
+                "STR"
+            </span>
+        </div>
+    }
+}
+
+#[component]
 fn MapPinList(pins: Vec<MapPin>) -> impl IntoView {
     view! {
         <div class="map-pin-list">
             <div class="map-pin-list-header">"Properties"</div>
             {pins.into_iter().map(|p| {
-                let addr = [
-                    p.address_line_1.as_deref().unwrap_or(""),
-                    p.city.as_deref().unwrap_or(""),
-                ].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(", ");
+                let primary = p.address_primary();
+                let secondary = p.address_secondary();
                 let color = pin_color(&p, MapLayer::All).to_string();
                 let href = FolioRoute::LandlordAssetDetail
                     .path()
                     .replace(":id", &p.id.to_string());
                 let wo = p.open_wo_count;
+                let status = if p.has_occupying_lease {
+                    "Occupied".to_string()
+                } else {
+                    "Vacant".to_string()
+                };
                 view! {
                     <a class="map-pin-item press" href=href style="text-decoration:none;color:inherit;">
                         <div class="map-pin-dot" style=format!("background:{color};")></div>
                         <div class="map-pin-info">
-                            <span class="map-pin-name">{p.name}</span>
-                            <span class="map-pin-addr">{addr}</span>
+                            <span class="map-pin-name">{primary}</span>
+                            <span class="map-pin-addr">{secondary}</span>
                         </div>
                         <span class="map-pin-status" style=format!("color:{color};")>
-                            {if wo > 0 { format!("{wo} WO") } else { p.status.clone() }}
+                            {if wo > 0 { format!("{wo} WO") } else { status }}
                         </span>
                     </a>
                 }
@@ -319,6 +386,12 @@ fn MapPinList(pins: Vec<MapPin>) -> impl IntoView {
 pub fn MapPortfolio() -> impl IntoView {
     let query = use_query_map();
     let layer = RwSignal::new(MapLayer::All);
+    let focus_asset_id = Memo::new(move |_| {
+        query
+            .get()
+            .get("asset_id")
+            .and_then(|s| Uuid::parse_str(&s).ok())
+    });
 
     Effect::new(move |_| {
         if let Some(l) = query.get().get("layer") {
@@ -341,13 +414,15 @@ pub fn MapPortfolio() -> impl IntoView {
             crossorigin="anonymous"
         />
 
-        <div class="map-page">
-            <div class="map-header">
-                <h1 class="map-title">"Ops map"</h1>
-                <p class="map-subtitle">"Properties, maintenance, and STR — filter layers below"</p>
-            </div>
+        <div class="map-page landlord-list-page map-page--light">
+            <PageHeader
+                title=Signal::derive(|| "Ops map".to_string())
+                subtitle=Signal::derive(|| {
+                    "Properties, maintenance, and STR — filter layers below".to_string()
+                })
+            />
 
-            <div class="map-layer-chips" role="tablist" aria-label="Map layers">
+            <div class="folio-tab-bar" role="tablist" aria-label="Map layers">
                 {[MapLayer::All, MapLayer::Maintenance, MapLayer::Str, MapLayer::Status]
                     .into_iter()
                     .map(|l| {
@@ -356,9 +431,9 @@ pub fn MapPortfolio() -> impl IntoView {
                                 type="button"
                                 class=move || {
                                     if layer.get() == l {
-                                        "map-layer-chip map-layer-chip--active"
+                                        "folio-tab folio-tab--active"
                                     } else {
-                                        "map-layer-chip"
+                                        "folio-tab"
                                     }
                                 }
                                 on:click=move |_| layer.set(l)
@@ -376,13 +451,13 @@ pub fn MapPortfolio() -> impl IntoView {
                 </div>
             }>
                 {move || pins.get().map(|res| match res {
-                    Ok(data) => {
-                        let filtered = filter_pins(&data, layer.get());
-                        view! { <MapKpiStrip pins=filtered /> }.into_any()
-                    }
+                    // KPIs always from full pin set (not layer-filtered).
+                    Ok(data) => view! { <MapKpiStrip pins=data /> }.into_any(),
                     Err(_) => view! { <div></div> }.into_any(),
                 })}
             </Suspense>
+
+            <MapLegend/>
 
             <div class="map-body">
                 <Suspense fallback=|| view! { <div class="map-pin-list map-pin-list--loading"></div> }>
@@ -395,7 +470,7 @@ pub fn MapPortfolio() -> impl IntoView {
                     })}
                 </Suspense>
 
-                <div class="map-container">
+                <div class="map-container map-container--light">
                     <Suspense fallback=|| view! {
                         <div class="map-loading">
                             <span class="material-symbols-outlined map-spin">"public"</span>
@@ -424,7 +499,8 @@ pub fn MapPortfolio() -> impl IntoView {
                                         </div>
                                     }.into_any()
                                 } else {
-                                    let script = build_map_init_script(&filtered, l);
+                                    let script =
+                                        build_map_init_script(&filtered, l, focus_asset_id.get());
                                     view! {
                                         <div id="atlas-map" class="map-leaflet"></div>
                                         <leptos_meta::Script>{script}</leptos_meta::Script>

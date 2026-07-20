@@ -46,6 +46,14 @@ pub struct AssetSummary {
     pub status: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
     #[serde(default)]
+    pub address_line_1: Option<String>,
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub state_province: Option<String>,
+    #[serde(default)]
+    pub postal_code: Option<String>,
+    #[serde(default)]
     pub str_eligible: bool,
     #[serde(default)]
     pub str_listing_active: bool,
@@ -219,11 +227,35 @@ pub fn Assets() -> impl IntoView {
                                         };
                                         let status_label = a.status.clone();
                                         let name = a.name.clone();
+                                        let street = a
+                                            .address_line_1
+                                            .clone()
+                                            .filter(|s| !s.trim().is_empty())
+                                            .unwrap_or_else(|| name.clone());
+                                        let place_meta = {
+                                            let mut parts = Vec::new();
+                                            if let Some(c) = a.city.as_ref().filter(|s| !s.is_empty()) {
+                                                parts.push(c.clone());
+                                            }
+                                            if let Some(st) = a.state_province.as_ref().filter(|s| !s.is_empty()) {
+                                                parts.push(st.clone());
+                                            }
+                                            if parts.is_empty() {
+                                                a.asset_type.replace('_', " ")
+                                            } else {
+                                                parts.join(", ")
+                                            }
+                                        };
                                         let asset_type = a.asset_type.replace('_', " ");
                                         let kids = children_by_parent.get(&a.id).cloned().unwrap_or_default();
                                         let unit_n = kids.len();
                                         let aid = a.id;
                                         let menu_open = Signal::derive(move || open_menu.get() == Some(aid));
+                                        let nick = if street != name && !name.is_empty() {
+                                            Some(name.clone())
+                                        } else {
+                                            None
+                                        };
 
                                         if is_unit {
                                             view! {
@@ -235,8 +267,8 @@ pub fn Assets() -> impl IntoView {
                                                             </span>
                                                         </div>
                                                         <div class="assets-card__body">
-                                                            <h3 class="assets-card__title">{name.clone()}</h3>
-                                                            <p class="assets-card__meta">{asset_type.clone()}</p>
+                                                            <h3 class="assets-card__title">{street.clone()}</h3>
+                                                            <p class="assets-card__meta">{place_meta.clone()}</p>
                                                             <div class="assets-card__pills">
                                                                 <span class=status_class>{status_label.clone()}</span>
                                                             </div>
@@ -260,14 +292,21 @@ pub fn Assets() -> impl IntoView {
                                                             </span>
                                                         </div>
                                                         <div class="assets-card__body">
-                                                            <h3 class="assets-card__title">{name.clone()}</h3>
+                                                            <h3 class="assets-card__title">{street.clone()}</h3>
                                                             <p class="assets-card__meta">
-                                                                {if unit_n > 0 {
-                                                                    format!("{unit_n} units")
-                                                                } else {
-                                                                    "Property".to_string()
-                                                                }}
+                                                                {format!(
+                                                                    "{} · {}",
+                                                                    place_meta,
+                                                                    if unit_n > 0 {
+                                                                        format!("{unit_n} units")
+                                                                    } else {
+                                                                        "Property".to_string()
+                                                                    }
+                                                                )}
                                                             </p>
+                                                            {nick.clone().map(|n| view! {
+                                                                <p class="assets-card__meta" style="opacity:0.75;">"Nickname: "{n}</p>
+                                                            })}
                                                             <div class="assets-card__pills">
                                                                 <span class=status_class>{status_label.clone()}</span>
                                                             </div>
