@@ -2,7 +2,6 @@
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
-use crate::components::photo_lightbox::{PhotoItem, PhotoStrip};
 use crate::components::status_pill::{StatusPill, StatusPillTone};
 use leptos::prelude::*;
 use leptos_router::hooks::{use_navigate, use_params_map};
@@ -218,10 +217,10 @@ pub fn WorkOrderDetail() -> impl IntoView {
                                     <p class="proj-section__hint" style="margin:0;">
                                         "Records actual cost on this work order — no UUID hunting."
                                     </p>
-                                    <label class="form-label">
+                                    <label class="folio-field__label">
                                         "Amount (USD)"
                                         <input
-                                            class="form-input"
+                                            class="folio-input"
                                             type="text"
                                             inputmode="decimal"
                                             placeholder="420.00"
@@ -229,10 +228,10 @@ pub fn WorkOrderDetail() -> impl IntoView {
                                             on:input=move |ev| expense_amount.set(event_target_value(&ev))
                                         />
                                     </label>
-                                    <label class="form-label">
+                                    <label class="folio-field__label">
                                         "Note"
                                         <input
-                                            class="form-input"
+                                            class="folio-input"
                                             type="text"
                                             placeholder="Invoice # or parts note"
                                             prop:value=move || expense_note.get()
@@ -294,9 +293,9 @@ pub fn WorkOrderDetail() -> impl IntoView {
                                 <div class="proj-section__head">
                                     <h3 class="proj-section__title">"Job photos"</h3>
                                 </div>
-                                <div class="ratings-photos">
-                                    <PhotoStrip photos=Signal::derive(|| Vec::<PhotoItem>::new())/>
-                                </div>
+                                <p class="proj-section__hint" style="margin:0;">
+                                    "Photo upload on work orders is not available yet. Attach receipts under Cost & receipts or use the Digital vault."
+                                </p>
                             </section>
 
                             <Show when=move || !closed>

@@ -12,11 +12,11 @@
 // Both paths write the same G-22 record — there is no dual source of truth.
 
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::components::nav::NavIcon;
+use crate::components::page_header::PageHeader;
 
 // ── Response types (mirror backend shapes) ────────────────────────────────────
 
@@ -38,6 +38,24 @@ pub struct AssetPickerItem {
     pub name: String,
     pub asset_type: String,
     pub status: String,
+    #[serde(default)]
+    pub address_line_1: Option<String>,
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub state_province: Option<String>,
+}
+
+impl AssetPickerItem {
+    /// Street · name label for picker rows and `<option>`s.
+    pub fn place_label(&self) -> String {
+        crate::utils::format_asset_place_label(
+            &self.name,
+            self.address_line_1.as_deref(),
+            self.city.as_deref(),
+            self.state_province.as_deref(),
+        )
+    }
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -235,17 +253,16 @@ pub fn Vendors() -> impl IntoView {
 
     let vendors = Resource::new(move || refresh.get(), |_| async move { list_vendors().await });
 
+    let title = Signal::derive(|| "Contractor Network".to_string());
+    let subtitle = Signal::derive(|| {
+        "Manage service providers. Set a vendor as default for an asset to \
+         pre-fill dispatch when creating work orders."
+            .to_string()
+    });
+
     view! {
         <div class="vendors-page">
-            // ── Page header ───────────────────────────────────────────────
-            <div class="vendors-header">
-                <div>
-                    <h1 class="vendors-title">"Contractor Network"</h1>
-                    <p class="vendors-subtitle">
-                        "Manage service providers. Set a vendor as default for an asset to \
-                         pre-fill dispatch when creating work orders."
-                    </p>
-                </div>
+            <PageHeader title=title subtitle=subtitle>
                 <button
                     type="button"
                     class="vendors-add-btn"
@@ -259,7 +276,7 @@ pub fn Vendors() -> impl IntoView {
                     </span>
                     "Add vendor"
                 </button>
-            </div>
+            </PageHeader>
 
             // ── Filter bar ────────────────────────────────────────────────
             <div class="vendors-filter-bar">
@@ -376,14 +393,14 @@ pub fn Vendors() -> impl IntoView {
                         <div class="modal-footer">
                             <button
                                 type="button"
-                                class="btn btn-ghost"
+                                class="folio-btn folio-btn--ghost"
                                 on:click=move |_| show_add.set(false)
                             >
                                 "Close"
                             </button>
                             <button
                                 type="button"
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=true
                                 title="Vendor invite is not available yet"
                             >
@@ -571,7 +588,7 @@ fn VendorCard(vendor: VendorSummary) -> impl IntoView {
                                                 {NavIcon::Apartment.as_str()}
                                             </span>
                                             <div>
-                                                <p class="vendor-asset-option-name">{asset.name}</p>
+                                                <p class="vendor-asset-option-name">{asset.place_label()}</p>
                                                 <p class="vendor-asset-option-meta">
                                                     {asset.asset_type.replace('_', " ")}
                                                     " \u{00b7} "
@@ -712,6 +729,12 @@ pub async fn list_assets_for_picker(
         name: String,
         asset_type: String,
         status: String,
+        #[serde(default)]
+        address_line_1: Option<String>,
+        #[serde(default)]
+        city: Option<String>,
+        #[serde(default)]
+        state_province: Option<String>,
     }
 
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
@@ -728,6 +751,9 @@ pub async fn list_assets_for_picker(
             name: a.name,
             asset_type: a.asset_type,
             status: a.status,
+            address_line_1: a.address_line_1,
+            city: a.city,
+            state_province: a.state_province,
         })
         .collect())
 }
