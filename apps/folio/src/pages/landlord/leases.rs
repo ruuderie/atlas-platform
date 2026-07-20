@@ -9,6 +9,7 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::nav::{FolioRoute, NavIcon};
+use crate::components::page_header::PageHeader;
 use leptos_router::components::A;
 
 // ── Response types ────────────────────────────────────────────────────────────
@@ -18,12 +19,42 @@ pub struct LeaseSummary {
     pub id: uuid::Uuid,
     pub asset_id: Option<uuid::Uuid>,
     pub counterparty_user_id: Option<uuid::Uuid>,
+    /// Offline / draft display name when no Atlas user.
+    #[serde(default)]
+    pub counterparty_label: Option<String>,
     pub currency: String,
     pub status: String,
     pub monthly_rent_cents: Option<i64>,
     pub start_date: Option<chrono::NaiveDate>,
     pub end_date: Option<chrono::NaiveDate>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl LeaseSummary {
+    /// Human label for the tenant column — never a raw UUID.
+    pub fn tenant_display_label(&self) -> String {
+        if let Some(label) = self
+            .counterparty_label
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
+            return label.to_string();
+        }
+        if LeaseStatus::from_str(&self.status) == LeaseStatus::Draft {
+            "Tenant · pending lease".into()
+        } else {
+            "\u{2014}".into()
+        }
+    }
+
+    /// Draft / active / pending occupy the unit for availability.
+    pub fn is_occupying(&self) -> bool {
+        matches!(
+            LeaseStatus::from_str(&self.status),
+            LeaseStatus::Active | LeaseStatus::Draft | LeaseStatus::Pending
+        )
+    }
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
@@ -96,18 +127,17 @@ pub fn Leases() -> impl IntoView {
 
     let leases = Resource::new(|| (), |_| async move { list_leases().await });
 
+    let title = Signal::derive(|| "Leases".to_string());
+    let subtitle = Signal::derive(|| "Rental contracts across your portfolio.".to_string());
+
     view! {
         <div class="leases-page">
-            <div class="leases-header">
-                <div>
-                    <h1 class="leases-title">"Leases"</h1>
-                    <p class="leases-subtitle">"Rental contracts across your portfolio."</p>
-                </div>
+            <PageHeader title=title subtitle=subtitle>
                 <A href=FolioRoute::LandlordLeaseCreate.path() attr:class="folio-btn folio-btn--primary press">
                     <span class="material-symbols-outlined">"add"</span>
                     "New lease"
                 </A>
-            </div>
+            </PageHeader>
 
             // ── Filter bar ────────────────────────────────────────────
             <div class="leases-filter-bar">
@@ -194,7 +224,7 @@ pub fn Leases() -> impl IntoView {
                                         <thead>
                                             <tr>
                                                 <th class="leases-th">"Status"</th>
-                                                <th class="leases-th">"Asset"</th>
+                                                <th class="leases-th">"Tenant"</th>
                                                 <th class="leases-th">"Monthly Rent"</th>
                                                 <th class="leases-th">"Start"</th>
                                                 <th class="leases-th">"End"</th>
@@ -207,6 +237,7 @@ pub fn Leases() -> impl IntoView {
                                                 let status = LeaseStatus::from_str(&l.status);
                                                 let id_str = l.id.to_string();
                                                 let detail_href = format!("/l/leases/{id_str}");
+                                                let tenant = l.tenant_display_label();
                                                 let rent = l.monthly_rent_cents.map(|c| {
                                                     format!("{} {:.2}", l.currency, c as f64 / 100.0)
                                                 }).unwrap_or_else(|| "\u{2014}".to_string());
@@ -227,9 +258,7 @@ pub fn Leases() -> impl IntoView {
                                                                 {status.as_str()}
                                                             </span>
                                                         </td>
-                                                        <td class="leases-td leases-td--mono">
-                                                            {l.asset_id.map(|id| id.to_string()).unwrap_or_else(|| "\u{2014}".to_string())}
-                                                        </td>
+                                                        <td class="leases-td">{tenant}</td>
                                                         <td class="leases-td leases-td--amount">{rent}</td>
                                                         <td class="leases-td">{start}</td>
                                                         <td class="leases-td">{end}</td>
@@ -267,7 +296,7 @@ fn LeasesTableSkeleton() -> impl IntoView {
                 <thead>
                     <tr>
                         <th class="leases-th">"Status"</th>
-                        <th class="leases-th">"Asset"</th>
+                        <th class="leases-th">"Tenant"</th>
                         <th class="leases-th">"Monthly Rent"</th>
                         <th class="leases-th">"Start"</th>
                         <th class="leases-th">"End"</th>
@@ -311,4 +340,105 @@ pub async fn list_leases() -> Result<Vec<LeaseSummary>, server_fn::error::Server
     crate::atlas_client::authenticated_get::<Vec<LeaseSummary>>("/api/folio/leases", &token, None)
         .await
         .map_err(|e| server_fn::error::ServerFnError::new(format!("Lease list failed: {e}")))
+}
+
+#[derive(Serialize)]
+struct CreateOccupancyBody {
+    asset_id: uuid::Uuid,
+    offline_name: String,
+    offline_phone: Option<String>,
+    offline_email: Option<String>,
+    offline_notes: Option<String>,
+    start_date: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct LeaseIdResp {
+    id: uuid::Uuid,
+}
+
+/// POST /api/folio/leases/occupancy — draft occupancy (offline person).
+#[server(CreateOccupancy, "/api")]
+pub async fn create_occupancy(
+    asset_id: uuid::Uuid,
+    offline_name: String,
+    offline_phone: Option<String>,
+    offline_email: Option<String>,
+    offline_notes: Option<String>,
+    start_date: Option<String>,
+) -> Result<uuid::Uuid, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let name = offline_name.trim().to_string();
+    if name.is_empty() {
+        return Err(server_fn::error::ServerFnError::new("Name is required"));
+    }
+    let body = CreateOccupancyBody {
+        asset_id,
+        offline_name: name,
+        offline_phone: offline_phone.filter(|s| !s.trim().is_empty()),
+        offline_email: offline_email.filter(|s| !s.trim().is_empty()),
+        offline_notes: offline_notes.filter(|s| !s.trim().is_empty()),
+        start_date: start_date.filter(|s| !s.trim().is_empty()),
+    };
+    let resp: LeaseIdResp = crate::atlas_client::authenticated_post(
+        "/api/folio/leases/occupancy",
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Create occupancy failed: {e}")))?;
+    Ok(resp.id)
+}
+
+#[derive(Serialize)]
+struct ActivateLeaseBody {
+    monthly_rent_cents: i64,
+    currency: String,
+    guarantee_type: String,
+    start_date: String,
+    end_date: Option<String>,
+    auto_renew: bool,
+    counterparty_user_id: Option<uuid::Uuid>,
+}
+
+/// POST /api/folio/leases/{id}/activate — draft → active with commercial terms.
+#[server(ActivateLease, "/api")]
+pub async fn activate_lease(
+    lease_id: uuid::Uuid,
+    monthly_rent_cents: i64,
+    currency: String,
+    guarantee_type: String,
+    start_date: String,
+    end_date: Option<String>,
+    auto_renew: bool,
+    counterparty_user_id: Option<uuid::Uuid>,
+) -> Result<(), server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let body = ActivateLeaseBody {
+        monthly_rent_cents,
+        currency,
+        guarantee_type,
+        start_date,
+        end_date: end_date.filter(|s| !s.trim().is_empty()),
+        auto_renew,
+        counterparty_user_id,
+    };
+    let _: serde_json::Value = crate::atlas_client::authenticated_post(
+        &format!("/api/folio/leases/{lease_id}/activate"),
+        &token,
+        None,
+        &body,
+    )
+    .await
+    .map_err(|e| server_fn::error::ServerFnError::new(format!("Activate lease failed: {e}")))?;
+    Ok(())
 }

@@ -1,4 +1,5 @@
 pub mod account_billing;
+pub mod applications;
 pub mod asset_alerts;
 pub mod asset_api;
 pub mod asset_create;
@@ -26,6 +27,7 @@ pub mod map_portfolio;
 pub mod meridian;
 pub mod meridian_config;
 pub mod notifications;
+pub mod occupant_profile;
 pub mod portfolio;
 pub mod property_documents;
 pub mod property_hub;

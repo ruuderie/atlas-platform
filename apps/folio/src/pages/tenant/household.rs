@@ -11,6 +11,10 @@
 //   GET  /api/folio/leases/{id}/vehicles             — registered vehicles
 //   POST /api/folio/leases/{id}/vehicles             — add a vehicle
 //
+// Wire shapes must match handlers/folio/household.rs exactly:
+//   RegisterOccupantHttpInput  — serde tag `kind` (adult | minor)
+//   RegisterVehicleHttpInput   — flat license_plate + state + country
+//
 // UI:  Two tabs — "People" (occupants) and "Vehicles"
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -18,6 +22,155 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+// ── Domain enums (mirror backend household service) ───────────────────────────
+
+/// Adult occupant relationships — wire as snake_case (`co_tenant`, …).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdultRelationship {
+    CoTenant,
+    Roommate,
+    Spouse,
+    Partner,
+    Other,
+}
+
+impl AdultRelationship {
+    pub const ALL: &[Self] = &[
+        Self::CoTenant,
+        Self::Roommate,
+        Self::Spouse,
+        Self::Partner,
+        Self::Other,
+    ];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CoTenant => "co_tenant",
+            Self::Roommate => "roommate",
+            Self::Spouse => "spouse",
+            Self::Partner => "partner",
+            Self::Other => "other",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::CoTenant => "Co-tenant",
+            Self::Roommate => "Roommate",
+            Self::Spouse => "Spouse",
+            Self::Partner => "Partner",
+            Self::Other => "Other adult",
+        }
+    }
+}
+
+/// Minor occupant relationships — DOB required at the API boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MinorRelationship {
+    Child,
+    Dependent,
+}
+
+impl MinorRelationship {
+    pub const ALL: &[Self] = &[Self::Child, Self::Dependent];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Child => "child",
+            Self::Dependent => "dependent",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Child => "Child",
+            Self::Dependent => "Dependent",
+        }
+    }
+}
+
+/// Select value encoding: `adult:roommate` / `minor:child`.
+pub fn parse_relationship_select(value: &str) -> Option<(bool, String)> {
+    let (kind, rel) = value.split_once(':')?;
+    match kind {
+        "adult" => {
+            let ok = AdultRelationship::ALL
+                .iter()
+                .any(|r| r.as_str() == rel);
+            if ok {
+                Some((false, rel.to_string()))
+            } else {
+                None
+            }
+        }
+        "minor" => {
+            let ok = MinorRelationship::ALL
+                .iter()
+                .any(|r| r.as_str() == rel);
+            if ok {
+                Some((true, rel.to_string()))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+pub const COMMON_VEHICLE_MAKES: &[&str] = &[
+    "Toyota",
+    "Honda",
+    "Ford",
+    "Chevrolet",
+    "Nissan",
+    "Hyundai",
+    "Kia",
+    "Subaru",
+    "Volkswagen",
+    "BMW",
+    "Mercedes-Benz",
+    "Audi",
+    "Tesla",
+    "Mazda",
+    "Jeep",
+    "Ram",
+    "GMC",
+    "Lexus",
+    "Other",
+];
+
+pub const VEHICLE_COLORS: &[&str] = &[
+    "Black",
+    "White",
+    "Silver",
+    "Gray",
+    "Blue",
+    "Red",
+    "Green",
+    "Brown",
+    "Beige",
+    "Gold",
+    "Orange",
+    "Yellow",
+    "Purple",
+    "Other",
+];
+
+/// US state codes for plate registration.
+pub const US_STATES: &[&str] = &[
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
+    "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT",
+    "VA", "WA", "WV", "WI", "WY", "DC",
+];
+
+pub fn vehicle_year_options() -> Vec<i32> {
+    let current = chrono::Datelike::year(&chrono::Utc::now());
+    ((current - 40)..=(current + 1)).rev().collect()
+}
 
 // ── API types (mirror backend shapes) ────────────────────────────────────────
 
@@ -104,7 +257,7 @@ pub async fn hh_fetch_occupants(
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     crate::atlas_client::authenticated_get::<OccupantList>(
-        &format!("/api/folio/leases/{lease_id}/occupants"),
+        &format!("/api/folio/leases/{lease_id}/occupants?include_former=true"),
         &token,
         None,
     )
@@ -131,6 +284,7 @@ pub async fn hh_fetch_vehicles(
 }
 
 /// Register a new occupant on a lease.
+/// Body uses serde tag `kind` (not `type`) to match RegisterOccupantHttpInput.
 #[server(HhAddOccupant, "/api")]
 pub async fn hh_add_occupant(
     lease_id: Uuid,
@@ -145,15 +299,18 @@ pub async fn hh_add_occupant(
     let token = session_token(&headers)?;
 
     let body = if is_minor {
+        let date_of_birth = dob.ok_or_else(|| {
+            server_fn::error::ServerFnError::new("Date of birth is required for minors")
+        })?;
         serde_json::json!({
-            "type": "minor",
+            "kind": "minor",
             "full_name": full_name,
             "relationship": relationship,
-            "date_of_birth": dob
+            "date_of_birth": date_of_birth
         })
     } else {
         serde_json::json!({
-            "type": "adult",
+            "kind": "adult",
             "full_name": full_name,
             "relationship": relationship
         })
@@ -171,6 +328,7 @@ pub async fn hh_add_occupant(
 }
 
 /// Register a new vehicle on a lease.
+/// Matches RegisterVehicleHttpInput: flat license_plate + state + country.
 #[server(HhAddVehicle, "/api")]
 pub async fn hh_add_vehicle(
     lease_id: Uuid,
@@ -187,9 +345,13 @@ pub async fn hh_add_vehicle(
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = session_token(&headers)?;
     let body = serde_json::json!({
-        "make": make, "model": model, "year": year,
+        "make": make,
+        "model": model,
+        "year": year,
         "color": color,
-        "license_plate": { "number": plate, "state": state, "country": "US" },
+        "license_plate": plate,
+        "state": state,
+        "country": "US",
         "parking_spot": parking
     });
     crate::atlas_client::authenticated_post::<serde_json::Value, serde_json::Value>(
@@ -245,6 +407,20 @@ fn cents_to_display(cents: i64, currency: &str) -> String {
     format!("{}{:.2}", symbol, cents as f64 / 100.0)
 }
 
+fn relationship_label(rel: &str) -> String {
+    for a in AdultRelationship::ALL {
+        if a.as_str() == rel {
+            return a.label().to_string();
+        }
+    }
+    for m in MinorRelationship::ALL {
+        if m.as_str() == rel {
+            return m.label().to_string();
+        }
+    }
+    rel.replace('_', " ")
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
@@ -284,19 +460,19 @@ pub fn TenantHousehold() -> impl IntoView {
     // ── Add occupant modal state ────────────────────────────────────────────
     let show_add_person = RwSignal::new(false);
     let new_person_name = RwSignal::new(String::new());
-    let new_person_rel = RwSignal::new("Adult — Other".to_string());
-    let new_person_minor = RwSignal::new(false);
+    let new_person_rel = RwSignal::new("adult:roommate".to_string());
     let new_person_dob = RwSignal::new(String::new());
     let adding_person = RwSignal::new(false);
 
     // ── Add vehicle modal state ─────────────────────────────────────────────
     let show_add_vehicle = RwSignal::new(false);
-    let new_veh_make = RwSignal::new(String::new());
+    let new_veh_make = RwSignal::new("Toyota".to_string());
+    let new_veh_make_other = RwSignal::new(String::new());
     let new_veh_model = RwSignal::new(String::new());
-    let new_veh_year = RwSignal::new("2020".to_string());
-    let new_veh_color = RwSignal::new(String::new());
+    let new_veh_year = RwSignal::new(vehicle_year_options().first().copied().unwrap_or(2020).to_string());
+    let new_veh_color = RwSignal::new("Silver".to_string());
     let new_veh_plate = RwSignal::new(String::new());
-    let new_veh_state = RwSignal::new(String::new());
+    let new_veh_state = RwSignal::new("FL".to_string());
     let new_veh_parking = RwSignal::new(String::new());
     let adding_vehicle = RwSignal::new(false);
 
@@ -309,14 +485,18 @@ pub fn TenantHousehold() -> impl IntoView {
         if name.trim().is_empty() {
             return;
         }
-        let rel = new_person_rel.get();
-        let minor = new_person_minor.get();
+        let Some((minor, rel)) = parse_relationship_select(&new_person_rel.get()) else {
+            return;
+        };
         let dob_str = new_person_dob.get();
         let dob = if minor && !dob_str.is_empty() {
             Some(dob_str)
         } else {
             None
         };
+        if minor && dob.is_none() {
+            return;
+        }
         adding_person.set(true);
         spawn_local(async move {
             if hh_add_occupant(lid, name, rel, minor, dob).await.is_ok() {
@@ -332,7 +512,12 @@ pub fn TenantHousehold() -> impl IntoView {
         let Some(lid) = lease_id.get() else {
             return;
         };
-        let make = new_veh_make.get();
+        let make_sel = new_veh_make.get();
+        let make = if make_sel == "Other" {
+            new_veh_make_other.get()
+        } else {
+            make_sel
+        };
         let model = new_veh_model.get();
         let plate = new_veh_plate.get();
         if make.trim().is_empty() || model.trim().is_empty() || plate.trim().is_empty() {
@@ -356,7 +541,6 @@ pub fn TenantHousehold() -> impl IntoView {
                 .is_ok()
             {
                 show_add_vehicle.set(false);
-                new_veh_make.set(String::new());
                 new_veh_model.set(String::new());
                 new_veh_plate.set(String::new());
                 refresh.update(|n| *n += 1);
@@ -468,7 +652,7 @@ pub fn TenantHousehold() -> impl IntoView {
                                                         key=|o| o.id
                                                         children=move |occ| {
                                                             let icon = relationship_icon(&occ.relationship, occ.is_minor);
-                                                            let rel  = occ.relationship.clone();
+                                                            let rel  = relationship_label(&occ.relationship);
                                                             let name = occ.full_name.clone();
                                                             let dob  = occ.date_of_birth.clone();
                                                             let doc  = occ.id_document_type.clone().unwrap_or_else(|| "—".to_string());
@@ -507,7 +691,7 @@ pub fn TenantHousehold() -> impl IntoView {
                                                             key=|o| o.id
                                                             children=move |occ| {
                                                                 let name = occ.full_name.clone();
-                                                                let rel  = occ.relationship.clone();
+                                                                let rel  = relationship_label(&occ.relationship);
                                                                 let left = occ.removed_at.chars().take(10).collect::<String>();
                                                                 view! {
                                                                     <div class="hh-member-card hh-member-card--former">
@@ -617,33 +801,28 @@ pub fn TenantHousehold() -> impl IntoView {
                                 <label class="form-label">"Relationship"</label>
                                 <select
                                     class="form-select"
+                                    prop:value=move || new_person_rel.get()
                                     on:change=move |ev| new_person_rel.set(event_target_value(&ev))
                                 >
-                                    <option>"Adult — Other"</option>
-                                    <option>"Spouse / Partner"</option>
-                                    <option>"Parent"</option>
-                                    <option>"Sibling"</option>
-                                    <option>"Roommate"</option>
-                                    <option>"Minor Child"</option>
-                                    <option>"Minor — Other"</option>
+                                    <optgroup label="Adult">
+                                        {AdultRelationship::ALL.iter().map(|r| {
+                                            let v = format!("adult:{}", r.as_str());
+                                            let label = r.label();
+                                            view! { <option value=v>{label}</option> }
+                                        }).collect_view()}
+                                    </optgroup>
+                                    <optgroup label="Minor">
+                                        {MinorRelationship::ALL.iter().map(|r| {
+                                            let v = format!("minor:{}", r.as_str());
+                                            let label = r.label();
+                                            view! { <option value=v>{label}</option> }
+                                        }).collect_view()}
+                                    </optgroup>
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        class="form-checkbox"
-                                        prop:checked=new_person_minor
-                                        on:change=move |ev| {
-                                            new_person_minor.set(event_target_checked(&ev));
-                                        }
-                                    />
-                                    "This is a minor (under 18)"
-                                </label>
-                            </div>
-                            <Show when=move || new_person_minor.get()>
+                            <Show when=move || new_person_rel.get().starts_with("minor:")>
                                 <div class="form-field">
-                                    <label class="form-label">"Date of Birth"</label>
+                                    <label class="form-label">"Date of Birth *"</label>
                                     <input
                                         type="date"
                                         class="form-input"
@@ -678,10 +857,25 @@ pub fn TenantHousehold() -> impl IntoView {
                         <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                             <div class="form-field">
                                 <label class="form-label">"Make *"</label>
-                                <input type="text" class="form-input" placeholder="Toyota"
-                                    prop:value=new_veh_make
-                                    on:input=move |ev| new_veh_make.set(event_target_value(&ev)) />
+                                <select
+                                    class="form-select"
+                                    prop:value=move || new_veh_make.get()
+                                    on:change=move |ev| new_veh_make.set(event_target_value(&ev))
+                                >
+                                    {COMMON_VEHICLE_MAKES.iter().map(|m| {
+                                        let m = *m;
+                                        view! { <option value=m>{m}</option> }
+                                    }).collect_view()}
+                                </select>
                             </div>
+                            <Show when=move || new_veh_make.get() == "Other">
+                                <div class="form-field">
+                                    <label class="form-label">"Make (other) *"</label>
+                                    <input type="text" class="form-input" placeholder="Make"
+                                        prop:value=new_veh_make_other
+                                        on:input=move |ev| new_veh_make_other.set(event_target_value(&ev)) />
+                                </div>
+                            </Show>
                             <div class="form-field">
                                 <label class="form-label">"Model *"</label>
                                 <input type="text" class="form-input" placeholder="Camry"
@@ -690,15 +884,29 @@ pub fn TenantHousehold() -> impl IntoView {
                             </div>
                             <div class="form-field">
                                 <label class="form-label">"Year"</label>
-                                <input type="number" class="form-input" placeholder="2020"
-                                    prop:value=new_veh_year
-                                    on:input=move |ev| new_veh_year.set(event_target_value(&ev)) />
+                                <select
+                                    class="form-select"
+                                    prop:value=move || new_veh_year.get()
+                                    on:change=move |ev| new_veh_year.set(event_target_value(&ev))
+                                >
+                                    {vehicle_year_options().into_iter().map(|y| {
+                                        let ys = y.to_string();
+                                        view! { <option value=ys.clone()>{ys.clone()}</option> }
+                                    }).collect_view()}
+                                </select>
                             </div>
                             <div class="form-field">
                                 <label class="form-label">"Color"</label>
-                                <input type="text" class="form-input" placeholder="Silver"
-                                    prop:value=new_veh_color
-                                    on:input=move |ev| new_veh_color.set(event_target_value(&ev)) />
+                                <select
+                                    class="form-select"
+                                    prop:value=move || new_veh_color.get()
+                                    on:change=move |ev| new_veh_color.set(event_target_value(&ev))
+                                >
+                                    {VEHICLE_COLORS.iter().map(|c| {
+                                        let c = *c;
+                                        view! { <option value=c>{c}</option> }
+                                    }).collect_view()}
+                                </select>
                             </div>
                             <div class="form-field">
                                 <label class="form-label">"License Plate *"</label>
@@ -707,10 +915,17 @@ pub fn TenantHousehold() -> impl IntoView {
                                     on:input=move |ev| new_veh_plate.set(event_target_value(&ev)) />
                             </div>
                             <div class="form-field">
-                                <label class="form-label">"State / Province"</label>
-                                <input type="text" class="form-input" placeholder="CA"
-                                    prop:value=new_veh_state
-                                    on:input=move |ev| new_veh_state.set(event_target_value(&ev)) />
+                                <label class="form-label">"State"</label>
+                                <select
+                                    class="form-select"
+                                    prop:value=move || new_veh_state.get()
+                                    on:change=move |ev| new_veh_state.set(event_target_value(&ev))
+                                >
+                                    {US_STATES.iter().map(|s| {
+                                        let s = *s;
+                                        view! { <option value=s>{s}</option> }
+                                    }).collect_view()}
+                                </select>
                             </div>
                             <div class="form-field" style="grid-column:span 2">
                                 <label class="form-label">"Parking Spot (optional)"</label>

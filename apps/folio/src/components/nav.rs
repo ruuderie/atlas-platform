@@ -172,6 +172,8 @@ pub enum FolioRoute {
     LandlordLeases,
     LandlordLeaseCreate, // /l/leases/new
     LandlordLeaseDetail, // /l/leases/:id
+    LandlordOccupantProfile, // /l/leases/:lease_id/occupants/:entry_id
+    LandlordApplications, // /l/applications — rental applications inbox
     LandlordAssetsCreate, // /l/assets/new
     LandlordSetup,       // /l/setup — Salesforce-style config index
     LandlordLeads,
@@ -319,6 +321,8 @@ impl FolioRoute {
             Self::LandlordLeases => "/l/leases",
             Self::LandlordLeaseCreate => "/l/leases/new",
             Self::LandlordLeaseDetail => "/l/leases/:id",
+            Self::LandlordOccupantProfile => "/l/leases/:lease_id/occupants/:entry_id",
+            Self::LandlordApplications => "/l/applications",
             Self::LandlordAssetsCreate => "/l/assets/new",
             Self::LandlordSetup => "/l/setup",
             Self::LandlordLeads => "/l/leads",

@@ -12,12 +12,17 @@ use crate::pages::landlord::asset_api::{
 use crate::pages::landlord::lease_detail::{
     get_lease_occupants, get_lease_vehicles, OccupantRecord, VehicleRecord,
 };
-use crate::pages::landlord::leases::{list_leases, LeaseStatus};
+use crate::pages::landlord::leases::{
+    activate_lease, create_occupancy, list_leases, LeaseStatus, LeaseSummary,
+};
 use crate::pages::landlord::ledger::list_ledger_entries;
 use crate::pages::landlord::maintenance_queue::{
     list_maintenance_tickets, CaseStatus, MaintenanceSummary,
 };
-use crate::pages::tenant::household::{hh_add_occupant, hh_add_vehicle};
+use crate::pages::tenant::household::{
+    hh_add_occupant, hh_add_vehicle, parse_relationship_select, vehicle_year_options,
+    AdultRelationship, MinorRelationship, COMMON_VEHICLE_MAKES, US_STATES, VEHICLE_COLORS,
+};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::use_location;
@@ -74,8 +79,23 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
     let unit_id = asset.id;
     let parent_id = asset.parent_asset_id;
     let name = asset.name.clone();
-    let status = asset.status.clone();
     let str_mode = asset.str_eligible;
+    let unit_address_line = {
+        let mut parts = Vec::new();
+        if let Some(a) = asset.address_line_1.as_ref().filter(|s| !s.is_empty()) {
+            parts.push(a.clone());
+        }
+        let city_st = [asset.city.clone(), asset.state_province.clone()]
+            .into_iter()
+            .flatten()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !city_st.is_empty() {
+            parts.push(city_st);
+        }
+        parts.join(" · ")
+    };
     let tab = RwSignal::new(UnitTab::Overview);
 
     let location = use_location();
@@ -104,9 +124,16 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
         },
     );
 
-    let leases = Resource::new(|| (), |_| async move { list_leases().await });
+    let leases_refresh = RwSignal::new(0u32);
+    let leases = Resource::new(
+        move || leases_refresh.get(),
+        |_| async move { list_leases().await },
+    );
     let tickets = Resource::new(|| (), |_| async move { list_maintenance_tickets().await });
     let ledger = Resource::new(|| (), |_| async move { list_ledger_entries().await });
+
+    let show_message = RwSignal::new(false);
+    let show_archive = RwSignal::new(false);
 
     let show_add_space = RwSignal::new(false);
     let new_space_name = RwSignal::new(String::new());
@@ -115,35 +142,73 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
 
     let show_add_occupant = RwSignal::new(false);
     let occ_name = RwSignal::new(String::new());
-    let occ_rel = RwSignal::new("roommate".to_string());
+    let occ_rel = RwSignal::new("adult:roommate".to_string());
+    let occ_dob = RwSignal::new(String::new());
     let occ_err = RwSignal::new(None::<String>);
     let occ_pending = RwSignal::new(false);
     let occ_refresh = RwSignal::new(0u32);
 
     let show_add_vehicle = RwSignal::new(false);
-    let veh_make = RwSignal::new(String::new());
+    let veh_make = RwSignal::new("Toyota".to_string());
+    let veh_make_other = RwSignal::new(String::new());
     let veh_model = RwSignal::new(String::new());
-    let veh_year = RwSignal::new("2020".to_string());
-    let veh_color = RwSignal::new(String::new());
+    let veh_year =
+        RwSignal::new(vehicle_year_options().first().copied().unwrap_or(2020).to_string());
+    let veh_color = RwSignal::new("Silver".to_string());
     let veh_plate = RwSignal::new(String::new());
     let veh_state = RwSignal::new("FL".to_string());
     let veh_err = RwSignal::new(None::<String>);
     let veh_pending = RwSignal::new(false);
     let veh_refresh = RwSignal::new(0u32);
 
+    // Occupying lease: active > pending > draft (not only active).
     let unit_lease = Signal::derive(move || {
-        leases
-            .get()
-            .and_then(|r| r.ok())
-            .and_then(|items| {
-                items.into_iter().find(|l| {
-                    l.asset_id == Some(unit_id)
-                        && LeaseStatus::from_str(&l.status) == LeaseStatus::Active
-                })
-            })
+        leases.get().and_then(|r| r.ok()).and_then(|items| {
+            let mut candidates: Vec<LeaseSummary> = items
+                .into_iter()
+                .filter(|l| l.asset_id == Some(unit_id) && l.is_occupying())
+                .collect();
+            candidates.sort_by_key(|l| match LeaseStatus::from_str(&l.status) {
+                LeaseStatus::Active => 0,
+                LeaseStatus::Pending => 1,
+                LeaseStatus::Draft => 2,
+                _ => 9,
+            });
+            candidates.into_iter().next()
+        })
     });
 
-    let lease_id_for_occupants = Signal::derive(move || unit_lease.get().map(|l| l.id.to_string()));
+    let occupied = Signal::derive(move || unit_lease.get().is_some());
+    let seeking = Signal::derive(move || !occupied.get());
+    let str_listing = asset.str_listing_active;
+
+    let show_add_tenant = RwSignal::new(false);
+    let add_tenant_name = RwSignal::new(String::new());
+    let add_tenant_phone = RwSignal::new(String::new());
+    let add_tenant_email = RwSignal::new(String::new());
+    let add_tenant_move_in = RwSignal::new(String::new());
+    let add_tenant_err = RwSignal::new(None::<String>);
+    let add_tenant_pending = RwSignal::new(false);
+
+    let show_attach = RwSignal::new(false);
+    let attach_rent = RwSignal::new(String::new());
+    let attach_currency = RwSignal::new("USD".to_string());
+    let attach_guarantee = RwSignal::new("security_deposit".to_string());
+    let attach_start = RwSignal::new(String::new());
+    let attach_end = RwSignal::new(String::new());
+    let attach_auto_renew = RwSignal::new(false);
+    let attach_err = RwSignal::new(None::<String>);
+    let attach_pending = RwSignal::new(false);
+
+    let lease_id_for_occupants = Signal::derive(move || {
+        unit_lease.get().and_then(|l| {
+            if LeaseStatus::from_str(&l.status) == LeaseStatus::Active {
+                Some(l.id.to_string())
+            } else {
+                None
+            }
+        })
+    });
 
     let occupants = Resource::new(
         move || (lease_id_for_occupants.get(), occ_refresh.get()),
@@ -272,6 +337,7 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                 Ok(outcome) => {
                     if outcome.archived {
                         archived_ok.set(true);
+                        show_archive.set(false);
                     } else {
                         archive_blockers.set(outcome.blockers);
                         archive_err.set(Some(
@@ -318,14 +384,34 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                     let n = name.clone();
                     move || n.clone()
                 })
-                subtitle=Signal::derive(move || -> String {
-                    if str_mode {
-                        "Unit · short-term rental".into()
-                    } else {
-                        "Unit · long-term rental".into()
+                subtitle=Signal::derive({
+                    let addr = unit_address_line.clone();
+                    move || {
+                        if addr.is_empty() {
+                            "Unit".to_string()
+                        } else {
+                            addr.clone()
+                        }
                     }
                 })
             >
+                <button
+                    type="button"
+                    class="folio-btn folio-btn--ghost press"
+                    on:click=move |_| show_message.set(true)
+                >
+                    {move || {
+                        if occupied.get() {
+                            if str_mode {
+                                "Message guest"
+                            } else {
+                                "Message household"
+                            }
+                        } else {
+                            "Message"
+                        }
+                    }}
+                </button>
                 <a
                     class="folio-btn folio-btn--ghost press"
                     href=format!(
@@ -339,7 +425,7 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                 <a class="folio-btn folio-btn--primary press" href=move || wo_new.get()>"Create WO"</a>
             </PageHeader>
 
-            <div class="unit-tab-bar" role="tablist">
+            <div class="folio-tab-bar" role="tablist">
                 {[
                     UnitTab::Overview,
                     UnitTab::LeaseHousehold,
@@ -355,9 +441,9 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                 role="tab"
                                 class=move || {
                                     if tab.get() == t {
-                                        "unit-tab unit-tab--active"
+                                        "folio-tab folio-tab--active"
                                     } else {
-                                        "unit-tab"
+                                        "folio-tab"
                                     }
                                 }
                                 on:click=move |_| tab.set(t)
@@ -372,23 +458,132 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
             <Show when=move || tab.get() == UnitTab::Overview>
                 <div class="unit-panel">
                     <div class="assets-card__pills">
-                        <StatusPill
-                            label=status.clone()
-                            tone=if status == "vacant" {
-                                StatusPillTone::Warn
+                        {move || {
+                            let (label, tone) = if occupied.get() {
+                                ("Occupied".to_string(), StatusPillTone::Ok)
                             } else {
-                                StatusPillTone::Ok
-                            }
-                        />
-                        <StatusPill
-                            label=if str_mode {
-                                "Short-term".to_string()
+                                ("Vacant".to_string(), StatusPillTone::Warn)
+                            };
+                            view! { <StatusPill label=label tone=tone /> }
+                        }}
+                        <Show when=move || seeking.get()>
+                            <StatusPill label="Seeking lease".to_string() tone=StatusPillTone::Info />
+                        </Show>
+                        {move || {
+                            if str_listing {
+                                view! {
+                                    <StatusPill label="STR listed".to_string() tone=StatusPillTone::Ok />
+                                }.into_any()
+                            } else if str_mode {
+                                view! {
+                                    <StatusPill label="STR open".to_string() tone=StatusPillTone::Info />
+                                }.into_any()
                             } else {
-                                "Long-term".to_string()
+                                ().into_any()
                             }
-                            tone=StatusPillTone::Info
-                        />
+                        }}
                     </div>
+
+                    <section class="unit-availability">
+                        <h3 class="unit-availability__title">"Availability"</h3>
+                        <div class="unit-availability__grid">
+                            <div>
+                                <p class="unit-availability__label">"Occupancy"</p>
+                                <p class="unit-availability__value">
+                                    {move || if occupied.get() { "Occupied" } else { "Vacant" }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="unit-availability__label">"Lease applications"</p>
+                                <p class="unit-availability__value">
+                                    {move || if seeking.get() { "Seeking" } else { "Closed" }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="unit-availability__label">"Short-term"</p>
+                                <p class="unit-availability__value">
+                                    {if str_listing {
+                                        "Listed"
+                                    } else if str_mode {
+                                        "Open"
+                                    } else {
+                                        "Off"
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="unit-availability__actions">
+                            {move || if seeking.get() {
+                                view! {
+                                    <button
+                                        type="button"
+                                        class="folio-btn folio-btn--primary press"
+                                        on:click=move |_| {
+                                            add_tenant_err.set(None);
+                                            show_add_tenant.set(true);
+                                        }
+                                    >
+                                        "Add tenant"
+                                    </button>
+                                    <a
+                                        class="folio-btn folio-btn--ghost press"
+                                        href=format!(
+                                            "{}?asset_id={}",
+                                            FolioRoute::LandlordLeaseCreate.path(),
+                                            unit_id
+                                        )
+                                    >
+                                        "New lease"
+                                    </a>
+                                    <a
+                                        class="folio-btn folio-btn--ghost press"
+                                        href=FolioRoute::LandlordApplications.path()
+                                    >
+                                        "Applications"
+                                    </a>
+                                }.into_any()
+                            } else {
+                                let draft = unit_lease.get().filter(|l| {
+                                    LeaseStatus::from_str(&l.status) == LeaseStatus::Draft
+                                });
+                                view! {
+                                    {draft.map(|l| {
+                                        let _ = l;
+                                        view! {
+                                            <button
+                                                type="button"
+                                                class="folio-btn folio-btn--primary press"
+                                                on:click=move |_| {
+                                                    attach_err.set(None);
+                                                    show_attach.set(true);
+                                                }
+                                            >
+                                                "Attach lease"
+                                            </button>
+                                        }
+                                    })}
+                                    {unit_lease.get().map(|l| {
+                                        let href = FolioRoute::LandlordLeaseDetail
+                                            .path()
+                                            .replace(":id", &l.id.to_string());
+                                        view! {
+                                            <a class="folio-btn folio-btn--ghost press" href=href>"Open lease"</a>
+                                        }
+                                    })}
+                                    <a
+                                        class="folio-btn folio-btn--ghost press"
+                                        href=format!(
+                                            "{}?asset_id={}",
+                                            FolioRoute::LandlordLeaseCreate.path(),
+                                            unit_id
+                                        )
+                                    >
+                                        "New lease"
+                                    </a>
+                                }.into_any()
+                            }}
+                        </div>
+                    </section>
 
                     <div class="unit-actions">
                         <a class="folio-btn folio-btn--primary press" href=move || wo_new.get()>"Create WO"</a>
@@ -398,14 +593,6 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                         >
                             "Log paid"
                         </a>
-                        {move || unit_lease.get().map(|l| {
-                            let href = FolioRoute::LandlordLeaseDetail
-                                .path()
-                                .replace(":id", &l.id.to_string());
-                            view! {
-                                <a class="folio-btn folio-btn--ghost press" href=href>"Open lease"</a>
-                            }
-                        })}
                         {docs_href.clone().map(|h| view! {
                             <a class="folio-btn folio-btn--ghost press" href=h>"Building documents"</a>
                         })}
@@ -424,10 +611,12 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                         </div>
                         {move || match unit_lease.get() {
                             Some(l) => {
+                                let status = LeaseStatus::from_str(&l.status);
                                 let rent = l
                                     .monthly_rent_cents
                                     .map(|c| format!("${:.0}/mo", c as f64 / 100.0))
                                     .unwrap_or_else(|| "—".into());
+                                let tenant = l.tenant_display_label();
                                 let dates = match (l.start_date, l.end_date) {
                                     (Some(s), Some(e)) => format!("{s} → {e}"),
                                     (Some(s), None) => format!("From {s}"),
@@ -435,21 +624,17 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                 };
                                 view! {
                                     <div class="hub-activity-rail__row">
-                                        <StatusPill label="Occupied".to_string() tone=StatusPillTone::Ok/>
+                                        <StatusPill label=status.as_str().to_string() tone=StatusPillTone::Ok/>
                                         <div class="hub-activity-rail__body">
-                                            <p class="hub-activity-rail__row-title">{rent}</p>
-                                            <p class="hub-activity-rail__row-meta">{dates}</p>
+                                            <p class="hub-activity-rail__row-title">{tenant}</p>
+                                            <p class="hub-activity-rail__row-meta">{format!("{rent} · {dates}")}</p>
                                         </div>
                                     </div>
                                 }.into_any()
                             }
                             None => view! {
                                 <div class="folio-empty--compact">
-                                    {if str_mode {
-                                        "No active long-term lease — manage stays from Reservations when connected."
-                                    } else {
-                                        "No active lease on this unit."
-                                    }}
+                                    "No occupying lease on this unit."
                                 </div>
                             }.into_any(),
                         }}
@@ -460,7 +645,7 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                             <h3 class="proj-section__title">"Open work orders"</h3>
                             <button
                                 type="button"
-                                class="hub-activity-rail__all"
+                                class="folio-btn folio-btn--ghost folio-btn--sm press"
                                 on:click=move |_| tab.set(UnitTab::Maintenance)
                             >
                                 "View all"
@@ -504,44 +689,67 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                     {move || match unit_lease.get() {
                         None => view! {
                             <div class="folio-empty">
-                                <p class="folio-empty__heading">"No active lease"</p>
+                                <p class="folio-empty__heading">"No occupying lease"</p>
                                 <p class="folio-empty__sub">
-                                    "Household and vehicles appear when a lease is linked to this unit."
+                                    "Add a tenant or create a lease to manage household here."
                                 </p>
-                                <a
-                                    class="folio-btn folio-btn--primary press"
-                                    href=format!(
-                                        "{}?asset_id={}",
-                                        FolioRoute::LandlordLeaseCreate.path(),
-                                        unit_id
-                                    )
-                                >
-                                    "New lease"
-                                </a>
+                                <div class="unit-actions" style="justify-content:center;">
+                                    <button
+                                        type="button"
+                                        class="folio-btn folio-btn--primary press"
+                                        on:click=move |_| show_add_tenant.set(true)
+                                    >
+                                        "Add tenant"
+                                    </button>
+                                    <a
+                                        class="folio-btn folio-btn--ghost press"
+                                        href=format!(
+                                            "{}?asset_id={}",
+                                            FolioRoute::LandlordLeaseCreate.path(),
+                                            unit_id
+                                        )
+                                    >
+                                        "New lease"
+                                    </a>
+                                </div>
                             </div>
                         }.into_any(),
                         Some(l) => {
                             let href = FolioRoute::LandlordLeaseDetail
                                 .path()
                                 .replace(":id", &l.id.to_string());
+                            let status = LeaseStatus::from_str(&l.status);
                             let rent = l
                                 .monthly_rent_cents
                                 .map(|c| format!("${:.0}/mo", c as f64 / 100.0))
                                 .unwrap_or_else(|| "—".into());
+                            let tenant = l.tenant_display_label();
+                            let is_draft = status == LeaseStatus::Draft;
                             view! {
                                 <section class="proj-section">
                                     <div class="proj-section__head">
                                         <h3 class="proj-section__title">"Lease"</h3>
-                                        <a class="hub-activity-rail__all" href=href>"Open detail"</a>
+                                        <a class="folio-btn folio-btn--ghost folio-btn--sm press" href=href>"Open detail"</a>
                                     </div>
-                                    <p class="hub-activity-rail__row-meta">{rent}</p>
+                                    <p class="hub-activity-rail__row-title">{tenant}</p>
+                                    <p class="hub-activity-rail__row-meta">{format!("{} · {rent}", status.as_str())}</p>
+                                    <Show when=move || is_draft>
+                                        <button
+                                            type="button"
+                                            class="folio-btn folio-btn--primary press"
+                                            style="margin-top:0.75rem;"
+                                            on:click=move |_| show_attach.set(true)
+                                        >
+                                            "Attach lease"
+                                        </button>
+                                    </Show>
                                 </section>
                                 <section class="proj-section">
                                     <div class="proj-section__head">
                                         <h3 class="proj-section__title">"Household"</h3>
                                         <button
                                             type="button"
-                                            class="hub-activity-rail__all"
+                                            class="folio-btn folio-btn--primary folio-btn--sm press"
                                             on:click=move |_| show_add_occupant.set(true)
                                         >
                                             "Add occupant"
@@ -556,7 +764,7 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                                         <p>"No occupants registered on this lease."</p>
                                                         <button
                                                             type="button"
-                                                            class="folio-btn folio-btn--primary press"
+                                                            class="folio-btn folio-btn--primary folio-btn--sm press"
                                                             style="margin-top:0.75rem;"
                                                             on:click=move |_| show_add_occupant.set(true)
                                                         >
@@ -572,18 +780,50 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                                         children=move |o: OccupantRecord| {
                                                             let oid = o.id;
                                                             let lid = unit_lease.get().map(|l| l.id);
+                                                            let name = o.full_name.clone();
+                                                            let rel = o.relationship.replace('_', " ");
+                                                            let profile_href = lid.map(|lease_id| {
+                                                                FolioRoute::LandlordOccupantProfile
+                                                                    .path()
+                                                                    .replace(":lease_id", &lease_id.to_string())
+                                                                    .replace(":entry_id", &oid.to_string())
+                                                            });
                                                             view! {
                                                                 <div class="hub-activity-rail__row">
-                                                                    <StatusPill label="Occupant".to_string() tone=StatusPillTone::Info/>
+                                                                    <StatusPill
+                                                                        label=if o.is_minor {
+                                                                            "Minor".to_string()
+                                                                        } else {
+                                                                            "Adult".to_string()
+                                                                        }
+                                                                        tone=StatusPillTone::Info
+                                                                    />
                                                                     <div class="hub-activity-rail__body">
-                                                                        <p class="hub-activity-rail__row-title">{o.full_name.clone()}</p>
-                                                                        <p class="hub-activity-rail__row-meta">{o.relationship.clone()}</p>
+                                                                        {match profile_href.clone() {
+                                                                            Some(href) => view! {
+                                                                                <a class="hub-activity-rail__row-title press" href=href style="text-decoration:none;color:inherit;">
+                                                                                    {name.clone()}
+                                                                                </a>
+                                                                            }.into_any(),
+                                                                            None => view! {
+                                                                                <p class="hub-activity-rail__row-title">{name.clone()}</p>
+                                                                            }.into_any(),
+                                                                        }}
+                                                                        <p class="hub-activity-rail__row-meta">{rel}</p>
                                                                     </div>
                                                                     <button
                                                                         type="button"
-                                                                        class="folio-btn folio-btn--ghost press"
+                                                                        class="folio-btn folio-btn--ghost folio-btn--sm press"
+                                                                        style="border-color:#fecaca;color:#991b1b;"
                                                                         on:click=move |_| {
                                                                             let Some(lease_id) = lid else { return; };
+                                                                            let msg = format!("Depart {name} from this lease?");
+                                                                            let confirmed = web_sys::window()
+                                                                                .and_then(|w| w.confirm_with_message(&msg).ok())
+                                                                                .unwrap_or(false);
+                                                                            if !confirmed {
+                                                                                return;
+                                                                            }
                                                                             spawn_local(async move {
                                                                                 if depart_lease_occupant(lease_id, oid).await.is_ok() {
                                                                                     occ_refresh.update(|n| *n += 1);
@@ -607,7 +847,7 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                         <h3 class="proj-section__title">"Vehicles"</h3>
                                         <button
                                             type="button"
-                                            class="hub-activity-rail__all"
+                                            class="folio-btn folio-btn--ghost folio-btn--sm press"
                                             on:click=move |_| show_add_vehicle.set(true)
                                         >
                                             "Register vehicle"
@@ -908,67 +1148,133 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                         </aside>
                     </div>
 
-                    <section class="proj-section" style="margin-top:1.5rem;border-top:1px solid #e5e7eb;padding-top:1.25rem;">
-                        <div class="proj-section__head">
-                            <div>
-                                <h3 class="proj-section__title" style="color:#b91c1c;">"Danger zone"</h3>
-                                <p class="proj-section__hint">
-                                    "Archive removes this unit from active portfolio views. Type DELETE to confirm."
-                                </p>
-                            </div>
-                        </div>
-
+                    <div class="hub-archive-foot">
                         {move || if archived_ok.get() {
                             view! {
-                                <p style="color:#15803d;font-size:0.875rem;">"Unit archived."</p>
+                                <p class="hub-archive-foot__ok">"Unit archived."</p>
                             }.into_any()
                         } else {
                             view! {
-                                <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:28rem;">
-                                    <input
-                                        type="text"
-                                        class="form-input"
-                                        placeholder="Type DELETE"
-                                        prop:value=move || archive_confirm.get()
-                                        on:input=move |ev| archive_confirm.set(event_target_value(&ev))
-                                    />
-                                    <div class="unit-actions">
-                                        <button
-                                            type="button"
-                                            class="folio-btn folio-btn--primary press"
-                                            style="background:#b91c1c;border-color:#b91c1c;"
-                                            disabled=move || {
-                                                archive_pending.get()
-                                                    || archive_confirm.get().trim() != "DELETE"
-                                            }
-                                            on:click=on_archive
-                                        >
-                                            {move || if archive_pending.get() { "Archiving…" } else { "Archive unit" }}
-                                        </button>
-                                    </div>
-                                    {move || archive_err.get().map(|e| view! {
-                                        <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
-                                    })}
-                                    {move || {
-                                        let blockers = archive_blockers.get();
-                                        if blockers.is_empty() {
-                                            ().into_any()
-                                        } else {
-                                            view! {
-                                                <ul style="margin:0;padding-left:1.1rem;font-size:0.875rem;color:#7f1d1d;">
-                                                    {blockers.into_iter().map(|b| {
-                                                        view! {
-                                                            <li>{format!("{} — {}", b.code.replace('_', " "), b.message)}</li>
-                                                        }
-                                                    }).collect_view()}
-                                                </ul>
-                                            }.into_any()
-                                        }
-                                    }}
-                                </div>
+                                <button
+                                    type="button"
+                                    class="hub-archive-foot__link"
+                                    on:click=move |_| {
+                                        archive_err.set(None);
+                                        archive_blockers.set(vec![]);
+                                        archive_confirm.set(String::new());
+                                        show_archive.set(true);
+                                    }
+                                >
+                                    "Archive unit…"
+                                </button>
                             }.into_any()
                         }}
-                    </section>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || show_message.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">
+                                {if str_mode { "Message guest" } else { "Message household" }}
+                            </h3>
+                            <button
+                                class="modal-close"
+                                on:click=move |_| show_message.set(false)
+                            >
+                                <span class="material-symbols-outlined">"close"</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="proj-section__hint">
+                                "Starting a message thread from the unit is not available yet. Use Messages in the nav for existing conversations."
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button
+                                class="folio-btn folio-btn--ghost"
+                                on:click=move |_| show_message.set(false)
+                            >
+                                "Close"
+                            </button>
+                            <a
+                                class="folio-btn folio-btn--primary press"
+                                href=FolioRoute::LandlordCommunications.path()
+                                on:click=move |_| show_message.set(false)
+                            >
+                                "Go to Messages"
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || show_archive.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Archive unit"</h3>
+                            <button
+                                class="modal-close"
+                                on:click=move |_| show_archive.set(false)
+                            >
+                                <span class="material-symbols-outlined">"close"</span>
+                            </button>
+                        </div>
+                        <div class="modal-body space-y-4">
+                            <p class="proj-section__hint">
+                                "Archive removes this unit from active portfolio views. Active leases and open work orders may block archive until resolved. Type DELETE to confirm."
+                            </p>
+                            <label class="folio-field__label">
+                                "Type DELETE"
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    autocomplete="off"
+                                    prop:value=move || archive_confirm.get()
+                                    on:input=move |ev| archive_confirm.set(event_target_value(&ev))
+                                />
+                            </label>
+                            {move || archive_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
+                            })}
+                            {move || {
+                                let blockers = archive_blockers.get();
+                                if blockers.is_empty() {
+                                    return ().into_any();
+                                }
+                                view! {
+                                    <ul style="margin:0;padding-left:1.1rem;font-size:0.85rem;">
+                                        {blockers.into_iter().map(|b| view! {
+                                            <li>{format!("{} — {}", b.code.replace('_', " "), b.message)}</li>
+                                        }).collect_view()}
+                                    </ul>
+                                }.into_any()
+                            }}
+                        </div>
+                        <div class="modal-footer">
+                            <button
+                                class="folio-btn folio-btn--ghost"
+                                on:click=move |_| show_archive.set(false)
+                            >
+                                "Cancel"
+                            </button>
+                            <button
+                                type="button"
+                                class="folio-btn folio-btn--primary"
+                                style="background:#b91c1c;border-color:#b91c1c;"
+                                prop:disabled=move || {
+                                    archive_pending.get()
+                                        || archive_confirm.get().trim() != "DELETE"
+                                }
+                                on:click=on_archive
+                            >
+                                {move || if archive_pending.get() { "Archiving…" } else { "Archive unit" }}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </Show>
 
@@ -977,13 +1283,13 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                     <div class="modal-card" style="max-width:24rem;">
                         <div class="modal-header">
                             <h3 class="modal-title">"Add space"</h3>
-                            <button class="modal-close" on:click=move |_| show_add_space.set(false)>"✕"</button>
+                            <button class="modal-close" on:click=move |_| show_add_space.set(false)><span class="material-symbols-outlined">"close"</span></button>
                         </div>
                         <div class="modal-body">
-                            <label class="form-label">
+                            <label class="folio-field__label">
                                 "Name"
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="text"
                                     placeholder="Kitchen"
                                     prop:value=move || new_space_name.get()
@@ -995,9 +1301,9 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add_space.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add_space.set(false)>"Cancel"</button>
                             <button
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || add_space_pending.get()
                                 on:click=move |_| {
                                     let name = new_space_name.get().trim().to_string();
@@ -1034,35 +1340,60 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                     <div class="modal-card" style="max-width:24rem;">
                         <div class="modal-header">
                             <h3 class="modal-title">"Add occupant"</h3>
-                            <button class="modal-close" on:click=move |_| show_add_occupant.set(false)>"✕"</button>
+                            <button class="modal-close" on:click=move |_| show_add_occupant.set(false)><span class="material-symbols-outlined">"close"</span></button>
                         </div>
                         <div class="modal-body space-y-3">
-                            <label class="form-label">
-                                "Full name"
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Full name"</label>
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="text"
                                     prop:value=move || occ_name.get()
                                     on:input=move |ev| occ_name.set(event_target_value(&ev))
                                 />
-                            </label>
-                            <label class="form-label">
-                                "Relationship"
-                                <input
-                                    class="form-input"
-                                    type="text"
+                            </div>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Relationship"</label>
+                                <select
+                                    class="folio-select"
                                     prop:value=move || occ_rel.get()
-                                    on:input=move |ev| occ_rel.set(event_target_value(&ev))
-                                />
-                            </label>
+                                    on:change=move |ev| occ_rel.set(event_target_value(&ev))
+                                >
+                                    <optgroup label="Adult">
+                                        {AdultRelationship::ALL.iter().map(|r| {
+                                            let v = format!("adult:{}", r.as_str());
+                                            let label = r.label();
+                                            view! { <option value=v>{label}</option> }
+                                        }).collect_view()}
+                                    </optgroup>
+                                    <optgroup label="Minor">
+                                        {MinorRelationship::ALL.iter().map(|r| {
+                                            let v = format!("minor:{}", r.as_str());
+                                            let label = r.label();
+                                            view! { <option value=v>{label}</option> }
+                                        }).collect_view()}
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <Show when=move || occ_rel.get().starts_with("minor:")>
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Date of birth"</label>
+                                    <input
+                                        class="folio-input"
+                                        type="date"
+                                        prop:value=move || occ_dob.get()
+                                        on:input=move |ev| occ_dob.set(event_target_value(&ev))
+                                    />
+                                </div>
+                            </Show>
                             {move || occ_err.get().map(|e| view! {
                                 <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add_occupant.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add_occupant.set(false)>"Cancel"</button>
                             <button
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || occ_pending.get()
                                 on:click=move |_| {
                                     let Some(lid) = unit_lease.get().map(|l| l.id) else {
@@ -1074,12 +1405,27 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                         occ_err.set(Some("Name is required.".into()));
                                         return;
                                     }
-                                    let rel = occ_rel.get();
+                                    let Some((is_minor, rel)) = parse_relationship_select(&occ_rel.get()) else {
+                                        occ_err.set(Some("Pick a valid relationship.".into()));
+                                        return;
+                                    };
+                                    let dob = if is_minor {
+                                        let d = occ_dob.get().trim().to_string();
+                                        if d.is_empty() {
+                                            occ_err.set(Some("Date of birth is required for minors.".into()));
+                                            return;
+                                        }
+                                        Some(d)
+                                    } else {
+                                        None
+                                    };
                                     occ_pending.set(true);
                                     spawn_local(async move {
-                                        match hh_add_occupant(lid, name, rel, false, None).await {
+                                        match hh_add_occupant(lid, name, rel, is_minor, dob).await {
                                             Ok(()) => {
                                                 occ_name.set(String::new());
+                                                occ_rel.set("adult:roommate".into());
+                                                occ_dob.set(String::new());
                                                 show_add_occupant.set(false);
                                                 occ_refresh.update(|n| *n += 1);
                                                 occ_pending.set(false);
@@ -1099,46 +1445,347 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                 </div>
             </Show>
 
+            <Show when=move || show_add_tenant.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Add tenant"</h3>
+                            <button class="modal-close" on:click=move |_| show_add_tenant.set(false)>
+                                <span class="material-symbols-outlined">"close"</span>
+                            </button>
+                        </div>
+                        <div class="modal-body space-y-3">
+                            <p class="proj-section__hint">
+                                "Record who’s living here now. You can attach commercial lease terms later."
+                            </p>
+                            <label class="folio-field__label">
+                                "Name"
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    prop:value=move || add_tenant_name.get()
+                                    on:input=move |ev| add_tenant_name.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "Phone (optional)"
+                                <input
+                                    class="folio-input"
+                                    type="tel"
+                                    prop:value=move || add_tenant_phone.get()
+                                    on:input=move |ev| add_tenant_phone.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "Email (optional)"
+                                <input
+                                    class="folio-input"
+                                    type="email"
+                                    prop:value=move || add_tenant_email.get()
+                                    on:input=move |ev| add_tenant_email.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "Move-in date (optional)"
+                                <input
+                                    class="folio-input"
+                                    type="date"
+                                    prop:value=move || add_tenant_move_in.get()
+                                    on:input=move |ev| add_tenant_move_in.set(event_target_value(&ev))
+                                />
+                            </label>
+                            {move || add_tenant_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add_tenant.set(false)>
+                                "Cancel"
+                            </button>
+                            <button
+                                class="folio-btn folio-btn--primary"
+                                disabled=move || add_tenant_pending.get()
+                                on:click=move |_| {
+                                    let name = add_tenant_name.get().trim().to_string();
+                                    if name.is_empty() {
+                                        add_tenant_err.set(Some("Name is required.".into()));
+                                        return;
+                                    }
+                                    add_tenant_pending.set(true);
+                                    let phone = add_tenant_phone.get();
+                                    let email = add_tenant_email.get();
+                                    let move_in = add_tenant_move_in.get();
+                                    spawn_local(async move {
+                                        match create_occupancy(
+                                            unit_id,
+                                            name,
+                                            Some(phone).filter(|s| !s.trim().is_empty()),
+                                            Some(email).filter(|s| !s.trim().is_empty()),
+                                            None,
+                                            Some(move_in).filter(|s| !s.trim().is_empty()),
+                                        )
+                                        .await
+                                        {
+                                            Ok(_) => {
+                                                add_tenant_name.set(String::new());
+                                                add_tenant_phone.set(String::new());
+                                                add_tenant_email.set(String::new());
+                                                add_tenant_move_in.set(String::new());
+                                                show_add_tenant.set(false);
+                                                leases_refresh.update(|n| *n += 1);
+                                            }
+                                            Err(e) => add_tenant_err.set(Some(e.to_string())),
+                                        }
+                                        add_tenant_pending.set(false);
+                                    });
+                                }
+                            >
+                                {move || if add_tenant_pending.get() { "Saving…" } else { "Save occupancy" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || show_attach.get()>
+                <div class="modal-backdrop">
+                    <div class="modal-card" style="max-width:28rem;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">"Attach lease"</h3>
+                            <button class="modal-close" on:click=move |_| show_attach.set(false)>
+                                <span class="material-symbols-outlined">"close"</span>
+                            </button>
+                        </div>
+                        <div class="modal-body space-y-3">
+                            <p class="proj-section__hint">
+                                "Add rent and terms to activate the draft occupancy."
+                            </p>
+                            <label class="folio-field__label">
+                                "Monthly rent"
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    inputmode="decimal"
+                                    placeholder="1850"
+                                    prop:value=move || attach_rent.get()
+                                    on:input=move |ev| attach_rent.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "Currency"
+                                <select
+                                    class="folio-input"
+                                    prop:value=move || attach_currency.get()
+                                    on:change=move |ev| attach_currency.set(event_target_value(&ev))
+                                >
+                                    <option value="USD">"USD"</option>
+                                    <option value="BRL">"BRL"</option>
+                                </select>
+                            </label>
+                            <label class="folio-field__label">
+                                "Guarantee"
+                                <select
+                                    class="folio-input"
+                                    prop:value=move || attach_guarantee.get()
+                                    on:change=move |ev| attach_guarantee.set(event_target_value(&ev))
+                                >
+                                    <option value="security_deposit">"Security deposit"</option>
+                                    <option value="guarantor">"Guarantor"</option>
+                                    <option value="none">"None"</option>
+                                </select>
+                            </label>
+                            <label class="folio-field__label">
+                                "Start date"
+                                <input
+                                    class="folio-input"
+                                    type="date"
+                                    prop:value=move || attach_start.get()
+                                    on:input=move |ev| attach_start.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "End date (optional)"
+                                <input
+                                    class="folio-input"
+                                    type="date"
+                                    prop:value=move || attach_end.get()
+                                    on:input=move |ev| attach_end.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field folio-field--check">
+                                <input
+                                    type="checkbox"
+                                    prop:checked=move || attach_auto_renew.get()
+                                    on:change=move |ev| {
+                                        let el = event_target::<web_sys::HtmlInputElement>(&ev);
+                                        attach_auto_renew.set(el.checked());
+                                    }
+                                />
+                                <span>"Auto-renew"</span>
+                            </label>
+                            {move || attach_err.get().map(|e| view! {
+                                <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
+                            })}
+                        </div>
+                        <div class="modal-footer">
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_attach.set(false)>
+                                "Cancel"
+                            </button>
+                            <button
+                                class="folio-btn folio-btn--primary"
+                                disabled=move || attach_pending.get()
+                                on:click=move |_| {
+                                    let Some(lease) = unit_lease.get() else {
+                                        attach_err.set(Some("No draft occupancy.".into()));
+                                        return;
+                                    };
+                                    let rent_cents = match attach_rent.get().trim().parse::<f64>() {
+                                        Ok(v) if v >= 0.0 => (v * 100.0).round() as i64,
+                                        _ => {
+                                            attach_err.set(Some("Enter monthly rent.".into()));
+                                            return;
+                                        }
+                                    };
+                                    let start = attach_start.get();
+                                    if start.is_empty() {
+                                        attach_err.set(Some("Start date is required.".into()));
+                                        return;
+                                    }
+                                    let end = {
+                                        let e = attach_end.get();
+                                        if e.is_empty() { None } else { Some(e) }
+                                    };
+                                    attach_pending.set(true);
+                                    let currency = attach_currency.get();
+                                    let guarantee = attach_guarantee.get();
+                                    let auto = attach_auto_renew.get();
+                                    spawn_local(async move {
+                                        match activate_lease(
+                                            lease.id,
+                                            rent_cents,
+                                            currency,
+                                            guarantee,
+                                            start,
+                                            end,
+                                            auto,
+                                            None,
+                                        )
+                                        .await
+                                        {
+                                            Ok(()) => {
+                                                show_attach.set(false);
+                                                leases_refresh.update(|n| *n += 1);
+                                            }
+                                            Err(e) => attach_err.set(Some(e.to_string())),
+                                        }
+                                        attach_pending.set(false);
+                                    });
+                                }
+                            >
+                                {move || if attach_pending.get() { "Activating…" } else { "Activate lease" }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
             <Show when=move || show_add_vehicle.get()>
                 <div class="modal-backdrop">
                     <div class="modal-card" style="max-width:24rem;">
                         <div class="modal-header">
                             <h3 class="modal-title">"Register vehicle"</h3>
-                            <button class="modal-close" on:click=move |_| show_add_vehicle.set(false)>"✕"</button>
+                            <button class="modal-close" on:click=move |_| show_add_vehicle.set(false)><span class="material-symbols-outlined">"close"</span></button>
                         </div>
                         <div class="modal-body space-y-3">
-                            <label class="form-label">"Make"
-                                <input class="form-input" type="text" prop:value=move || veh_make.get()
-                                    on:input=move |ev| veh_make.set(event_target_value(&ev))/>
-                            </label>
-                            <label class="form-label">"Model"
-                                <input class="form-input" type="text" prop:value=move || veh_model.get()
-                                    on:input=move |ev| veh_model.set(event_target_value(&ev))/>
-                            </label>
-                            <label class="form-label">"Year"
-                                <input class="form-input" type="text" prop:value=move || veh_year.get()
-                                    on:input=move |ev| veh_year.set(event_target_value(&ev))/>
-                            </label>
-                            <label class="form-label">"Color"
-                                <input class="form-input" type="text" prop:value=move || veh_color.get()
-                                    on:input=move |ev| veh_color.set(event_target_value(&ev))/>
-                            </label>
-                            <label class="form-label">"Plate"
-                                <input class="form-input" type="text" prop:value=move || veh_plate.get()
-                                    on:input=move |ev| veh_plate.set(event_target_value(&ev))/>
-                            </label>
-                            <label class="form-label">"State"
-                                <input class="form-input" type="text" prop:value=move || veh_state.get()
-                                    on:input=move |ev| veh_state.set(event_target_value(&ev))/>
-                            </label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Make"</label>
+                                <select
+                                    class="folio-select"
+                                    prop:value=move || veh_make.get()
+                                    on:change=move |ev| veh_make.set(event_target_value(&ev))
+                                >
+                                    {COMMON_VEHICLE_MAKES.iter().map(|m| {
+                                        let m = *m;
+                                        view! { <option value=m>{m}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <Show when=move || veh_make.get() == "Other">
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Make (other)"</label>
+                                    <input
+                                        class="folio-input"
+                                        type="text"
+                                        prop:value=move || veh_make_other.get()
+                                        on:input=move |ev| veh_make_other.set(event_target_value(&ev))
+                                    />
+                                </div>
+                            </Show>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Model"</label>
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    prop:value=move || veh_model.get()
+                                    on:input=move |ev| veh_model.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Year"</label>
+                                <select
+                                    class="folio-select"
+                                    prop:value=move || veh_year.get()
+                                    on:change=move |ev| veh_year.set(event_target_value(&ev))
+                                >
+                                    {vehicle_year_options().into_iter().map(|y| {
+                                        let ys = y.to_string();
+                                        view! { <option value=ys.clone()>{ys.clone()}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Color"</label>
+                                <select
+                                    class="folio-select"
+                                    prop:value=move || veh_color.get()
+                                    on:change=move |ev| veh_color.set(event_target_value(&ev))
+                                >
+                                    {VEHICLE_COLORS.iter().map(|c| {
+                                        let c = *c;
+                                        view! { <option value=c>{c}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Plate"</label>
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    prop:value=move || veh_plate.get()
+                                    on:input=move |ev| veh_plate.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"State"</label>
+                                <select
+                                    class="folio-select"
+                                    prop:value=move || veh_state.get()
+                                    on:change=move |ev| veh_state.set(event_target_value(&ev))
+                                >
+                                    {US_STATES.iter().map(|s| {
+                                        let s = *s;
+                                        view! { <option value=s>{s}</option> }
+                                    }).collect_view()}
+                                </select>
+                            </div>
                             {move || veh_err.get().map(|e| view! {
                                 <p style="color:#b91c1c;font-size:0.875rem;">{e}</p>
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add_vehicle.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add_vehicle.set(false)>"Cancel"</button>
                             <button
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || veh_pending.get()
                                 on:click=move |_| {
                                     let Some(lid) = unit_lease.get().map(|l| l.id) else {
@@ -1152,11 +1799,24 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                             return;
                                         }
                                     };
-                                    veh_pending.set(true);
-                                    let make = veh_make.get();
+                                    let make_sel = veh_make.get();
+                                    let make = if make_sel == "Other" {
+                                        veh_make_other.get()
+                                    } else {
+                                        make_sel
+                                    };
+                                    if make.trim().is_empty() {
+                                        veh_err.set(Some("Make is required.".into()));
+                                        return;
+                                    }
                                     let model = veh_model.get();
-                                    let color = veh_color.get();
                                     let plate = veh_plate.get();
+                                    if model.trim().is_empty() || plate.trim().is_empty() {
+                                        veh_err.set(Some("Model and plate are required.".into()));
+                                        return;
+                                    }
+                                    veh_pending.set(true);
+                                    let color = veh_color.get();
                                     let state = veh_state.get();
                                     spawn_local(async move {
                                         match hh_add_vehicle(

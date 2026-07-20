@@ -17,8 +17,8 @@ use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
 
 // Landlord pages
 use crate::pages::landlord::{
-    account_billing::LandlordAccountBilling, asset_alerts::AssetAlerts,
-    asset_create::AssetCreate, assets::Assets, billing::Billing,
+    account_billing::LandlordAccountBilling, applications::ApplicationsInbox,
+    asset_alerts::AssetAlerts, asset_create::AssetCreate, assets::Assets, billing::Billing,
     building_systems::BuildingSystems, campaigns::Campaigns, catalog::Catalog,
     communications::Communications, contractor_marketplace::ContractorMarketplace,
     dashboard::LandlordDashboard, digital_vault::LandlordDigitalVault,
@@ -31,8 +31,9 @@ use crate::pages::landlord::{
     property_systems::PropertySystems, ratings::LandlordRatings, referrals::LandlordReferrals,
     reservations::LandlordReservations, setup::LandlordSetup, str_compliance::StrCompliance,
     syndication::LandlordSyndication, team::LandlordTeam,
-    tenant_portal_content::TenantPortalContent, tenant_profile::TenantProfile,
-    unit_appliances::UnitAppliances, unit_maintenance_history::UnitMaintenanceHistory,
+    occupant_profile::OccupantProfile, tenant_portal_content::TenantPortalContent,
+    tenant_profile::TenantProfile, unit_appliances::UnitAppliances,
+    unit_maintenance_history::UnitMaintenanceHistory,
     unit_payment_history::UnitPaymentHistory, vendors::Vendors, violations::Violations,
     wholesaling::LandlordWholesaling, deals::LandlordDeals, deal_workspace::DealWorkspace,
     deal_structure::DealStructure, buyers::LandlordBuyers, work_order_create::WorkOrderCreate,
@@ -223,7 +224,9 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/assets/:id/portal") view=TenantPortalContent/>
                     <Route path=path!("/leases")        view=Leases/>
                     <Route path=path!("/leases/new")    view=LeaseCreate/>
+                    <Route path=path!("/leases/:lease_id/occupants/:entry_id") view=OccupantProfile/>
                     <Route path=path!("/leases/:id")    view=LeaseDetail/>
+                    <Route path=path!("/applications")  view=ApplicationsInbox/>
                     <Route path=path!("/tenants/:id")   view=TenantProfile/>
                     <Route path=path!("/maintenance")   view=MaintenanceQueue/>
                     <Route path=path!("/maintenance/new") view=WorkOrderCreate/>

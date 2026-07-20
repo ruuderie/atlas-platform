@@ -410,6 +410,20 @@ pub fn TenantProfile() -> impl IntoView {
                                                             let decided = app.decided_at
                                                                 .map(|d| d.format("%Y-%m-%d").to_string())
                                                                 .unwrap_or_else(|| "\u{2014}".to_string());
+                                                            let offer_href = match app.target_asset_id {
+                                                                Some(aid) => format!(
+                                                                    "{}?asset_id={}&user_id={}",
+                                                                    FolioRoute::LandlordLeaseCreate.path(),
+                                                                    aid,
+                                                                    app.applicant_user_id
+                                                                ),
+                                                                None => format!(
+                                                                    "{}?user_id={}",
+                                                                    FolioRoute::LandlordLeaseCreate.path(),
+                                                                    app.applicant_user_id
+                                                                ),
+                                                            };
+                                                            let is_approved = status == ApplicationStatus::Approved;
                                                             view! {
                                                                 <tr class="tp-app-row">
                                                                     <td class="tp-app-td">
@@ -429,7 +443,17 @@ pub fn TenantProfile() -> impl IntoView {
                                                                     <td class="tp-app-td">{submitted}</td>
                                                                     <td class="tp-app-td">{decided}</td>
                                                                     <td class="tp-app-td">
-                                                                        {if decidable {
+                                                                        {if is_approved {
+                                                                            view! {
+                                                                                <a
+                                                                                    class="folio-btn folio-btn--primary press"
+                                                                                    style="font-size:0.75rem;padding:0.25rem 0.5rem;"
+                                                                                    href=offer_href.clone()
+                                                                                >
+                                                                                    "Offer lease"
+                                                                                </a>
+                                                                            }.into_any()
+                                                                        } else if decidable {
                                                                             view! {
                                                                                 <div class="unit-actions" style="gap:0.35rem;">
                                                                                     <button
@@ -474,7 +498,7 @@ pub fn TenantProfile() -> impl IntoView {
                                                                                     <div style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.35rem;">
                                                                                         <input
                                                                                             type="text"
-                                                                                            class="form-input"
+                                                                                            class="folio-input"
                                                                                             placeholder="Denial reason (required)"
                                                                                             prop:value=move || deny_reason.get()
                                                                                             on:input=move |ev| deny_reason.set(event_target_value(&ev))

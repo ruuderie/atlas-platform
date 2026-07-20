@@ -1,5 +1,5 @@
 //! Create lease — `/l/leases/new`
-//! Optional `?asset_id=` prefill from unit detail.
+//! Optional `?asset_id=` + `?user_id=` prefill from unit detail / tenant profile.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
+use crate::pages::landlord::leases::{activate_lease, create_occupancy};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GuaranteeType {
@@ -53,6 +54,12 @@ impl GuaranteeType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TenantBranch {
+    AtlasUser,
+    OfflinePerson,
+}
+
 #[derive(Serialize)]
 struct CreateLeaseBody {
     asset_id: Uuid,
@@ -74,6 +81,12 @@ struct IdResp {
 struct AssetOpt {
     id: Uuid,
     name: String,
+    #[serde(default)]
+    address_line_1: Option<String>,
+    #[serde(default)]
+    city: Option<String>,
+    #[serde(default)]
+    state_province: Option<String>,
 }
 
 /// People a landlord can put on a live lease — never typed as raw UUIDs.
@@ -188,6 +201,12 @@ async fn list_assets_for_lease_create() -> Result<Vec<AssetOpt>, ServerFnError> 
     struct Raw {
         id: Uuid,
         name: String,
+        #[serde(default)]
+        address_line_1: Option<String>,
+        #[serde(default)]
+        city: Option<String>,
+        #[serde(default)]
+        state_province: Option<String>,
     }
     let rows: Vec<Raw> = crate::atlas_client::authenticated_get("/api/folio/assets", &token, None)
         .await
@@ -197,6 +216,9 @@ async fn list_assets_for_lease_create() -> Result<Vec<AssetOpt>, ServerFnError> 
         .map(|r| AssetOpt {
             id: r.id,
             name: r.name,
+            address_line_1: r.address_line_1,
+            city: r.city,
+            state_province: r.state_province,
         })
         .collect())
 }
@@ -242,6 +264,10 @@ pub fn LeaseCreate() -> impl IntoView {
 
     let asset_id = RwSignal::new(String::new());
     let counterparty = RwSignal::new(String::new());
+    let tenant_branch = RwSignal::new(TenantBranch::AtlasUser);
+    let offline_name = RwSignal::new(String::new());
+    let offline_phone = RwSignal::new(String::new());
+    let offline_email = RwSignal::new(String::new());
     let rent = RwSignal::new(String::new());
     let currency = RwSignal::new("USD".to_string());
     let guarantee = RwSignal::new(GuaranteeType::SecurityDeposit);
@@ -252,17 +278,23 @@ pub fn LeaseCreate() -> impl IntoView {
     let pending = RwSignal::new(false);
 
     Effect::new(move |_| {
-        if let Some(aid) = q.get().get("asset_id") {
+        let map = q.get();
+        if let Some(aid) = map.get("asset_id") {
             if !aid.is_empty() {
                 asset_id.set(aid);
+            }
+        }
+        if let Some(uid) = map.get("user_id") {
+            if !uid.is_empty() {
+                counterparty.set(uid);
+                tenant_branch.set(TenantBranch::AtlasUser);
             }
         }
     });
 
     let title = Signal::derive(|| "New lease".to_string());
     let subtitle = Signal::derive(|| {
-        "Create a rental contract against a unit. Pick a tenant from applicants or prior leases."
-            .to_string()
+        "Create a rental contract against a unit — Atlas tenant or offline person.".to_string()
     });
 
     view! {
@@ -282,53 +314,146 @@ pub fn LeaseCreate() -> impl IntoView {
                         error.set(Some("Select a unit / asset.".into()));
                         return;
                     };
-                    let Ok(cid) = Uuid::parse_str(counterparty.get().trim()) else {
-                        error.set(Some("Select a tenant.".into()));
-                        return;
-                    };
-                    let rent_cents = match rent.get().trim().parse::<f64>() {
-                        Ok(v) if v >= 0.0 => (v * 100.0).round() as i64,
-                        _ => {
-                            error.set(Some("Enter monthly rent (e.g. 1850).".into()));
-                            return;
-                        }
-                    };
                     let start = start_date.get();
-                    if start.is_empty() {
-                        error.set(Some("Start date is required.".into()));
-                        return;
-                    }
                     let end = {
                         let e = end_date.get();
                         if e.is_empty() { None } else { Some(e) }
                     };
-                    pending.set(true);
-                    let nav = navigate.clone();
-                    spawn_local(async move {
-                        match create_lease(
-                            aid,
-                            cid,
-                            rent_cents,
-                            currency.get(),
-                            guarantee.get().as_str().to_string(),
-                            start,
-                            end,
-                            auto_renew.get(),
-                        )
-                        .await
-                        {
-                            Ok(id) => {
-                                let path = FolioRoute::LandlordLeaseDetail
-                                    .path()
-                                    .replace(":id", &id.to_string());
-                                nav(&path, Default::default());
-                            }
-                            Err(e) => {
-                                error.set(Some(e.to_string()));
-                                pending.set(false);
+                    let rent_raw = rent.get();
+                    let rent_trimmed = rent_raw.trim().to_string();
+                    let rent_cents = if rent_trimmed.is_empty() {
+                        None
+                    } else {
+                        match rent_trimmed.parse::<f64>() {
+                            Ok(v) if v >= 0.0 => Some((v * 100.0).round() as i64),
+                            _ => {
+                                error.set(Some("Enter monthly rent (e.g. 1850).".into()));
+                                return;
                             }
                         }
-                    });
+                    };
+
+                    pending.set(true);
+                    let nav = navigate.clone();
+
+                    match tenant_branch.get() {
+                        TenantBranch::OfflinePerson => {
+                            let name = offline_name.get().trim().to_string();
+                            if name.is_empty() {
+                                error.set(Some("Enter the person’s name.".into()));
+                                pending.set(false);
+                                return;
+                            }
+                            let phone = offline_phone.get();
+                            let email = offline_email.get();
+                            let currency_v = currency.get();
+                            let guarantee_v = guarantee.get().as_str().to_string();
+                            let auto = auto_renew.get();
+                            spawn_local(async move {
+                                match create_occupancy(
+                                    aid,
+                                    name,
+                                    Some(phone).filter(|s| !s.trim().is_empty()),
+                                    Some(email).filter(|s| !s.trim().is_empty()),
+                                    None,
+                                    if start.is_empty() { None } else { Some(start.clone()) },
+                                )
+                                .await
+                                {
+                                    Ok(lease_id) => {
+                                        if let Some(cents) = rent_cents {
+                                            if start.is_empty() {
+                                                error.set(Some(
+                                                    "Start date is required to activate with rent."
+                                                        .into(),
+                                                ));
+                                                pending.set(false);
+                                                return;
+                                            }
+                                            match activate_lease(
+                                                lease_id,
+                                                cents,
+                                                currency_v,
+                                                guarantee_v,
+                                                start,
+                                                end,
+                                                auto,
+                                                None,
+                                            )
+                                            .await
+                                            {
+                                                Ok(()) => {
+                                                    let path = FolioRoute::LandlordLeaseDetail
+                                                        .path()
+                                                        .replace(":id", &lease_id.to_string());
+                                                    nav(&path, Default::default());
+                                                }
+                                                Err(e) => {
+                                                    error.set(Some(e.to_string()));
+                                                    pending.set(false);
+                                                }
+                                            }
+                                        } else {
+                                            // Occupancy only — back to unit to attach later.
+                                            let path = FolioRoute::LandlordAssetDetail
+                                                .path()
+                                                .replace(":id", &aid.to_string());
+                                            nav(&path, Default::default());
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error.set(Some(e.to_string()));
+                                        pending.set(false);
+                                    }
+                                }
+                            });
+                        }
+                        TenantBranch::AtlasUser => {
+                            let Ok(cid) = Uuid::parse_str(counterparty.get().trim()) else {
+                                error.set(Some("Select a tenant.".into()));
+                                pending.set(false);
+                                return;
+                            };
+                            let Some(cents) = rent_cents else {
+                                error.set(Some("Enter monthly rent (e.g. 1850).".into()));
+                                pending.set(false);
+                                return;
+                            };
+                            if start.is_empty() {
+                                error.set(Some("Start date is required.".into()));
+                                pending.set(false);
+                                return;
+                            }
+                            let currency_v = currency.get();
+                            let guarantee_v = guarantee.get().as_str().to_string();
+                            let auto = auto_renew.get();
+                            spawn_local(async move {
+                                match create_lease(
+                                    aid,
+                                    cid,
+                                    cents,
+                                    currency_v,
+                                    guarantee_v,
+                                    start,
+                                    end,
+                                    auto,
+                                )
+                                .await
+                                {
+                                    Ok(id) => {
+                                        let path = FolioRoute::LandlordLeaseDetail
+                                            .path()
+                                            .replace(":id", &id.to_string());
+                                        nav(&path, Default::default());
+                                    }
+                                    Err(e) => {
+                                        error.set(Some(e.to_string()));
+                                        pending.set(false);
+                                    }
+                                }
+                            });
+                        }
+                    }
                 }
             >
                 <label class="folio-field">
@@ -344,35 +469,12 @@ pub fn LeaseCreate() -> impl IntoView {
                                     <option value="">"Select…"</option>
                                     {list.into_iter().map(|a| {
                                         let id = a.id.to_string();
-                                        let name = a.name;
-                                        view! { <option value=id>{name}</option> }
-                                    }).collect_view()}
-                                </select>
-                            }.into_any(),
-                            Err(e) => view! { <p class="folio-error">{e.to_string()}</p> }.into_any(),
-                        })}
-                    </Suspense>
-                </label>
-
-                <label class="folio-field">
-                    <span class="folio-field__label">"Tenant"</span>
-                    <Suspense fallback=|| view! { <p class="folio-muted">"Loading people…"</p> }>
-                        {move || tenants.get().map(|res| match res {
-                            Ok(list) if list.is_empty() => view! {
-                                <p class="folio-muted">
-                                    "No applicants or prior tenants yet. Approve an application first, or backfill an offline historical lease from the unit History tab."
-                                </p>
-                            }.into_any(),
-                            Ok(list) => view! {
-                                <select
-                                    class="folio-input"
-                                    prop:value=move || counterparty.get()
-                                    on:change=move |e| counterparty.set(event_target_value(&e))
-                                >
-                                    <option value="">"Select tenant…"</option>
-                                    {list.into_iter().map(|t| {
-                                        let id = t.user_id.to_string();
-                                        let label = t.label;
+                                        let label = crate::utils::format_asset_place_label(
+                                            &a.name,
+                                            a.address_line_1.as_deref(),
+                                            a.city.as_deref(),
+                                            a.state_province.as_deref(),
+                                        );
                                         view! { <option value=id>{label}</option> }
                                     }).collect_view()}
                                 </select>
@@ -382,9 +484,130 @@ pub fn LeaseCreate() -> impl IntoView {
                     </Suspense>
                 </label>
 
+                <fieldset class="folio-field">
+                    <legend class="folio-field__label">"Tenant"</legend>
+                    <div class="folio-segment-bar" style="margin-bottom:0.75rem;">
+                        <button
+                            type="button"
+                            class=move || {
+                                if tenant_branch.get() == TenantBranch::AtlasUser {
+                                    "folio-segment folio-segment--active"
+                                } else {
+                                    "folio-segment"
+                                }
+                            }
+                            on:click=move |_| tenant_branch.set(TenantBranch::AtlasUser)
+                        >
+                            "Atlas person"
+                        </button>
+                        <button
+                            type="button"
+                            class=move || {
+                                if tenant_branch.get() == TenantBranch::OfflinePerson {
+                                    "folio-segment folio-segment--active"
+                                } else {
+                                    "folio-segment"
+                                }
+                            }
+                            on:click=move |_| tenant_branch.set(TenantBranch::OfflinePerson)
+                        >
+                            "New person"
+                        </button>
+                    </div>
+
+                    <Show when=move || tenant_branch.get() == TenantBranch::AtlasUser>
+                        <Suspense fallback=|| view! { <p class="folio-muted">"Loading people…"</p> }>
+                            {move || tenants.get().map(|res| match res {
+                                Ok(list) if list.is_empty() => view! {
+                                    <div class="folio-empty--compact" style="text-align:left;">
+                                        <p>
+                                            "No applicants or prior tenants yet."
+                                        </p>
+                                        <div class="unit-actions" style="margin-top:0.75rem;">
+                                            <button
+                                                type="button"
+                                                class="folio-btn folio-btn--primary press"
+                                                on:click=move |_| {
+                                                    tenant_branch.set(TenantBranch::OfflinePerson)
+                                                }
+                                            >
+                                                "Add offline person"
+                                            </button>
+                                            <a
+                                                class="folio-btn folio-btn--ghost press"
+                                                href=FolioRoute::LandlordApplications.path()
+                                            >
+                                                "Applications"
+                                            </a>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+                                Ok(list) => view! {
+                                    <select
+                                        class="folio-input"
+                                        prop:value=move || counterparty.get()
+                                        on:change=move |e| counterparty.set(event_target_value(&e))
+                                    >
+                                        <option value="">"Select tenant…"</option>
+                                        {list.into_iter().map(|t| {
+                                            let id = t.user_id.to_string();
+                                            let label = t.label;
+                                            view! { <option value=id>{label}</option> }
+                                        }).collect_view()}
+                                    </select>
+                                }.into_any(),
+                                Err(e) => view! { <p class="folio-error">{e.to_string()}</p> }.into_any(),
+                            })}
+                        </Suspense>
+                    </Show>
+
+                    <Show when=move || tenant_branch.get() == TenantBranch::OfflinePerson>
+                        <div class="space-y-3">
+                            <label class="folio-field">
+                                <span class="folio-field__label">"Name"</span>
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    prop:value=move || offline_name.get()
+                                    on:input=move |e| offline_name.set(event_target_value(&e))
+                                />
+                            </label>
+                            <label class="folio-field">
+                                <span class="folio-field__label">"Phone (optional)"</span>
+                                <input
+                                    class="folio-input"
+                                    type="tel"
+                                    prop:value=move || offline_phone.get()
+                                    on:input=move |e| offline_phone.set(event_target_value(&e))
+                                />
+                            </label>
+                            <label class="folio-field">
+                                <span class="folio-field__label">"Email (optional)"</span>
+                                <input
+                                    class="folio-input"
+                                    type="email"
+                                    prop:value=move || offline_email.get()
+                                    on:input=move |e| offline_email.set(event_target_value(&e))
+                                />
+                            </label>
+                            <p class="folio-muted" style="font-size:0.8rem;">
+                                "Leave rent blank to save occupancy only, then attach terms on the unit."
+                            </p>
+                        </div>
+                    </Show>
+                </fieldset>
+
                 <div class="folio-form__row">
                     <label class="folio-field">
-                        <span class="folio-field__label">"Monthly rent"</span>
+                        <span class="folio-field__label">
+                            {move || {
+                                if tenant_branch.get() == TenantBranch::OfflinePerson {
+                                    "Monthly rent (optional)"
+                                } else {
+                                    "Monthly rent"
+                                }
+                            }}
+                        </span>
                         <input
                             class="folio-input"
                             type="text"
@@ -464,7 +687,17 @@ pub fn LeaseCreate() -> impl IntoView {
                     class="folio-btn folio-btn--primary press"
                     prop:disabled=move || pending.get()
                 >
-                    {move || if pending.get() { "Creating…" } else { "Create lease" }}
+                    {move || {
+                        if pending.get() {
+                            "Saving…"
+                        } else if tenant_branch.get() == TenantBranch::OfflinePerson
+                            && rent.get().trim().is_empty()
+                        {
+                            "Save occupancy"
+                        } else {
+                            "Create lease"
+                        }
+                    }}
                 </button>
             </form>
         </div>

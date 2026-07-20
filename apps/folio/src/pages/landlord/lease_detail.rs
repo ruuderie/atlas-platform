@@ -45,8 +45,13 @@ pub struct LeaseDetail {
 pub struct OccupantRecord {
     pub id: uuid::Uuid,
     pub full_name: String,
-    pub kind: String,
     pub relationship: String,
+    #[serde(default)]
+    pub is_minor: bool,
+    #[serde(default)]
+    pub date_of_birth: Option<String>,
+    #[serde(default)]
+    pub id_document_type: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -408,7 +413,7 @@ pub fn LeaseDetail() -> impl IntoView {
                                                 <div class="ld-occupant-info">
                                                     <p class="ld-occupant-name">{o.full_name}</p>
                                                     <p class="ld-occupant-meta">
-                                                        {o.kind.replace('_', " ")}
+                                                        {if o.is_minor { "Minor" } else { "Adult" }}
                                                         " \u{00b7} "
                                                         {o.relationship.replace('_', " ")}
                                                     </p>
