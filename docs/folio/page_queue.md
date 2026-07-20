@@ -4,6 +4,10 @@
 > Ordering is by implementation priority (highest value to operator first).  
 > See `docs/private/prompts/stitch_to_leptos_prompt.md` for the implementation workflow.
 
+**Landlord chrome (mandatory for new `/l/**` pages):** use `PageHeader`, `folio-btn`, `folio-field` / `folio-input`, and `folio-tab` / `PropertyTabBar` (or `folio-segment` for mode pills). Do not add page-prefixed title/button/tab classes. See `.cursor/rules/folio-landlord-chrome.mdc`.
+
+**Stitch ↔ Leptos fidelity:** living classes A–E and remediation log in [`stitch_leptos_audit.md`](stitch_leptos_audit.md).
+
 ---
 
 ## P0 — Landlord Core (`/l/**`)
@@ -246,7 +250,7 @@ Do **not** invent backends here. Keep nav/routes if already scaffolded; UI stays
 | Campaign enroll | Campaigns | Marketing |
 | Vendor create without Atlas `user_id` | Vendors | Identity/onboarding |
 | STR historical reservation import | Unit history | After LTR unit history ships |
-| Hard physical purge of history | Archive | Soft-archive only |
+| Hard-delete undo / recycle bin | Purge | `POST /api/folio/assets/{id}/purge` is irreversible; Archive remains soft |
 
 ---
 
@@ -266,7 +270,7 @@ P7 Public:     8 done /  8 total   ███████████████
 Total: wired cores complete; agent/broker/guest/STR reviews-channels parked
 ```
 
-*Last updated: 2026-07-18. Gaps-close epic: unit History timelines + historical lease / payment / maint sheets; nested unit/space create; household writes; hub projects; honesty on syndication/billing/STR host.*
+*Last updated: 2026-07-19. Hub ops: WO sheet dismiss; applications landlord access; household enums/profile; property details/capital; stable hub map.*
 
 <!-- session 2026-06-28: meridian_config.rs (G-27 dashboard/rules/surfaces), ltr_listings.rs, str_listings.rs, ni_signup.rs -->
 
