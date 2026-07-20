@@ -11,12 +11,20 @@
 //!   `billing_interval`       → "monthly"
 //!   `auto_renew`             → defaults false
 
-use anyhow::Result;
-use sea_orm::DatabaseConnection;
+use anyhow::{anyhow, Result};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::types::pm::{Currency, GuaranteeType, PmContractType};
+
+/// Lease statuses that mean someone is currently on the unit.
+pub fn status_counts_as_occupied(status: &str) -> bool {
+    matches!(
+        status.to_ascii_lowercase().as_str(),
+        "draft" | "active" | "pending"
+    )
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateLeaseInput {
@@ -76,9 +84,165 @@ pub struct CreateHistoricalLeaseInput {
     pub guarantee_type: GuaranteeType,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateOccupancyInput {
+    pub asset_id: Uuid,
+    pub offline_person: OfflinePerson,
+    pub start_date: Option<chrono::NaiveDate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivateLeaseInput {
+    pub monthly_rent_cents: i64,
+    pub currency: Currency,
+    pub guarantee_type: GuaranteeType,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub auto_renew: bool,
+    pub counterparty_user_id: Option<Uuid>,
+}
+
 pub struct LeaseService;
 
 impl LeaseService {
+    /// Draft occupancy — offline person on unit without commercial terms yet.
+    pub async fn create_occupancy_draft(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        input: CreateOccupancyInput,
+    ) -> Result<Uuid> {
+        use chrono::Utc;
+        use sea_orm::{ActiveModelTrait, Set};
+
+        if input.offline_person.name.trim().is_empty() {
+            anyhow::bail!("offline_person.name is required");
+        }
+
+        if Self::has_current_occupancy(db, tenant_id, input.asset_id).await? {
+            anyhow::bail!("unit already has current occupancy");
+        }
+
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+        let start = input.start_date.unwrap_or_else(|| now.date_naive());
+        let terms = serde_json::json!({
+            "source": "occupancy_draft",
+            "counterparty_kind": CounterpartyKind::OfflinePerson.as_str(),
+            "offline_person": input.offline_person,
+        });
+
+        let model = crate::entities::atlas_contract::ActiveModel {
+            id: Set(id),
+            tenant_id: Set(tenant_id),
+            contract_type: Set(PmContractType::Lease.to_string()),
+            asset_id: Set(Some(input.asset_id)),
+            counterparty_user_id: Set(None),
+            status: Set("draft".to_string()),
+            start_date: Set(start),
+            end_date: Set(None),
+            auto_renew: Set(false),
+            currency: Set(Currency::Usd.to_string()),
+            recurring_amount_cents: Set(None),
+            billing_interval: Set("monthly".to_string()),
+            terms_metadata: Set(Some(terms)),
+            created_at: Set(now),
+            ..Default::default()
+        };
+        model.insert(db).await?;
+        tracing::info!(
+            contract_id = %id, %tenant_id,
+            asset_id = %input.asset_id,
+            "LeaseService: occupancy draft created"
+        );
+        Ok(id)
+    }
+
+    /// Activate a draft occupancy into a live lease with commercial terms.
+    pub async fn activate_lease(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        lease_id: Uuid,
+        input: ActivateLeaseInput,
+    ) -> Result<()> {
+        use sea_orm::{ActiveModelTrait, Set};
+
+        let lease = crate::entities::atlas_contract::Entity::find_by_id(lease_id)
+            .filter(crate::entities::atlas_contract::Column::TenantId.eq(tenant_id))
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow!("lease not found"))?;
+
+        if lease.status != "draft" {
+            anyhow::bail!("only draft leases can be activated");
+        }
+
+        let mut terms = lease
+            .terms_metadata
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({}));
+        if let Some(obj) = terms.as_object_mut() {
+            obj.insert(
+                "guarantee_type".into(),
+                serde_json::json!(input.guarantee_type.to_string()),
+            );
+            obj.insert(
+                "monthly_rent_cents".into(),
+                serde_json::json!(input.monthly_rent_cents),
+            );
+        }
+
+        let mut am: crate::entities::atlas_contract::ActiveModel = lease.into();
+        am.status = Set("active".to_string());
+        am.recurring_amount_cents = Set(Some(input.monthly_rent_cents));
+        am.currency = Set(input.currency.to_string());
+        am.start_date = Set(input.start_date);
+        am.end_date = Set(input.end_date);
+        am.auto_renew = Set(input.auto_renew);
+        am.terms_metadata = Set(Some(terms));
+        if let Some(uid) = input.counterparty_user_id {
+            am.counterparty_user_id = Set(Some(uid));
+        }
+        am.update(db).await?;
+        Ok(())
+    }
+
+    async fn has_current_occupancy(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        asset_id: Uuid,
+    ) -> Result<bool> {
+        let rows = crate::entities::atlas_contract::Entity::find()
+            .filter(crate::entities::atlas_contract::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::atlas_contract::Column::AssetId.eq(asset_id))
+            .filter(
+                crate::entities::atlas_contract::Column::ContractType
+                    .eq(PmContractType::Lease.to_string()),
+            )
+            .all(db)
+            .await?;
+        Ok(rows.iter().any(|r| status_counts_as_occupied(&r.status)))
+    }
+
+    /// Asset IDs (and parents will be rolled up by caller) with current occupancy.
+    pub async fn occupying_asset_ids(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+    ) -> Result<std::collections::HashSet<Uuid>> {
+        let rows = crate::entities::atlas_contract::Entity::find()
+            .filter(crate::entities::atlas_contract::Column::TenantId.eq(tenant_id))
+            .filter(
+                crate::entities::atlas_contract::Column::ContractType
+                    .eq(PmContractType::Lease.to_string()),
+            )
+            .all(db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .filter(|r| status_counts_as_occupied(&r.status))
+            .filter_map(|r| r.asset_id)
+            .collect())
+    }
+
     /// Create a lease contract in `atlas_contracts`.
     ///
     /// BR leases embed `guarantee_type` in `terms_metadata` for downstream
@@ -211,5 +375,14 @@ mod tests {
             CounterpartyKind::parse("offline_person"),
             Some(CounterpartyKind::OfflinePerson)
         );
+    }
+
+    #[test]
+    fn occupancy_statuses() {
+        assert!(status_counts_as_occupied("draft"));
+        assert!(status_counts_as_occupied("active"));
+        assert!(status_counts_as_occupied("pending"));
+        assert!(!status_counts_as_occupied("terminated"));
+        assert!(!status_counts_as_occupied("expired"));
     }
 }

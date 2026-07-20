@@ -84,6 +84,7 @@ impl AtlasApp for FolioApp {
     /// | Sub-router | Allowed roles | Middleware |
     /// |---|---|---|
     /// | `landlord_router` | Landlord (+ platform Owner/Admin) | `require_landlord` |
+    /// | `applications_router` | Landlord or Tenant | `require_landlord_or_tenant` |
     /// | `tenant_router` | Tenant | `require_tenant` |
     /// | `vendor_router` | Vendor | `VendorOnly` extractor (per-handler) |
     /// | `shared_router` | any authenticated Folio user | none (role resolved in handler) |
@@ -125,12 +126,20 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::flags::authenticated_routes())
             .layer(middleware::from_fn(require_landlord));
 
+        // ── Applications (Landlord OR Tenant) ─────────────────────────────────
+        // Axum panics on duplicate path merges, so this cannot sit on both
+        // landlord_router and tenant_router. Landlords need list/decision;
+        // tenants need list/submit — exclusive require_* would 403 the other role.
+        let applications_router = Router::new()
+            .merge(crate::handlers::folio::applications::authenticated_routes_raw())
+            .layer(middleware::from_fn(require_landlord_or_tenant));
+
         // ── Tenant-only sub-router ────────────────────────────────────────────
-        // Tenant role: own lease/payments/reservations/applications.
+        // Tenant role: own lease/payments/reservations.
+        // Applications: see applications_router (Landlord | Tenant).
         // Maintenance + household are on shared_router (landlords also need them).
         let tenant_router = Router::new()
             .merge(crate::handlers::folio::reservations::authenticated_routes_raw())
-            .merge(crate::handlers::folio::applications::authenticated_routes_raw())
             .layer(middleware::from_fn(require_tenant));
 
         // ── Vendor-only sub-router ────────────────────────────────────────────
@@ -188,6 +197,7 @@ impl AtlasApp for FolioApp {
 
         Router::new()
             .merge(landlord_router)
+            .merge(applications_router)
             .merge(tenant_router)
             .merge(vendor_router)
             .merge(pm_router)
@@ -694,6 +704,28 @@ async fn require_tenant(mut req: Request<Body>, next: Next) -> Result<Response, 
         Ok(RequireFolioRole(FolioRole::Tenant)) => Ok(next.run(req).await),
         Ok(RequireFolioRole(role)) => {
             tracing::warn!("require_tenant: denied — user has role '{role}', need Tenant");
+            Err(StatusCode::FORBIDDEN)
+        }
+        Err(status) => Err(status),
+    }
+}
+
+/// Middleware: allows `FolioRole::Landlord` or `FolioRole::Tenant`.
+/// Used for `/api/folio/applications` — landlords review; tenants submit/track.
+async fn require_landlord_or_tenant(
+    mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let (mut parts, body) = req.into_parts();
+    let role_result = RequireFolioRole::from_request_parts(&mut parts, &()).await;
+    req = Request::from_parts(parts, body);
+
+    match role_result {
+        Ok(RequireFolioRole(FolioRole::Landlord | FolioRole::Tenant)) => Ok(next.run(req).await),
+        Ok(RequireFolioRole(role)) => {
+            tracing::warn!(
+                "require_landlord_or_tenant: denied — user has role '{role}', need Landlord or Tenant"
+            );
             Err(StatusCode::FORBIDDEN)
         }
         Err(status) => Err(status),

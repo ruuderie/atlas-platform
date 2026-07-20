@@ -27,7 +27,7 @@ use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,8 @@ use uuid::Uuid;
 
 use crate::entities::user;
 use crate::services::pm::lease::{
-    CounterpartyKind, CreateHistoricalLeaseInput, CreateLeaseInput, LeaseService, OfflinePerson,
+    ActivateLeaseInput, CounterpartyKind, CreateHistoricalLeaseInput, CreateLeaseInput,
+    CreateOccupancyInput, LeaseService, OfflinePerson,
 };
 use crate::types::pm::{Currency, GuaranteeType};
 
@@ -46,9 +47,14 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/folio/leases", get(list_leases).post(create_lease))
         .route(
             "/api/folio/leases/historical",
-            axum::routing::post(create_historical_lease),
+            post(create_historical_lease),
         )
+        .route("/api/folio/leases/occupancy", post(create_occupancy))
         .route("/api/folio/leases/{id}", get(get_lease))
+        .route(
+            "/api/folio/leases/{id}/activate",
+            post(activate_lease),
+        )
         .route("/api/folio/leases/{id}/invoices", get(list_lease_invoices))
 }
 
@@ -60,6 +66,8 @@ struct LeaseSummary {
     pub id: Uuid,
     pub asset_id: Option<Uuid>,
     pub counterparty_user_id: Option<Uuid>,
+    /// Offline / draft display name from terms_metadata when no Atlas user.
+    pub counterparty_label: Option<String>,
     pub currency: String,
     pub status: String,
     pub monthly_rent_cents: Option<i64>,
@@ -125,6 +133,27 @@ struct CreateLeaseResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct CreateOccupancyHttpInput {
+    pub asset_id: Uuid,
+    pub offline_name: String,
+    pub offline_phone: Option<String>,
+    pub offline_email: Option<String>,
+    pub offline_notes: Option<String>,
+    pub start_date: Option<chrono::NaiveDate>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ActivateLeaseHttpInput {
+    pub monthly_rent_cents: i64,
+    pub currency: String,
+    pub guarantee_type: String,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub auto_renew: bool,
+    pub counterparty_user_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct CreateHistoricalLeaseHttpInput {
     pub asset_id: Uuid,
     /// `atlas_user` | `offline_person`
@@ -142,6 +171,86 @@ pub struct CreateHistoricalLeaseHttpInput {
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
+
+/// POST /api/folio/leases/occupancy — draft occupancy (offline person, no rent yet).
+async fn create_occupancy(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<CreateOccupancyHttpInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let id = LeaseService::create_occupancy_draft(
+        &db,
+        tenant_id,
+        CreateOccupancyInput {
+            asset_id: input.asset_id,
+            offline_person: OfflinePerson {
+                name: input.offline_name,
+                phone: input.offline_phone,
+                email: input.offline_email,
+                notes: input.offline_notes,
+            },
+            start_date: input.start_date,
+        },
+    )
+    .await
+    .map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("required") || msg.contains("already has") {
+            tracing::warn!(%tenant_id, "create_occupancy validation: {msg}");
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            tracing::error!(%tenant_id, "create_occupancy: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    })?;
+    Ok((
+        StatusCode::CREATED,
+        axum::response::Json(CreateLeaseResponse { id }),
+    ))
+}
+
+/// POST /api/folio/leases/{id}/activate — draft → active with commercial terms.
+async fn activate_lease(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(lease_id): Path<Uuid>,
+    Json(input): Json<ActivateLeaseHttpInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let guarantee_type = GuaranteeType::try_from(input.guarantee_type.clone())
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    let currency = Currency::try_from(input.currency.clone())
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    LeaseService::activate_lease(
+        &db,
+        tenant_id,
+        lease_id,
+        ActivateLeaseInput {
+            monthly_rent_cents: input.monthly_rent_cents,
+            currency,
+            guarantee_type,
+            start_date: input.start_date,
+            end_date: input.end_date,
+            auto_renew: input.auto_renew,
+            counterparty_user_id: input.counterparty_user_id,
+        },
+    )
+    .await
+    .map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("not found") {
+            StatusCode::NOT_FOUND
+        } else if msg.contains("only draft") || msg.contains("required") {
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            tracing::error!(%tenant_id, %lease_id, "activate_lease: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    })?;
+    Ok(StatusCode::NO_CONTENT)
+}
 
 /// POST /api/folio/leases/historical — backfill lease (offline tenant OK).
 async fn create_historical_lease(
@@ -228,16 +337,26 @@ async fn list_leases(
 
     let summaries: Vec<LeaseSummary> = leases
         .into_iter()
-        .map(|l| LeaseSummary {
-            id: l.id,
-            asset_id: l.asset_id,
-            counterparty_user_id: l.counterparty_user_id,
-            currency: l.currency,
-            status: l.status,
-            monthly_rent_cents: l.recurring_amount_cents,
-            start_date: Some(l.start_date),
-            end_date: l.end_date,
-            created_at: l.created_at,
+        .map(|l| {
+            let counterparty_label = l
+                .terms_metadata
+                .as_ref()
+                .and_then(|m| m.get("offline_person"))
+                .and_then(|p| p.get("name"))
+                .and_then(|n| n.as_str())
+                .map(|s| s.to_string());
+            LeaseSummary {
+                id: l.id,
+                asset_id: l.asset_id,
+                counterparty_user_id: l.counterparty_user_id,
+                counterparty_label,
+                currency: l.currency,
+                status: l.status,
+                monthly_rent_cents: l.recurring_amount_cents,
+                start_date: Some(l.start_date),
+                end_date: l.end_date,
+                created_at: l.created_at,
+            }
         })
         .collect();
 
