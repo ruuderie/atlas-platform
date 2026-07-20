@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use chrono::{Datelike, NaiveDate};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+    sea_query::Expr,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -208,13 +209,16 @@ impl AssetArchiveService {
             });
         }
 
+        // `atlas_reservations.status` is a PG enum; SeaORM binds `String` as text,
+        // so `status <> $n` fails with "operator does not exist". Cast to text.
         let now = chrono::Utc::now();
         let future_res = atlas_reservation::Entity::find()
             .filter(atlas_reservation::Column::TenantId.eq(tenant_id))
             .filter(atlas_reservation::Column::ReservedAssetId.eq(asset_id))
             .filter(atlas_reservation::Column::StartsAt.gt(now))
-            .filter(atlas_reservation::Column::Status.ne("cancelled"))
-            .filter(atlas_reservation::Column::Status.ne("checked_out"))
+            .filter(Expr::cust(
+                r#"CAST("atlas_reservations"."status" AS text) NOT IN ('cancelled', 'checked_out')"#,
+            ))
             .all(db)
             .await?;
         for r in future_res {

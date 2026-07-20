@@ -204,4 +204,112 @@ impl AssetService {
 
         Ok(asset)
     }
+
+    /// Merge `attributes.coordinates.{lat,lng}` on an existing asset.
+    pub async fn set_coordinates(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        asset_id: Uuid,
+        lat: f64,
+        lng: f64,
+    ) -> Result<()> {
+        use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+
+        if !(lat.is_finite() && lng.is_finite()) || (lat == 0.0 && lng == 0.0) {
+            anyhow::bail!("invalid coordinates");
+        }
+        if !(-90.0..=90.0).contains(&lat) || !(-180.0..=180.0).contains(&lng) {
+            anyhow::bail!("coordinates out of range");
+        }
+
+        let asset = Self::get_unit(db, tenant_id, asset_id).await?;
+        let mut attrs = asset
+            .attributes
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({}));
+        if let Some(obj) = attrs.as_object_mut() {
+            obj.insert(
+                "coordinates".into(),
+                serde_json::json!({ "lat": lat, "lng": lng }),
+            );
+        }
+        let mut am: crate::entities::atlas_asset::ActiveModel = asset.into();
+        am.attributes = Set(Some(attrs));
+        am.update(db).await?;
+        Ok(())
+    }
+
+    /// Nominatim geocode from the asset's stored address; persists coordinates.
+    pub async fn geocode_from_address(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        asset_id: Uuid,
+    ) -> Result<(f64, f64)> {
+        let asset = Self::get_unit(db, tenant_id, asset_id).await?;
+        let q = [
+            asset.address_line_1.clone().unwrap_or_default(),
+            asset.city.clone().unwrap_or_default(),
+            asset.state_province.clone().unwrap_or_default(),
+            asset.postal_code.clone().unwrap_or_default(),
+            asset.country_code.clone().unwrap_or_default(),
+        ]
+        .into_iter()
+        .filter(|s| !s.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join(", ");
+        if q.trim().is_empty() {
+            anyhow::bail!("address required for geocode");
+        }
+
+        let (lat, lng) = nominatim_search(&q).await?;
+        Self::set_coordinates(db, tenant_id, asset_id, lat, lng).await?;
+        Ok((lat, lng))
+    }
+
+    /// Best-effort geocode after create when lat/lng were omitted.
+    pub async fn maybe_geocode_new_asset(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        asset_id: Uuid,
+        latitude: Option<f64>,
+        longitude: Option<f64>,
+    ) {
+        if latitude.is_some() && longitude.is_some() {
+            return;
+        }
+        if let Err(e) = Self::geocode_from_address(db, tenant_id, asset_id).await {
+            tracing::warn!(%asset_id, %tenant_id, "AssetService: create-time geocode skipped: {e:#}");
+        }
+    }
+}
+
+async fn nominatim_search(query: &str) -> Result<(f64, f64)> {
+    let client = reqwest::Client::builder()
+        .user_agent("AtlasFolio/1.0 (property-ops; contact=dev@atlas.local)")
+        .build()?;
+    let url = reqwest::Url::parse_with_params(
+        "https://nominatim.openstreetmap.org/search",
+        &[("q", query), ("format", "json"), ("limit", "1")],
+    )?;
+    // Nominatim usage policy: max 1 req/s — brief politeness delay.
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    let resp = client.get(url).send().await?;
+    if !resp.status().is_success() {
+        anyhow::bail!("geocoder HTTP {}", resp.status());
+    }
+    let rows: Vec<serde_json::Value> = resp.json().await?;
+    let first = rows
+        .first()
+        .ok_or_else(|| anyhow!("no geocode result"))?;
+    let lat: f64 = first
+        .get("lat")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("missing lat"))?
+        .parse()?;
+    let lng: f64 = first
+        .get("lon")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("missing lon"))?
+        .parse()?;
+    Ok((lat, lng))
 }

@@ -15,6 +15,12 @@
 //! GET  /api/folio/assets/:id
 //!      Fetch a single asset with folio number and attributes.
 //!      -> 200 AssetDetail
+//!
+//! PUT  /api/folio/assets/:id/details
+//!      Merge beds/baths/sqft/year/notes into attributes.property_details.
+//!
+//! PUT  /api/folio/assets/:id/capital
+//!      Merge purchase/mortgage/other debt into attributes.capital (cents).
 //! ```
 
 use axum::{
@@ -35,6 +41,8 @@ use crate::services::pm::asset::{AssetService, CreateUnitInput};
 use crate::services::pm::asset_archive::{
     validate_alert_types, ArchiveBlocker, AssetAlertType, AssetArchiveService,
 };
+use crate::services::pm::asset_purge::AssetPurgeService;
+use crate::services::pm::lease::LeaseService;
 use crate::services::pm::record_relationship::RecordRelationshipService;
 use crate::types::pm::PropertyType;
 
@@ -65,10 +73,89 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
             get(get_asset_contractor),
         )
         .route("/api/folio/assets/{id}/archive", post(archive_asset))
+        .route("/api/folio/assets/{id}/purge", post(purge_asset))
         .route(
             "/api/folio/assets/{id}/alert-prefs",
             get(get_alert_prefs).put(put_alert_prefs),
         )
+        .route(
+            "/api/folio/assets/{id}/details",
+            put(put_asset_details),
+        )
+        .route(
+            "/api/folio/assets/{id}/capital",
+            put(put_asset_capital),
+        )
+        .route(
+            "/api/folio/assets/{id}/coordinates",
+            put(put_asset_coordinates),
+        )
+        .route(
+            "/api/folio/assets/{id}/geocode",
+            post(geocode_asset),
+        )
+}
+
+#[derive(Debug, Deserialize)]
+struct CoordinatesBody {
+    pub lat: f64,
+    pub lng: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct CoordinatesResponse {
+    pub lat: f64,
+    pub lng: f64,
+}
+
+/// PUT /api/folio/assets/{id}/coordinates
+async fn put_asset_coordinates(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Json(body): Json<CoordinatesBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    AssetService::set_coordinates(&db, tenant_id, asset_id, body.lat, body.lng)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if msg.contains("invalid") || msg.contains("range") {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "put_asset_coordinates: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+    Ok(axum::response::Json(CoordinatesResponse {
+        lat: body.lat,
+        lng: body.lng,
+    }))
+}
+
+/// POST /api/folio/assets/{id}/geocode — Nominatim from stored address.
+async fn geocode_asset(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let (lat, lng) = AssetService::geocode_from_address(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if msg.contains("address") || msg.contains("no geocode") {
+                StatusCode::UNPROCESSABLE_ENTITY
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "geocode_asset: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+    Ok(axum::response::Json(CoordinatesResponse { lat, lng }))
 }
 
 #[derive(Debug, Serialize)]
@@ -111,6 +198,39 @@ async fn archive_asset(
                 StatusCode::NOT_FOUND
             } else {
                 tracing::error!(%tenant_id, %asset_id, "archive_asset: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct PurgeAssetBody {
+    pub confirm: String,
+}
+
+/// POST /api/folio/assets/{id}/purge — permanently delete asset subtree.
+async fn purge_asset(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Json(body): Json<PurgeAssetBody>,
+) -> Result<Response, StatusCode> {
+    if body.confirm != "PURGE" {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    AssetPurgeService::purge_tree(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "purge_asset: {e:#}");
                 StatusCode::INTERNAL_SERVER_ERROR
             }
         })?;
@@ -208,6 +328,159 @@ async fn put_alert_prefs(
     Ok(axum::response::Json(AlertPrefsResponse { enabled }))
 }
 
+/// Property details stored under `attributes.property_details`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PropertyDetailsBody {
+    #[serde(default)]
+    pub beds: Option<f64>,
+    #[serde(default)]
+    pub baths: Option<f64>,
+    #[serde(default)]
+    pub sqft: Option<i32>,
+    #[serde(default)]
+    pub year_built: Option<i32>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+/// Capital figures stored under `attributes.capital` (cents).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CapitalBody {
+    #[serde(default)]
+    pub purchase_price_cents: Option<i64>,
+    #[serde(default)]
+    pub mortgage_balance_cents: Option<i64>,
+    #[serde(default)]
+    pub other_debt_cents: Option<i64>,
+}
+
+fn merge_attribute_key(
+    existing: Option<serde_json::Value>,
+    key: &str,
+    value: serde_json::Value,
+) -> serde_json::Value {
+    let mut attrs = existing.unwrap_or_else(|| serde_json::json!({}));
+    if let Some(obj) = attrs.as_object_mut() {
+        obj.insert(key.into(), value);
+    }
+    attrs
+}
+
+fn validate_property_details(body: &PropertyDetailsBody) -> Result<(), &'static str> {
+    if body.beds.is_some_and(|v| !(0.0..=100.0).contains(&v)) {
+        return Err("beds out of range");
+    }
+    if body.baths.is_some_and(|v| !(0.0..=100.0).contains(&v)) {
+        return Err("baths out of range");
+    }
+    if body.sqft.is_some_and(|v| !(0..=10_000_000).contains(&v)) {
+        return Err("sqft out of range");
+    }
+    if body
+        .year_built
+        .is_some_and(|v| !(1600..=2200).contains(&v))
+    {
+        return Err("year_built out of range");
+    }
+    Ok(())
+}
+
+fn validate_capital(body: &CapitalBody) -> Result<(), &'static str> {
+    for (label, v) in [
+        ("purchase_price_cents", body.purchase_price_cents),
+        ("mortgage_balance_cents", body.mortgage_balance_cents),
+        ("other_debt_cents", body.other_debt_cents),
+    ] {
+        if v.is_some_and(|n| n < 0) {
+            let _ = label;
+            return Err("capital amounts must be non-negative");
+        }
+    }
+    Ok(())
+}
+
+/// PUT /api/folio/assets/{id}/details — merge into attributes.property_details.
+async fn put_asset_details(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Json(body): Json<PropertyDetailsBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::atlas_asset;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    validate_property_details(&body).map_err(|e| {
+        tracing::warn!(%tenant_id, %asset_id, %e, "put_asset_details validation");
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let asset = atlas_asset::Entity::find_by_id(asset_id)
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let notes = body
+        .notes
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let stored = PropertyDetailsBody {
+        beds: body.beds,
+        baths: body.baths,
+        sqft: body.sqft,
+        year_built: body.year_built,
+        notes,
+    };
+    let value = serde_json::to_value(&stored).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let attrs = merge_attribute_key(asset.attributes.clone(), "property_details", value);
+
+    let mut am: atlas_asset::ActiveModel = asset.into();
+    am.attributes = Set(Some(attrs));
+    am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "put_asset_details: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(axum::response::Json(stored))
+}
+
+/// PUT /api/folio/assets/{id}/capital — merge into attributes.capital.
+async fn put_asset_capital(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Json(body): Json<CapitalBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::atlas_asset;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    validate_capital(&body).map_err(|e| {
+        tracing::warn!(%tenant_id, %asset_id, %e, "put_asset_capital validation");
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let asset = atlas_asset::Entity::find_by_id(asset_id)
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let value = serde_json::to_value(&body).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let attrs = merge_attribute_key(asset.attributes.clone(), "capital", value);
+
+    let mut am: atlas_asset::ActiveModel = asset.into();
+    am.attributes = Set(Some(attrs));
+    am.update(&db).await.map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "put_asset_capital: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(axum::response::Json(body))
+}
+
 // ── Request / response types ──────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
@@ -226,6 +499,10 @@ struct AssetSummary {
     pub str_eligible: bool,
     #[serde(default)]
     pub str_listing_active: bool,
+    pub address_line_1: Option<String>,
+    pub city: Option<String>,
+    pub state_province: Option<String>,
+    pub postal_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -334,6 +611,10 @@ async fn list_assets(
             created_at: a.created_at,
             str_eligible: a.str_eligible,
             str_listing_active: a.str_listing_active,
+            address_line_1: a.address_line_1,
+            city: a.city,
+            state_province: a.state_province,
+            postal_code: a.postal_code,
         })
         .collect();
 
@@ -356,6 +637,8 @@ async fn create_asset(
         StatusCode::UNPROCESSABLE_ENTITY
     })?;
 
+    let lat = input.latitude;
+    let lng = input.longitude;
     let id = AssetService::create_unit(
         &db,
         tenant_id,
@@ -371,8 +654,8 @@ async fn create_asset(
             country_code: input.country_code,
             property_type,
             folio_number: input.folio_number,
-            latitude: input.latitude,
-            longitude: input.longitude,
+            latitude: lat,
+            longitude: lng,
         },
     )
     .await
@@ -380,6 +663,8 @@ async fn create_asset(
         tracing::error!(%tenant_id, "create_asset error: {e:#}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+
+    AssetService::maybe_geocode_new_asset(&db, tenant_id, id, lat, lng).await;
 
     Ok((
         StatusCode::CREATED,
@@ -473,6 +758,10 @@ async fn list_asset_children(
             created_at: a.created_at,
             str_eligible: a.str_eligible,
             str_listing_active: a.str_listing_active,
+            address_line_1: a.address_line_1,
+            city: a.city,
+            state_province: a.state_province,
+            postal_code: a.postal_code,
         })
         .collect();
 
@@ -735,6 +1024,8 @@ struct MapPin {
     /// Soonest scheduled_at among open maintenance cases (ISO), if any.
     pub next_wo_at: Option<chrono::DateTime<chrono::Utc>>,
     pub str_eligible: bool,
+    /// True when draft/active/pending lease occupies this asset (or a child rolled up).
+    pub has_occupying_lease: bool,
 }
 
 async fn list_assets_map(
@@ -810,6 +1101,13 @@ async fn list_assets_map(
         }
     }
 
+    let occupying = LeaseService::occupying_asset_ids(&db, tenant_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_assets_map occupancy: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
     let pins: Vec<MapPin> = assets
         .into_iter()
         .filter_map(|a| {
@@ -822,6 +1120,9 @@ async fn list_assets_map(
             if lat == 0.0 && lng == 0.0 {
                 return None;
             }
+            let self_occ = occupying.contains(&a.id);
+            let child_occ = a.parent_asset_id.is_none()
+                && occupying.iter().any(|oid| parent_of.get(oid) == Some(&a.id));
             Some(MapPin {
                 id: a.id,
                 name: a.name,
@@ -836,6 +1137,7 @@ async fn list_assets_map(
                 open_wo_count: *open_wo_by_asset.get(&a.id).unwrap_or(&0),
                 next_wo_at: next_wo_by_asset.get(&a.id).copied(),
                 str_eligible: a.str_eligible,
+                has_occupying_lease: self_occ || child_occ,
             })
         })
         .collect();
