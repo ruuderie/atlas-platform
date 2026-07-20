@@ -252,24 +252,28 @@ pub fn StrCompliance() -> impl IntoView {
                             </button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Asset *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Asset *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| asset_id.set(event_target_value(&ev))
                                 >
                                     <option value="">"Select asset…"</option>
                                     {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
                                         let id = a.id.to_string();
-                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        let label = format!(
+                                            "{} ({})",
+                                            a.place_label(),
+                                            a.asset_type.replace('_', " ")
+                                        );
                                         view! { <option value=id>{label}</option> }
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Permit Category *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Permit Category *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| permit_category.set(event_target_value(&ev))
                                 >
                                     {StrPermitCategory::ALL.iter().copied().map(|c| {
@@ -277,29 +281,29 @@ pub fn StrCompliance() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Permit Number *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Permit Number *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=permit_number
                                     on:input=move |ev| permit_number.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Expires At *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Expires At *"</label>
                                 <input
                                     type="date"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=expires_at
                                     on:input=move |ev| expires_at.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Jurisdiction Code *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Jurisdiction Code *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="US-FL-MIAMI-DADE"
                                     prop:value=jurisdiction_code
                                     on:input=move |ev| jurisdiction_code.set(event_target_value(&ev))

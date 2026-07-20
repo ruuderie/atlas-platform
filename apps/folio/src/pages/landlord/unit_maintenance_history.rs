@@ -1,5 +1,5 @@
 //! Unit maintenance history — `/l/assets/:id/history/maintenance`
-//! Log paid expense with optional related work-order link.
+//! Stitch: timeline list + log expense (WO picker) + receipt honesty.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -130,13 +130,68 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
         tickets.refetch();
     });
 
+    let on_submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        error.set(None);
+        success.set(None);
+        let aid = asset_id.get();
+        if aid.is_nil() {
+            error.set(Some("Missing unit id.".into()));
+            return;
+        }
+        let subj = subject.get().trim().to_string();
+        if subj.is_empty() {
+            error.set(Some("Subject is required.".into()));
+            return;
+        }
+        let cents = match cost.get().trim().parse::<f64>() {
+            Ok(v) if v >= 0.0 => (v * 100.0).round() as i64,
+            _ => {
+                error.set(Some("Enter cost (e.g. 250).".into()));
+                return;
+            }
+        };
+        let desc = {
+            let d = description.get().trim().to_string();
+            if d.is_empty() {
+                None
+            } else {
+                Some(d)
+            }
+        };
+        let related = {
+            let s = related_case.get().trim().to_string();
+            if s.is_empty() {
+                None
+            } else {
+                Uuid::parse_str(&s).ok()
+            }
+        };
+        pending.set(true);
+        spawn_local(async move {
+            match log_paid_with_related(aid, subj, desc, cents, related).await {
+                Ok(_) => {
+                    success.set(Some("Logged paid maintenance.".into()));
+                    subject.set(String::new());
+                    cost.set(String::new());
+                    related_case.set(String::new());
+                    refresh.update(|n| *n += 1);
+                    pending.set(false);
+                }
+                Err(e) => {
+                    error.set(Some(e.to_string()));
+                    pending.set(false);
+                }
+            }
+        });
+    };
+
     view! {
-        <div class="folio-form-page">
+        <div class="folio-form-page maint-hist">
             <PageHeader
                 title=Signal::derive(|| "Maintenance history".to_string())
                 subtitle=Signal::derive(|| {
-                    "Log paid work for this unit. Optionally attach cost to an existing work order."
-                        .to_string()
+                    "Closed work orders and logged spend for this unit.".to_string()
                 })
             >
                 <a class="folio-btn folio-btn--ghost press" href=move || history_href.get()>
@@ -144,160 +199,170 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                 </a>
             </PageHeader>
 
-            <section class="proj-section" style="margin-bottom:1.5rem;">
-                <h3 class="proj-section__title">"Work orders on this unit"</h3>
-                <Suspense fallback=|| view! { <div class="folio-empty--compact">"Loading…"</div> }>
-                    {move || {
-                        let list = tickets.get().and_then(|r| r.ok()).unwrap_or_default();
-                        if list.is_empty() {
-                            return view! {
-                                <div class="folio-empty--compact">"No work orders for this unit yet."</div>
-                            }.into_any();
-                        }
-                        view! {
-                            <For
-                                each=move || list.clone()
-                                key=|t| t.id
-                                children=move |t: MaintenanceSummary| {
-                                    let href = FolioRoute::LandlordMaintenanceDetail
-                                        .path()
-                                        .replace(":id", &t.id.to_string());
-                                    let pick = t.id.to_string();
-                                    view! {
-                                        <div class="hub-activity-rail__row">
-                                            <StatusPill label=t.status.clone() tone=StatusPillTone::Warn/>
-                                            <div class="hub-activity-rail__body">
-                                                <a class="hub-activity-rail__row-title" href=href>{t.subject.clone()}</a>
-                                                <p class="hub-activity-rail__row-meta">{t.priority.clone()}</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                class="folio-btn folio-btn--ghost press"
-                                                on:click=move |_| related_case.set(pick.clone())
-                                            >
-                                                "Use as related"
-                                            </button>
+            <div class="maint-hist__grid">
+                <div class="maint-hist__col">
+                    <section class="proj-section">
+                        <div class="proj-section__head">
+                            <h3 class="proj-section__title">"Timeline"</h3>
+                            <p class="proj-section__hint">"Work orders and expenses on this unit"</p>
+                        </div>
+                        <Suspense fallback=|| view! { <div class="folio-empty--compact">"Loading…"</div> }>
+                            {move || {
+                                let list = tickets.get().and_then(|r| r.ok()).unwrap_or_default();
+                                if list.is_empty() {
+                                    return view! {
+                                        <div class="folio-empty--compact" style="padding:1rem 1.25rem;">
+                                            "No work orders yet. Log a standalone expense on the right."
                                         </div>
-                                    }
+                                    }.into_any();
                                 }
-                            />
-                        }.into_any()
-                    }}
-                </Suspense>
-            </section>
+                                view! {
+                                    <div class="maint-hist__timeline">
+                                        <For
+                                            each=move || list.clone()
+                                            key=|t| t.id
+                                            children=move |t: MaintenanceSummary| {
+                                                let href = FolioRoute::LandlordMaintenanceDetail
+                                                    .path()
+                                                    .replace(":id", &t.id.to_string());
+                                                let pick = t.id.to_string();
+                                                let created = t.created_at.format("%b %e, %Y").to_string();
+                                                view! {
+                                                    <div class="maint-hist__row">
+                                                        <div class="maint-hist__thumb" title="Photo on work order when attached">
+                                                            <span class="material-symbols-outlined">"photo"</span>
+                                                        </div>
+                                                        <div class="maint-hist__row-body">
+                                                            <div class="maint-hist__row-top">
+                                                                <a class="maint-hist__row-title" href=href.clone()>{t.subject.clone()}</a>
+                                                                <StatusPill label=t.status.clone() tone=StatusPillTone::Info/>
+                                                            </div>
+                                                            <p class="maint-hist__row-meta">
+                                                                {format!("{created} · {} · Linked WO", t.priority)}
+                                                            </p>
+                                                        </div>
+                                                        <div class="maint-hist__row-aside">
+                                                            <span class="maint-hist__amount">"—"</span>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--ghost folio-btn--sm press"
+                                                                on:click=move |_| related_case.set(pick.clone())
+                                                            >
+                                                                "Link"
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }
+                                        />
+                                    </div>
+                                }.into_any()
+                            }}
+                        </Suspense>
+                    </section>
+                </div>
 
-            <form
-                class="folio-form"
-                on:submit=move |ev| {
-                    ev.prevent_default();
-                    error.set(None);
-                    success.set(None);
-                    let aid = asset_id.get();
-                    if aid.is_nil() {
-                        error.set(Some("Missing unit id.".into()));
-                        return;
-                    }
-                    let subj = subject.get().trim().to_string();
-                    if subj.is_empty() {
-                        error.set(Some("Subject is required.".into()));
-                        return;
-                    }
-                    let cents = match cost.get().trim().parse::<f64>() {
-                        Ok(v) if v >= 0.0 => (v * 100.0).round() as i64,
-                        _ => {
-                            error.set(Some("Enter cost (e.g. 250).".into()));
-                            return;
-                        }
-                    };
-                    let desc = {
-                        let d = description.get().trim().to_string();
-                        if d.is_empty() { None } else { Some(d) }
-                    };
-                    let related = {
-                        let s = related_case.get().trim().to_string();
-                        if s.is_empty() {
-                            None
-                        } else {
-                            Uuid::parse_str(&s).ok()
-                        }
-                    };
-                    pending.set(true);
-                    spawn_local(async move {
-                        match log_paid_with_related(aid, subj, desc, cents, related).await {
-                            Ok(_) => {
-                                success.set(Some("Logged paid maintenance.".into()));
-                                subject.set(String::new());
-                                cost.set(String::new());
-                                related_case.set(String::new());
-                                refresh.update(|n| *n += 1);
-                                pending.set(false);
-                            }
-                            Err(e) => {
-                                error.set(Some(e.to_string()));
-                                pending.set(false);
-                            }
-                        }
-                    });
-                }
-            >
-                <label class="folio-form__label">
-                    "Subject"
-                    <input
-                        class="form-input"
-                        type="text"
-                        prop:value=move || subject.get()
-                        on:input=move |ev| subject.set(event_target_value(&ev))
-                    />
-                </label>
-                <label class="folio-form__label">
-                    "Cost"
-                    <input
-                        class="form-input"
-                        type="text"
-                        inputmode="decimal"
-                        placeholder="250"
-                        prop:value=move || cost.get()
-                        on:input=move |ev| cost.set(event_target_value(&ev))
-                    />
-                </label>
-                <label class="folio-form__label">
-                    "Description"
-                    <textarea
-                        class="form-input"
-                        prop:value=move || description.get()
-                        on:input=move |ev| description.set(event_target_value(&ev))
-                    />
-                </label>
-                <label class="folio-form__label">
-                    "Related work order (optional)"
-                    <select
-                        class="form-input"
-                        prop:value=move || related_case.get()
-                        on:change=move |ev| related_case.set(event_target_value(&ev))
-                    >
-                        <option value="">"None — standalone expense"</option>
-                        {move || {
-                            let list = tickets.get().and_then(|r| r.ok()).unwrap_or_default();
-                            list.into_iter().map(|t| {
-                                let id = t.id.to_string();
-                                let label = format!("{} · {}", t.subject, t.status);
-                                view! { <option value=id>{label}</option> }
-                            }).collect::<Vec<_>>()
-                        }}
-                    </select>
-                </label>
-
-                {move || error.get().map(|e| view! { <p style="color:#b91c1c;">{e}</p> })}
-                {move || success.get().map(|s| view! { <p style="color:#15803d;">{s}</p> })}
-
-                <button
-                    type="submit"
-                    class="folio-btn folio-btn--primary press"
-                    disabled=move || pending.get()
-                >
-                    {move || if pending.get() { "Saving…" } else { "Log paid maintenance" }}
-                </button>
-            </form>
+                <div class="maint-hist__col">
+                    <section class="proj-section">
+                        <div class="proj-section__head">
+                            <h3 class="proj-section__title">"Log expense"</h3>
+                            <p class="proj-section__hint">
+                                "Link cost to a work order when it settles that job."
+                            </p>
+                        </div>
+                        <form class="folio-form" style="padding:0 1.25rem 1.25rem;" on:submit=on_submit>
+                            <fieldset class="maint-hist__wo-picker">
+                                <legend class="folio-field__label">"Work order"</legend>
+                                <label class="maint-hist__wo-opt">
+                                    <input
+                                        type="radio"
+                                        name="wo"
+                                        value=""
+                                        prop:checked=move || related_case.get().is_empty()
+                                        on:change=move |_| related_case.set(String::new())
+                                    />
+                                    <span>
+                                        <span class="maint-hist__wo-opt-title">"No work order"</span>
+                                        <span class="maint-hist__wo-opt-sub">"Standalone expense on this unit"</span>
+                                    </span>
+                                </label>
+                                {move || {
+                                    let list = tickets.get().and_then(|r| r.ok()).unwrap_or_default();
+                                    list.into_iter().map(|t| {
+                                        let id = t.id.to_string();
+                                        let id_chk = id.clone();
+                                        let subject = t.subject.clone();
+                                        let meta = format!("{} · {}", t.status, t.priority);
+                                        view! {
+                                            <label class="maint-hist__wo-opt">
+                                                <input
+                                                    type="radio"
+                                                    name="wo"
+                                                    value=id.clone()
+                                                    prop:checked=move || related_case.get() == id_chk
+                                                    on:change=move |_| related_case.set(id.clone())
+                                                />
+                                                <span>
+                                                    <span class="maint-hist__wo-opt-title">{subject}</span>
+                                                    <span class="maint-hist__wo-opt-sub">{meta}</span>
+                                                </span>
+                                            </label>
+                                        }
+                                    }).collect_view()
+                                }}
+                            </fieldset>
+                            <label class="folio-field__label">
+                                "What"
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    placeholder="e.g. Invoice · parts + labor"
+                                    prop:value=move || subject.get()
+                                    on:input=move |ev| subject.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "Amount"
+                                <input
+                                    class="folio-input"
+                                    type="text"
+                                    inputmode="decimal"
+                                    placeholder="175.00"
+                                    prop:value=move || cost.get()
+                                    on:input=move |ev| cost.set(event_target_value(&ev))
+                                />
+                            </label>
+                            <label class="folio-field__label">
+                                "Notes"
+                                <textarea
+                                    class="folio-input"
+                                    prop:value=move || description.get()
+                                    on:input=move |ev| description.set(event_target_value(&ev))
+                                />
+                            </label>
+                            {move || error.get().map(|e| view! { <p style="color:#b91c1c;">{e}</p> })}
+                            {move || success.get().map(|s| view! { <p style="color:#15803d;">{s}</p> })}
+                            <button
+                                type="submit"
+                                class="folio-btn folio-btn--primary press"
+                                disabled=move || pending.get()
+                            >
+                                {move || if pending.get() { "Saving…" } else { "Save expense" }}
+                            </button>
+                        </form>
+                    </section>
+                    <section class="proj-section">
+                        <div class="proj-section__head">
+                            <h3 class="proj-section__title">"Receipt"</h3>
+                        </div>
+                        <div class="maint-hist__receipt" style="margin:0 1.25rem 1.25rem;">
+                            <span class="material-symbols-outlined">"receipt_long"</span>
+                            <p class="maint-hist__receipt-title">"Attach receipt"</p>
+                            <p class="maint-hist__receipt-sub">"PDF or image → vault — Not available yet"</p>
+                        </div>
+                    </section>
+                </div>
+            </div>
         </div>
     }
 }

@@ -302,37 +302,37 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                     </div>
 
                     <Show when=move || kind.get() == CounterpartyKind::OfflinePerson>
-                        <label class="folio-form__label">
+                        <label class="folio-field__label">
                             "Full name"
                             <input
-                                class="form-input"
+                                class="folio-input"
                                 type="text"
                                 prop:value=move || offline_name.get()
                                 on:input=move |ev| offline_name.set(event_target_value(&ev))
                             />
                         </label>
-                        <label class="folio-form__label">
+                        <label class="folio-field__label">
                             "Phone"
                             <input
-                                class="form-input"
+                                class="folio-input"
                                 type="tel"
                                 prop:value=move || offline_phone.get()
                                 on:input=move |ev| offline_phone.set(event_target_value(&ev))
                             />
                         </label>
-                        <label class="folio-form__label">
+                        <label class="folio-field__label">
                             "Email"
                             <input
-                                class="form-input"
+                                class="folio-input"
                                 type="email"
                                 prop:value=move || offline_email.get()
                                 on:input=move |ev| offline_email.set(event_target_value(&ev))
                             />
                         </label>
-                        <label class="folio-form__label">
+                        <label class="folio-field__label">
                             "Notes"
                             <textarea
-                                class="form-input"
+                                class="folio-input"
                                 prop:value=move || offline_notes.get()
                                 on:input=move |ev| offline_notes.set(event_target_value(&ev))
                             />
@@ -340,7 +340,7 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                     </Show>
 
                     <Show when=move || kind.get() == CounterpartyKind::AtlasUser>
-                        <label class="folio-form__label">
+                        <label class="folio-field__label">
                             "Tenant"
                             <Suspense fallback=|| view! { <p class="proj-section__hint">"Loading people…"</p> }>
                                 {move || tenants.get().map(|res| match res {
@@ -351,7 +351,7 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                                     }.into_any(),
                                     Ok(list) => view! {
                                         <select
-                                            class="form-input"
+                                            class="folio-input"
                                             prop:value=move || counterparty_user.get()
                                             on:change=move |ev| counterparty_user.set(event_target_value(&ev))
                                         >
@@ -372,10 +372,10 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
 
                 <fieldset class="folio-form__section">
                     <legend>"Terms"</legend>
-                    <label class="folio-form__label">
+                    <label class="folio-field__label">
                         "Monthly rent"
                         <input
-                            class="form-input"
+                            class="folio-input"
                             type="text"
                             inputmode="decimal"
                             placeholder="1850"
@@ -383,19 +383,19 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                             on:input=move |ev| rent.set(event_target_value(&ev))
                         />
                     </label>
-                    <label class="folio-form__label">
+                    <label class="folio-field__label">
                         "Currency"
                         <input
-                            class="form-input"
+                            class="folio-input"
                             type="text"
                             prop:value=move || currency.get()
                             on:input=move |ev| currency.set(event_target_value(&ev))
                         />
                     </label>
-                    <label class="folio-form__label">
+                    <label class="folio-field__label">
                         "Guarantee"
                         <select
-                            class="form-input"
+                            class="folio-input"
                             on:change=move |ev| {
                                 let v = event_target_value(&ev);
                                 if let Some(g) = GuaranteeType::ALL.iter().copied().find(|g| g.as_str() == v) {
@@ -410,19 +410,19 @@ pub fn HistoricalLeaseCreate() -> impl IntoView {
                             }).collect::<Vec<_>>()}
                         </select>
                     </label>
-                    <label class="folio-form__label">
+                    <label class="folio-field__label">
                         "Start date"
                         <input
-                            class="form-input"
+                            class="folio-input"
                             type="date"
                             prop:value=move || start_date.get()
                             on:input=move |ev| start_date.set(event_target_value(&ev))
                         />
                     </label>
-                    <label class="folio-form__label">
+                    <label class="folio-field__label">
                         "End date"
                         <input
-                            class="form-input"
+                            class="folio-input"
                             type="date"
                             prop:value=move || end_date.get()
                             on:input=move |ev| end_date.set(event_target_value(&ev))

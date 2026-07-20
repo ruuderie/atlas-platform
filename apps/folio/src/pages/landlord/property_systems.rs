@@ -154,15 +154,28 @@ pub fn PropertySystems() -> impl IntoView {
                                 each=move || list.clone()
                                 key=|s| s.id
                                 children=move |s| {
+                                    let cond = s.condition.clone().unwrap_or_else(|| "unknown".into());
+                                    let cond_tone = match cond.to_ascii_lowercase().as_str() {
+                                        "excellent" | "good" => StatusPillTone::Ok,
+                                        "fair" => StatusPillTone::Warn,
+                                        "poor" | "critical" => StatusPillTone::Danger,
+                                        _ => StatusPillTone::Neutral,
+                                    };
+                                    let wo_href = format!(
+                                        "{}?asset_id={}",
+                                        FolioRoute::LandlordMaintenanceNew.path(),
+                                        asset_id.get()
+                                    );
                                     view! {
                                         <div class="hub-activity-rail__row">
-                                            <StatusPill label="System".to_string() tone=StatusPillTone::Info/>
+                                            <StatusPill label=cond tone=cond_tone/>
                                             <div class="hub-activity-rail__body">
                                                 <p class="hub-activity-rail__row-title">{s.name.clone()}</p>
-                                                <p class="hub-activity-rail__row-meta">
-                                                    {format!("{} · {}", s.status, s.condition.clone().unwrap_or_else(|| "—".into()))}
-                                                </p>
+                                                <p class="hub-activity-rail__row-meta">{s.status.clone()}</p>
                                             </div>
+                                            <a class="folio-btn folio-btn--ghost folio-btn--sm press" href=wo_href>
+                                                "Create WO"
+                                            </a>
                                         </div>
                                     }
                                 }
@@ -186,19 +199,19 @@ pub fn PropertySystems() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Name *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Name *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="Main Elevator"
                                     prop:value=new_name
                                     on:input=move |ev| new_name.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"System Type *"</label>
-                                <select class="form-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"System Type *"</label>
+                                <select class="folio-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
                                     {BuildingSystemTypeOpt::ALL.iter().copied().map(|t| {
                                         view! { <option value=t.as_str()>{t.label()}</option> }
                                     }).collect_view()}

@@ -11,6 +11,7 @@
 use leptos::prelude::*;
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::catalog::list_catalog_entries;
 
 // ── Static channel definitions ─────────────────────────────────────────────
@@ -116,15 +117,14 @@ pub fn LandlordSyndication() -> impl IntoView {
     view! {
         <div class="main-area">
 
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Syndication"</h1>
-                    <p class="page-subtitle">"Listing inventory and channel destinations (read-only)"</p>
-                </div>
-                <div class="page-actions">
-                    <a class="btn btn-primary btn-sm" href=FolioRoute::LandlordCatalog.path()>"Open catalog"</a>
-                </div>
-            </div>
+            <PageHeader
+                title=Signal::derive(|| "Syndication".to_string())
+                subtitle=Signal::derive(|| {
+                    "Listing inventory and channel destinations (read-only)".to_string()
+                })
+            >
+                <a class="folio-btn folio-btn--primary folio-btn--sm" href=FolioRoute::LandlordCatalog.path()>"Open catalog"</a>
+            </PageHeader>
 
             <div class="kpi-row" style="margin-bottom:1.25rem;">
                 <div class="kpi-card">
@@ -205,7 +205,7 @@ pub fn LandlordSyndication() -> impl IntoView {
                                                     {if is_atlas { "Active" } else { "Not configured" }}
                                                 </span>
                                                 <a
-                                                    class="btn btn-ghost btn-sm"
+                                                    class="folio-btn folio-btn--ghost folio-btn--sm"
                                                     href=FolioRoute::LandlordCatalog.path()
                                                 >
                                                     "Catalog"

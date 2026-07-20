@@ -131,7 +131,7 @@ fn session_token(
 
 fn room_display_name(room: &RoomSummary) -> String {
     match room.room_type.as_str() {
-        "platform_support" => "⚡ Atlas Support".to_string(),
+        "platform_support" => "Atlas Support".to_string(),
         "direct" => "Direct Message".to_string(),
         "group" => "Group Thread".to_string(),
         _ => "Thread".to_string(),
@@ -337,9 +337,7 @@ fn NoRoomSelected() -> impl IntoView {
             <span class="material-symbols-outlined comms-no-room-icon">"forum"</span>
             <p class="comms-no-room-title">"Select a conversation"</p>
             <p class="comms-no-room-sub">
-                "Choose a thread from the left, or open "
-                <strong>"⚡ Atlas Support"</strong>
-                " to contact the platform team."
+                "Open Atlas Support in the sidebar to contact the platform team, or pick a thread once you have one."
             </p>
         </div>
     }
@@ -366,7 +364,7 @@ fn SupportThreadButton(on_open: Callback<Uuid>) -> impl IntoView {
                 });
             }>
             <span class="material-symbols-outlined">"support_agent"</span>
-            {move || if loading.get() { "Opening…" } else { "⚡ Atlas Support" }}
+            {move || if loading.get() { "Opening…" } else { "Atlas Support" }}
         </button>
     }
 }
@@ -385,7 +383,7 @@ pub fn Communications() -> impl IntoView {
             return;
         }
         selected_room.set(Some(room_id));
-        selected_name.set("⚡ Atlas Support".to_string());
+        selected_name.set("Atlas Support".to_string());
         refetch_rooms.update(|n| *n += 1);
     });
 
@@ -436,7 +434,7 @@ pub fn Communications() -> impl IntoView {
                                     <div class="comms-empty-threads">
                                         <span class="material-symbols-outlined">"chat_bubble_outline"</span>
                                         <p>"No conversations yet."</p>
-                                        <p class="comms-empty-sub">"Tap ⚡ Atlas Support to get started."</p>
+                                        <p class="comms-empty-sub">"Use Atlas Support above to get started."</p>
                                     </div>
                                 }.into_any()
                             } else {

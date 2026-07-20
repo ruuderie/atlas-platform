@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth::get_session;
+use crate::components::page_header::PageHeader;
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
@@ -213,7 +214,6 @@ pub fn ContractorMarketplace() -> impl IntoView {
     // Add vendor form state
     let new_biz = RwSignal::new(String::new());
     let new_trade = RwSignal::new(MarketplaceTradeType::GeneralContractor.as_str().to_string());
-    let new_user_id = RwSignal::new(String::new());
     let new_emerg = RwSignal::new(false);
     let adding = RwSignal::new(false);
     let add_err = RwSignal::new(None::<String>);
@@ -227,18 +227,14 @@ pub fn ContractorMarketplace() -> impl IntoView {
         }
         let trade = new_trade.get();
         let emerg = new_emerg.get();
-        let uid = {
-            let s = new_user_id.get().trim().to_string();
-            if s.is_empty() { None } else { Some(s) }
-        };
+        // Vendor record is owned by the signed-in landlord session — never paste a user UUID.
         adding.set(true);
         add_err.set(None);
         spawn_local(async move {
-            match create_marketplace_vendor(biz, trade, emerg, uid).await {
+            match create_marketplace_vendor(biz, trade, emerg, None).await {
                 Ok(_) => {
                     show_add.set(false);
                     new_biz.set(String::new());
-                    new_user_id.set(String::new());
                     new_emerg.set(false);
                     refresh.update(|n| *n += 1);
                 }
@@ -251,23 +247,23 @@ pub fn ContractorMarketplace() -> impl IntoView {
     view! {
         <div class="main-area">
 
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Contractor Marketplace"</h1>
-                    <p class="page-subtitle">"Your vetted vendor network — find, add, and manage contractors by trade"</p>
-                </div>
-                <div class="page-actions">
-                    <button
-                        class="btn btn-primary btn-sm"
-                        on:click=move |_| {
-                            add_err.set(None);
-                            show_add.set(true);
-                        }
-                    >
-                        "+ Add Vendor"
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                title=Signal::derive(|| "Contractor Marketplace".to_string())
+                subtitle=Signal::derive(|| {
+                    "Your vetted vendor network — find, add, and manage contractors by trade"
+                        .to_string()
+                })
+            >
+                <button
+                    class="folio-btn folio-btn--primary folio-btn--sm"
+                    on:click=move |_| {
+                        add_err.set(None);
+                        show_add.set(true);
+                    }
+                >
+                    "+ Add Vendor"
+                </button>
+            </PageHeader>
 
             // ── Search + filter bar ──
             <div class="mkt-controls">
@@ -366,7 +362,7 @@ pub fn ContractorMarketplace() -> impl IntoView {
                                                     </div>
 
                                                     <div class="mkt-card-actions">
-                                                        <a href="/l/maintenance" class="btn btn-primary btn-sm" style="width:100%;justify-content:center;">"Assign to Job"</a>
+                                                        <a href="/l/maintenance" class="folio-btn folio-btn--primary folio-btn--sm" style="width:100%;justify-content:center;">"Assign to Job"</a>
                                                     </div>
                                                 </div>
                                             }
@@ -388,35 +384,28 @@ pub fn ContractorMarketplace() -> impl IntoView {
                     <div class="modal-card" style="max-width:30rem;">
                         <div class="modal-header">
                             <h3 class="modal-title">"Add a Vendor"</h3>
-                            <button class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
+                            <button class="modal-close" on:click=move |_| show_add.set(false)><span class="material-symbols-outlined">"close"</span></button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Business Name *"</label>
-                                <input type="text" class="form-input" placeholder="Acme Plumbing LLC"
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Business Name *"</label>
+                                <input type="text" class="folio-input" placeholder="Acme Plumbing LLC"
                                     prop:value=new_biz
                                     on:input=move |ev| new_biz.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Trade Type"</label>
-                                <select class="form-select" on:change=move |ev| new_trade.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Trade Type"</label>
+                                <select class="folio-select" on:change=move |ev| new_trade.set(event_target_value(&ev))>
                                     {MarketplaceTradeType::ALL.iter().copied().map(|t| {
                                         view! { <option value=t.as_str()>{t.label()}</option> }
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"User ID (optional)"</label>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    placeholder="Defaults to your session user"
-                                    prop:value=new_user_id
-                                    on:input=move |ev| new_user_id.set(event_target_value(&ev))
-                                />
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label flex items-center gap-2">
+                            <p class="folio-muted" style="margin:0;">
+                                "This vendor is registered under your account. Inviting a separate contractor login is not available yet."
+                            </p>
+                            <div class="folio-field">
+                                <label class="folio-field__label flex items-center gap-2">
                                     <input
                                         type="checkbox"
                                         class="form-checkbox"
@@ -434,9 +423,9 @@ pub fn ContractorMarketplace() -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
                             <button
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || adding.get() || new_biz.get().trim().is_empty()
                                 on:click=on_add
                             >

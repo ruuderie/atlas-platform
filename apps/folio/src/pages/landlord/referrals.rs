@@ -169,7 +169,7 @@ pub fn LandlordReferrals() -> impl IntoView {
                                 <div class="flex flex-wrap gap-2">
                                     <button
                                         type="button"
-                                        class="btn btn-primary text-xs"
+                                        class="folio-btn folio-btn--primary folio-btn--sm"
                                         on:click={
                                             let url = url.clone();
                                             move |_| {
@@ -183,7 +183,7 @@ pub fn LandlordReferrals() -> impl IntoView {
                                             }
                                         }
                                     >"Copy link"</button>
-                                    <a class="btn btn-ghost text-xs" href=url.clone() target="_blank" rel="noopener">"Open link"</a>
+                                    <a class="folio-btn folio-btn--ghost folio-btn--sm" href=url.clone() target="_blank" rel="noopener">"Open link"</a>
                                 </div>
                             </div>
 
@@ -202,7 +202,7 @@ pub fn LandlordReferrals() -> impl IntoView {
                                         />
                                         <button
                                             type="button"
-                                            class="btn btn-primary text-xs"
+                                            class="folio-btn folio-btn--primary folio-btn--sm"
                                             disabled=move || sending.get()
                                             on:click=move |_| {
                                                 sending.set(true);
@@ -231,7 +231,7 @@ pub fn LandlordReferrals() -> impl IntoView {
                                         />
                                         <button
                                             type="button"
-                                            class="btn btn-ghost text-xs"
+                                            class="folio-btn folio-btn--ghost folio-btn--sm"
                                             disabled=move || sending.get()
                                             on:click=move |_| {
                                                 sending.set(true);
@@ -260,7 +260,7 @@ pub fn LandlordReferrals() -> impl IntoView {
                             </p>
                             <button
                                 type="button"
-                                class="btn btn-primary mt-5"
+                                class="folio-btn folio-btn--primary"
                                 on:click=move |_| {
                                     leptos::task::spawn_local(async move {
                                         let _ = get_my_ambassador().await;

@@ -12,6 +12,8 @@ use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::page_header::PageHeader;
+
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,16 +126,16 @@ pub fn ListingNetworkPreview() -> impl IntoView {
     view! {
         <div class="main-area">
 
-            <div class="page-header">
-                <div>
-                    <a href="/l/assets" class="back-link">"← Back to Assets"</a>
-                    <h1 class="page-title">"Listing Preview"</h1>
-                    <p class="page-subtitle">"How this property appears to prospective tenants on the Atlas Network"</p>
-                </div>
-                <div class="page-actions">
-                    <span class="listing-preview-badge">"Preview Mode"</span>
-                </div>
-            </div>
+            <a href="/l/assets" class="back-link">"← Back to Assets"</a>
+            <PageHeader
+                title=Signal::derive(|| "Listing Preview".to_string())
+                subtitle=Signal::derive(|| {
+                    "How this property appears to prospective tenants on the Atlas Network"
+                        .to_string()
+                })
+            >
+                <span class="listing-preview-badge">"Preview Mode"</span>
+            </PageHeader>
 
             // ── Preview card ──
             <div class="listing-preview-wrap">
@@ -203,7 +205,7 @@ pub fn ListingNetworkPreview() -> impl IntoView {
                                                         "This is how applicants see your property. "
                                                         "Update your catalog entry to change what's displayed."
                                                     </div>
-                                                    <a href="/l/catalog" class="btn btn-ghost btn-sm">"Edit Listing →"</a>
+                                                    <a href="/l/catalog" class="folio-btn folio-btn--ghost folio-btn--sm">"Edit Listing →"</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -215,7 +217,7 @@ pub fn ListingNetworkPreview() -> impl IntoView {
                                     <div class="listing-no-icon">"📋"</div>
                                     <div class="listing-no-title">"No Active Listing"</div>
                                     <div class="listing-no-sub">"This asset doesn't have an active catalog entry yet."</div>
-                                    <a href="/l/catalog" class="btn btn-primary btn-sm mt-4">"Create Listing"</a>
+                                    <a href="/l/catalog" class="folio-btn folio-btn--primary folio-btn--sm mt-4">"Create Listing"</a>
                                 </div>
                             }.into_any(),
                             _ => view! {

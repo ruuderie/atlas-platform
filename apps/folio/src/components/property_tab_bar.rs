@@ -43,7 +43,7 @@ pub fn PropertyTabBar(
     let docs = FolioRoute::LandlordAssetDocuments.path().replace(":id", &id.to_string());
 
     view! {
-        <nav class="hub-tab-bar" aria-label="Property sections">
+        <nav class="folio-tab-bar" aria-label="Property sections">
             {if let Some(cb) = on_overview {
                 view! {
                     <button
@@ -115,9 +115,9 @@ pub fn PropertyTabBar(
 
 fn tab_class(active: bool) -> &'static str {
     if active {
-        "hub-tab hub-tab--active"
+        "folio-tab folio-tab--active"
     } else {
-        "hub-tab"
+        "folio-tab"
     }
 }
 

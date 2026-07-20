@@ -11,6 +11,7 @@ use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 
 // ── Alert type vocabulary (matches backend AssetAlertType) ────────────────────
 
@@ -233,22 +234,19 @@ pub fn AssetAlerts() -> impl IntoView {
     view! {
         <div class="main-area">
 
-            <div class="page-header">
-                <div>
-                    <a href=FolioRoute::LandlordAssets.path() class="back-link">"← Back to Assets"</a>
-                    <h1 class="page-title">"Asset Alerts"</h1>
-                    <p class="page-subtitle">"Alerts for asset " <code class="font-mono text-xs">{move || aid_disp.get()}</code></p>
-                </div>
-                <div class="page-actions">
-                    <button
-                        class="btn btn-primary btn-sm"
-                        disabled=move || save_pending.get()
-                        on:click=on_save
-                    >
-                        {move || if save_pending.get() { "Saving…" } else { "Save Preferences" }}
-                    </button>
-                </div>
-            </div>
+            <a href=FolioRoute::LandlordAssets.path() class="back-link">"← Back to Assets"</a>
+            <PageHeader
+                title=Signal::derive(|| "Asset Alerts".to_string())
+                subtitle=Signal::derive(move || format!("Alerts for asset {}", aid_disp.get()))
+            >
+                <button
+                    class="folio-btn folio-btn--primary folio-btn--sm"
+                    disabled=move || save_pending.get()
+                    on:click=on_save
+                >
+                    {move || if save_pending.get() { "Saving…" } else { "Save Preferences" }}
+                </button>
+            </PageHeader>
 
             {move || load_err.get().map(|e| view! {
                 <div class="viol-info-banner" style="margin-bottom:1rem;color:#b91c1c;">

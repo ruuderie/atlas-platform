@@ -6,6 +6,7 @@ use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::deals::fetch_deals;
 use crate::pages::landlord::deal_workspace::post_deal_action;
 
@@ -91,19 +92,19 @@ pub fn DealStructure() -> impl IntoView {
                         let back = FolioRoute::LandlordDealDetail
                             .path()
                             .replace(":id", &d.id.to_string());
+                        let title = Signal::derive(|| "Structure offer".to_string());
+                        let subtitle = {
+                            let addr = d.property_address.clone();
+                            Signal::derive(move || addr.clone())
+                        };
                         view! {
-                            <div class="page-header">
-                                <div>
-                                    <a class="text-sm" href=back.clone()>"← Workspace"</a>
-                                    <h1 class="page-title">"Structure offer"</h1>
-                                    <p class="page-subtitle">{d.property_address.clone()}</p>
-                                </div>
-                            </div>
+                            <a class="text-sm" href=back.clone()>"← Workspace"</a>
+                            <PageHeader title=title subtitle=subtitle />
 
                             <div class="card p-4 space-y-4" style="max-width:40rem;">
-                                <div class="form-field">
-                                    <label class="form-label">"Acquisition structure"</label>
-                                    <select class="form-input" prop:value=structure
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Acquisition structure"</label>
+                                    <select class="folio-input" prop:value=structure
                                         on:change=move |ev| structure.set(event_target_value(&ev))>
                                         <option value="all_cash_mao">"All-cash MAO (wholesale)"</option>
                                         <option value="subject_to_free_equity">"Subject-to free equity"</option>
@@ -114,9 +115,9 @@ pub fn DealStructure() -> impl IntoView {
                                         <option value="purchase_option">"Purchase option"</option>
                                     </select>
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"Exit mode"</label>
-                                    <select class="form-input" prop:value=exit_mode
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Exit mode"</label>
+                                    <select class="folio-input" prop:value=exit_mode
                                         on:change=move |ev| exit_mode.set(event_target_value(&ev))>
                                         <option value="wholesale_assignment">"Wholesale assignment"</option>
                                         <option value="simultaneous_close">"Simultaneous close"</option>
@@ -126,40 +127,40 @@ pub fn DealStructure() -> impl IntoView {
                                         <option value="retail_cash">"Retail cash"</option>
                                     </select>
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"Offer / takeover ($)"</label>
-                                    <input type="number" class="form-input" prop:value=offer
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Offer / takeover ($)"</label>
+                                    <input type="number" class="folio-input" prop:value=offer
                                         on:input=move |ev| offer.set(event_target_value(&ev)) />
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"Loan balance ($)"</label>
-                                    <input type="number" class="form-input" prop:value=loan
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Loan balance ($)"</label>
+                                    <input type="number" class="folio-input" prop:value=loan
                                         on:input=move |ev| loan.set(event_target_value(&ev)) />
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"PITI ($/mo)"</label>
-                                    <input type="number" class="form-input" prop:value=piti
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"PITI ($/mo)"</label>
+                                    <input type="number" class="folio-input" prop:value=piti
                                         on:input=move |ev| piti.set(event_target_value(&ev)) />
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"Planned rent / payment in ($/mo)"</label>
-                                    <input type="number" class="form-input" prop:value=rent
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Planned rent / payment in ($/mo)"</label>
+                                    <input type="number" class="folio-input" prop:value=rent
                                         on:input=move |ev| rent.set(event_target_value(&ev)) />
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"Option deposit target ($)"</label>
-                                    <input type="number" class="form-input" prop:value=deposit
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Option deposit target ($)"</label>
+                                    <input type="number" class="folio-input" prop:value=deposit
                                         on:input=move |ev| deposit.set(event_target_value(&ev)) />
                                 </div>
-                                <div class="form-field">
-                                    <label class="form-label">"Planned sale / option price ($)"</label>
-                                    <input type="number" class="form-input" prop:value=sale
+                                <div class="folio-field">
+                                    <label class="folio-field__label">"Planned sale / option price ($)"</label>
+                                    <input type="number" class="folio-input" prop:value=sale
                                         on:input=move |ev| sale.set(event_target_value(&ev)) />
                                 </div>
                                 <Show when=move || !msg.get().is_empty()>
                                     <p class="text-sm">{move || msg.get()}</p>
                                 </Show>
-                                <button class="btn btn-primary" on:click=save disabled=move || saving.get()>
+                                <button class="folio-btn folio-btn--primary" on:click=save disabled=move || saving.get()>
                                     {move || if saving.get() { "Saving…" } else { "Save structure" }}
                                 </button>
                             </div>

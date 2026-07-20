@@ -11,6 +11,8 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::page_header::PageHeader;
+
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,17 +136,17 @@ pub fn LandlordAccountBilling() -> impl IntoView {
     view! {
         <div class="main-area">
 
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Account Billing"</h1>
-                    <p class="page-subtitle">"Your Atlas Platform subscription, usage, and transaction history"</p>
-                </div>
-                <div class="page-actions">
-                    <button class="btn btn-ghost btn-sm" on:click=move |_| refresh.update(|n| *n += 1)>
-                        "↻ Refresh"
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                title=Signal::derive(|| "Account Billing".to_string())
+                subtitle=Signal::derive(|| {
+                    "Subscription and payment method changes are not available in Folio yet — verification requests still work."
+                        .to_string()
+                })
+            >
+                <button class="folio-btn folio-btn--ghost folio-btn--sm" on:click=move |_| refresh.update(|n| *n += 1)>
+                    "↻ Refresh"
+                </button>
+            </PageHeader>
 
             // ── Subscription plan banner ──
             <div class="acct-plan-card">
@@ -153,7 +155,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                     <div class="acct-plan-desc">"Unlimited assets · Advanced analytics · Priority support"</div>
                 </div>
                 <div class="acct-plan-actions">
-                    <span class="btn btn-ghost btn-sm" style="opacity:0.55;cursor:default;" title="Plan management is not available yet">"Not available"</span>
+                    <span class="folio-btn folio-btn--ghost folio-btn--sm" style="opacity:0.55;cursor:default;" title="Plan management is not available yet">"Not available"</span>
                 </div>
             </div>
 
@@ -169,14 +171,14 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                         </div>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                             <button
-                                class="btn btn-primary btn-sm"
+                                class="folio-btn folio-btn--primary folio-btn--sm"
                                 disabled=move || verif_busy.get()
                                 on:click=move |_| submit_verification("business")
                             >
                                 "Business"
                             </button>
                             <button
-                                class="btn btn-ghost btn-sm"
+                                class="folio-btn folio-btn--ghost folio-btn--sm"
                                 disabled=move || verif_busy.get()
                                 on:click=move |_| submit_verification("identity")
                             >
@@ -203,7 +205,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                             <div class="acct-pm-label">"Stripe"</div>
                             <div class="acct-pm-sub">"Credit / debit card · Automatic billing"</div>
                         </div>
-                        <span class="btn btn-ghost btn-sm" style="opacity:0.55;cursor:default;">"Not available"</span>
+                        <span class="folio-btn folio-btn--ghost folio-btn--sm" style="opacity:0.55;cursor:default;">"Not available"</span>
                     </div>
                     <div class="acct-pm-card">
                         <span class="acct-pm-icon">"₿"</span>
@@ -211,7 +213,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                             <div class="acct-pm-label">"Bitcoin Lightning"</div>
                             <div class="acct-pm-sub">"Self-sovereign payments via on-chain or Lightning"</div>
                         </div>
-                        <span class="btn btn-ghost btn-sm" style="opacity:0.55;cursor:default;">"Not available"</span>
+                        <span class="folio-btn folio-btn--ghost folio-btn--sm" style="opacity:0.55;cursor:default;">"Not available"</span>
                     </div>
                 </div>
             </div>
@@ -300,7 +302,7 @@ pub fn LandlordAccountBilling() -> impl IntoView {
                         <div class="text-xs text-on-surface-variant">"Data retained for 90 days after cancellation."</div>
                     </div>
                     <span
-                        class="btn btn-sm"
+                        class="folio-btn folio-btn--ghost folio-btn--sm"
                         style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#f87171;opacity:0.55;cursor:default;"
                         title="Cancellation support is not available in-app yet"
                     >

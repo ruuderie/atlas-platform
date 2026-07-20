@@ -440,48 +440,52 @@ pub fn Violations() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_file.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Asset *"</label>
-                                <select class="form-select" on:change=move |ev| file_asset.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Asset *"</label>
+                                <select class="folio-select" on:change=move |ev| file_asset.set(event_target_value(&ev))>
                                     <option value="">"Select asset…"</option>
                                     {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
                                         let id = a.id.to_string();
-                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        let label = format!(
+                                            "{} ({})",
+                                            a.place_label(),
+                                            a.asset_type.replace('_', " ")
+                                        );
                                         view! { <option value=id>{label}</option> }
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Category *"</label>
-                                <select class="form-select" on:change=move |ev| file_category.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Category *"</label>
+                                <select class="folio-select" on:change=move |ev| file_category.set(event_target_value(&ev))>
                                     {ViolCategory::ALL.iter().copied().map(|c| {
                                         view! { <option value=c.api_str()>{c.label()}</option> }
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Subject *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Subject *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=file_subject
                                     on:input=move |ev| file_subject.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Description"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Description"</label>
                                 <textarea
-                                    class="form-input"
+                                    class="folio-input"
                                     rows="3"
                                     prop:value=file_description
                                     on:input=move |ev| file_description.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Cure Days (optional)"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Cure Days (optional)"</label>
                                 <input
                                     type="number"
-                                    class="form-input"
+                                    class="folio-input"
                                     min="1"
                                     max="90"
                                     placeholder="e.g. 10"
@@ -494,10 +498,10 @@ pub fn Violations() -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-ghost" on:click=move |_| show_file.set(false)>"Cancel"</button>
+                            <button type="button" class="folio-btn folio-btn--ghost" on:click=move |_| show_file.set(false)>"Cancel"</button>
                             <button
                                 type="button"
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || filing.get() || file_subject.get().trim().is_empty()
                                 on:click=on_file
                             >
@@ -577,7 +581,7 @@ fn ViolTable(records: Vec<ViolationRecord>, refresh: RwSignal<u32>) -> impl Into
                                         view! {
                                             <div style="display:flex;flex-direction:column;gap:0.25rem;">
                                                 <select
-                                                    class="form-select"
+                                                    class="folio-select"
                                                     style="min-width:8rem;font-size:0.75rem;"
                                                     prop:disabled=move || pending.get()
                                                     on:change=move |ev| {

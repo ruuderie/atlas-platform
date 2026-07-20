@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::components::nav::NavIcon;
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::leases::list_leases;
 
 // ── Response types ────────────────────────────────────────────────────────────
@@ -445,62 +446,60 @@ pub fn Ledger() -> impl IntoView {
         });
     };
 
+    let title = Signal::derive(|| "Ledger".to_string());
+    let subtitle = Signal::derive(|| {
+        "All billable events across your portfolio — rent, fees, reimbursements.".to_string()
+    });
+
     view! {
         <div class="le-page">
-            // ── Header ────────────────────────────────────────────────
-            <div class="le-header">
-                <div>
-                    <h1 class="le-title">"Ledger"</h1>
-                    <p class="le-subtitle">"All billable events across your portfolio — rent, fees, reimbursements."</p>
-                </div>
-                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.75rem;">
-                    <button
-                        type="button"
-                        class="folio-btn folio-btn--primary press"
-                        on:click=move |_| {
-                            create_err.set(None);
-                            show_charge.set(true);
-                        }
-                    >
-                        "Post charge"
-                    </button>
-                    // KPI strip — totals derived from the entry list
-                    <Suspense fallback=|| view! { <div class="le-kpi-skel"/> }>
-                        {move || entries.get().map(|res| {
-                            let (outstanding, total_paid) = res.as_ref().map(|v| {
-                                let out = v.iter()
-                                    .filter(|e| matches!(EntryStatus::from_str(&e.status), EntryStatus::Pending | EntryStatus::Processing))
-                                    .map(|e| e.gross_amount_cents)
-                                    .sum::<i64>();
-                                let paid = v.iter()
-                                    .filter(|e| EntryStatus::from_str(&e.status) == EntryStatus::Paid)
-                                    .map(|e| e.net_amount_cents)
-                                    .sum::<i64>();
-                                (out, paid)
-                            }).unwrap_or((0, 0));
-                            let currency = res.as_ref().ok()
-                                .and_then(|v| v.first().map(|e| e.currency.clone()))
-                                .unwrap_or_else(|| "USD".to_string());
-                            view! {
-                                <div class="le-kpi-strip">
-                                    <div class="le-kpi">
-                                        <span class="le-kpi-label">"Outstanding"</span>
-                                        <span class="le-kpi-val le-kpi-val--alert">
-                                            {format_amount(outstanding, &currency)}
-                                        </span>
-                                    </div>
-                                    <div class="le-kpi">
-                                        <span class="le-kpi-label">"Collected (net)"</span>
-                                        <span class="le-kpi-val le-kpi-val--green">
-                                            {format_amount(total_paid, &currency)}
-                                        </span>
-                                    </div>
-                                </div>
-                            }
-                        })}
-                    </Suspense>
-                </div>
-            </div>
+            <PageHeader title=title subtitle=subtitle>
+                <button
+                    type="button"
+                    class="folio-btn folio-btn--primary press"
+                    on:click=move |_| {
+                        create_err.set(None);
+                        show_charge.set(true);
+                    }
+                >
+                    "Post charge"
+                </button>
+            </PageHeader>
+            // KPI strip — totals derived from the entry list
+            <Suspense fallback=|| view! { <div class="le-kpi-skel"/> }>
+                {move || entries.get().map(|res| {
+                    let (outstanding, total_paid) = res.as_ref().map(|v| {
+                        let out = v.iter()
+                            .filter(|e| matches!(EntryStatus::from_str(&e.status), EntryStatus::Pending | EntryStatus::Processing))
+                            .map(|e| e.gross_amount_cents)
+                            .sum::<i64>();
+                        let paid = v.iter()
+                            .filter(|e| EntryStatus::from_str(&e.status) == EntryStatus::Paid)
+                            .map(|e| e.net_amount_cents)
+                            .sum::<i64>();
+                        (out, paid)
+                    }).unwrap_or((0, 0));
+                    let currency = res.as_ref().ok()
+                        .and_then(|v| v.first().map(|e| e.currency.clone()))
+                        .unwrap_or_else(|| "USD".to_string());
+                    view! {
+                        <div class="le-kpi-strip">
+                            <div class="le-kpi">
+                                <span class="le-kpi-label">"Outstanding"</span>
+                                <span class="le-kpi-val le-kpi-val--alert">
+                                    {format_amount(outstanding, &currency)}
+                                </span>
+                            </div>
+                            <div class="le-kpi">
+                                <span class="le-kpi-label">"Collected (net)"</span>
+                                <span class="le-kpi-val le-kpi-val--green">
+                                    {format_amount(total_paid, &currency)}
+                                </span>
+                            </div>
+                        </div>
+                    }
+                })}
+            </Suspense>
 
             // ── Filter bar ────────────────────────────────────────────
             <div class="le-filter-bar">
@@ -580,7 +579,7 @@ pub fn Ledger() -> impl IntoView {
                             let desc_raw = e.description.as_deref().unwrap_or("");
                             let search_ok = q.is_empty()
                                 || strip_tag(Some(desc_raw)).to_lowercase().contains(&q)
-                                || e.billable_entity_id.to_string().contains(&q);
+                                || e.billable_entity_type.to_lowercase().contains(&q);
                             let status_ok = sf.matches(status);
                             let type_ok   = tf.map(|t| t == ct).unwrap_or(true);
                             search_ok && status_ok && type_ok
@@ -622,10 +621,10 @@ pub fn Ledger() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_charge.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Lease *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Lease *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| lease_id.set(event_target_value(&ev))
                                 >
                                     <option value="">"Select lease…"</option>
@@ -641,10 +640,10 @@ pub fn Ledger() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Charge type *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Charge type *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| charge_type.set(event_target_value(&ev))
                                 >
                                     {AdHocChargeType::ALL.iter().copied().map(|t| {
@@ -652,31 +651,31 @@ pub fn Ledger() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Description *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Description *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="Payment 7 days past due"
                                     prop:value=description
                                     on:input=move |ev| description.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Amount *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Amount *"</label>
                                 <input
                                     type="number"
-                                    class="form-input"
+                                    class="folio-input"
                                     min="0"
                                     step="0.01"
                                     prop:value=amount
                                     on:input=move |ev| amount.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Currency *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Currency *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| currency.set(event_target_value(&ev))
                                 >
                                     {ChargeCurrency::ALL.iter().copied().map(|c| {
@@ -684,11 +683,11 @@ pub fn Ledger() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Due date"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Due date"</label>
                                 <input
                                     type="date"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=due_date
                                     on:input=move |ev| due_date.set(event_target_value(&ev))
                                 />
@@ -742,7 +741,10 @@ fn LedgerTable(entries: Vec<LedgerEntrySummary>) -> impl IntoView {
                         let status  = EntryStatus::from_str(&e.status);
                         let ct      = ChargeType::classify(&e.billable_entity_type, e.description.as_deref());
                         let desc    = strip_tag(e.description.as_deref());
-                        let entity  = e.billable_entity_id.to_string().split('-').next().unwrap_or("").to_uppercase();
+                        let entity = {
+                            let t = e.billable_entity_type.replace('_', " ");
+                            if t.is_empty() { "—".into() } else { t }
+                        };
                         let gross   = format_amount(e.gross_amount_cents, &e.currency);
                         let net     = format_amount(e.net_amount_cents, &e.currency);
                         let rail    = e.payment_rail.as_deref().unwrap_or("\u{2014}").to_string();

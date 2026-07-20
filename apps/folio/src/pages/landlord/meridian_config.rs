@@ -18,6 +18,8 @@ use shared_ui::components::scorecard::models::{
 };
 use uuid::Uuid;
 
+use crate::components::page_header::PageHeader;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -738,23 +740,21 @@ pub fn MeridianConfigurator() -> impl IntoView {
 
     view! {
         <div class="main-area">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Meridian"</h1>
-                    <p class="page-subtitle">"Scorecard analytics and tenant configuration"</p>
-                </div>
-            </div>
+            <PageHeader
+                title=Signal::derive(|| "Meridian".to_string())
+                subtitle=Signal::derive(|| "Scorecard analytics and tenant configuration".to_string())
+            />
 
             <div class="g27-template-bar">
                 <div class="g27-template-label">"Template:"</div>
-                <Suspense fallback=|| view! { <select class="form-select g27-template-select"><option>"Loading…"</option></select> }>
+                <Suspense fallback=|| view! { <select class="folio-select g27-template-select"><option>"Loading…"</option></select> }>
                     {move || templates_res.get().map(|res| match res {
                         Ok(tmpls) if !tmpls.is_empty() => {
                             if active_template.get().is_none() {
                                 active_template.set(Some(tmpls[0].clone()));
                             }
                             view! {
-                                <select class="form-select g27-template-select"
+                                <select class="folio-select g27-template-select"
                                     on:change=move |ev| {
                                         let sel_id = event_target_value(&ev);
                                         if let Some(t) = tmpls.iter().find(|t| t.id.to_string() == sel_id) {

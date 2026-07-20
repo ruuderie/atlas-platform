@@ -233,7 +233,7 @@ pub fn LandlordDashboard() -> impl IntoView {
                 </A>
             </PageHeader>
 
-            <div class="dash-mode-bar" role="tablist" aria-label="Dashboard mode">
+            <div class="folio-segment-bar" role="tablist" aria-label="Dashboard mode">
                 {[DashboardMode::All, DashboardMode::Ltr, DashboardMode::Str]
                     .into_iter()
                     .map(|m| {
@@ -243,9 +243,9 @@ pub fn LandlordDashboard() -> impl IntoView {
                                 role="tab"
                                 class=move || {
                                     if mode.get() == m {
-                                        "dash-mode-btn dash-mode-btn--active"
+                                        "folio-segment folio-segment--active"
                                     } else {
-                                        "dash-mode-btn"
+                                        "folio-segment"
                                     }
                                 }
                                 on:click=move |_| {
@@ -300,7 +300,7 @@ pub fn LandlordDashboard() -> impl IntoView {
                     <StatCard
                         label="STR-eligible"
                         value=str_eligible_count
-                        icon="vacation"
+                        icon="beach_access"
                         href=FolioRoute::LandlordAssets.path()
                     />
                     <StatCard

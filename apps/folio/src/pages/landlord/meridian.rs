@@ -38,7 +38,7 @@ pub fn MeridianAnalytics() -> impl IntoView {
                     "Portfolio KPIs from live ledger, leases, and cases.".to_string()
                 })
             >
-                <A href=configure_href attr:class="btn btn-secondary btn-sm">
+                <A href=configure_href attr:class="folio-btn folio-btn--ghost folio-btn--sm">
                     "Configure G-27"
                 </A>
             </PageHeader>
@@ -54,7 +54,7 @@ pub fn MeridianAnalytics() -> impl IntoView {
                         </div>
                     }.into_any(),
                     Some(Ok(o)) => view! {
-                        <p class="page-subtitle" style="margin-bottom:1rem;">
+                        <p class="folio-muted" style="margin-bottom:1rem;">
                             {format!("Generated {}", o.generated_at.format("%Y-%m-%d %H:%M UTC"))}
                         </p>
                         <div class="stat-grid stat-grid--4">

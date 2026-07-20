@@ -639,7 +639,7 @@ fn ApplCard(appl: ApplianceDetail, on_retired: RwSignal<u32>) -> impl IntoView {
                     <Show when=move || show_retire.get()>
                         <div style="display:flex;flex-direction:column;gap:0.4rem;">
                             <select
-                                class="form-select"
+                                class="folio-select"
                                 on:change=move |ev| retire_reason.set(event_target_value(&ev))
                             >
                                 {RetireReasonOpt::ALL.iter().copied().map(|r| {
@@ -906,50 +906,54 @@ pub fn UnitAppliances() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Unit *"</label>
-                                <select class="form-select" on:change=move |ev| new_unit.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Unit *"</label>
+                                <select class="folio-select" on:change=move |ev| new_unit.set(event_target_value(&ev))>
                                     <option value="">"Select unit…"</option>
                                     {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
                                         let id = a.id.to_string();
-                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        let label = format!(
+                                            "{} ({})",
+                                            a.place_label(),
+                                            a.asset_type.replace('_', " ")
+                                        );
                                         view! { <option value=id>{label}</option> }
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Name *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Name *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="Kitchen Refrigerator"
                                     prop:value=new_name
                                     on:input=move |ev| new_name.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Make"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Make"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="Samsung"
                                     prop:value=new_make
                                     on:input=move |ev| new_make.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Model"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Model"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="RF28R7351SG"
                                     prop:value=new_model
                                     on:input=move |ev| new_model.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Appliance Type *"</label>
-                                <select class="form-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Appliance Type *"</label>
+                                <select class="folio-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
                                     {ApplianceTypeOpt::ALL.iter().copied().map(|t| {
                                         view! { <option value=t.as_str()>{t.label()}</option> }
                                     }).collect_view()}
@@ -960,10 +964,10 @@ pub fn UnitAppliances() -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button type="button" class="folio-btn folio-btn--ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
                             <button
                                 type="button"
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || creating.get() || new_name.get().trim().is_empty()
                                 on:click=on_create
                             >

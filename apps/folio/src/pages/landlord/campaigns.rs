@@ -391,20 +391,20 @@ pub fn Campaigns() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Name *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Name *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="Spring open house"
                                     prop:value=name
                                     on:input=move |ev| name.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Type *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Type *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| campaign_type.set(event_target_value(&ev))
                                 >
                                     {CampaignTypeOpt::ALL.iter().copied().map(|t| {
@@ -412,10 +412,10 @@ pub fn Campaigns() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Goal"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Goal"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| goal_type.set(event_target_value(&ev))
                                 >
                                     {CampaignGoalOpt::ALL.iter().copied().map(|g| {
@@ -424,11 +424,11 @@ pub fn Campaigns() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Budget ($)"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Budget ($)"</label>
                                 <input
                                     type="number"
-                                    class="form-input"
+                                    class="folio-input"
                                     min="0"
                                     step="1"
                                     placeholder="Optional"

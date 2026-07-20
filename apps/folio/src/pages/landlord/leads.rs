@@ -351,7 +351,7 @@ pub fn Leads() -> impl IntoView {
                                                                         "Disqualify"
                                                                     </button>
                                                                     <select
-                                                                        class="form-select"
+                                                                        class="folio-select"
                                                                         style="font-size:0.75rem;padding:0.25rem 0.5rem;width:auto;"
                                                                         on:change=move |ev| {
                                                                             let v = event_target_value(&ev);
@@ -402,65 +402,65 @@ pub fn Leads() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"First name"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"First name"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=first_name
                                     on:input=move |ev| first_name.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Last name"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Last name"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=last_name
                                     on:input=move |ev| last_name.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Email"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Email"</label>
                                 <input
                                     type="email"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=email
                                     on:input=move |ev| email.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Phone"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Phone"</label>
                                 <input
                                     type="tel"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=phone
                                     on:input=move |ev| phone.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Company"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Company"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=company
                                     on:input=move |ev| company.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Source"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Source"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="web_form, referral, …"
                                     prop:value=source
                                     on:input=move |ev| source.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Message"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Message"</label>
                                 <textarea
-                                    class="form-input"
+                                    class="folio-input"
                                     rows="3"
                                     prop:value=message
                                     on:input=move |ev| message.set(event_target_value(&ev))

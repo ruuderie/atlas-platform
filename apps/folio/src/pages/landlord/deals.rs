@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DealSummary {
@@ -194,18 +195,15 @@ pub fn LandlordDeals() -> impl IntoView {
         });
     };
 
+    let title = Signal::derive(|| "Deal Ops".to_string());
+    let subtitle = Signal::derive(|| "Wholesaling and creative finance deals".to_string());
+
     view! {
         <div class="main-area">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Deal Ops"</h1>
-                    <p class="page-subtitle">"Wholesaling and creative finance deals"</p>
-                </div>
-                <div class="page-actions">
-                    <a class="folio-btn folio-btn--ghost press" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a>
-                    <button class="folio-btn folio-btn--primary press" on:click=move |_| show_add.set(true)>"+ New"</button>
-                </div>
-            </div>
+            <PageHeader title=title subtitle=subtitle>
+                <a class="folio-btn folio-btn--ghost press" href=FolioRoute::LandlordBuyers.path()>"Buyers"</a>
+                <button class="folio-btn folio-btn--primary press" on:click=move |_| show_add.set(true)>"+ New"</button>
+            </PageHeader>
             <nav class="folio-related" aria-label="Related">
                 <span class="folio-related__label">"Related"</span>
                 <ul class="folio-related__list">
@@ -214,24 +212,26 @@ pub fn LandlordDeals() -> impl IntoView {
                 </ul>
             </nav>
 
-            <div class="flex gap-2 mb-4">
+            <div class="folio-tab-bar">
                 <a
-                    class=move || if track.get() == "wholesale" { "btn btn-primary btn-sm" } else { "btn btn-ghost btn-sm" }
+                    class=move || if track.get() == "wholesale" { "folio-tab folio-tab--active" } else { "folio-tab" }
                     href=format!("{}?track=wholesale", FolioRoute::LandlordDeals.path())
                 >"Wholesale"</a>
                 <a
-                    class=move || if track.get() == "creative_finance" { "btn btn-primary btn-sm" } else { "btn btn-ghost btn-sm" }
+                    class=move || if track.get() == "creative_finance" { "folio-tab folio-tab--active" } else { "folio-tab" }
                     href=format!("{}?track=creative_finance", FolioRoute::LandlordDeals.path())
                 >"Creative Finance"</a>
             </div>
 
-            <div class="flex gap-2 mb-4 border-b pb-2">
+            <div class="folio-tab-bar">
                 <button
-                    class=move || if mode.get() == "acquire" { "btn btn-primary btn-sm" } else { "btn btn-ghost btn-sm" }
+                    type="button"
+                    class=move || if mode.get() == "acquire" { "folio-tab folio-tab--active" } else { "folio-tab" }
                     on:click=move |_| mode.set("acquire".into())
                 >"Acquire"</button>
                 <button
-                    class=move || if mode.get() == "dispose" { "btn btn-primary btn-sm" } else { "btn btn-ghost btn-sm" }
+                    type="button"
+                    class=move || if mode.get() == "dispose" { "folio-tab folio-tab--active" } else { "folio-tab" }
                     on:click=move |_| mode.set("dispose".into())
                 >"Disposition"</button>
             </div>
@@ -307,29 +307,43 @@ pub fn LandlordDeals() -> impl IntoView {
             </Suspense>
 
             <Show when=move || show_add.get()>
-                <div class="modal-backdrop">
-                    <div class="modal-card" style="max-width:28rem;">
+                <div
+                    class="modal-backdrop"
+                    on:click=move |_| show_add.set(false)
+                >
+                    <div
+                        class="modal-card"
+                        style="max-width:28rem;"
+                        on:click=|ev: web_sys::MouseEvent| ev.stop_propagation()
+                    >
                         <div class="modal-header">
                             <h3 class="modal-title">{move || if mode.get() == "dispose" { "New buyer lead" } else { "New acquisition" }}</h3>
-                            <button class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
+                            <button
+                                type="button"
+                                class="modal-close"
+                                aria-label="Close"
+                                on:click=move |_| show_add.set(false)
+                            >
+                                <span class="material-symbols-outlined">"close"</span>
+                            </button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Address / name"</label>
-                                <input class="form-input" prop:value=addr on:input=move |ev| addr.set(event_target_value(&ev)) />
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Address / name"</label>
+                                <input class="folio-input" prop:value=addr on:input=move |ev| addr.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"ARV ($)"</label>
-                                <input type="number" class="form-input" prop:value=arv on:input=move |ev| arv.set(event_target_value(&ev)) />
+                            <div class="folio-field">
+                                <label class="folio-field__label">"ARV ($)"</label>
+                                <input type="number" class="folio-input" prop:value=arv on:input=move |ev| arv.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Repairs ($)"</label>
-                                <input type="number" class="form-input" prop:value=repair on:input=move |ev| repair.set(event_target_value(&ev)) />
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Repairs ($)"</label>
+                                <input type="number" class="folio-input" prop:value=repair on:input=move |ev| repair.set(event_target_value(&ev)) />
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
-                            <button class="btn btn-primary" on:click=on_create disabled=move || creating.get()>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--primary" on:click=on_create disabled=move || creating.get()>
                                 {move || if creating.get() { "Saving…" } else { "Create" }}
                             </button>
                         </div>

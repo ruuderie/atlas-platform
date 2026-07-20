@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::deals::fetch_deals;
 
 fn is_buyer(opp_type: &str) -> bool {
@@ -29,35 +30,36 @@ pub fn LandlordBuyers() -> impl IntoView {
         |t| fetch_deals(Some(t)),
     );
 
+    let title = Signal::derive(|| "Buyers".to_string());
+    let subtitle = Signal::derive(move || {
+        if track.get() == "creative_finance" {
+            "Tenant-buyers · money × credit matrix".to_string()
+        } else {
+            "Cash investors · capacity × close speed".to_string()
+        }
+    });
+
     view! {
         <div class="main-area">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Buyers"</h1>
-                    <p class="page-subtitle">
-                        {move || if track.get() == "creative_finance" {
-                            "Tenant-buyers · money × credit matrix"
-                        } else {
-                            "Cash investors · capacity × close speed"
-                        }}
-                    </p>
-                </div>
-                <div class="page-actions">
-                    <a class="btn btn-ghost btn-sm" href=FolioRoute::LandlordDeals.path()>"← Deals"</a>
-                    <a
-                        class="btn btn-primary btn-sm"
-                        href=format!("{}?mode=dispose", FolioRoute::LandlordDeals.path())
-                    >
-                        "New disposition"
-                    </a>
-                </div>
-            </div>
+            <PageHeader title=title subtitle=subtitle>
+                <a class="folio-btn folio-btn--ghost folio-btn--sm" href=FolioRoute::LandlordDeals.path()>"← Deals"</a>
+                <a
+                    class="folio-btn folio-btn--primary folio-btn--sm"
+                    href=format!("{}?mode=dispose", FolioRoute::LandlordDeals.path())
+                >
+                    "New disposition"
+                </a>
+            </PageHeader>
 
-            <div class="flex gap-2 mb-4">
-                <a class=move || if track.get()=="wholesale"{"btn btn-primary btn-sm"}else{"btn btn-ghost btn-sm"}
-                   href=format!("{}?track=wholesale", FolioRoute::LandlordBuyers.path())>"Cash buyers"</a>
-                <a class=move || if track.get()=="creative_finance"{"btn btn-primary btn-sm"}else{"btn btn-ghost btn-sm"}
-                   href=format!("{}?track=creative_finance", FolioRoute::LandlordBuyers.path())>"Tenant buyers"</a>
+            <div class="folio-tab-bar">
+                <a
+                    class=move || if track.get() == "wholesale" { "folio-tab folio-tab--active" } else { "folio-tab" }
+                    href=format!("{}?track=wholesale", FolioRoute::LandlordBuyers.path())
+                >"Cash buyers"</a>
+                <a
+                    class=move || if track.get() == "creative_finance" { "folio-tab folio-tab--active" } else { "folio-tab" }
+                    href=format!("{}?track=creative_finance", FolioRoute::LandlordBuyers.path())
+                >"Tenant buyers"</a>
             </div>
 
             <Suspense fallback=|| view!{ <div class="doc-empty">"Loading…"</div> }>
@@ -69,7 +71,7 @@ pub fn LandlordBuyers() -> impl IntoView {
                                 <div class="doc-empty">
                                     <p>"No buyer leads yet."</p>
                                     <a
-                                        class="btn btn-primary btn-sm"
+                                        class="folio-btn folio-btn--primary folio-btn--sm"
                                         style="margin-top:0.75rem;display:inline-block;"
                                         href=format!("{}?mode=dispose", FolioRoute::LandlordDeals.path())
                                     >

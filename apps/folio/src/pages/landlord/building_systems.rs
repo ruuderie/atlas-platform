@@ -19,6 +19,7 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
 
 // ── API types ─────────────────────────────────────────────────────────────────
@@ -677,7 +678,7 @@ fn BsysCard(sys: BuildingSystemDetail, on_retired: RwSignal<u32>) -> impl IntoVi
                     <Show when=move || show_retire.get()>
                         <div style="display:flex;flex-direction:column;gap:0.4rem;">
                             <select
-                                class="form-select"
+                                class="folio-select"
                                 on:change=move |ev| retire_reason.set(event_target_value(&ev))
                             >
                                 {RetireReasonOpt::ALL.iter().copied().map(|r| {
@@ -797,15 +798,13 @@ pub fn BuildingSystems() -> impl IntoView {
     };
 
     view! {
-        <div class="bsys-page">
-            // Header
-            <div class="bsys-header">
-                <div class="bsys-header-left">
-                    <h1 class="bsys-title">"Building Systems"</h1>
-                    <p class="bsys-subtitle">
-                        "Elevators, HVAC, and building systems"
-                    </p>
-                </div>
+        <div class="bsys-page landlord-list-page">
+            <PageHeader
+                title=Signal::derive(|| "Building Systems".to_string())
+                subtitle=Signal::derive(|| {
+                    "Elevators, HVAC, and building systems across your portfolio".to_string()
+                })
+            >
                 <button
                     type="button"
                     class="folio-btn folio-btn--primary press"
@@ -816,7 +815,7 @@ pub fn BuildingSystems() -> impl IntoView {
                 >
                     "+ Add System"
                 </button>
-            </div>
+            </PageHeader>
 
             // KPI strip
             <Suspense fallback=|| view! {
@@ -940,30 +939,34 @@ pub fn BuildingSystems() -> impl IntoView {
                             <button type="button" class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Property *"</label>
-                                <select class="form-select" on:change=move |ev| new_property.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Property *"</label>
+                                <select class="folio-select" on:change=move |ev| new_property.set(event_target_value(&ev))>
                                     <option value="">"Select property…"</option>
                                     {move || assets.get().and_then(|r| r.ok()).unwrap_or_default().into_iter().map(|a| {
                                         let id = a.id.to_string();
-                                        let label = format!("{} ({})", a.name, a.asset_type.replace('_', " "));
+                                        let label = format!(
+                                            "{} ({})",
+                                            a.place_label(),
+                                            a.asset_type.replace('_', " ")
+                                        );
                                         view! { <option value=id>{label}</option> }
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Name *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Name *"</label>
                                 <input
                                     type="text"
-                                    class="form-input"
+                                    class="folio-input"
                                     placeholder="Main Elevator"
                                     prop:value=new_name
                                     on:input=move |ev| new_name.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"System Type *"</label>
-                                <select class="form-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"System Type *"</label>
+                                <select class="folio-select" on:change=move |ev| new_type.set(event_target_value(&ev))>
                                     {BuildingSystemTypeOpt::ALL.iter().copied().map(|t| {
                                         view! { <option value=t.as_str()>{t.label()}</option> }
                                     }).collect_view()}
@@ -974,10 +977,10 @@ pub fn BuildingSystems() -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button type="button" class="folio-btn folio-btn--ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
                             <button
                                 type="button"
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || creating.get() || new_name.get().trim().is_empty()
                                 on:click=on_create
                             >

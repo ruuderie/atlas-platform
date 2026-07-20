@@ -8,12 +8,8 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::deals::fetch_deals;
-
-#[derive(Debug, Deserialize)]
-struct IdResp {
-    id: Uuid,
-}
 
 #[derive(Debug, Deserialize)]
 struct ConvertResp {
@@ -182,25 +178,6 @@ pub fn DealWorkspace() -> impl IntoView {
         });
     };
 
-    let do_assign = move |_| {
-        let Some(deal_id) = id.get() else { return };
-        spawn_local(async move {
-            let body = serde_json::json!({
-                "assignment_fee_cents": 1000000,
-                "deposit_cents": 50000,
-                "expires_days": 14
-            });
-            match post_deal_action(deal_id, "assign".into(), body).await {
-                Ok(v) => {
-                    let _ = serde_json::from_value::<IdResp>(v);
-                    msg.set("Assignment created".into());
-                    refresh.update(|n| *n += 1);
-                }
-                Err(e) => msg.set(e.to_string()),
-            }
-        });
-    };
-
     let convert_cf = move |_| {
         let Some(deal_id) = id.get() else { return };
         spawn_local(async move {
@@ -226,45 +203,48 @@ pub fn DealWorkspace() -> impl IntoView {
                         let is_ws = d.track == "wholesale";
                         let advance_to = next_stage(&d.track, &d.opportunity_type, &d.status)
                             .map(|s| s.to_string());
+                        let title = {
+                            let addr = d.property_address.clone();
+                            Signal::derive(move || addr.clone())
+                        };
+                        let subtitle = {
+                            let s = format!(
+                                "{} · {} · {}",
+                                d.track, d.status, d.opportunity_type
+                            );
+                            Signal::derive(move || s.clone())
+                        };
                         view! {
-                            <div class="page-header">
-                                <div>
-                                    <a class="text-sm" href=FolioRoute::LandlordDeals.path()>"← Deal Ops"</a>
-                                    <h1 class="page-title">{d.property_address.clone()}</h1>
-                                    <p class="page-subtitle">
-                                        {d.track.clone()}" · "{d.status.clone()}" · "{d.opportunity_type.clone()}
-                                    </p>
-                                </div>
-                                <div class="page-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                                    {advance_to.map(|stage| {
-                                        let stage_click = stage.clone();
-                                        let label = format!("Advance → {}", stage.replace('_', " "));
-                                        view! {
-                                            <button
-                                                type="button"
-                                                class="folio-btn folio-btn--primary press"
-                                                on:click=move |_| {
-                                                    let Some(deal_id) = id.get() else { return };
-                                                    let stage = stage_click.clone();
-                                                    spawn_local(async move {
-                                                        let body = serde_json::json!({ "stage": stage });
-                                                        match post_deal_action(deal_id, "advance".into(), body).await {
-                                                            Ok(_) => {
-                                                                msg.set("Stage advanced".into());
-                                                                refresh.update(|n| *n += 1);
-                                                            }
-                                                            Err(e) => msg.set(e.to_string()),
+                            <a class="text-sm" href=FolioRoute::LandlordDeals.path()>"← Deal Ops"</a>
+                            <PageHeader title=title subtitle=subtitle>
+                                {advance_to.map(|stage| {
+                                    let stage_click = stage.clone();
+                                    let label = format!("Advance → {}", stage.replace('_', " "));
+                                    view! {
+                                        <button
+                                            type="button"
+                                            class="folio-btn folio-btn--primary press"
+                                            on:click=move |_| {
+                                                let Some(deal_id) = id.get() else { return };
+                                                let stage = stage_click.clone();
+                                                spawn_local(async move {
+                                                    let body = serde_json::json!({ "stage": stage });
+                                                    match post_deal_action(deal_id, "advance".into(), body).await {
+                                                        Ok(_) => {
+                                                            msg.set("Stage advanced".into());
+                                                            refresh.update(|n| *n += 1);
                                                         }
-                                                    });
-                                                }
-                                            >
-                                                {label}
-                                            </button>
-                                        }
-                                    })}
-                                    <a class="folio-btn folio-btn--ghost press" href=structure_href>"Structure offer"</a>
-                                </div>
-                            </div>
+                                                        Err(e) => msg.set(e.to_string()),
+                                                    }
+                                                });
+                                            }
+                                        >
+                                            {label}
+                                        </button>
+                                    }
+                                })}
+                                <a class="folio-btn folio-btn--ghost press" href=structure_href>"Structure offer"</a>
+                            </PageHeader>
 
                             <Show when=move || !msg.get().is_empty()>
                                 <div class="doc-empty mb-4">{move || msg.get()}</div>
@@ -290,13 +270,17 @@ pub fn DealWorkspace() -> impl IntoView {
                                     </ul>
                                     <div class="flex flex-wrap gap-2 mt-4">
                                         <Show when=move || is_cf>
-                                            <button class="btn btn-primary btn-sm" on:click=mark_cya>"Mark CYA signed"</button>
-                                            <button class="btn btn-ghost btn-sm" on:click=do_convert>"Convert → asset + contract"</button>
+                                            <button class="folio-btn folio-btn--primary folio-btn--sm" on:click=mark_cya>"Mark CYA signed"</button>
+                                            <button class="folio-btn folio-btn--ghost folio-btn--sm" on:click=do_convert>"Convert → asset + contract"</button>
                                         </Show>
                                         <Show when=move || is_ws>
-                                            <button class="btn btn-primary btn-sm" on:click=mark_title>"Mark title clear"</button>
-                                            <button class="btn btn-ghost btn-sm" on:click=do_assign>"Create assignment"</button>
-                                            <button class="btn btn-ghost btn-sm" on:click=convert_cf>"Convert → CF"</button>
+                                            <button class="folio-btn folio-btn--primary folio-btn--sm" on:click=mark_title>"Mark title clear"</button>
+                                            <span
+                                                class="folio-btn folio-btn--ghost folio-btn--sm"
+                                                style="opacity:0.55;cursor:default;"
+                                                title="Full assignment terms sheet is not available yet"
+                                            >"Assignment — Not available"</span>
+                                            <button class="folio-btn folio-btn--ghost folio-btn--sm" on:click=convert_cf>"Convert → CF"</button>
                                         </Show>
                                     </div>
                                 </div>

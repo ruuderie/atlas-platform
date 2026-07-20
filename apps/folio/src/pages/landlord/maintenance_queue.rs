@@ -13,6 +13,7 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::nav::{FolioRoute, NavIcon};
+use crate::components::page_header::PageHeader;
 
 // ── Response types (mirror backend MaintenanceSummary + InspectionDetail) ─────
 
@@ -269,88 +270,87 @@ pub fn MaintenanceQueue() -> impl IntoView {
     view! {
         <div class="mq-page">
             // ── Header ────────────────────────────────────────────────
-            <div class="mq-header">
-                <div>
-                    <h1 class="mq-title">"Maintenance"</h1>
-                    <p class="mq-subtitle">"Work orders and scheduled inspections across your portfolio."</p>
-                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
-                        <a class="folio-btn folio-btn--primary press" href=FolioRoute::LandlordMaintenanceNew.path()>
-                            "New work order"
-                        </a>
-                        <a
-                            class="folio-btn folio-btn--ghost press"
-                            href=format!("{}?mode=paid", FolioRoute::LandlordMaintenanceNew.path())
-                        >
-                            "Log paid"
-                        </a>
-                        <a
-                            class="folio-btn folio-btn--ghost press"
-                            href=format!("{}?mode=schedule", FolioRoute::LandlordMaintenanceNew.path())
-                        >
-                            "Schedule"
-                        </a>
-                    </div>
-                    <nav class="folio-related" aria-label="Related" style="margin-top:0.75rem;">
-                        <span class="folio-related__label">"Related"</span>
-                        <ul class="folio-related__list">
-                            <li><a class="folio-related__link press" href=FolioRoute::LandlordVendors.path()>"Vendors"</a></li>
-                            <li><a class="folio-related__link press" href=FolioRoute::LandlordMarketplace.path()>"Marketplace"</a></li>
-                            <li><a class="folio-related__link press" href=FolioRoute::LandlordInspections.path()>"Inspections"</a></li>
-                            <li><a class="folio-related__link press" href=FolioRoute::LandlordRatings.path()>"Ratings"</a></li>
-                        </ul>
-                    </nav>
-                </div>
-                // KPI badges
-                <div class="mq-kpi-strip">
-                    <Suspense fallback=|| view! { <div class="mq-kpi-skel"/> }>
-                        {move || tickets.get().map(|res| {
-                            let (open, emergency) = res.as_ref().map(|v| {
-                                let open = v.iter().filter(|t| CaseStatus::from_str(&t.status) == CaseStatus::Open).count();
-                                let emg = v.iter().filter(|t| CasePriority::from_str(&t.priority) == CasePriority::Emergency).count();
-                                (open, emg)
-                            }).unwrap_or((0, 0));
-                            view! {
-                                <div class="mq-kpi">
-                                    <span class="mq-kpi-val">{open}</span>
-                                    <span class="mq-kpi-label">"Open"</span>
+            <PageHeader
+                title=Signal::derive(|| "Maintenance".to_string())
+                subtitle=Signal::derive(|| {
+                    "Work orders and scheduled inspections across your portfolio.".to_string()
+                })
+            >
+                <a class="folio-btn folio-btn--primary press" href=FolioRoute::LandlordMaintenanceNew.path()>
+                    "New work order"
+                </a>
+                <a
+                    class="folio-btn folio-btn--ghost press"
+                    href=format!("{}?mode=paid", FolioRoute::LandlordMaintenanceNew.path())
+                >
+                    "Log paid"
+                </a>
+                <a
+                    class="folio-btn folio-btn--ghost press"
+                    href=format!("{}?mode=schedule", FolioRoute::LandlordMaintenanceNew.path())
+                >
+                    "Schedule"
+                </a>
+            </PageHeader>
+            <nav class="folio-related" aria-label="Related">
+                <span class="folio-related__label">"Related"</span>
+                <ul class="folio-related__list">
+                    <li><a class="folio-related__link press" href=FolioRoute::LandlordVendors.path()>"Vendors"</a></li>
+                    <li><a class="folio-related__link press" href=FolioRoute::LandlordMarketplace.path()>"Marketplace"</a></li>
+                    <li><a class="folio-related__link press" href=FolioRoute::LandlordInspections.path()>"Inspections"</a></li>
+                    <li><a class="folio-related__link press" href=FolioRoute::LandlordRatings.path()>"Ratings"</a></li>
+                </ul>
+            </nav>
+            // KPI badges
+            <div class="mq-kpi-strip">
+                <Suspense fallback=|| view! { <div class="mq-kpi-skel"/> }>
+                    {move || tickets.get().map(|res| {
+                        let (open, emergency) = res.as_ref().map(|v| {
+                            let open = v.iter().filter(|t| CaseStatus::from_str(&t.status) == CaseStatus::Open).count();
+                            let emg = v.iter().filter(|t| CasePriority::from_str(&t.priority) == CasePriority::Emergency).count();
+                            (open, emg)
+                        }).unwrap_or((0, 0));
+                        view! {
+                            <div class="mq-kpi">
+                                <span class="mq-kpi-val">{open}</span>
+                                <span class="mq-kpi-label">"Open"</span>
+                            </div>
+                            {(emergency > 0).then(|| view! {
+                                <div class="mq-kpi mq-kpi--emergency">
+                                    <span class="material-symbols-outlined" style="font-size:14px;">"priority_high"</span>
+                                    <span class="mq-kpi-val">{emergency}</span>
+                                    <span class="mq-kpi-label">"Emergency"</span>
                                 </div>
-                                {(emergency > 0).then(|| view! {
-                                    <div class="mq-kpi mq-kpi--emergency">
-                                        <span class="material-symbols-outlined" style="font-size:14px;">"priority_high"</span>
-                                        <span class="mq-kpi-val">{emergency}</span>
-                                        <span class="mq-kpi-label">"Emergency"</span>
-                                    </div>
-                                })}
-                            }
-                        })}
-                    </Suspense>
-                    <Suspense fallback=|| view! { <div class="mq-kpi-skel"/> }>
-                        {move || inspections.get().map(|res| {
-                            let upcoming = res.as_ref().map(|v| {
-                                v.iter().filter(|i| {
-                                    CaseStatus::from_str(&i.status) == CaseStatus::Scheduled
-                                }).count()
-                            }).unwrap_or(0);
-                            view! {
-                                <div class="mq-kpi">
-                                    <span class="mq-kpi-val">{upcoming}</span>
-                                    <span class="mq-kpi-label">"Upcoming Inspections"</span>
-                                </div>
-                            }
-                        })}
-                    </Suspense>
-                </div>
+                            })}
+                        }
+                    })}
+                </Suspense>
+                <Suspense fallback=|| view! { <div class="mq-kpi-skel"/> }>
+                    {move || inspections.get().map(|res| {
+                        let upcoming = res.as_ref().map(|v| {
+                            v.iter().filter(|i| {
+                                CaseStatus::from_str(&i.status) == CaseStatus::Scheduled
+                            }).count()
+                        }).unwrap_or(0);
+                        view! {
+                            <div class="mq-kpi">
+                                <span class="mq-kpi-val">{upcoming}</span>
+                                <span class="mq-kpi-label">"Upcoming Inspections"</span>
+                            </div>
+                        }
+                    })}
+                </Suspense>
             </div>
 
             // ── Tabs ──────────────────────────────────────────────────
-            <div class="mq-tabs">
+            <div class="folio-tab-bar">
                 {[MaintenanceTab::WorkOrders, MaintenanceTab::Inspections].iter().copied().map(|tab| view! {
                     <button
                         class=move || {
                             if active_tab.get() == tab {
-                                "mq-tab mq-tab--active"
+                                "folio-tab folio-tab--active"
                             } else {
-                                "mq-tab"
+                                "folio-tab"
                             }
                         }
                         on:click=move |_| {

@@ -370,10 +370,10 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                 });
                             }
                         >
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 "Lease"
                                 <select
-                                    class="form-input"
+                                    class="folio-input"
                                     prop:value=move || lease_id.get()
                                     on:change=move |ev| lease_id.set(event_target_value(&ev))
                                 >
@@ -419,10 +419,10 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                 </button>
                             </div>
 
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 "Kind"
                                 <select
-                                    class="form-input"
+                                    class="folio-input"
                                     on:change=move |ev| {
                                         let v = event_target_value(&ev);
                                         if let Some(k) = LedgerKind::ALL.iter().copied().find(|k| k.as_str() == v) {
@@ -436,53 +436,53 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                 </select>
                             </label>
 
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 "Amount (per month if period)"
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="text"
                                     inputmode="decimal"
                                     prop:value=move || amount.get()
                                     on:input=move |ev| amount.set(event_target_value(&ev))
                                 />
                             </label>
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 "Description"
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="text"
                                     prop:value=move || description.get()
                                     on:input=move |ev| description.set(event_target_value(&ev))
                                 />
                             </label>
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 "Currency"
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="text"
                                     prop:value=move || currency.get()
                                     on:input=move |ev| currency.set(event_target_value(&ev))
                                 />
                             </label>
 
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 {move || if mode.get() == EntryMode::Single {
                                     "Month"
                                 } else {
                                     "Start month"
                                 }}
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="month"
                                     prop:value=move || start_month.get()
                                     on:input=move |ev| start_month.set(event_target_value(&ev))
                                 />
                             </label>
                             <Show when=move || mode.get() == EntryMode::Period>
-                                <label class="folio-form__label">
+                                <label class="folio-field__label">
                                     "End month"
                                     <input
-                                        class="form-input"
+                                        class="folio-input"
                                         type="month"
                                         prop:value=move || end_month.get()
                                         on:input=move |ev| end_month.set(event_target_value(&ev))
@@ -495,10 +495,10 @@ pub fn UnitPaymentHistory() -> impl IntoView {
                                     }}
                                 </p>
                             </Show>
-                            <label class="folio-form__label">
+                            <label class="folio-field__label">
                                 "Method (optional)"
                                 <input
-                                    class="form-input"
+                                    class="folio-input"
                                     type="text"
                                     placeholder="cash, check, ach…"
                                     prop:value=move || method.get()

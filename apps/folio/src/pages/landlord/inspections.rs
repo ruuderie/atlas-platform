@@ -20,6 +20,7 @@ use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::page_header::PageHeader;
 use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
 
 // ── API types (mirrors InspectionDetail from maintenance.rs handler) ──────────
@@ -378,13 +379,13 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
                         </button>
                     </div>
                     <div class="insp-modal-body">
-                        <label class="insp-form-label">"Subject *"</label>
+                        <label class="folio-field__label">"Subject *"</label>
                         <input class="insp-form-input" placeholder="e.g. Annual boiler inspection"
                             prop:value=move || subject.get()
                             on:input=move |e| subject.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Property / unit *"</label>
-                        <Suspense fallback=|| view! { <p class="insp-form-label">"Loading…"</p> }>
+                        <label class="folio-field__label">"Property / unit *"</label>
+                        <Suspense fallback=|| view! { <p class="folio-field__label">"Loading…"</p> }>
                             {move || assets.get().map(|res| match res {
                                 Ok(list) => view! {
                                     <select
@@ -395,8 +396,8 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
                                         <option value="">"Select…"</option>
                                         {list.into_iter().map(|a: AssetPickerItem| {
                                             let id = a.id.to_string();
-                                            let name = a.name;
-                                            view! { <option value=id>{name}</option> }
+                                            let label = a.place_label();
+                                            view! { <option value=id>{label}</option> }
                                         }).collect_view()}
                                     </select>
                                 }.into_any(),
@@ -404,17 +405,17 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
                             })}
                         </Suspense>
 
-                        <label class="insp-form-label">"Scheduled Date *"</label>
+                        <label class="folio-field__label">"Scheduled Date *"</label>
                         <input type="date" class="insp-form-input"
                             prop:value=move || sched_at.get()
                             on:input=move |e| sched_at.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Estimated Cost ($)"</label>
+                        <label class="folio-field__label">"Estimated Cost ($)"</label>
                         <input type="number" class="insp-form-input" placeholder="0.00"
                             prop:value=move || est_cost.get()
                             on:input=move |e| est_cost.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Notes"</label>
+                        <label class="folio-field__label">"Notes"</label>
                         <textarea class="insp-form-textarea" placeholder="Inspector instructions…"
                             prop:value=move || notes.get()
                             on:input=move |e| notes.set(event_target_value(&e)) />
@@ -422,10 +423,10 @@ fn ScheduleModal(show: RwSignal<bool>, refetch_count: RwSignal<u32>) -> impl Int
                         {move || error.get().map(|e| view! { <p class="insp-form-error">{e}</p> })}
                     </div>
                     <div class="insp-modal-footer">
-                        <button class="insp-btn insp-btn--ghost" on:click=move |_| close()>
+                        <button class="folio-btn folio-btn--ghost" on:click=move |_| close()>
                             "Cancel"
                         </button>
-                        <button class="insp-btn insp-btn--primary" on:click=submit
+                        <button class="folio-btn folio-btn--primary" on:click=submit
                             disabled=move || submitting.get()>
                             {move || if submitting.get() { "Scheduling…" } else { "Schedule" }}
                         </button>
@@ -516,23 +517,23 @@ fn CompleteModal(
                         </button>
                     </div>
                     <div class="insp-modal-body">
-                        <label class="insp-form-label">"Findings *"</label>
+                        <label class="folio-field__label">"Findings *"</label>
                         <textarea class="insp-form-textarea"
                             placeholder="Describe what was inspected and any issues found…"
                             prop:value=move || findings.get()
                             on:input=move |e| findings.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Asset Condition After"</label>
+                        <label class="folio-field__label">"Asset Condition After"</label>
                         <input class="insp-form-input" placeholder="e.g. Good, Fair, Poor"
                             prop:value=move || condition.get()
                             on:input=move |e| condition.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Next Inspection Date"</label>
+                        <label class="folio-field__label">"Next Inspection Date"</label>
                         <input type="date" class="insp-form-input"
                             prop:value=move || next_date.get()
                             on:input=move |e| next_date.set(event_target_value(&e)) />
 
-                        <label class="insp-form-label">"Actual Cost ($)"</label>
+                        <label class="folio-field__label">"Actual Cost ($)"</label>
                         <input type="number" class="insp-form-input" placeholder="0.00"
                             prop:value=move || actual_cost.get()
                             on:input=move |e| actual_cost.set(event_target_value(&e)) />
@@ -540,10 +541,10 @@ fn CompleteModal(
                         {move || error.get().map(|e| view! { <p class="insp-form-error">{e}</p> })}
                     </div>
                     <div class="insp-modal-footer">
-                        <button class="insp-btn insp-btn--ghost" on:click=move |_| close()>
+                        <button class="folio-btn folio-btn--ghost" on:click=move |_| close()>
                             "Cancel"
                         </button>
-                        <button class="insp-btn insp-btn--primary" on:click=submit
+                        <button class="folio-btn folio-btn--primary" on:click=submit
                             disabled=move || submitting.get()>
                             {move || if submitting.get() { "Saving…" } else { "Complete" }}
                         </button>
@@ -645,20 +646,20 @@ pub fn Inspections() -> impl IntoView {
         show_complete.set(true);
     };
 
+    let title = Signal::derive(|| "Inspections".to_string());
+    let subtitle = Signal::derive(|| {
+        "Proactive inspection schedule across your portfolio".to_string()
+    });
+
     view! {
         <div class="insp-page">
-            // Header
-            <div class="insp-header">
-                <div class="insp-header-left">
-                    <h1 class="insp-title">"Inspections"</h1>
-                    <p class="insp-subtitle">"Proactive inspection schedule across your portfolio"</p>
-                </div>
-                <button class="insp-btn insp-btn--primary"
+            <PageHeader title=title subtitle=subtitle>
+                <button class="folio-btn folio-btn--primary"
                     on:click=move |_| show_schedule.set(true)>
                     <span class="material-symbols-outlined">"add"</span>
                     "Schedule Inspection"
                 </button>
-            </div>
+            </PageHeader>
 
             // KPI strip
             <Suspense fallback=|| view! {
@@ -702,7 +703,7 @@ pub fn Inspections() -> impl IntoView {
                             <div class="insp-error">
                                 <span class="material-symbols-outlined">"error"</span>
                                 <p>"Failed to load inspections: " {e.to_string()}</p>
-                                <button class="insp-btn insp-btn--ghost"
+                                <button class="folio-btn folio-btn--ghost"
                                     on:click=move |_| inspections.refetch()>"Retry"</button>
                             </div>
                         }.into_any(),
@@ -722,7 +723,7 @@ pub fn Inspections() -> impl IntoView {
                                         <span class="material-symbols-outlined insp-empty-icon">"event_available"</span>
                                         <p class="insp-empty-title">"No inspections found"</p>
                                         <p class="insp-empty-sub">"Schedule a proactive inspection to get started."</p>
-                                        <button class="insp-btn insp-btn--primary"
+                                        <button class="folio-btn folio-btn--primary"
                                             on:click=move |_| show_schedule.set(true)>
                                             "Schedule Inspection"
                                         </button>

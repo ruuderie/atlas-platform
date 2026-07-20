@@ -12,6 +12,8 @@ use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::components::page_header::PageHeader;
+
 // ── API types ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -524,24 +526,21 @@ pub fn LandlordDigitalVault() -> impl IntoView {
     view! {
         <div class="main-area">
 
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Digital Vault"</h1>
-                    <p class="page-subtitle">"Leases, permits, certificates, and shared files"</p>
-                </div>
-                <div class="page-actions">
-                    <button class="btn btn-ghost btn-sm" on:click=move |_| refresh.update(|n| *n += 1)>"↻ Refresh"</button>
-                    <button
-                        class="btn btn-primary btn-sm"
-                        on:click=move |_| {
-                            reg_err.set(None);
-                            show_register.set(true);
-                        }
-                    >
-                        "+ Register Document"
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                title=Signal::derive(|| "Digital Vault".to_string())
+                subtitle=Signal::derive(|| "Leases, permits, certificates, and shared files".to_string())
+            >
+                <button class="folio-btn folio-btn--ghost folio-btn--sm" on:click=move |_| refresh.update(|n| *n += 1)>"↻ Refresh"</button>
+                <button
+                    class="folio-btn folio-btn--primary folio-btn--sm"
+                    on:click=move |_| {
+                        reg_err.set(None);
+                        show_register.set(true);
+                    }
+                >
+                    "+ Register Document"
+                </button>
+            </PageHeader>
 
             // ── KPI / stats ──
             <Suspense fallback=|| ()>
@@ -668,11 +667,11 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                             <p class="folio-empty__sub" style="margin:0;">
                                 "Upload a file — we get a secure upload link, store the object, then register it in your vault."
                             </p>
-                            <div class="form-field">
-                                <label class="form-label">"File *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"File *"</label>
                                 <input
                                     type="file"
-                                    class="form-input"
+                                    class="folio-input"
                                     node_ref=file_input_el
                                     on:change=move |ev| {
                                         let el = event_target::<web_sys::HtmlInputElement>(&ev);
@@ -693,10 +692,10 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                     }
                                 }}
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Belongs to *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Belongs to *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     prop:value=move || reg_entity_type.get()
                                     on:change=move |ev| {
                                         reg_entity_type.set(event_target_value(&ev));
@@ -709,8 +708,8 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                     <option value="atlas_service_providers">"Vendor"</option>
                                 </select>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Record *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Record *"</label>
                                 <Suspense fallback=|| view! { <p class="folio-empty__sub">"Loading…"</p> }>
                                     {move || entity_opts.get().map(|res| match res {
                                         Ok(list) if list.is_empty() => view! {
@@ -718,7 +717,7 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                         }.into_any(),
                                         Ok(list) => view! {
                                             <select
-                                                class="form-select"
+                                                class="folio-select"
                                                 prop:value=move || reg_entity_id.get()
                                                 on:change=move |ev| reg_entity_id.set(event_target_value(&ev))
                                             >
@@ -736,10 +735,10 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                     })}
                                 </Suspense>
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Document Type *"</label>
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Document Type *"</label>
                                 <select
-                                    class="form-select"
+                                    class="folio-select"
                                     on:change=move |ev| reg_doc_type.set(event_target_value(&ev))
                                 >
                                     {VaultDocumentType::ALL.iter().copied().map(|t| {
@@ -752,9 +751,9 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_register.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_register.set(false)>"Cancel"</button>
                             <button
-                                class="btn btn-primary"
+                                class="folio-btn folio-btn--primary"
                                 disabled=move || {
                                     registering.get()
                                         || reg_entity_id.get().trim().is_empty()
@@ -790,16 +789,17 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                         <dt>"Signed"</dt><dd>{if doc.is_signed { "✓ Yes" } else { "✗ No" }}</dd>
                                         <dt>"Tenant Visible"</dt><dd>{if doc.is_counterparty_visible { "Yes" } else { "No" }}</dd>
                                         {doc.related_entity_type.clone().map(|et| view! {
-                                            <dt>"Entity Type"</dt><dd>{et}</dd>
+                                            <dt>"Belongs to"</dt>
+                                            <dd>{et.replace('_', " ")}</dd>
                                         })}
-                                        {doc.related_entity_id.map(|eid| view! {
+                                        {doc.related_entity_id.map(|_| view! {
                                             <dt>"Linked record"</dt>
-                                            <dd class="font-mono text-xs opacity-60">{eid.to_string()}</dd>
+                                            <dd>"Yes"</dd>
                                         })}
                                     </dl>
                                 </div>
                                 <div class="modal-footer">
-                                    <button class="btn btn-ghost" on:click=move |_| selected_doc.set(None)>"Close"</button>
+                                    <button class="folio-btn folio-btn--ghost" on:click=move |_| selected_doc.set(None)>"Close"</button>
                                 </div>
                             }
                         })}

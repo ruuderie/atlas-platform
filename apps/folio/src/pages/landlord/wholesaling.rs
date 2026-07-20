@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::components::nav::FolioRoute;
+use crate::components::page_header::PageHeader;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WholesaleSummary {
@@ -224,23 +225,23 @@ pub fn LandlordWholesaling() -> impl IntoView {
 
     view! {
         <div class="main-area">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">"Wholesaling"</h1>
-                    <p class="page-subtitle">
-                        "Cash-offer leads · "
-                        <a href=format!("{}?track=wholesale", FolioRoute::LandlordDeals.path())>"Open Deal Ops →"</a>
-                    </p>
-                </div>
-                <div class="page-actions">
-                    <button class="btn btn-ghost btn-sm" on:click=move |_| show_calc.set(true)>
-                        "MAO Calculator"
-                    </button>
-                    <button class="btn btn-primary btn-sm" on:click=move |_| show_add.set(true)>
-                        "+ Add Lead"
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                title=Signal::derive(|| "Wholesaling".to_string())
+                subtitle=Signal::derive(|| "Cash-offer leads".to_string())
+            >
+                <a
+                    class="folio-btn folio-btn--ghost folio-btn--sm"
+                    href=format!("{}?track=wholesale", FolioRoute::LandlordDeals.path())
+                >
+                    "Open Deal Ops →"
+                </a>
+                <button class="folio-btn folio-btn--ghost folio-btn--sm" on:click=move |_| show_calc.set(true)>
+                    "MAO Calculator"
+                </button>
+                <button class="folio-btn folio-btn--primary folio-btn--sm" on:click=move |_| show_add.set(true)>
+                    "+ Add Lead"
+                </button>
+            </PageHeader>
 
             <Suspense fallback=|| view! { <div class="doc-empty">"Loading pipeline…"</div> }>
                 {move || leads_res.get().map(|res| {
@@ -315,19 +316,19 @@ pub fn LandlordWholesaling() -> impl IntoView {
                             <button class="modal-close" on:click=move |_| { show_calc.set(false); calc_result.set(None); }>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"ARV ($)"</label>
-                                <input type="number" class="form-input" prop:value=calc_arv
+                            <div class="folio-field">
+                                <label class="folio-field__label">"ARV ($)"</label>
+                                <input type="number" class="folio-input" prop:value=calc_arv
                                     on:input=move |ev| calc_arv.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Repairs ($)"</label>
-                                <input type="number" class="form-input" prop:value=calc_repair
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Repairs ($)"</label>
+                                <input type="number" class="folio-input" prop:value=calc_repair
                                     on:input=move |ev| calc_repair.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Wholesale fee ($)"</label>
-                                <input type="number" class="form-input" prop:value=calc_fee
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Wholesale fee ($)"</label>
+                                <input type="number" class="folio-input" prop:value=calc_fee
                                     on:input=move |ev| calc_fee.set(event_target_value(&ev)) />
                             </div>
                             {move || calc_result.get().map(|r| view! {
@@ -341,8 +342,8 @@ pub fn LandlordWholesaling() -> impl IntoView {
                             })}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| { show_calc.set(false); calc_result.set(None); }>"Close"</button>
-                            <button class="btn btn-primary" on:click=handle_calc disabled=move || calculating.get()>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| { show_calc.set(false); calc_result.set(None); }>"Close"</button>
+                            <button class="folio-btn folio-btn--primary" on:click=handle_calc disabled=move || calculating.get()>
                                 {move || if calculating.get() { "Calculating…" } else { "Calculate MAO" }}
                             </button>
                         </div>
@@ -358,25 +359,25 @@ pub fn LandlordWholesaling() -> impl IntoView {
                             <button class="modal-close" on:click=move |_| show_add.set(false)>"✕"</button>
                         </div>
                         <div class="modal-body space-y-4">
-                            <div class="form-field">
-                                <label class="form-label">"Address"</label>
-                                <input class="form-input" prop:value=new_addr
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Address"</label>
+                                <input class="folio-input" prop:value=new_addr
                                     on:input=move |ev| new_addr.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"ARV ($)"</label>
-                                <input type="number" class="form-input" prop:value=new_arv
+                            <div class="folio-field">
+                                <label class="folio-field__label">"ARV ($)"</label>
+                                <input type="number" class="folio-input" prop:value=new_arv
                                     on:input=move |ev| new_arv.set(event_target_value(&ev)) />
                             </div>
-                            <div class="form-field">
-                                <label class="form-label">"Repairs ($)"</label>
-                                <input type="number" class="form-input" prop:value=new_repair
+                            <div class="folio-field">
+                                <label class="folio-field__label">"Repairs ($)"</label>
+                                <input type="number" class="folio-input" prop:value=new_repair
                                     on:input=move |ev| new_repair.set(event_target_value(&ev)) />
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
-                            <button class="btn btn-primary" on:click=handle_create disabled=move || creating.get()>
+                            <button class="folio-btn folio-btn--ghost" on:click=move |_| show_add.set(false)>"Cancel"</button>
+                            <button class="folio-btn folio-btn--primary" on:click=handle_create disabled=move || creating.get()>
                                 {move || if creating.get() { "Saving…" } else { "Create" }}
                             </button>
                         </div>
