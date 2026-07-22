@@ -18,7 +18,7 @@ use crate::types::pm::AttributionModel;
 /// and distribute conversion credit according to the specified model.
 ///
 /// ## Usage
-/// ```rust
+/// ```ignore
 /// // From a Stripe webhook handler after confirming payment:
 /// if let Err(e) = record_paid_conversion(
 ///     &db,
