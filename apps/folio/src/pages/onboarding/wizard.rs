@@ -952,6 +952,8 @@ mod tests {
             wizard_dismissed: false,
             has_str_assets: false,
             active_lease_type: None,
+            is_hired_pm: false,
+            employer_display_name: None,
         };
         assert_eq!(after_passkey_setup_path(&info), "/l");
     }

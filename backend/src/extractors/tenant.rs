@@ -87,10 +87,25 @@ impl TenantContext {
 ///
 /// Prefer this over profile lookups: profile rows are not always created
 /// during invite / partial onboarding, while account.tenant_id is.
+///
+/// Hired PMs (G-32 `property_manager` + `client_account_id` on a non-PMC
+/// instance) resolve to the employer book first so ops hit the right tenant.
 pub async fn resolve_tenant_id(
     db: &DatabaseConnection,
     user_id: Uuid,
 ) -> Result<Uuid, StatusCode> {
+    if let Some((tenant_id, _)) =
+        crate::services::pm::management_delegation::ManagementDelegationService::hired_pm_employer_book(
+            db, user_id,
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        if tenant_id != Uuid::nil() {
+            return Ok(tenant_id);
+        }
+    }
+
     db.query_one(Statement::from_sql_and_values(
         DbBackend::Postgres,
         r#"SELECT a.tenant_id
@@ -129,33 +144,56 @@ where
             .await
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
-        let ua = user_account::Entity::find()
-            .filter(user_account::Column::UserId.eq(current_user.id))
-            .filter(user_account::Column::IsActive.eq(true))
-            .one(&db)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-            .ok_or(StatusCode::FORBIDDEN)?;
+        // Hired PM → employer book membership (Member on client_account_id).
+        let hired_book = crate::services::pm::management_delegation::ManagementDelegationService::hired_pm_employer_book(
+            &db,
+            current_user.id,
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let ua = if let Some((_, employer_account_id)) = hired_book {
+            user_account::Entity::find()
+                .filter(user_account::Column::UserId.eq(current_user.id))
+                .filter(user_account::Column::AccountId.eq(employer_account_id))
+                .filter(user_account::Column::IsActive.eq(true))
+                .one(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                .ok_or(StatusCode::FORBIDDEN)?
+        } else {
+            user_account::Entity::find()
+                .filter(user_account::Column::UserId.eq(current_user.id))
+                .filter(user_account::Column::IsActive.eq(true))
+                .one(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                .ok_or(StatusCode::FORBIDDEN)?
+        };
 
         // Prefer profile.tenant_id when present; otherwise account.tenant_id
         // (matches GET /api/folio/me and onboarding submit).
-        let tenant_id = match crate::entities::profile::Entity::find()
-            .filter(crate::entities::profile::Column::AccountId.eq(ua.account_id))
-            .one(&db)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        {
-            Some(profile) if profile.tenant_id != Uuid::nil() => profile.tenant_id,
-            _ => {
-                let account = crate::entities::account::Entity::find_by_id(ua.account_id)
-                    .one(&db)
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-                    .ok_or(StatusCode::FORBIDDEN)?;
-                if account.tenant_id == Uuid::nil() {
-                    return Err(StatusCode::FORBIDDEN);
+        let tenant_id = if let Some((hired_tid, _)) = hired_book {
+            hired_tid
+        } else {
+            match crate::entities::profile::Entity::find()
+                .filter(crate::entities::profile::Column::AccountId.eq(ua.account_id))
+                .one(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            {
+                Some(profile) if profile.tenant_id != Uuid::nil() => profile.tenant_id,
+                _ => {
+                    let account = crate::entities::account::Entity::find_by_id(ua.account_id)
+                        .one(&db)
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                        .ok_or(StatusCode::FORBIDDEN)?;
+                    if account.tenant_id == Uuid::nil() {
+                        return Err(StatusCode::FORBIDDEN);
+                    }
+                    account.tenant_id
                 }
-                account.tenant_id
             }
         };
 

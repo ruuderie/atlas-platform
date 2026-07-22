@@ -220,7 +220,7 @@ pub fn PropertyDocuments() -> impl IntoView {
             })}
             {move || kind_filter.get().map(|_| view! {
                 <p class="proj-section__hint docs-page__filter-hint">
-                    "Photos — upload via vault for this property. There is no separate photo gallery yet."
+                    "Photos — drop onto the Photos card on the property hub or unit, or upload here via vault."
                     " · "
                     <a class="hub-activity-rail__all" href=clear_filter_href>
                         "Show all documents"

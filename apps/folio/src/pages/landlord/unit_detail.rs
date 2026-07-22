@@ -4,7 +4,12 @@
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
+use crate::components::photo_media_card::{PhotoEntityKind, PhotoMediaCard};
 use crate::components::status_pill::{StatusPill, StatusPillTone};
+use crate::pages::landlord::digital_vault::{
+    is_vault_photo_category, list_entity_vault_docs,
+};
+use crate::pages::landlord::property_documents::get_property_documents;
 use crate::pages::landlord::asset_api::{
     archive_folio_asset as archive_unit_asset, create_child_asset, get_asset_children,
     get_asset_for_dispatch, ArchiveBlockerDto, AssetDetailDto,
@@ -121,6 +126,31 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
         move || (unit_id, spaces_refresh.get()),
         |(id, _)| async move {
             get_asset_children(id).await.unwrap_or_default()
+        },
+    );
+
+    let photos_refresh = RwSignal::new(0u32);
+    let unit_photos = Resource::new(
+        move || (unit_id, photos_refresh.get()),
+        |(id, _)| async move {
+            // Prefer property-documents compose (unit + spaces); fall back to vault entity list.
+            let rows = get_property_documents(id, None).await.unwrap_or_default();
+            let n = rows
+                .iter()
+                .filter(|r| {
+                    r.kind == crate::pages::landlord::property_documents::PropertyDocumentKind::Vault
+                        && is_vault_photo_category(&r.category)
+                })
+                .count();
+            if n > 0 {
+                return n;
+            }
+            list_entity_vault_docs("atlas_assets".into(), id)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|d| is_vault_photo_category(&d.document_category))
+                .count()
         },
     );
 
@@ -484,6 +514,29 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                         }}
                     </div>
 
+                    {
+                        let gallery_href = Signal::derive(move || {
+                            format!("/l/assets/{unit_id}/documents?kind=photo")
+                        });
+                        let photo_count = Signal::derive(move || unit_photos.get().unwrap_or(0));
+                        view! {
+                            <div class="hub-media-row" style="margin-bottom:1rem;">
+                                <PhotoMediaCard
+                                    entity_kind=PhotoEntityKind::Asset
+                                    entity_id=unit_id
+                                    gallery_href=gallery_href
+                                    photo_count=photo_count
+                                    has_cover=Signal::derive(|| false)
+                                    parent_asset_id=parent_id.unwrap_or(Uuid::nil())
+                                    empty_label="No photos yet".to_string()
+                                    on_uploaded=Callback::new(move |_| {
+                                        photos_refresh.update(|n| *n += 1);
+                                    })
+                                />
+                            </div>
+                        }
+                    }
+
                     <section class="unit-availability">
                         <h3 class="unit-availability__title">"Availability"</h3>
                         <div class="unit-availability__grid">
@@ -731,18 +784,23 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                         <h3 class="proj-section__title">"Lease"</h3>
                                         <a class="folio-btn folio-btn--ghost folio-btn--sm press" href=href>"Open detail"</a>
                                     </div>
-                                    <p class="hub-activity-rail__row-title">{tenant}</p>
-                                    <p class="hub-activity-rail__row-meta">{format!("{} · {rent}", status.as_str())}</p>
-                                    <Show when=move || is_draft>
-                                        <button
-                                            type="button"
-                                            class="folio-btn folio-btn--primary press"
-                                            style="margin-top:0.75rem;"
-                                            on:click=move |_| show_attach.set(true)
-                                        >
-                                            "Attach lease"
-                                        </button>
-                                    </Show>
+                                    <div class="proj-section__body proj-section__body--stack">
+                                        <div>
+                                            <p class="hub-activity-rail__row-title">{tenant}</p>
+                                            <p class="hub-activity-rail__row-meta">
+                                                {format!("{} · {rent}", status.as_str())}
+                                            </p>
+                                        </div>
+                                        <Show when=move || is_draft>
+                                            <button
+                                                type="button"
+                                                class="folio-btn folio-btn--primary press"
+                                                on:click=move |_| show_attach.set(true)
+                                            >
+                                                "Attach lease"
+                                            </button>
+                                        </Show>
+                                    </div>
                                 </section>
                                 <section class="proj-section">
                                     <div class="proj-section__head">
@@ -1014,6 +1072,8 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                                     let href = FolioRoute::LandlordLeaseDetail
                                                         .path()
                                                         .replace(":id", &l.id.to_string());
+                                                    let status = LeaseStatus::from_str(&l.status);
+                                                    let tenant = l.tenant_display_label();
                                                     let rent = l.monthly_rent_cents
                                                         .map(|c| format!("${:.0}/mo", c as f64 / 100.0))
                                                         .unwrap_or_else(|| "—".into());
@@ -1022,12 +1082,20 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                                                         l.start_date.map(|d| d.to_string()).unwrap_or_else(|| "—".into()),
                                                         l.end_date.map(|d| d.to_string()).unwrap_or_else(|| "—".into())
                                                     );
+                                                    let meta = format!("{rent} · {dates}");
                                                     view! {
                                                         <a class="hub-activity-rail__row press" href=href>
-                                                            <StatusPill label=l.status.clone() tone=StatusPillTone::Info/>
+                                                            <StatusPill
+                                                                label=status.as_str().to_string()
+                                                                tone=if status == LeaseStatus::Draft {
+                                                                    StatusPillTone::Warn
+                                                                } else {
+                                                                    StatusPillTone::Info
+                                                                }
+                                                            />
                                                             <div class="hub-activity-rail__body">
-                                                                <p class="hub-activity-rail__row-title">{rent}</p>
-                                                                <p class="hub-activity-rail__row-meta">{dates}</p>
+                                                                <p class="hub-activity-rail__row-title">{tenant}</p>
+                                                                <p class="hub-activity-rail__row-meta">{meta}</p>
                                                             </div>
                                                         </a>
                                                     }
@@ -1114,14 +1182,14 @@ pub fn UnitDetailPage(asset: AssetDetailDto) -> impl IntoView {
                             </section>
                         </div>
 
-                        <aside class="proj-section" style="position:sticky;top:1rem;align-self:start;">
+                        <aside class="proj-section unit-history-aside">
                             <div class="proj-section__head">
                                 <div>
                                     <h3 class="proj-section__title">"Add to history"</h3>
                                     <p class="proj-section__hint">"Backfill this unit’s timeline"</p>
                                 </div>
                             </div>
-                            <div class="unit-actions" style="flex-direction:column;align-items:stretch;">
+                            <div class="unit-actions unit-actions--stack">
                                 <a class="folio-btn folio-btn--primary press" href=hist_lease_href.clone()>
                                     "Historical lease"
                                 </a>

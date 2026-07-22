@@ -770,6 +770,20 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
     ],
 };
 
+/// Hired PM operator on `/l` — ops nav without account-admin (Account / Team).
+pub(crate) static HIRED_PM_LANDLORD_NAV: NavConfig = NavConfig {
+    role_label: "Property Manager",
+    groups: LANDLORD_NAV.groups,
+    footer_items: &[
+        NavItem::new(
+            FolioRoute::LandlordMeridian,
+            "Analytics",
+            NavIcon::BarChart,
+        ),
+        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
+    ],
+};
+
 pub(crate) static TENANT_NAV: NavConfig = NavConfig {
     role_label: "Tenant",
     groups: &[NavGroup {

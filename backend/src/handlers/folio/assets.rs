@@ -28,7 +28,7 @@ use axum::{
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -43,6 +43,7 @@ use crate::services::pm::asset_archive::{
 };
 use crate::services::pm::asset_purge::AssetPurgeService;
 use crate::services::pm::lease::LeaseService;
+use crate::services::pm::management_delegation::ManagementDelegationService;
 use crate::services::pm::record_relationship::RecordRelationshipService;
 use crate::types::pm::PropertyType;
 
@@ -71,6 +72,15 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route(
             "/api/folio/assets/{id}/contractor",
             get(get_asset_contractor),
+        )
+        // Same-tenant PM hire (G-11 management_agreement + G-32 asset grants).
+        .route(
+            "/api/folio/assets/{id}/manager",
+            get(get_asset_manager).delete(revoke_asset_manager),
+        )
+        .route(
+            "/api/folio/assets/{id}/manager/invite",
+            post(invite_asset_manager).delete(cancel_asset_manager_invite),
         )
         .route("/api/folio/assets/{id}/archive", post(archive_asset))
         .route("/api/folio/assets/{id}/purge", post(purge_asset))
@@ -597,6 +607,14 @@ async fn list_assets(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
+    let grants = ManagementDelegationService::accessible_asset_ids(&db, current_user.id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_assets grants: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    let assets = AssetService::filter_by_asset_grants(assets, grants.as_deref());
+
     let summaries: Vec<AssetSummary> = assets
         .into_iter()
         .map(|a| AssetSummary {
@@ -680,7 +698,7 @@ async fn get_asset(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    let asset = AssetService::get_unit(&db, tenant_id, asset_id)
+    let asset = AssetService::get_unit_scoped(&db, tenant_id, asset_id, current_user.id)
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -722,8 +740,8 @@ async fn list_asset_children(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    // Verify parent exists and belongs to tenant.
-    let _parent = AssetService::get_unit(&db, tenant_id, asset_id)
+    // Verify parent exists, belongs to tenant, and is in hired-PM scope.
+    let _parent = AssetService::get_unit_scoped(&db, tenant_id, asset_id, current_user.id)
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -743,6 +761,11 @@ async fn list_asset_children(
         tracing::error!(%tenant_id, %asset_id, "list_asset_children error: {e:#}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+
+    let grants = ManagementDelegationService::accessible_asset_ids(&db, current_user.id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let children = AssetService::filter_by_asset_grants(children, grants.as_deref());
 
     let summaries: Vec<AssetSummary> = children
         .into_iter()
@@ -807,7 +830,7 @@ async fn list_property_documents(
 ) -> Result<impl IntoResponse, StatusCode> {
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
 
-    let _parent = AssetService::get_unit(&db, tenant_id, asset_id)
+    let _parent = AssetService::get_unit_scoped(&db, tenant_id, asset_id, current_user.id)
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -997,10 +1020,155 @@ async fn get_asset_contractor(
     Ok(axum::response::Json(serde_json::json!(summary)))
 }
 
+// ── Property manager (same-tenant hire) ───────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct InviteManagerBody {
+    /// When true, omit asset scope — PM covers the employer's whole book.
+    #[serde(default)]
+    pub portfolio_scope: bool,
+    pub label: Option<String>,
+}
+
+/// GET /api/folio/assets/:id/manager
+async fn get_asset_manager(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "get_asset_manager: asset lookup: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    let state = ManagementDelegationService::get_manager_for_asset(&db, current_user.id, asset_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%asset_id, "get_asset_manager: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(axum::response::Json(state))
+}
+
+/// POST /api/folio/assets/:id/manager/invite
+async fn invite_asset_manager(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+    Json(body): Json<InviteManagerBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    reject_hired_pm_admin(&db, current_user.id).await?;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    let invite = ManagementDelegationService::create_pm_invite(
+        &db,
+        current_user.id,
+        asset_id,
+        body.portfolio_scope,
+        body.label,
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!(%asset_id, "invite_asset_manager: {e}");
+        if e.contains("already") {
+            StatusCode::CONFLICT
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    })?;
+
+    Ok((StatusCode::CREATED, axum::response::Json(invite)))
+}
+
+/// DELETE /api/folio/assets/:id/manager/invite
+async fn cancel_asset_manager_invite(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    reject_hired_pm_admin(&db, current_user.id).await?;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    ManagementDelegationService::cancel_pending_invite(&db, current_user.id, asset_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(%asset_id, "cancel_asset_manager_invite: {e}");
+            if e.contains("No pending") {
+                StatusCode::NOT_FOUND
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// DELETE /api/folio/assets/:id/manager
+async fn revoke_asset_manager(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    reject_hired_pm_admin(&db, current_user.id).await?;
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|_| StatusCode::NOT_FOUND)?;
+
+    ManagementDelegationService::revoke_manager_for_asset(&db, current_user.id, asset_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(%asset_id, "revoke_asset_manager: {e}");
+            if e.contains("No active") {
+                StatusCode::NOT_FOUND
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
     crate::extractors::tenant::resolve_tenant_id(db, user_id).await
+}
+
+async fn reject_hired_pm_admin(
+    db: &DatabaseConnection,
+    user_id: Uuid,
+) -> Result<(), StatusCode> {
+    let hired = ManagementDelegationService::is_hired_property_manager(db, user_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if hired {
+        tracing::warn!(%user_id, "hired PM blocked from account-admin manager action");
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(())
 }
 // ── GET /api/folio/assets/map ─────────────────────────────────────────────────
 //
@@ -1046,6 +1214,11 @@ async fn list_assets_map(
             tracing::error!(%tenant_id, "list_assets_map error: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+    let grants = ManagementDelegationService::accessible_asset_ids(&db, current_user.id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let assets = AssetService::filter_by_asset_grants(assets, grants.as_deref());
 
     // Child → parent for rolling unit WOs up to a building pin.
     let parent_of: HashMap<uuid::Uuid, uuid::Uuid> = assets

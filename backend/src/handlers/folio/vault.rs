@@ -165,6 +165,9 @@ struct RegisterDocumentInput {
     pub mime_type: Option<String>,
     /// File size in bytes.
     pub size_bytes: Option<i64>,
+    /// When uploading a unit photo, parent property id for hub aggregate visibility.
+    #[serde(default)]
+    pub parent_asset_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -213,7 +216,33 @@ async fn register_document(
         StatusCode::UNPROCESSABLE_ENTITY
     })?;
 
-    let id = VaultService::register_document_full(
+    // New cover on a property demotes prior cover docs on the same entity.
+    if doc_type == PmDocumentType::Cover {
+        use sea_orm::{ActiveModelTrait, Set};
+        let prior = crate::entities::atlas_document::Entity::find()
+            .filter(crate::entities::atlas_document::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::atlas_document::Column::AppNamespace.eq("folio"))
+            .filter(
+                crate::entities::atlas_document::Column::RelatedEntityType
+                    .eq(input.entity_type.as_str()),
+            )
+            .filter(
+                crate::entities::atlas_document::Column::RelatedEntityId.eq(input.entity_id),
+            )
+            .filter(crate::entities::atlas_document::Column::DocumentCategory.eq("cover"))
+            .all(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        for d in prior {
+            let mut am: crate::entities::atlas_document::ActiveModel = d.into();
+            am.document_category = Set("photo".to_string());
+            am.update(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+    }
+
+    let id = VaultService::register_document_with_parent(
         &db,
         tenant_id,
         &input.entity_type,
@@ -225,6 +254,7 @@ async fn register_document(
             .as_deref()
             .unwrap_or("application/octet-stream"),
         input.size_bytes,
+        input.parent_asset_id,
     )
     .await
     .map_err(|e| {

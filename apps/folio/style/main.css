@@ -8566,6 +8566,37 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
   font-size: 0.625rem;
   color: #45464d;
 }
+/* Padded body under a section head — matches Stitch card `p-5` rhythm */
+.proj-section__body {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.proj-section__body--stack {
+  gap: 0.75rem;
+}
+.proj-section:has(> .proj-section__body) > .proj-section__head,
+.proj-section:has(> .unit-actions) > .proj-section__head,
+.proj-section:has(> .folio-form) > .proj-section__head,
+.proj-section:has(> .maint-hist__receipt) > .proj-section__head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.proj-section > .unit-actions {
+  margin: 0;
+  padding: 1rem 1.25rem 1.25rem;
+}
+.proj-section > .folio-form {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 1.25rem 1.25rem;
+}
+.proj-section > .maint-hist__receipt {
+  margin: 0 1.25rem 1.25rem;
+}
 .proj-timeline {
   padding: 1rem 1.25rem;
   display: flex;
@@ -8775,17 +8806,30 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
   display: flex;
   flex-direction: column;
 }
+/* Stitch: one padded column — no hairline under the title */
+.hub-mgmt-card > .proj-section__head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
 .hub-mgmt-body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 0 1.25rem 1.25rem;
+  padding: 1rem 1.25rem 1.25rem;
   flex: 1;
 }
 .hub-mgmt-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
+}
+.hub-mgmt-row__text {
+  flex: 1;
+  min-width: 0;
+}
+.hub-mgmt-row .folio-btn {
+  flex-shrink: 0;
+  align-self: center;
 }
 .hub-mgmt-icon {
   display: inline-flex !important;
@@ -8937,6 +8981,18 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
+/* Section body must share __head horizontal inset (Stitch card uses one p-5). */
+.proj-section:has(> .hub-details-grid) > .proj-section__head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.proj-section > .hub-details-grid {
+  padding: 1rem 1.25rem 1.25rem;
+}
+.proj-section > .hub-details-notes {
+  padding: 0 1.25rem 1.25rem;
+  margin: -0.35rem 0 0;
+}
 @media (min-width: 640px) {
   .hub-details-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -9069,13 +9125,26 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+/* Nested history write surfaces need a wide shell, not the narrow form column */
+.folio-form-page.maint-hist {
+  max-width: 72rem;
+}
+.maint-hist__place {
+  margin: -0.25rem 0 1.25rem;
+  font-size: 0.875rem;
+  color: #45464d;
+}
+.maint-hist__place strong {
+  color: #191c1e;
+  font-weight: 600;
+}
 .maint-hist__grid {
   display: grid;
   gap: 1.5rem;
 }
 @media (min-width: 1024px) {
   .maint-hist__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     align-items: start;
   }
 }
@@ -9389,6 +9458,16 @@ details.mktg-nav-role-dropdown[open] .mktg-nav-role-panel {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1.25rem;
+}
+.unit-actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+}
+.unit-history-aside {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
 }
 .unit-panel {
   display: flex;

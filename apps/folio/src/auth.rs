@@ -167,6 +167,23 @@ pub struct SessionInfo {
     /// None if role != Tenant or no active lease found.
     #[serde(default)]
     pub active_lease_type: Option<String>,
+    /// Hired property manager on a landlord book — uses `/l`, not `/pmc`.
+    #[serde(default)]
+    pub is_hired_pm: bool,
+    /// Employer display name when `is_hired_pm`.
+    #[serde(default)]
+    pub employer_display_name: Option<String>,
+}
+
+impl SessionInfo {
+    /// Portal entry path: hired PMs land on `/l` even though role is PropertyManager.
+    pub fn portal_path(&self) -> &'static str {
+        if self.is_hired_pm {
+            "/l"
+        } else {
+            self.folio_role.home_path()
+        }
+    }
 }
 
 fn default_wizard_total() -> usize {
@@ -428,7 +445,7 @@ pub fn post_auth_path(info: &SessionInfo) -> &'static str {
     } else if !info.onboarding_complete {
         "/onboarding"
     } else {
-        info.folio_role.home_path()
+        info.portal_path()
     }
 }
 
@@ -437,7 +454,7 @@ pub fn after_passkey_setup_path(info: &SessionInfo) -> &'static str {
     if !info.onboarding_complete {
         "/onboarding"
     } else {
-        info.folio_role.home_path()
+        info.portal_path()
     }
 }
 
@@ -689,6 +706,8 @@ pub async fn establish_session_from_token(token: String) -> Result<SessionInfo, 
                     wizard_dismissed: false,
                     has_str_assets: false,
                     active_lease_type: None,
+                    is_hired_pm: false,
+                    employer_display_name: None,
                 }
             }
         };
@@ -820,6 +839,8 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
                     wizard_dismissed: false,
                     has_str_assets: false,
                     active_lease_type: None,
+                    is_hired_pm: false,
+                    employer_display_name: None,
                 })
             }
         }

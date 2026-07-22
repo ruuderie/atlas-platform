@@ -351,6 +351,7 @@ pub mod m20261030_campaign_global_name_ff_vendors_g37_ambassadors; // global_nam
 pub mod m20261101_seed_local_dev_domain_aliases; // *.localhost aliases for atlas-local / Compose
 pub mod m20261102_g19_direct_mail_drops_offer_codes; // G-19 DM: mail_drops + offer_codes + direct_mail enum
 pub mod m20261103_acquisition_feature_flags; // acquisition.dm_tracking + acquisition.open_signup seeds
+pub mod m20261104_fix_management_agreement_contract_type; // Align legacy property_management_agreement → management_agreement
 
 pub struct Migrator;
 
@@ -670,6 +671,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261101_seed_local_dev_domain_aliases::Migration),
             Box::new(m20261102_g19_direct_mail_drops_offer_codes::Migration),
             Box::new(m20261103_acquisition_feature_flags::Migration),
+            Box::new(m20261104_fix_management_agreement_contract_type::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

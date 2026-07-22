@@ -3,8 +3,11 @@
 
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
-use crate::components::photo_lightbox::{PhotoItem, PhotoStrip};
+use crate::components::photo_media_card::{PhotoEntityKind, PhotoMediaCard};
 use crate::components::status_pill::{StatusPill, StatusPillTone};
+use crate::pages::landlord::digital_vault::{
+    is_vault_photo_category, list_entity_vault_docs,
+};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
@@ -174,6 +177,7 @@ fn ProjectDetailBody(
     project: ProjectDetailDto,
     rollup: Resource<Option<G27RollupDto>>,
 ) -> impl IntoView {
+    let project_id = project.id;
     let title = project.title.clone();
     let status = project.status.clone();
     let budget = project.estimated_cost_cents.unwrap_or(0);
@@ -189,6 +193,18 @@ fn ProjectDetailBody(
     let ratings = FolioRoute::LandlordRatings.path().to_string();
     let children = project.children.clone();
     let timeline = project.timeline.clone();
+    let photos_refresh = RwSignal::new(0u32);
+    let photo_count_res = Resource::new(
+        move || (project_id, photos_refresh.get()),
+        |(id, _)| async move {
+            list_entity_vault_docs("atlas_cases".into(), id)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|d| is_vault_photo_category(&d.document_category))
+                .count()
+        },
+    );
 
     view! {
         <PageHeader
@@ -198,6 +214,20 @@ fn ProjectDetailBody(
             <StatusPill label=status.clone() tone=StatusPillTone::Warn/>
             <a class="folio-btn folio-btn--primary" href=add_wo>"Add work order"</a>
         </PageHeader>
+
+        <div class="hub-media-row" style="margin-bottom:1rem;">
+            <PhotoMediaCard
+                entity_kind=PhotoEntityKind::Case
+                entity_id=project_id
+                gallery_href=Signal::derive(move || "/l/vault".to_string())
+                photo_count=Signal::derive(move || photo_count_res.get().unwrap_or(0))
+                has_cover=Signal::derive(|| false)
+                empty_label="No project photos yet".to_string()
+                on_uploaded=Callback::new(move |_| {
+                    photos_refresh.update(|n| *n += 1);
+                })
+            />
+        </div>
 
         <div class="proj-kpi-grid">
             <div class="folio-stat-card">
@@ -351,7 +381,6 @@ fn ProjectDetailBody(
                                                 }
                                             }
                                         />
-                                        <PhotoStrip photos=Signal::derive(|| Vec::<PhotoItem>::new())/>
                                         <a class="hub-activity-rail__all" href=ratings.clone() style="display:inline-flex;margin-top:0.75rem;">
                                             "Open ratings"
                                         </a>

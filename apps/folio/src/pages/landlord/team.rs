@@ -64,6 +64,9 @@ pub async fn create_team_invite(
     label: String,
     max_uses: Option<i32>,
     employer_self: bool, // true = landlord is hiring a PM for themselves (sets employer_user_id)
+    /// Optional asset scope for property_manager invites (named picker → UUID).
+    /// Empty / None = entire portfolio.
+    asset_id: Option<String>,
 ) -> Result<String, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -95,6 +98,13 @@ pub async fn create_team_invite(
     });
     if let Some(eid) = caller_id_str {
         payload["employer_user_id"] = serde_json::Value::String(eid);
+    }
+    if let Some(aid) = asset_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        payload["asset_id"] = serde_json::Value::String(aid.to_string());
     }
 
     let result = crate::atlas_client::authenticated_post::<_, serde_json::Value>(
@@ -180,9 +190,24 @@ pub fn LandlordTeam() -> impl IntoView {
     let modal_role = RwSignal::new("property_manager".to_string());
     let modal_label = RwSignal::new(String::new());
     let modal_uses = RwSignal::new("1".to_string()); // "unlimited" | "1" | "5" | "10"
+    let modal_asset_id = RwSignal::new(String::new()); // empty = portfolio
     let modal_saving = RwSignal::new(false);
     let modal_err: RwSignal<Option<String>> = RwSignal::new(None);
     let modal_created: RwSignal<Option<String>> = RwSignal::new(None);
+    let picker_assets = Resource::new(
+        move || modal_open.get() && modal_role.get() == "property_manager",
+        |load| async move {
+            if !load {
+                return Vec::<crate::pages::landlord::assets::AssetSummary>::new();
+            }
+            crate::pages::landlord::assets::list_assets()
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|a| a.parent_asset_id.is_none())
+                .collect()
+        },
+    );
 
     let handle_create = move |_| {
         modal_saving.set(true);
@@ -194,8 +219,18 @@ pub fn LandlordTeam() -> impl IntoView {
             s => s.parse().ok(),
         };
         let is_pm = role == "property_manager";
+        let asset_id = if is_pm {
+            let a = modal_asset_id.get();
+            if a.is_empty() {
+                None
+            } else {
+                Some(a)
+            }
+        } else {
+            None
+        };
         leptos::task::spawn_local(async move {
-            match create_team_invite(role, label, max_uses, is_pm).await {
+            match create_team_invite(role, label, max_uses, is_pm, asset_id).await {
                 Ok(code) => {
                     modal_created.set(Some(code));
                     modal_saving.set(false);
@@ -577,8 +612,32 @@ pub fn LandlordTeam() -> impl IntoView {
                                     </select>
                                 </div>
 
-                                // PM-specific note about employer linking
+                                // PM-specific: employer note + optional property scope
                                 <Show when=move || modal_role.get() == "property_manager">
+                                    <div class="tm-f">
+                                        <label class="tm-label">"Property scope"</label>
+                                        <select class="tm-select"
+                                            prop:value=move || modal_asset_id.get()
+                                            on:change=move |e| modal_asset_id.set(event_target_value(&e))>
+                                            <option value="">"Entire portfolio"</option>
+                                            <Suspense fallback=|| ()>
+                                                {move || {
+                                                    let list = picker_assets.get().unwrap_or_default();
+                                                    list.into_iter().map(|a| {
+                                                        let id = a.id.to_string();
+                                                        let label = if let Some(city) = a.city.as_ref().filter(|c| !c.is_empty()) {
+                                                            format!("{} · {}", a.name, city)
+                                                        } else {
+                                                            a.name.clone()
+                                                        };
+                                                        view! {
+                                                            <option value=id>{label}</option>
+                                                        }
+                                                    }).collect_view()
+                                                }}
+                                            </Suspense>
+                                        </select>
+                                    </div>
                                     <div style="background:rgba(2,132,199,.06); border:1px solid rgba(2,132,199,.15); border-radius:8px; padding:12px 14px; font-size:12px; color:#0369a1; margin-bottom:14px; line-height:1.6; display:flex; align-items:flex-start; gap:8px;">
                                         <span class="ms msf" style="font-size:15px; flex-shrink:0; margin-top:1px;">"info"</span>
                                         "This PM will be linked to your account as their employer. You remain the admin. A property management agreement will be created when they accept."

@@ -610,6 +610,8 @@ async fn verify_handler(
         onboarding_complete: bool,
         #[serde(default)]
         folio_role: folio::auth::FolioRole,
+        #[serde(default)]
+        is_hired_pm: bool,
     }
 
     let me_url = format!("{}/api/folio/me", atlas_url);
@@ -695,6 +697,8 @@ async fn verify_handler(
         "/auth/passkey-setup"
     } else if !me.onboarding_complete {
         "/onboarding"
+    } else if me.is_hired_pm {
+        "/l"
     } else {
         me.folio_role.home_path()
     };

@@ -42,7 +42,7 @@ pub fn Verify() -> impl IntoView {
                             // Passkey set but wizard not finished.
                             "/onboarding"
                         } else {
-                            info.folio_role.home_path()
+                            info.portal_path()
                         };
                         view! { <Redirect path=dest/> }.into_any()
                     },

@@ -54,6 +54,10 @@ pub enum PmDocumentType {
     MaintenanceReceipt,
     /// Security deposit receipt.
     SecurityDepositReceipt,
+    /// Property / unit / system / project photo (gallery).
+    Photo,
+    /// Property cover photo (one per property preferred).
+    Cover,
 }
 
 impl fmt::Display for PmDocumentType {
@@ -69,6 +73,8 @@ impl fmt::Display for PmDocumentType {
             Self::ConominioStatement => "condominio_statement",
             Self::MaintenanceReceipt => "maintenance_receipt",
             Self::SecurityDepositReceipt => "security_deposit_receipt",
+            Self::Photo => "photo",
+            Self::Cover => "cover",
         })
     }
 }
@@ -87,6 +93,8 @@ impl TryFrom<String> for PmDocumentType {
             "condominio_statement" => Ok(Self::ConominioStatement),
             "maintenance_receipt" => Ok(Self::MaintenanceReceipt),
             "security_deposit_receipt" => Ok(Self::SecurityDepositReceipt),
+            "photo" => Ok(Self::Photo),
+            "cover" => Ok(Self::Cover),
             other => Err(format!("unknown PmDocumentType: '{other}'")),
         }
     }
@@ -128,6 +136,10 @@ impl VaultService {
     }
 
     /// Full document registration with MIME type and size.
+    ///
+    /// `parent_asset_id` (optional) is stamped into `attachments.title` as
+    /// `parent_asset_id=<uuid>` so unit photos remain discoverable on the
+    /// parent property (in addition to listing children entity IDs).
     pub async fn register_document_full(
         db: &DatabaseConnection,
         tenant_id: Uuid,
@@ -137,6 +149,31 @@ impl VaultService {
         r2_key: &str,
         mime_type: &str,
         size_bytes: Option<i64>,
+    ) -> Result<Uuid> {
+        Self::register_document_with_parent(
+            db,
+            tenant_id,
+            entity_type,
+            entity_id,
+            doc_type,
+            r2_key,
+            mime_type,
+            size_bytes,
+            None,
+        )
+        .await
+    }
+
+    pub async fn register_document_with_parent(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        entity_type: &str,
+        entity_id: Uuid,
+        doc_type: PmDocumentType,
+        r2_key: &str,
+        mime_type: &str,
+        size_bytes: Option<i64>,
+        parent_asset_id: Option<Uuid>,
     ) -> Result<Uuid> {
         use anyhow::anyhow;
         use chrono::Utc;
@@ -149,6 +186,7 @@ impl VaultService {
         // because register_document is called after the file is already in R2.
         let attachment_id = Uuid::new_v4();
         let r2_url = format!("r2://{}", r2_key); // internal R2 reference URL
+        let title = parent_asset_id.map(|pid| format!("parent_asset_id={pid}"));
 
         let attachment = crate::entities::attachment::ActiveModel {
             id: Set(attachment_id),
@@ -161,7 +199,7 @@ impl VaultService {
             updated_at: Set(now),
             // Non-required fields default to None
             feed_item_id: Set(None),
-            title: Set(None),
+            title: Set(title),
             duration_in_seconds: Set(None),
             access_level: Set(Some("private".to_string())),
             r2_bucket: Set(None), // default bucket configured at infra level
@@ -212,5 +250,24 @@ impl VaultService {
         );
 
         Ok(document_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn photo_and_cover_wire_values() {
+        assert_eq!(PmDocumentType::Photo.to_string(), "photo");
+        assert_eq!(PmDocumentType::Cover.to_string(), "cover");
+        assert_eq!(
+            PmDocumentType::try_from("photo".to_string()).unwrap(),
+            PmDocumentType::Photo
+        );
+        assert_eq!(
+            PmDocumentType::try_from("cover".to_string()).unwrap(),
+            PmDocumentType::Cover
+        );
     }
 }

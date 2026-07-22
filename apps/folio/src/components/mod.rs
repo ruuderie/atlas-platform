@@ -11,6 +11,7 @@ pub mod onboarding_banner;
 pub mod page_header;
 pub mod related_links;
 pub mod photo_lightbox;
+pub mod photo_media_card;
 pub mod property_tab_bar;
 pub mod scorecard_nudge_host;
 pub mod sidebar;

@@ -67,6 +67,11 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_TOKEN: ${SMTP_TOKEN:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Cloudflare R2 for Folio vault / PhotoMediaCard. Empty → presign 501.
+      # Manage: atlas-local env r2 | atlas-local env set R2_ENDPOINT=…
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

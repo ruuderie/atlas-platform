@@ -426,9 +426,13 @@ fn ReferralVendorRedirect() -> impl IntoView {
 
 #[component]
 fn LandlordShell() -> impl IntoView {
-    role_shell_view(FolioRole::Landlord, || {
-        view! { <LandlordLayout/> }.into_any()
-    })
+    hired_aware_role_shell(
+        |info| {
+            info.folio_role == FolioRole::Landlord
+                || (info.folio_role == FolioRole::PropertyManager && info.is_hired_pm)
+        },
+        || view! { <LandlordLayout/> }.into_any(),
+    )
 }
 
 #[component]
@@ -443,9 +447,15 @@ fn VendorShell() -> impl IntoView {
 
 #[component]
 fn PmcShell() -> impl IntoView {
-    role_shell_view(FolioRole::PropertyManager, || {
-        view! { <PmcLayout/> }.into_any()
-    })
+    hired_aware_role_shell(
+        |info| {
+            if info.is_hired_pm {
+                return false; // redirect via portal_path → /l
+            }
+            info.folio_role == FolioRole::PropertyManager
+        },
+        || view! { <PmcLayout/> }.into_any(),
+    )
 }
 
 #[component]
@@ -479,6 +489,17 @@ fn role_shell_view(
     required: FolioRole,
     layout: impl Fn() -> AnyView + Send + Sync + 'static,
 ) -> impl IntoView {
+    hired_aware_role_shell(
+        move |info| info.folio_role == required,
+        layout,
+    )
+}
+
+/// Like [`role_shell_view`] but with a custom allow predicate (hired PM → `/l`).
+fn hired_aware_role_shell(
+    allow: impl Fn(&SessionInfo) -> bool + Send + Sync + 'static,
+    layout: impl Fn() -> AnyView + Send + Sync + 'static,
+) -> impl IntoView {
     use crate::auth::get_session;
     let session = Resource::new(|| (), |_| get_session());
     provide_context(session);
@@ -487,8 +508,8 @@ fn role_shell_view(
         <Suspense fallback=|| view! { <FullPageLoader/> }>
             {move || session.get().map(|result| match result {
                 Err(_) => view! { <Redirect path="/login"/> }.into_any(),
-                Ok(ref info) if info.folio_role != required =>
-                    view! { <Redirect path=info.folio_role.home_path()/> }.into_any(),
+                Ok(ref info) if !allow(info) =>
+                    view! { <Redirect path=info.portal_path()/> }.into_any(),
                 Ok(_) => layout(),
             })}
         </Suspense>
@@ -514,7 +535,7 @@ fn HomeDispatch() -> impl IntoView {
     view! {
         <Suspense fallback=|| view! { <FullPageLoader/> }>
             {move || session.get().map(|r| match r {
-                Ok(info) => view! { <Redirect path=info.folio_role.home_path()/> }.into_any(),
+                Ok(info) => view! { <Redirect path=info.portal_path()/> }.into_any(),
                 Err(_)   => view! { <MarketLandingPage/> }.into_any(),
             })}
         </Suspense>

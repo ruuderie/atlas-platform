@@ -20,6 +20,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::components::page_header::PageHeader;
+use crate::components::photo_media_card::{PhotoEntityKind, PhotoMediaCard};
+use crate::pages::landlord::digital_vault::{
+    is_vault_photo_category, list_entity_vault_docs,
+};
 use crate::pages::landlord::vendors::{list_assets_for_picker, AssetPickerItem};
 
 // ── API types ─────────────────────────────────────────────────────────────────
@@ -617,6 +621,18 @@ fn BsysCard(sys: BuildingSystemDetail, on_retired: RwSignal<u32>) -> impl IntoVi
     let retire_reason = RwSignal::new(RetireReasonOpt::Replaced.as_str().to_string());
     let retiring = RwSignal::new(false);
     let retire_err = RwSignal::new(None::<String>);
+    let photos_refresh = RwSignal::new(0u32);
+    let photo_count_res = Resource::new(
+        move || (sys_id, photos_refresh.get()),
+        |(id, _)| async move {
+            list_entity_vault_docs("atlas_assets".into(), id)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|d| is_vault_photo_category(&d.document_category))
+                .count()
+        },
+    );
 
     view! {
         <div class=urgency.card_class()>
@@ -627,6 +643,20 @@ fn BsysCard(sys: BuildingSystemDetail, on_retired: RwSignal<u32>) -> impl IntoVi
                     <span class="bsys-card-type">{st_label}</span>
                 </div>
                 <span class=urgency.badge_class()>{urgency.badge_label()}</span>
+            </div>
+
+            <div style="margin:0.75rem 0;">
+                <PhotoMediaCard
+                    entity_kind=PhotoEntityKind::Asset
+                    entity_id=sys_id
+                    gallery_href=Signal::derive(move || format!("/l/vault"))
+                    photo_count=Signal::derive(move || photo_count_res.get().unwrap_or(0))
+                    has_cover=Signal::derive(|| false)
+                    empty_label="No system photos yet".to_string()
+                    on_uploaded=Callback::new(move |_| {
+                        photos_refresh.update(|n| *n += 1);
+                    })
+                />
             </div>
 
             <div class="bsys-card-meta">

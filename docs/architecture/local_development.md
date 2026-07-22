@@ -46,8 +46,9 @@ cargo run -p atlas-local -- up          # PARITY — preferred
 # after code changes:
 cargo run -p atlas-local -- refresh backend
 
-# local secrets / SMTP (writes .env.local — gitignored):
+# local secrets / SMTP / R2 (writes .env.local — gitignored):
 cargo run -p atlas-local -- env smtp
+cargo run -p atlas-local -- env r2
 cargo run -p atlas-local -- env set SMTP_SERVER=smtp.example.com
 cargo run -p atlas-local -- env edit
 # then: cargo run -p atlas-local -- refresh backend
@@ -79,8 +80,9 @@ On first `up`, the CLI copies [`.env.local.example`](../../.env.local.example) �
 | `atlas-local db pull --from <dev\|uat\|prod>` | Salesforce-style sandbox pull |
 | `atlas-local env list\|get\|set\|unset\|edit\|path` | Manage gitignored `.env.local` |
 | `atlas-local env smtp` | SMTP status (mock vs configured) + set template |
+| `atlas-local env r2` | Cloudflare R2 status for Folio vault / PhotoMediaCard uploads |
 
-### Local env / SMTP
+### Local env / SMTP / R2
 
 Compose loads `.env` then `.env.local` (local wins). Prefer **`atlas-local env`** over hand-editing when possible:
 
@@ -89,10 +91,16 @@ cargo run -p atlas-local -- env smtp                 # mock vs real
 cargo run -p atlas-local -- env set SMTP_SERVER=smtp.example.com
 cargo run -p atlas-local -- env set SMTP_PORT=587 SMTP_USERNAME=u SMTP_TOKEN=secret
 cargo run -p atlas-local -- env set SMTP_FROM='Atlas <noreply@example.com>'
+cargo run -p atlas-local -- env r2                   # vault photo upload readiness
+cargo run -p atlas-local -- env set R2_ACCESS_KEY_ID=…
+cargo run -p atlas-local -- env set R2_SECRET_ACCESS_KEY=…
+cargo run -p atlas-local -- env set R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
 cargo run -p atlas-local -- refresh backend          # containers must reload env
 ```
 
 Empty or `localhost` `SMTP_SERVER` → backend **mocks** email (logs only). That is why local magic links often “don’t send.”
+
+Empty `R2_ACCESS_KEY_ID` or `R2_ENDPOINT` → Folio vault **presign returns 501** (photos cannot upload to Cloudflare). Status: **NOT CONFIGURED** / **INCOMPLETE** / **READY** via `env r2` and status Env tab.
 
 From **`atlas-local status` → tab 4 Env**: `s` SMTP form (writes `.env.local`), **`a` apply** (recreates backend so the running process picks up env), `e` open editor. **Set without apply does not change the live app.**
 
@@ -103,7 +111,7 @@ From **`atlas-local status` → tab 4 Env**: `s` SMTP form (writes `.env.local`)
 | **1 Overview** | System, domains, HTTP latency, DB, **Next steps** (shows what **`x`** will refresh) |
 | **2 Capacity** | Application KPIs (tenants / domains / DB / sessions — same vocabulary as Platform Admin System Status) + host stack load (CPU/RAM), container stats, images, volumes |
 | **3 Telemetry** | Sparklines + polled `/metrics`, `request_log`, `telemetry_events` |
-| **4 Env** | SMTP mock vs configured, local overlay keys; set/apply from the TUI |
+| **4 Env** | SMTP + R2 readiness, local overlay keys; set/apply from the TUI |
 
 | Key | Action |
 |-----|--------|

@@ -108,7 +108,8 @@ where
     }
 }
 
-/// Rejects any user whose Folio role is not `Landlord`. Returns 403.
+/// Allows true landlords and hired property managers on a landlord book.
+/// Account-admin routes should use [`TrueLandlordOnly`] instead.
 pub struct LandlordOnly;
 
 impl<S> FromRequestParts<S> for LandlordOnly
@@ -121,11 +122,62 @@ where
         let RequireFolioRole(role) = RequireFolioRole::from_request_parts(parts, state).await?;
         match role {
             FolioRole::Landlord => Ok(LandlordOnly),
+            FolioRole::PropertyManager => {
+                let ctx = TenantContext::from_request_parts(parts, state).await?;
+                let db = parts
+                    .extensions
+                    .get::<sea_orm::DatabaseConnection>()
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                let hired = crate::services::pm::management_delegation::ManagementDelegationService::is_hired_property_manager(
+                    db, ctx.user_id,
+                )
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                if hired {
+                    Ok(LandlordOnly)
+                } else {
+                    tracing::warn!("LandlordOnly: PropertyManager without hired-PM book");
+                    Err(StatusCode::FORBIDDEN)
+                }
+            }
             _ => {
                 tracing::warn!("LandlordOnly: access denied (role={role})");
                 Err(StatusCode::FORBIDDEN)
             }
         }
+    }
+}
+
+/// True landlord only — rejects hired PMs (Team invites, account billing, Delegate).
+pub struct TrueLandlordOnly;
+
+impl<S> FromRequestParts<S> for TrueLandlordOnly
+where
+    S: Send + Sync,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, StatusCode> {
+        let RequireFolioRole(role) = RequireFolioRole::from_request_parts(parts, state).await?;
+        if role != FolioRole::Landlord {
+            tracing::warn!("TrueLandlordOnly: access denied (role={role})");
+            return Err(StatusCode::FORBIDDEN);
+        }
+        let ctx = TenantContext::from_request_parts(parts, state).await?;
+        let db = parts
+            .extensions
+            .get::<sea_orm::DatabaseConnection>()
+            .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+        let hired = crate::services::pm::management_delegation::ManagementDelegationService::is_hired_property_manager(
+            db, ctx.user_id,
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        if hired {
+            tracing::warn!("TrueLandlordOnly: hired PM cannot perform account admin");
+            return Err(StatusCode::FORBIDDEN);
+        }
+        Ok(TrueLandlordOnly)
     }
 }
 

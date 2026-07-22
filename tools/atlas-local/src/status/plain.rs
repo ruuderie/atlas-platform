@@ -186,6 +186,15 @@ pub fn print(snap: &StatusSnapshot) {
     for (k, v) in &snap.env_panel.smtp_rows {
         println!("  {k}={v}");
     }
+    println!();
+    println!("Env / R2 (vault photos)");
+    println!("  {}", snap.env_panel.r2_status);
+    for (k, v) in &snap.env_panel.r2_rows {
+        println!("  {k}={v}");
+    }
+    if snap.env_panel.r2_not_configured {
+        println!("  Fix: cargo run -p atlas-local -- env r2");
+    }
     println!("  {}", snap.env_panel.applied_hint);
     println!();
     println!("Next steps (again) — {}", guide.headline);

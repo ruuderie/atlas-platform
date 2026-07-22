@@ -10,7 +10,9 @@ use uuid::Uuid;
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
 use crate::components::status_pill::{StatusPill, StatusPillTone};
+use crate::pages::landlord::asset_api::{get_asset_for_dispatch, AssetDetailDto};
 use crate::pages::landlord::maintenance_queue::{list_maintenance_tickets, MaintenanceSummary};
+use crate::utils::asset_label::format_asset_place_label;
 
 #[derive(Serialize)]
 struct LogPaidBody {
@@ -82,6 +84,28 @@ async fn log_paid_with_related(
     Ok(resp.id)
 }
 
+/// Street · unit label, falling back to parent building street when the unit has none.
+async fn place_label_for_unit(unit: &AssetDetailDto) -> String {
+    let mut street = unit.address_line_1.clone();
+    let mut city = unit.city.clone();
+    let mut state = unit.state_province.clone();
+    if street.as_ref().map(|s| s.trim().is_empty()).unwrap_or(true) {
+        if let Some(pid) = unit.parent_asset_id {
+            if let Ok(parent) = get_asset_for_dispatch(pid).await {
+                street = parent.address_line_1.or(street);
+                city = parent.city.or(city);
+                state = parent.state_province.or(state);
+            }
+        }
+    }
+    format_asset_place_label(
+        &unit.name,
+        street.as_deref(),
+        city.as_deref(),
+        state.as_deref(),
+    )
+}
+
 #[component]
 pub fn UnitMaintenanceHistory() -> impl IntoView {
     let params = use_params_map();
@@ -107,6 +131,17 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                         .collect()
                 }),
             }
+        },
+    );
+
+    let place = Resource::new(
+        move || asset_id.get(),
+        |aid| async move {
+            if aid.is_nil() {
+                return None::<String>;
+            }
+            let unit = get_asset_for_dispatch(aid).await.ok()?;
+            Some(place_label_for_unit(&unit).await)
         },
     );
 
@@ -190,8 +225,13 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
         <div class="folio-form-page maint-hist">
             <PageHeader
                 title=Signal::derive(|| "Maintenance history".to_string())
-                subtitle=Signal::derive(|| {
-                    "Closed work orders and logged spend for this unit.".to_string()
+                subtitle=Signal::derive(move || {
+                    place
+                        .get()
+                        .flatten()
+                        .unwrap_or_else(|| {
+                            "Closed work orders and logged spend for this unit.".into()
+                        })
                 })
             >
                 <a class="folio-btn folio-btn--ghost press" href=move || history_href.get()>
@@ -199,12 +239,27 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                 </a>
             </PageHeader>
 
+            <p class="maint-hist__place">
+                "Logging expenses for "
+                <strong>
+                    {move || {
+                        place
+                            .get()
+                            .flatten()
+                            .unwrap_or_else(|| "this unit".into())
+                    }}
+                </strong>
+                "."
+            </p>
+
             <div class="maint-hist__grid">
                 <div class="maint-hist__col">
                     <section class="proj-section">
                         <div class="proj-section__head">
-                            <h3 class="proj-section__title">"Timeline"</h3>
-                            <p class="proj-section__hint">"Work orders and expenses on this unit"</p>
+                            <div>
+                                <h3 class="proj-section__title">"Timeline"</h3>
+                                <p class="proj-section__hint">"Work orders and expenses on this unit"</p>
+                            </div>
                         </div>
                         <Suspense fallback=|| view! { <div class="folio-empty--compact">"Loading…"</div> }>
                             {move || {
@@ -265,12 +320,14 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                 <div class="maint-hist__col">
                     <section class="proj-section">
                         <div class="proj-section__head">
-                            <h3 class="proj-section__title">"Log expense"</h3>
-                            <p class="proj-section__hint">
-                                "Link cost to a work order when it settles that job."
-                            </p>
+                            <div>
+                                <h3 class="proj-section__title">"Log expense"</h3>
+                                <p class="proj-section__hint">
+                                    "Link cost to a work order when it settles that job."
+                                </p>
+                            </div>
                         </div>
-                        <form class="folio-form" style="padding:0 1.25rem 1.25rem;" on:submit=on_submit>
+                        <form class="folio-form" on:submit=on_submit>
                             <fieldset class="maint-hist__wo-picker">
                                 <legend class="folio-field__label">"Work order"</legend>
                                 <label class="maint-hist__wo-opt">
@@ -355,7 +412,7 @@ pub fn UnitMaintenanceHistory() -> impl IntoView {
                         <div class="proj-section__head">
                             <h3 class="proj-section__title">"Receipt"</h3>
                         </div>
-                        <div class="maint-hist__receipt" style="margin:0 1.25rem 1.25rem;">
+                        <div class="maint-hist__receipt">
                             <span class="material-symbols-outlined">"receipt_long"</span>
                             <p class="maint-hist__receipt-title">"Attach receipt"</p>
                             <p class="maint-hist__receipt-sub">"PDF or image → vault — Not available yet"</p>

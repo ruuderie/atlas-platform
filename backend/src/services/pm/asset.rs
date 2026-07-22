@@ -186,6 +186,33 @@ impl AssetService {
         Ok(query.all(db).await?)
     }
 
+    /// Filter assets to hired-PM grant scope (`None` = unrestricted).
+    pub fn filter_by_asset_grants(
+        assets: Vec<crate::entities::atlas_asset::Model>,
+        grants: Option<&[Uuid]>,
+    ) -> Vec<crate::entities::atlas_asset::Model> {
+        let Some(grants) = grants else {
+            return assets;
+        };
+        use crate::services::pm::management_delegation::ManagementDelegationService;
+        use std::collections::HashMap;
+        let parent_by_id: HashMap<Uuid, Option<Uuid>> = assets
+            .iter()
+            .map(|a| (a.id, a.parent_asset_id))
+            .collect();
+        assets
+            .into_iter()
+            .filter(|a| {
+                ManagementDelegationService::asset_in_grant_scope(
+                    a.id,
+                    a.parent_asset_id,
+                    grants,
+                    &parent_by_id,
+                )
+            })
+            .collect()
+    }
+
     pub async fn get_unit(
         db: &DatabaseConnection,
         tenant_id: Uuid,
@@ -202,6 +229,43 @@ impl AssetService {
             return Err(anyhow!("Asset {asset_id} not found for tenant {tenant_id}"));
         }
 
+        Ok(asset)
+    }
+
+    /// Like [`get_unit`], but 404 when outside hired-PM grant scope.
+    pub async fn get_unit_scoped(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        asset_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<crate::entities::atlas_asset::Model> {
+        use crate::services::pm::management_delegation::ManagementDelegationService;
+
+        let asset = Self::get_unit(db, tenant_id, asset_id).await?;
+        let grants = ManagementDelegationService::accessible_asset_ids(db, user_id)
+            .await
+            .map_err(|e| anyhow!("asset grants: {e}"))?;
+        if let Some(ref ids) = grants {
+            if ids.contains(&asset.id) {
+                return Ok(asset);
+            }
+            let mut cursor = asset.parent_asset_id;
+            let mut guard = 0usize;
+            while let Some(pid) = cursor {
+                if ids.contains(&pid) {
+                    return Ok(asset);
+                }
+                cursor = Self::get_unit(db, tenant_id, pid)
+                    .await
+                    .ok()
+                    .and_then(|p| p.parent_asset_id);
+                guard += 1;
+                if guard > 32 {
+                    break;
+                }
+            }
+            return Err(anyhow!("Asset {asset_id} not found"));
+        }
         Ok(asset)
     }
 

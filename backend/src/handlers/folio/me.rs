@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::{passkey, session, user};
+use crate::services::pm::management_delegation::ManagementDelegationService;
 use crate::services::rbac::RbacService;
 use crate::types::pm::FolioRole;
 
@@ -28,6 +29,12 @@ pub struct FolioMeResponse {
     pub wizard_steps_total: usize,
     /// True if the user previously dismissed the onboarding banner.
     pub wizard_dismissed: bool,
+    /// Hired property manager on a landlord book (`/l`), not a true PMC (`/pmc`).
+    #[serde(default)]
+    pub is_hired_pm: bool,
+    /// Employer display name when `is_hired_pm` (for "Managing for …" chrome).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub employer_display_name: Option<String>,
 }
 
 /// `GET /api/folio/me`
@@ -68,13 +75,28 @@ pub async fn get_folio_me(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    // ── 4. Resolve tenant_id from user_account ────────────────────────────────
+    // ── 4. Resolve tenant_id (hired PM employer book preferred) ───────────────
     use sea_orm::{ConnectionTrait, DbBackend, Statement};
+
+    let hired_book = ManagementDelegationService::hired_pm_employer_book(&db, session_row.user_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let is_hired_pm = hired_book.is_some();
+    let employer_display_name = if let Some((_, account_id)) = hired_book {
+        ManagementDelegationService::employer_display_name(&db, account_id)
+            .await
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
 
     // Prefer a real product tenant. The `__platform__` sentinel (nil UUID) is
     // not a Folio workspace — using it made /me 403 after cold onboarding.
-    let tenant_id: Option<Uuid> = db
-        .query_one(Statement::from_sql_and_values(
+    let tenant_id: Option<Uuid> = if let Some((tid, _)) = hired_book {
+        Some(tid)
+    } else {
+        db.query_one(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"SELECT a.tenant_id
                FROM user_account ua
@@ -89,7 +111,8 @@ pub async fn get_folio_me(
         .await
         .ok()
         .flatten()
-        .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok());
+        .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok())
+    };
 
     // ── 5. Resolve FolioRole via G-32 RbacService ────────────────────────────
     // No role assignment = 403. Defaulting to Landlord was a security gap:
@@ -152,7 +175,7 @@ pub async fn get_folio_me(
         .flatten()
         .and_then(|r| r.try_get::<Uuid>("", "id").ok());
 
-    let (onboarding_complete, wizard_steps_completed, wizard_steps_total, wizard_dismissed) =
+    let (mut onboarding_complete, wizard_steps_completed, wizard_steps_total, wizard_dismissed) =
         if let Some(ai) = app_instance_id {
             match crate::handlers::onboarding::build_status_response(&db, ai).await {
                 Ok(status) => {
@@ -178,6 +201,11 @@ pub async fn get_folio_me(
             (false, 0, 7, false)
         };
 
+    // Hired PMs join an already-onboarded landlord book — do not trap on /onboarding.
+    if is_hired_pm {
+        onboarding_complete = true;
+    }
+
     Ok(Json(FolioMeResponse {
         user_id: user_row.id,
         tenant_id: Some(tid),
@@ -189,6 +217,8 @@ pub async fn get_folio_me(
         wizard_steps_completed,
         wizard_steps_total,
         wizard_dismissed,
+        is_hired_pm,
+        employer_display_name,
     }))
 }
 

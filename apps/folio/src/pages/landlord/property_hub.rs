@@ -1,8 +1,10 @@
 //! Property hub / unit / leaf dispatch — `/l/assets/:id`
 
+use crate::auth::SessionInfo;
 use crate::components::activity_rail::{ActivityRail, ActivityRailItem};
 use crate::components::nav::FolioRoute;
 use crate::components::page_header::PageHeader;
+use crate::components::photo_media_card::{PhotoEntityKind, PhotoMediaCard};
 use crate::components::property_tab_bar::{PropertyTab, PropertyTabBar};
 use crate::components::stat_card::StatCard;
 use crate::components::status_pill::{StatusPill, StatusPillTone};
@@ -32,7 +34,124 @@ use crate::pages::property_owner::property_value::{
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::hooks::{use_navigate, use_params_map};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+// ── Property manager (same-tenant hire) ───────────────────────────────────────
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ManagerStatusDto {
+    None,
+    Pending,
+    Active,
+}
+
+impl Default for ManagerStatusDto {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DelegationScopeDto {
+    Asset,
+    Portfolio,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ManagerPersonDto {
+    pub user_id: Uuid,
+    pub name: String,
+    pub email: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingManagerInviteDto {
+    pub invite_id: Uuid,
+    pub code: String,
+    pub join_url: String,
+    pub label: Option<String>,
+    pub scope: DelegationScopeDto,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AssetManagerStateDto {
+    pub status: ManagerStatusDto,
+    pub scope: Option<DelegationScopeDto>,
+    pub contract_id: Option<Uuid>,
+    pub manager: Option<ManagerPersonDto>,
+    pub invite: Option<PendingManagerInviteDto>,
+}
+
+#[server(GetAssetManager, "/api")]
+pub async fn get_asset_manager(
+    asset_id: Uuid,
+) -> Result<AssetManagerStateDto, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("Not authenticated"))?;
+    let path = format!("/api/folio/assets/{asset_id}/manager");
+    crate::atlas_client::authenticated_get::<AssetManagerStateDto>(&path, &token, None)
+        .await
+        .map_err(server_fn::error::ServerFnError::new)
+}
+
+#[server(InviteAssetManager, "/api")]
+pub async fn invite_asset_manager(
+    asset_id: Uuid,
+    portfolio_scope: bool,
+    label: Option<String>,
+) -> Result<PendingManagerInviteDto, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("Not authenticated"))?;
+    let path = format!("/api/folio/assets/{asset_id}/manager/invite");
+    let body = serde_json::json!({
+        "portfolio_scope": portfolio_scope,
+        "label": label,
+    });
+    crate::atlas_client::authenticated_post::<_, PendingManagerInviteDto>(
+        &path, &token, None, &body,
+    )
+    .await
+    .map_err(server_fn::error::ServerFnError::new)
+}
+
+#[server(CancelAssetManagerInvite, "/api")]
+pub async fn cancel_asset_manager_invite(
+    asset_id: Uuid,
+) -> Result<(), server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("Not authenticated"))?;
+    let path = format!("/api/folio/assets/{asset_id}/manager/invite");
+    crate::atlas_client::authenticated_delete(&path, &token, None)
+        .await
+        .map_err(server_fn::error::ServerFnError::new)
+}
+
+#[server(RevokeAssetManager, "/api")]
+pub async fn revoke_asset_manager(
+    asset_id: Uuid,
+) -> Result<(), server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = crate::auth::extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("Not authenticated"))?;
+    let path = format!("/api/folio/assets/{asset_id}/manager");
+    crate::atlas_client::authenticated_delete(&path, &token, None)
+        .await
+        .map_err(server_fn::error::ServerFnError::new)
+}
 
 fn is_multi_unit_parent(a: &AssetDetailDto, children: &[AssetChildDto]) -> bool {
     // Hierarchy is authoritative. Onboarding stores PropertyType strings
@@ -263,6 +382,14 @@ pub fn AssetRouteDispatch() -> impl IntoView {
 
 #[component]
 fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl IntoView {
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>();
+    let is_hired_pm = Signal::derive(move || {
+        session
+            .and_then(|s| s.get())
+            .and_then(|r| r.ok())
+            .map(|i| i.is_hired_pm)
+            .unwrap_or(false)
+    });
     let asset_id = asset.id;
     let asset_name = asset.name.clone();
     let display_title = asset
@@ -384,13 +511,33 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
             get_vendor_list().await.unwrap_or_default()
         },
     );
+    let manager_refresh = RwSignal::new(0u32);
+    let manager = Resource::new(
+        move || (asset_id, manager_refresh.get()),
+        |(aid, _)| async move {
+            get_asset_manager(aid).await.ok().unwrap_or(AssetManagerStateDto {
+                status: ManagerStatusDto::None,
+                scope: None,
+                contract_id: None,
+                manager: None,
+                invite: None,
+            })
+        },
+    );
+    let show_delegate_sheet = RwSignal::new(false);
+    let delegate_portfolio = RwSignal::new(false);
+    let delegate_label = RwSignal::new("Property manager".to_string());
+    let delegate_pending = RwSignal::new(false);
+    let delegate_err = RwSignal::new(None::<String>);
+    let show_revoke_confirm = RwSignal::new(false);
     let systems = Resource::new(
         move || asset_id,
         |aid| async move { get_nested_building_systems(aid).await.unwrap_or_default() },
     );
+    let documents_refresh = RwSignal::new(0u32);
     let documents = Resource::new(
-        move || asset_id,
-        |aid| async move { get_property_documents(aid, None).await.unwrap_or_default() },
+        move || (asset_id, documents_refresh.get()),
+        |(aid, _)| async move { get_property_documents(aid, None).await.unwrap_or_default() },
     );
     let value_refresh = RwSignal::new(0u32);
     let value_history = Resource::new(
@@ -707,14 +854,19 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                         <a class="folio-btn folio-btn--ghost press" href=schedule_header>
                             "Schedule"
                         </a>
-                        <button
-                            type="button"
-                            class="folio-btn folio-btn--ghost"
-                            disabled=true
-                            title="Not available"
-                        >
-                            "Delegate PM"
-                        </button>
+                        <Show when=move || !is_hired_pm.get()>
+                            <button
+                                type="button"
+                                class="folio-btn folio-btn--ghost press"
+                                on:click=move |_| {
+                                    delegate_err.set(None);
+                                    show_revoke_confirm.set(false);
+                                    show_delegate_sheet.set(true);
+                                }
+                            >
+                                "Delegate PM"
+                            </button>
+                        </Show>
                         <div class="hub-more">
                             <button
                                 type="button"
@@ -877,7 +1029,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                             </div>
                             {move || {
                                 property_details.get().notes.filter(|n| !n.is_empty()).map(|n| {
-                                    view! { <p class="hub-mgmt-meta" style="margin-top:0.85rem;">{n}</p> }
+                                    view! { <p class="hub-details-notes hub-mgmt-meta">{n}</p> }
                                 })
                             }}
                         </section>
@@ -976,56 +1128,40 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                         </section>
 
                         <div class="hub-media-row">
-                            {move || {
-                                let href = docs_photos_href.get_value();
-                                let photos: Vec<_> = documents
-                                    .get()
-                                    .unwrap_or_default()
-                                    .into_iter()
-                                    .filter(is_photo_like_doc)
-                                    .collect();
-                                if photos.is_empty() {
-                                    view! {
-                                        <a class="hub-media-card hub-media-card--photos press" href=href.clone()>
-                                            <div class="hub-media-card__photo-empty">
-                                                <span class="material-symbols-outlined">"add_a_photo"</span>
-                                                <span>"No cover yet"</span>
-                                            </div>
-                                            <div class="hub-media-card__photo-foot">
-                                                <div>
-                                                    <p class="hub-media-card__title">"Photos"</p>
-                                                    <p class="hub-media-card__sub">
-                                                        "Photo upload — use Documents / vault"
-                                                    </p>
-                                                </div>
-                                                <span class="folio-btn folio-btn--primary folio-btn--sm">"Open"</span>
-                                            </div>
-                                        </a>
-                                    }.into_any()
-                                } else {
-                                    let n = photos.len();
-                                    let sub = if n == 1 {
-                                        "1 vault photo · open Documents".to_string()
-                                    } else {
-                                        format!("{n} vault photos · open Documents")
-                                    };
-                                    view! {
-                                        <a class="hub-media-card hub-media-card--photos press" href=href>
-                                            <div class="hub-media-card__photo-empty hub-media-card__photo-empty--has">
-                                                <span class="material-symbols-outlined">"photo_library"</span>
-                                                <span>{format!("{n} photos")}</span>
-                                            </div>
-                                            <div class="hub-media-card__photo-foot">
-                                                <div>
-                                                    <p class="hub-media-card__title">"Photos"</p>
-                                                    <p class="hub-media-card__sub">{sub}</p>
-                                                </div>
-                                                <span class="folio-btn folio-btn--primary folio-btn--sm">"Open"</span>
-                                            </div>
-                                        </a>
-                                    }.into_any()
+                            {
+                                let gallery = Signal::derive(move || docs_photos_href.get_value());
+                                let photo_count = Signal::derive(move || {
+                                    documents
+                                        .get()
+                                        .unwrap_or_default()
+                                        .into_iter()
+                                        .filter(is_photo_like_doc)
+                                        .count()
+                                });
+                                let has_cover = Signal::derive(move || {
+                                    documents
+                                        .get()
+                                        .unwrap_or_default()
+                                        .into_iter()
+                                        .any(|d| {
+                                            is_photo_like_doc(&d)
+                                                && d.category.eq_ignore_ascii_case("cover")
+                                        })
+                                });
+                                view! {
+                                    <PhotoMediaCard
+                                        entity_kind=PhotoEntityKind::Asset
+                                        entity_id=asset_id
+                                        gallery_href=gallery
+                                        photo_count=photo_count
+                                        has_cover=has_cover
+                                        cover_eligible=true
+                                        on_uploaded=Callback::new(move |_| {
+                                            documents_refresh.update(|n| *n += 1);
+                                        })
+                                    />
                                 }
-                            }}
+                            }
                             {
                                 let empty_pin_label = if street.is_empty() {
                                     display_title.clone()
@@ -1368,7 +1504,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                                                             <span class="material-symbols-outlined hub-mgmt-icon">
                                                                 "engineering"
                                                             </span>
-                                                            <div style="flex:1;min-width:0;">
+                                                            <div class="hub-mgmt-row__text">
                                                                 <p class="hub-mgmt-label">"Preferred contractor"</p>
                                                                 <p class="hub-mgmt-name">{c.business_name.clone()}</p>
                                                                 <p class="hub-mgmt-meta">{trade}</p>
@@ -1391,7 +1527,7 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                                                         <span class="material-symbols-outlined hub-mgmt-icon">
                                                             "engineering"
                                                         </span>
-                                                        <div style="flex:1;min-width:0;">
+                                                        <div class="hub-mgmt-row__text">
                                                             <p class="hub-mgmt-label">"Preferred contractor"</p>
                                                             <p class="hub-mgmt-name hub-mgmt-name--muted">
                                                                 "None set"
@@ -1508,23 +1644,289 @@ fn PropertyHub(asset: AssetDetailDto, children: Vec<AssetChildDto>) -> impl Into
                                             </button>
                                         </div>
                                     </Show>
-                                    <div class="hub-mgmt-row">
-                                        <span class="material-symbols-outlined hub-mgmt-icon">"badge"</span>
-                                        <div>
-                                            <p class="hub-mgmt-label">"Property manager"</p>
-                                            <p class="hub-mgmt-name hub-mgmt-name--muted">"Not delegated"</p>
-                                            <p class="hub-mgmt-meta">"You manage day-to-day"</p>
+                                    <Show when=move || !is_hired_pm.get()>
+                                    <Suspense fallback=|| view! {
+                                        <p class="proj-section__hint">"Loading manager…"</p>
+                                    }>
+                                        {move || {
+                                            let state = manager.get().unwrap_or(AssetManagerStateDto {
+                                                status: ManagerStatusDto::None,
+                                                scope: None,
+                                                contract_id: None,
+                                                manager: None,
+                                                invite: None,
+                                            });
+                                            match state.status {
+                                                ManagerStatusDto::Active => {
+                                                    let m = state.manager.clone();
+                                                    let name = m.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "Property manager".into());
+                                                    let email = m.as_ref().map(|p| p.email.clone()).unwrap_or_default();
+                                                    let scope_label = match state.scope {
+                                                        Some(DelegationScopeDto::Portfolio) => "Entire portfolio",
+                                                        _ => "This property",
+                                                    };
+                                                    view! {
+                                                        <div class="hub-mgmt-row">
+                                                            <span class="material-symbols-outlined hub-mgmt-icon">"badge"</span>
+                                                            <div class="hub-mgmt-row__text">
+                                                                <p class="hub-mgmt-label">"Property manager"</p>
+                                                                <p class="hub-mgmt-name">{name}</p>
+                                                                <p class="hub-mgmt-meta">
+                                                                    {format!("{email} · Manages day-to-day · {scope_label}")}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--ghost folio-btn--sm press"
+                                                                on:click=move |_| {
+                                                                    delegate_err.set(None);
+                                                                    show_revoke_confirm.set(false);
+                                                                    show_delegate_sheet.set(true);
+                                                                }
+                                                            >
+                                                                "Manage"
+                                                            </button>
+                                                        </div>
+                                                    }.into_any()
+                                                }
+                                                ManagerStatusDto::Pending => {
+                                                    let code = state.invite.as_ref().map(|i| i.code.clone()).unwrap_or_default();
+                                                    view! {
+                                                        <div class="hub-mgmt-row">
+                                                            <span class="material-symbols-outlined hub-mgmt-icon">"badge"</span>
+                                                            <div class="hub-mgmt-row__text">
+                                                                <p class="hub-mgmt-label">"Property manager"</p>
+                                                                <p class="hub-mgmt-name">"Invite pending"</p>
+                                                                <p class="hub-mgmt-meta">{format!("Code {code} · awaiting accept")}</p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--ghost folio-btn--sm press"
+                                                                on:click=move |_| {
+                                                                    delegate_err.set(None);
+                                                                    show_revoke_confirm.set(false);
+                                                                    show_delegate_sheet.set(true);
+                                                                }
+                                                            >
+                                                                "View"
+                                                            </button>
+                                                        </div>
+                                                    }.into_any()
+                                                }
+                                                ManagerStatusDto::None => view! {
+                                                    <div class="hub-mgmt-row">
+                                                        <span class="material-symbols-outlined hub-mgmt-icon">"badge"</span>
+                                                        <div class="hub-mgmt-row__text">
+                                                            <p class="hub-mgmt-label">"Property manager"</p>
+                                                            <p class="hub-mgmt-name hub-mgmt-name--muted">"Not delegated"</p>
+                                                            <p class="hub-mgmt-meta">"You manage day-to-day"</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        class="folio-btn folio-btn--ghost press"
+                                                        on:click=move |_| {
+                                                            delegate_err.set(None);
+                                                            show_revoke_confirm.set(false);
+                                                            show_delegate_sheet.set(true);
+                                                        }
+                                                    >
+                                                        "Delegate to PM"
+                                                    </button>
+                                                }.into_any(),
+                                            }
+                                        }}
+                                    </Suspense>
+                                    <Show when=move || show_delegate_sheet.get()>
+                                        <div class="hub-assign-vendor hub-delegate-sheet">
+                                            {move || {
+                                                let state = manager.get().unwrap_or(AssetManagerStateDto {
+                                                    status: ManagerStatusDto::None,
+                                                    scope: None,
+                                                    contract_id: None,
+                                                    manager: None,
+                                                    invite: None,
+                                                });
+                                                let err_view = move || delegate_err.get().map(|e| view! {
+                                                    <p style="color:#b91c1c;font-size:0.8rem;margin:0 0 0.5rem;">{e}</p>
+                                                });
+                                                match state.status {
+                                                    ManagerStatusDto::None => {
+                                                        let team_href = FolioRoute::LandlordTeam.path().to_string();
+                                                        view! {
+                                                            <p class="hub-mgmt-label" style="margin-bottom:0.5rem;">"Invite a property manager"</p>
+                                                            <p class="hub-mgmt-meta" style="margin-bottom:0.75rem;">
+                                                                "They join your Folio book. You stay the account admin."
+                                                            </p>
+                                                            {err_view()}
+                                                            <div class="folio-field" style="margin-bottom:0.75rem;">
+                                                                <label class="folio-field__label">"Invite label"</label>
+                                                                <input
+                                                                    class="folio-input"
+                                                                    type="text"
+                                                                    prop:value=move || delegate_label.get()
+                                                                    on:input=move |ev| delegate_label.set(event_target_value(&ev))
+                                                                />
+                                                            </div>
+                                                            <p class="hub-mgmt-label" style="margin-bottom:0.35rem;">"Scope"</p>
+                                                            <div class="folio-segment-bar" style="margin-bottom:0.75rem;">
+                                                                <button
+                                                                    type="button"
+                                                                    class=move || if !delegate_portfolio.get() { "folio-segment folio-segment--active" } else { "folio-segment" }
+                                                                    on:click=move |_| delegate_portfolio.set(false)
+                                                                >"This property"</button>
+                                                                <button
+                                                                    type="button"
+                                                                    class=move || if delegate_portfolio.get() { "folio-segment folio-segment--active" } else { "folio-segment" }
+                                                                    on:click=move |_| delegate_portfolio.set(true)
+                                                                >"Entire portfolio"</button>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--primary press"
+                                                                disabled=move || delegate_pending.get()
+                                                                on:click=move |_| {
+                                                                    delegate_pending.set(true);
+                                                                    delegate_err.set(None);
+                                                                    let label = delegate_label.get();
+                                                                    let portfolio = delegate_portfolio.get();
+                                                                    spawn_local(async move {
+                                                                        match invite_asset_manager(
+                                                                            asset_id,
+                                                                            portfolio,
+                                                                            Some(label),
+                                                                        ).await {
+                                                                            Ok(_) => {
+                                                                                show_delegate_sheet.set(true);
+                                                                                manager_refresh.update(|n| *n += 1);
+                                                                            }
+                                                                            Err(e) => delegate_err.set(Some(e.to_string())),
+                                                                        }
+                                                                        delegate_pending.set(false);
+                                                                    });
+                                                                }
+                                                            >
+                                                                {move || if delegate_pending.get() { "Creating…" } else { "Create invite link" }}
+                                                            </button>
+                                                            <a
+                                                                class="folio-btn folio-btn--ghost folio-btn--sm press"
+                                                                style="margin-top:0.5rem;"
+                                                                href=team_href
+                                                            >"Manage team invites"</a>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--ghost folio-btn--sm"
+                                                                style="margin-top:0.35rem;"
+                                                                on:click=move |_| show_delegate_sheet.set(false)
+                                                            >"Cancel"</button>
+                                                        }.into_any()
+                                                    }
+                                                    ManagerStatusDto::Pending => {
+                                                        let invite = state.invite.clone();
+                                                        let join = invite.as_ref().map(|i| i.join_url.clone()).unwrap_or_default();
+                                                        let code = invite.as_ref().map(|i| i.code.clone()).unwrap_or_default();
+                                                        let scope_label = match invite.as_ref().map(|i| &i.scope) {
+                                                            Some(DelegationScopeDto::Portfolio) => "Entire portfolio",
+                                                            _ => "This property",
+                                                        };
+                                                        view! {
+                                                            <p class="hub-mgmt-label" style="margin-bottom:0.5rem;">"Invite pending"</p>
+                                                            <p class="hub-mgmt-meta" style="margin-bottom:0.5rem;">
+                                                                {format!("Share this link · Scope: {scope_label}")}
+                                                            </p>
+                                                            {err_view()}
+                                                            <p class="hub-mgmt-name" style="word-break:break-all;margin-bottom:0.25rem;">{join.clone()}</p>
+                                                            <p class="hub-mgmt-meta" style="margin-bottom:0.75rem;">{format!("Code {code}")}</p>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--ghost press"
+                                                                disabled=move || delegate_pending.get()
+                                                                on:click=move |_| {
+                                                                    delegate_pending.set(true);
+                                                                    delegate_err.set(None);
+                                                                    spawn_local(async move {
+                                                                        match cancel_asset_manager_invite(asset_id).await {
+                                                                            Ok(()) => {
+                                                                                manager_refresh.update(|n| *n += 1);
+                                                                                show_delegate_sheet.set(false);
+                                                                            }
+                                                                            Err(e) => delegate_err.set(Some(e.to_string())),
+                                                                        }
+                                                                        delegate_pending.set(false);
+                                                                    });
+                                                                }
+                                                            >"Cancel invite"</button>
+                                                            <button
+                                                                type="button"
+                                                                class="folio-btn folio-btn--ghost folio-btn--sm"
+                                                                style="margin-top:0.35rem;"
+                                                                on:click=move |_| show_delegate_sheet.set(false)
+                                                            >"Close"</button>
+                                                        }.into_any()
+                                                    }
+                                                    ManagerStatusDto::Active => {
+                                                        let m = state.manager.clone();
+                                                        let name = m.as_ref().map(|p| p.name.clone()).unwrap_or_else(|| "Property manager".into());
+                                                        let email = m.as_ref().map(|p| p.email.clone()).unwrap_or_default();
+                                                        if show_revoke_confirm.get() {
+                                                            view! {
+                                                                <p class="hub-mgmt-label" style="margin-bottom:0.5rem;">"Revoke access?"</p>
+                                                                <p class="hub-mgmt-meta" style="margin-bottom:0.75rem;">
+                                                                    {format!("Revoke {name}'s access? You will manage day-to-day again.")}
+                                                                </p>
+                                                                {err_view()}
+                                                                <button
+                                                                    type="button"
+                                                                    class="folio-btn folio-btn--primary press"
+                                                                    disabled=move || delegate_pending.get()
+                                                                    on:click=move |_| {
+                                                                        delegate_pending.set(true);
+                                                                        delegate_err.set(None);
+                                                                        spawn_local(async move {
+                                                                            match revoke_asset_manager(asset_id).await {
+                                                                                Ok(()) => {
+                                                                                    show_revoke_confirm.set(false);
+                                                                                    show_delegate_sheet.set(false);
+                                                                                    manager_refresh.update(|n| *n += 1);
+                                                                                }
+                                                                                Err(e) => delegate_err.set(Some(e.to_string())),
+                                                                            }
+                                                                            delegate_pending.set(false);
+                                                                        });
+                                                                    }
+                                                                >"Confirm revoke"</button>
+                                                                <button
+                                                                    type="button"
+                                                                    class="folio-btn folio-btn--ghost folio-btn--sm"
+                                                                    style="margin-top:0.35rem;"
+                                                                    on:click=move |_| show_revoke_confirm.set(false)
+                                                                >"Keep PM"</button>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                <p class="hub-mgmt-label" style="margin-bottom:0.5rem;">"Property manager"</p>
+                                                                <p class="hub-mgmt-name">{name}</p>
+                                                                <p class="hub-mgmt-meta" style="margin-bottom:0.75rem;">{email}</p>
+                                                                {err_view()}
+                                                                <button
+                                                                    type="button"
+                                                                    class="folio-btn folio-btn--ghost press"
+                                                                    on:click=move |_| show_revoke_confirm.set(true)
+                                                                >"Revoke access"</button>
+                                                                <button
+                                                                    type="button"
+                                                                    class="folio-btn folio-btn--ghost folio-btn--sm"
+                                                                    style="margin-top:0.35rem;"
+                                                                    on:click=move |_| show_delegate_sheet.set(false)
+                                                                >"Done"</button>
+                                                            }.into_any()
+                                                        }
+                                                    }
+                                                }
+                                            }}
                                         </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        class="folio-btn folio-btn--ghost"
-                                        disabled=true
-                                        aria-disabled="true"
-                                        title="Delegating to a property manager is not available yet"
-                                    >
-                                        "Delegate to PM — Not available"
-                                    </button>
+                                    </Show>
+                                    </Show>
                                 </div>
                             </section>
 

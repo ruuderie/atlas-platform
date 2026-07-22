@@ -19,6 +19,7 @@ pub mod household; // G-22 — Lease-scoped tenant declarations: vehicles + occu
 pub mod lead; // Phase 6 — Lead lifecycle: qualify, convert, disqualify (G31)
 pub mod lease;
 pub mod ledger; // Phase 3 — PM ledger service (atlas_ledger_entries wrapper)
+pub mod management_delegation; // Same-tenant PM hire: G-11 agreement + G-32 asset grants
 pub mod maintenance;
 /// Folio — Property Management Service Layer
 ///

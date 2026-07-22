@@ -109,7 +109,7 @@ Living inventory of design-mock vs shipped UI. Update when a surface moves class
 | Item | Status |
 |------|--------|
 | Shared `.modal-*` CSS (overlay + header close) | Done |
-| Hub Management icons + Delegate Not available | Done |
+| Hub Management icons + Delegate to PM (same-tenant hire) | Done |
 | Unit Open WOs View all → folio-btn | Done |
 | Archive closes when switching to Units tab | Done |
 | Maintenance history: Log paid form first | Done |
@@ -168,4 +168,16 @@ Queue as separate epics (do not boil into one landlord PR):
 | Property details + est. value + capital/equity; NOI/cap derived | Done |
 | Stitch: WO sheet, occupant profile, hub details/capital | Done |
 
-*Last updated: 2026-07-19 (Pass 5 hub ops)*
+### Open polish (queued in `page_queue.md`)
+
+| Item | Status |
+|------|--------|
+| Local Folio WASM hydrate boot tax (release profile + no on-the-fly br for `.wasm`) | Backlog |
+
+### Pass 5 follow-up
+
+| Item | Status |
+|------|--------|
+| Hub Overview: align Property details / Capital grids + Management card | Done |
+
+*Last updated: 2026-07-20*

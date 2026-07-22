@@ -94,6 +94,23 @@ pub fn InviteJoin() -> impl IntoView {
                             let role = code_data.role.clone();
                             let onboard_url = format!("/onboard/{}?code={}", role_to_path(&role), code_data.code);
                             let login_url   = format!("/auth/login?next={}", urlencoding::encode(&onboard_url));
+                            let hired_employer = (role == "property_manager")
+                                .then(|| code_data.context.landlord.as_ref().map(|l| l.name.clone()))
+                                .flatten();
+                            let sub = if let Some(ref employer) = hired_employer {
+                                format!(
+                                    "Join {employer}'s Folio workspace to manage day-to-day operations. They remain the account admin."
+                                )
+                            } else {
+                                role_description(&code_data.role).to_string()
+                            };
+                            let headline = if let Some(ref employer) = hired_employer {
+                                format!("Manage properties for {employer}")
+                            } else {
+                                code_data.label.clone().unwrap_or_else(|| {
+                                    format!("You've been invited as a {}", role_label(&code_data.role))
+                                })
+                            };
 
                             view! {
                                 <div class="ij-card">
@@ -103,10 +120,10 @@ pub fn InviteJoin() -> impl IntoView {
                                             {role_label(&code_data.role)}
                                         </div>
                                         <div class="ij-h">
-                                            {code_data.label.clone().unwrap_or_else(|| format!("You've been invited as a {}", role_label(&code_data.role)))}
+                                            {headline}
                                         </div>
                                         <div class="ij-sub">
-                                            {role_description(&code_data.role)}
+                                            {sub}
                                         </div>
                                     </div>
 

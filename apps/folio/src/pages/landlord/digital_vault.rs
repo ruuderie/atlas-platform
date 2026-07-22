@@ -42,6 +42,8 @@ pub enum VaultDocumentType {
     SecurityDepositReceipt,
     ContractorLicense,
     CondominioStatement,
+    Photo,
+    Cover,
 }
 
 impl VaultDocumentType {
@@ -56,6 +58,8 @@ impl VaultDocumentType {
         Self::SecurityDepositReceipt,
         Self::ContractorLicense,
         Self::CondominioStatement,
+        Self::Photo,
+        Self::Cover,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -70,6 +74,8 @@ impl VaultDocumentType {
             Self::SecurityDepositReceipt => "security_deposit_receipt",
             Self::ContractorLicense => "contractor_license",
             Self::CondominioStatement => "condominio_statement",
+            Self::Photo => "photo",
+            Self::Cover => "cover",
         }
     }
 
@@ -85,6 +91,8 @@ impl VaultDocumentType {
             Self::SecurityDepositReceipt => "Security Deposit Receipt",
             Self::ContractorLicense => "Contractor License",
             Self::CondominioStatement => "Condomínio Statement",
+            Self::Photo => "Photo",
+            Self::Cover => "Cover photo",
         }
     }
 }
@@ -223,6 +231,46 @@ pub async fn ll_fetch_vault_docs(
         .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }
 
+/// List vault docs for a specific entity (photos / cover for PhotoMediaCard).
+#[server(ListEntityVaultDocs, "/api")]
+pub async fn list_entity_vault_docs(
+    entity_type: String,
+    entity_id: Uuid,
+) -> Result<Vec<DocumentSummary>, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+    let url = format!(
+        "/api/folio/vault/documents?entity_type={}&entity_id={}",
+        urlencoding_simple(&entity_type),
+        entity_id
+    );
+    crate::atlas_client::authenticated_get::<Vec<DocumentSummary>>(&url, &token, None)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
+}
+
+fn urlencoding_simple(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            _ => format!("%{:02X}", c as u32),
+        })
+        .collect()
+}
+
+pub fn is_vault_photo_category(category: &str) -> bool {
+    let c = category.to_lowercase();
+    c == "photo"
+        || c == "cover"
+        || c.contains("photo")
+        || c.contains("image")
+        || c.contains("picture")
+        || c.contains("gallery")
+}
+
 #[derive(Serialize)]
 struct RegisterDocumentBody {
     entity_type: String,
@@ -231,6 +279,8 @@ struct RegisterDocumentBody {
     r2_key: String,
     mime_type: Option<String>,
     size_bytes: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parent_asset_id: Option<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -290,6 +340,7 @@ pub async fn register_vault_document(
     document_type: String,
     r2_key: String,
     mime_type: Option<String>,
+    #[allow(unused_variables)] parent_asset_id: Option<String>,
 ) -> Result<Uuid, server_fn::error::ServerFnError> {
     use axum::http::HeaderMap;
     use leptos_axum::extract;
@@ -308,6 +359,13 @@ pub async fn register_vault_document(
     }
     let entity_id = Uuid::parse_str(entity_id.trim())
         .map_err(|_| server_fn::error::ServerFnError::new("Invalid entity ID"))?;
+    let parent_asset_id = parent_asset_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(Uuid::parse_str)
+        .transpose()
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid parent asset ID"))?;
 
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
     let token = extract_token(&headers)
@@ -324,6 +382,7 @@ pub async fn register_vault_document(
         r2_key: r2_key.trim().to_string(),
         mime_type: mime,
         size_bytes: None,
+        parent_asset_id,
     };
     let resp =
         crate::atlas_client::authenticated_post::<RegisterDocumentBody, RegisterDocumentResponse>(
@@ -491,6 +550,7 @@ pub fn LandlordDigitalVault() -> impl IntoView {
                                             document_type,
                                             presign.r2_key,
                                             Some(content_type),
+                                            None,
                                         )
                                         .await
                                         {

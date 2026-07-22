@@ -1155,8 +1155,8 @@ fn draw_footer(frame: &mut Frame, area: Rect, tab: Tab, overlay: &Overlay) {
             "? sync guide · x = Next-steps refresh · r = panel only",
         ),
         (Tab::Env, _) => (
-            "env / smtp",
-            "s SMTP · a apply .env to backend · e editor · ? sync guide · x = refresh",
+            "env / smtp / r2",
+            "s SMTP · a apply .env · e editor · env r2 · ? sync · x = refresh",
         ),
     };
     let lines = vec![
@@ -1190,7 +1190,12 @@ fn draw_env(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
         .split(area);
     let left = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(5), Constraint::Min(6)])
+        .constraints([
+            Constraint::Length(5),
+            Constraint::Min(5),
+            Constraint::Length(4),
+            Constraint::Min(4),
+        ])
         .split(cols[0]);
 
     let status_color = if snap.env_panel.smtp_mock { WARN } else { OK };
@@ -1236,6 +1241,51 @@ fn draw_env(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
         left[1],
     );
 
+    let r2_color = if snap.env_panel.r2_not_configured {
+        WARN
+    } else if snap.env_panel.r2_status.starts_with("READY") {
+        OK
+    } else {
+        WARN
+    };
+    let r2_lines = vec![
+        Line::from(Span::styled(
+            snap.env_panel.r2_status.clone(),
+            Style::default().fg(r2_color).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(
+            "CLI: atlas-local env r2 · bucket atlas-tenant-vault",
+            Style::default().fg(DIM),
+        )),
+    ];
+    frame.render_widget(
+        Paragraph::new(r2_lines)
+            .block(panel("R2 / vault uploads"))
+            .wrap(Wrap { trim: true }),
+        left[2],
+    );
+
+    let r2_rows: Vec<Row> = snap
+        .env_panel
+        .r2_rows
+        .iter()
+        .map(|(k, v)| {
+            Row::new(vec![
+                Cell::from(Span::styled(k.clone(), Style::default().fg(MUTED))),
+                Cell::from(Span::styled(v.clone(), Style::default().fg(FG))),
+            ])
+        })
+        .collect();
+    frame.render_widget(
+        Table::new(
+            r2_rows,
+            [Constraint::Length(22), Constraint::Percentage(100)],
+        )
+        .block(panel("R2 keys"))
+        .column_spacing(2),
+        left[3],
+    );
+
     let mut local_lines: Vec<Line> = snap
         .env_panel
         .local_rows
@@ -1255,7 +1305,7 @@ fn draw_env(frame: &mut Frame, area: Rect, snap: &StatusSnapshot) {
     }
     local_lines.push(Line::from(""));
     local_lines.push(Line::from(Span::styled(
-        "Keys: s SMTP form · a apply · e editor",
+        "Keys: s SMTP form · a apply · e editor · env r2",
         Style::default().fg(ACCENT),
     )));
     frame.render_widget(

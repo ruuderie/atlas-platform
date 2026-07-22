@@ -254,6 +254,20 @@ Do **not** invent backends here. Keep nav/routes if already scaffolded; UI stays
 
 ---
 
+## Backlog — polish / perf (2026-07-20)
+
+Pick up when hub ops harden or local DX hurts. Not blocked on APIs.
+
+### Local Folio WASM boot tax
+
+| Status | Item | Notes |
+|--------|------|-------|
+| `[ ]` | **Shrink / speed `folio-v1.wasm` hydrate** | Local debug artifact ~**222 MB** raw; Chrome waits ~17 s on **Content Download** because Caddy **Brotli-encodes on the fly** (~15 MB on wire). TTFB is fine (~5 ms). |
+| | Preferred fixes (in order) | (1) Local `FOLIO_BUILD_PROFILE=release` / `wasm-release` (docs already default debug for speed of compile). (2) Exclude `/pkg/*.wasm` from dynamic `encode` (or serve prebuilt `.wasm.br`). (3) Cache versioned pkg aggressively once stable. (4) Longer-term: thinner hydrate surface. |
+| | Evidence | `GET /pkg/folio-v1.wasm` — Waiting ≪ Download; identity ~0.6 s vs on-the-fly `br` ~16 s on localhost. |
+
+---
+
 ## Progress Summary
 
 ```
@@ -270,7 +284,7 @@ P7 Public:     8 done /  8 total   ███████████████
 Total: wired cores complete; agent/broker/guest/STR reviews-channels parked
 ```
 
-*Last updated: 2026-07-19. Hub ops: WO sheet dismiss; applications landlord access; household enums/profile; property details/capital; stable hub map.*
+*Last updated: 2026-07-20. Backlog: WASM boot tax (debug + on-the-fly br). Hub Overview details/capital/management alignment fixed.*
 
 <!-- session 2026-06-28: meridian_config.rs (G-27 dashboard/rules/surfaces), ltr_listings.rs, str_listings.rs, ni_signup.rs -->
 

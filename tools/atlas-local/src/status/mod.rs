@@ -45,6 +45,10 @@ pub struct EnvPanel {
     pub smtp_mock: bool,
     pub smtp_status: String,
     pub smtp_rows: Vec<(String, String)>,
+    /// True when vault presign cannot run (missing ACCESS_KEY_ID and/or ENDPOINT).
+    pub r2_not_configured: bool,
+    pub r2_status: String,
+    pub r2_rows: Vec<(String, String)>,
     pub local_rows: Vec<(String, String)>,
     pub applied_hint: String,
 }
@@ -166,7 +170,10 @@ pub fn print_report(root: &Path, plain: bool) -> Result<()> {
 }
 
 fn collect_env_panel(root: &Path) -> EnvPanel {
-    use crate::env::{SMTP_KEYS, is_secret_key, mask_secret, smtp_is_mock};
+    use crate::env::{
+        R2_KEYS, R2Readiness, SMTP_KEYS, is_secret_key, mask_secret, r2_readiness, r2_status_line,
+        smtp_is_mock,
+    };
 
     let mut smtp_rows = Vec::new();
     for key in SMTP_KEYS {
@@ -187,6 +194,22 @@ fn collect_env_panel(root: &Path) -> EnvPanel {
     } else {
         format!("CONFIGURED → {server} (needs backend recreate after edits)")
     };
+
+    let mut r2_rows = Vec::new();
+    for key in R2_KEYS {
+        let raw = repo::read_dotenv_value(root, key).unwrap_or_default();
+        let display = if raw.is_empty() {
+            "(unset)".into()
+        } else if is_secret_key(key) {
+            mask_secret(&raw)
+        } else {
+            raw.clone()
+        };
+        r2_rows.push(((*key).to_string(), display));
+    }
+    let r2 = r2_readiness(root);
+    let r2_not_configured = r2 == R2Readiness::NotConfigured;
+    let r2_status = r2_status_line(root);
 
     let interesting = [
         "ENVIRONMENT",
@@ -212,6 +235,9 @@ fn collect_env_panel(root: &Path) -> EnvPanel {
         smtp_mock,
         smtp_status,
         smtp_rows,
+        r2_not_configured,
+        r2_status,
+        r2_rows,
         local_rows,
         applied_hint: "Values in .env.local are injected into backend on recreate — press a to apply"
             .into(),

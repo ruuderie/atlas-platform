@@ -12,6 +12,7 @@ const SECRET_HINTS: &[&str] = &[
     "SECRET",
     "PRIVATE",
     "CREDENTIAL",
+    "ACCESS_KEY",
 ];
 
 /// Keys operators commonly need for local SMTP (magic links, invites, OTP).
@@ -21,6 +22,14 @@ pub const SMTP_KEYS: &[&str] = &[
     "SMTP_USERNAME",
     "SMTP_TOKEN",
     "SMTP_FROM",
+];
+
+/// Cloudflare R2 keys for Folio vault / PhotoMediaCard uploads.
+/// Backend presign requires ACCESS_KEY_ID + ENDPOINT (secret needed for signed PUT).
+pub const R2_KEYS: &[&str] = &[
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_ENDPOINT",
 ];
 
 pub fn cmd_list(root: &Path, reveal: bool) -> Result<()> {
@@ -101,6 +110,11 @@ pub fn cmd_set(root: &Path, raw_args: &[String]) -> Result<()> {
         println!();
         println!("SMTP tip: empty/localhost SMTP_SERVER → backend mocks email (logs only).");
         println!("  Check: atlas-local env smtp");
+    }
+    if updates.iter().any(|(k, _)| k.starts_with("R2_")) {
+        println!();
+        println!("R2 tip: vault photo upload needs ACCESS_KEY_ID + ENDPOINT (+ SECRET for PUT).");
+        println!("  Check: atlas-local env r2");
     }
     Ok(())
 }
@@ -215,6 +229,97 @@ fn key_in_local(root: &Path, key: &str) -> bool {
 pub fn smtp_is_mock(server: &str) -> bool {
     let s = server.trim();
     s.is_empty() || s.eq_ignore_ascii_case("localhost") || s == "127.0.0.1"
+}
+
+/// R2 readiness for local vault uploads (matches Folio `presign_upload` gate).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum R2Readiness {
+    /// ACCESS_KEY_ID + ENDPOINT + SECRET all set — presign can succeed.
+    Ready,
+    /// ACCESS_KEY_ID + ENDPOINT set but SECRET missing — PUT will fail.
+    Incomplete,
+    /// Presign returns 501 (missing ACCESS_KEY_ID and/or ENDPOINT).
+    NotConfigured,
+}
+
+pub fn r2_readiness_from_values(access: &str, secret: &str, endpoint: &str) -> R2Readiness {
+    let access_ok = !access.trim().is_empty();
+    let endpoint_ok = !endpoint.trim().is_empty();
+    let secret_ok = !secret.trim().is_empty();
+    if access_ok && endpoint_ok && secret_ok {
+        R2Readiness::Ready
+    } else if access_ok && endpoint_ok {
+        R2Readiness::Incomplete
+    } else {
+        R2Readiness::NotConfigured
+    }
+}
+
+pub fn r2_readiness(root: &Path) -> R2Readiness {
+    r2_readiness_from_values(
+        &repo::read_dotenv_value(root, "R2_ACCESS_KEY_ID").unwrap_or_default(),
+        &repo::read_dotenv_value(root, "R2_SECRET_ACCESS_KEY").unwrap_or_default(),
+        &repo::read_dotenv_value(root, "R2_ENDPOINT").unwrap_or_default(),
+    )
+}
+
+pub fn r2_status_line(root: &Path) -> String {
+    match r2_readiness(root) {
+        R2Readiness::Ready => {
+            let endpoint = repo::read_dotenv_value(root, "R2_ENDPOINT").unwrap_or_default();
+            format!("READY → {endpoint} (vault / PhotoMediaCard can upload)")
+        }
+        R2Readiness::Incomplete => {
+            "INCOMPLETE — ACCESS_KEY_ID + ENDPOINT set, but R2_SECRET_ACCESS_KEY missing".into()
+        }
+        R2Readiness::NotConfigured => {
+            "NOT CONFIGURED — vault presign returns 501 (set R2_ACCESS_KEY_ID + R2_ENDPOINT)".into()
+        }
+    }
+}
+
+pub fn cmd_r2(root: &Path, reveal: bool) -> Result<()> {
+    preflight::ensure_env_files(root)?;
+    println!("Cloudflare R2 (Folio vault / PhotoMediaCard uploads)\n");
+    for key in R2_KEYS {
+        match repo::read_dotenv_value(root, key) {
+            Some(v) => {
+                let display = if reveal || !is_secret_key(key) {
+                    v.clone()
+                } else {
+                    mask_secret(&v)
+                };
+                let src = if key_in_local(root, key) {
+                    ".env.local"
+                } else {
+                    ".env"
+                };
+                println!("  {key}={display}  # {src}");
+            }
+            None => println!("  {key}=(unset)"),
+        }
+    }
+    println!();
+    println!("Status: {}", r2_status_line(root));
+    println!("  Bucket (hardcoded in backend): atlas-tenant-vault");
+    println!();
+    match r2_readiness(root) {
+        R2Readiness::Ready => {
+            println!("Apply after edits:");
+            println!("  cargo run -p atlas-local -- refresh backend");
+            println!("Smoke: upload a photo on Folio property hub (needs backend recreate).");
+        }
+        R2Readiness::Incomplete | R2Readiness::NotConfigured => {
+            println!("To enable local vault uploads, set:");
+            println!("  atlas-local env set R2_ACCESS_KEY_ID=…");
+            println!("  atlas-local env set R2_SECRET_ACCESS_KEY=…");
+            println!("  atlas-local env set R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com");
+            println!("  cargo run -p atlas-local -- refresh backend");
+            println!();
+            println!("Without these, POST /api/folio/vault/presign → 501 Not Implemented.");
+        }
+    }
+    Ok(())
 }
 
 pub fn is_secret_key(key: &str) -> bool {
@@ -411,6 +516,32 @@ mod tests {
         assert!(smtp_is_mock("localhost"));
         assert!(smtp_is_mock("LOCALHOST"));
         assert!(!smtp_is_mock("smtp.gmail.com"));
+    }
+
+    #[test]
+    fn r2_readiness_states() {
+        assert_eq!(
+            r2_readiness_from_values("", "", ""),
+            R2Readiness::NotConfigured
+        );
+        assert_eq!(
+            r2_readiness_from_values("ak", "sk", ""),
+            R2Readiness::NotConfigured
+        );
+        assert_eq!(
+            r2_readiness_from_values("ak", "", "https://example.r2.cloudflarestorage.com"),
+            R2Readiness::Incomplete
+        );
+        assert_eq!(
+            r2_readiness_from_values("ak", "sk", "https://example.r2.cloudflarestorage.com"),
+            R2Readiness::Ready
+        );
+    }
+
+    #[test]
+    fn access_key_is_masked_as_secret() {
+        assert!(is_secret_key("R2_ACCESS_KEY_ID"));
+        assert!(is_secret_key("R2_SECRET_ACCESS_KEY"));
     }
 
     #[test]

@@ -137,7 +137,7 @@ pub struct CreateInviteCodeInput {
     pub broker_id: Option<Uuid>,
     /// When set: the inviting landlord/employer user ID.
     /// For property_manager invites: accept creates G-32 role scoped to employer's account
-    /// and a G-11 property_management_agreement contract.
+    /// and a G-11 `management_agreement` contract (+ asset grants when asset-scoped).
     pub employer_user_id: Option<Uuid>,
     /// null = unlimited
     pub max_uses: Option<i32>,
@@ -190,6 +190,7 @@ async fn resolve_code(
         r#"SELECT
             id, code, role, label, invite_message,
             asset_id, asset_ids_csv, booking_id, landlord_id, broker_id,
+            employer_user_id,
             max_uses, uses_count, expires_at, is_active, created_at
            FROM atlas_invite_codes
            WHERE code = $1"#,
@@ -266,8 +267,9 @@ async fn resolve_code(
         .as_ref()
         .map(|csv| csv.split(',').filter(|s| !s.trim().is_empty()).count() as i64);
 
-    // Resolve landlord name
-    let landlord_ctx = if let Some(lid) = landlord_id {
+    // Resolve landlord / employer name (PM hire stamps employer_user_id, not landlord_id).
+    let employer_user_id: Option<Uuid> = row.try_get("", "employer_user_id").ok().flatten();
+    let landlord_ctx = if let Some(lid) = landlord_id.or(employer_user_id) {
         resolve_user_context(&db, lid).await
     } else {
         None
@@ -336,6 +338,21 @@ async fn create_code(
                 .into_response();
         }
     };
+
+    // Hired PMs cannot create Team invite codes (account admin).
+    if let Ok(true) = crate::services::pm::management_delegation::ManagementDelegationService::is_hired_property_manager(
+        &db, caller_id,
+    )
+    .await
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Hired property managers cannot create invite codes"
+            })),
+        )
+            .into_response();
+    }
 
     // TODO: resolve workspace_id from caller's active app instance.
     // For now use caller's own user_id as a proxy workspace_id.
@@ -468,7 +485,8 @@ async fn list_codes(State(db): State<DatabaseConnection>, headers: HeaderMap) ->
 
     let stmt = sea_orm::Statement::from_sql_and_values(
         sea_orm::DatabaseBackend::Postgres,
-        r#"SELECT id, code, role, label, max_uses, uses_count, expires_at, is_active, created_at
+        r#"SELECT id, code, role, label, max_uses, uses_count, expires_at, is_active, created_at,
+                  asset_id, employer_user_id
            FROM atlas_invite_codes
            WHERE created_by = $1
            ORDER BY created_at DESC
@@ -497,11 +515,16 @@ async fn list_codes(State(db): State<DatabaseConnection>, headers: HeaderMap) ->
                         .try_get::<chrono::DateTime<Utc>>("", "created_at")
                         .map(|dt| dt.to_rfc3339())
                         .unwrap_or_default();
+                    let asset_id: Option<Uuid> = r.try_get("", "asset_id").ok().flatten();
+                    let employer_user_id: Option<Uuid> =
+                        r.try_get("", "employer_user_id").ok().flatten();
                     serde_json::json!({
                         "id": id, "code": code, "role": role, "label": label,
                         "max_uses": max_uses, "uses_count": uses_count,
                         "expires_at": expires_at, "is_active": is_active, "created_at": created_at,
                         "join_url": format!("/join/{}", code),
+                        "asset_id": asset_id,
+                        "employer_user_id": employer_user_id,
                     })
                 })
                 .collect();
@@ -635,7 +658,7 @@ async fn patch_code(
 ///   2. Atomically increments uses_count and marks inactive if single-use
 ///   3. Creates `atlas_user_app_roles` row (assigns the role to the accepting user)
 ///   4. If role = property_manager AND employer_user_id is set on the code:
-///        → Creates G-11 `atlas_contracts` row (property_management_agreement)
+///        → G-11 `management_agreement` + optional `atlas_user_asset_access` grants
 ///   5. Records accepted_by_user_id + accepted_at on the invite code row
 async fn accept_code(
     Path(id): Path<Uuid>,
@@ -726,6 +749,8 @@ async fn accept_code(
     let employer_user_id: Option<Uuid> = row.try_get("", "employer_user_id").ok().flatten();
     let workspace_id: Uuid = row.try_get("", "workspace_id").unwrap_or(accepting_user_id);
     let landlord_id: Option<Uuid> = row.try_get("", "landlord_id").ok().flatten();
+    let invite_asset_id: Option<Uuid> = row.try_get("", "asset_id").ok().flatten();
+    let invite_asset_ids_csv: Option<String> = row.try_get("", "asset_ids_csv").ok().flatten();
 
     // 2. Atomically increment uses_count (and mark inactive if single-use)
     let deactivate = max_uses.map_or(false, |max| uses_count + 1 >= max);
@@ -756,73 +781,84 @@ async fn accept_code(
             .into_response();
     }
 
-    // Resolve the client_account_id: prefer employer's account, fall back to workspace
-    let client_account_id: Uuid = employer_user_id.or(landlord_id).unwrap_or(workspace_id);
-
-    // 3. Create atlas_user_app_roles row
-    // The client_account_id scopes a property_manager role to the employer's portfolio.
-    let role_stmt = sea_orm::Statement::from_sql_and_values(
-        sea_orm::DatabaseBackend::Postgres,
-        r#"INSERT INTO atlas_user_app_roles
-               (id, user_id, tenant_id, app_slug, role, client_account_id,
-                granted_by, granted_at, is_active)
-           VALUES
-               (gen_random_uuid(), $1, $2, 'folio', $3, $4, $5, now(), true)
-           ON CONFLICT (user_id, tenant_id, app_slug, role) DO UPDATE
-               SET is_active = true, client_account_id = EXCLUDED.client_account_id,
-                   granted_by = EXCLUDED.granted_by, granted_at = now()
-           RETURNING id"#,
-        [
-            accepting_user_id.into(),
-            workspace_id.into(),
-            role.clone().into(),
-            client_account_id.into(),
-            employer_user_id.unwrap_or(accepting_user_id).into(),
-        ],
-    );
-    if let Err(e) = db.execute(role_stmt).await {
-        tracing::error!("accept_code role creation error: {e}");
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": "Failed to assign role"
-            })),
-        )
-            .into_response();
-    }
-
-    // 4. If property_manager + employer_user_id: create G-11 management agreement
+    // 3–4. property_manager + employer → full hire (role + agreement + asset grants).
+    // Other roles: assign via RbacService against a resolved tenant.
     if role == "property_manager" {
         if let Some(employer_id) = employer_user_id {
-            let contract_stmt = sea_orm::Statement::from_sql_and_values(
-                sea_orm::DatabaseBackend::Postgres,
-                r#"INSERT INTO atlas_contracts
-                       (id, tenant_id, contract_type, status,
-                        counterparty_user_id, managed_account_id,
-                        effective_from, terms_metadata, created_by, created_at)
-                   VALUES
-                       (gen_random_uuid(), $1, 'property_management_agreement', 'active',
-                        $2, $3,
-                        now(), $4, $5, now())
-                   ON CONFLICT DO NOTHING"#,
-                [
-                    workspace_id.into(),
-                    accepting_user_id.into(), // PM is the counterparty
-                    employer_id.into(),       // landlord's account
-                    serde_json::json!({
-                        "scope": "portfolio",
-                        "is_employer_admin": true,
-                        "invite_code_id": id.to_string(),
-                    })
-                    .to_string()
-                    .into(),
-                    employer_id.into(), // created by the landlord
-                ],
-            );
-            if let Err(e) = db.execute(contract_stmt).await {
-                // Non-fatal: log and continue. Role is already assigned.
-                tracing::warn!("accept_code: G-11 contract creation failed (non-fatal): {e}");
+            match crate::services::pm::management_delegation::ManagementDelegationService::complete_pm_hire(
+                &db,
+                accepting_user_id,
+                employer_id,
+                id,
+                invite_asset_id,
+                invite_asset_ids_csv.as_deref(),
+            )
+            .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("accept_code: PM hire failed: {e}");
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({
+                            "error": "Failed to complete property manager hire"
+                        })),
+                    )
+                        .into_response();
+                }
             }
+        } else {
+            tracing::warn!("accept_code: property_manager invite missing employer_user_id");
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(serde_json::json!({
+                    "error": "Property manager invite is missing employer"
+                })),
+            )
+                .into_response();
+        }
+    } else {
+        // Resolve tenant for non-PM roles (prefer landlord/employer context).
+        let tenant_user = landlord_id
+            .or(employer_user_id)
+            .unwrap_or(workspace_id);
+        let tenant_id = match crate::extractors::tenant::resolve_tenant_id(&db, tenant_user).await {
+            Ok(t) => t,
+            Err(_) => {
+                // Fall back: accepting user's tenant, or skip role if none.
+                match crate::extractors::tenant::resolve_tenant_id(&db, accepting_user_id).await {
+                    Ok(t) => t,
+                    Err(_) => {
+                        tracing::error!("accept_code: could not resolve tenant for role assign");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(serde_json::json!({
+                                "error": "Failed to assign role"
+                            })),
+                        )
+                            .into_response();
+                    }
+                }
+            }
+        };
+        if let Err(e) = crate::services::rbac::RbacService::assign_role(
+            &db,
+            accepting_user_id,
+            tenant_id,
+            "folio",
+            &role,
+            landlord_id.or(employer_user_id),
+        )
+        .await
+        {
+            tracing::error!("accept_code role creation error: {e}");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to assign role"
+                })),
+            )
+                .into_response();
         }
     }
 

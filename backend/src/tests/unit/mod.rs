@@ -24,3 +24,5 @@ pub mod folio_routing_unit_tests;
 pub mod waitlist_unit_tests;
 // Provision validation — all 8 Folio personas, dependency graph, str_host rejection
 pub mod provision_unit_tests;
+// Same-tenant Delegate to PM — invite asset parse + management_agreement wire value
+pub mod management_delegation_unit_tests;

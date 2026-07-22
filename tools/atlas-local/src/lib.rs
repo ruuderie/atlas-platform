@@ -60,14 +60,14 @@ If up times out: atlas-local status  (Next steps)  or  logs -f backend"
     /// Live dashboard — press ? for sync guide, x to refresh from Next steps
     #[command(
         long_about = "Ratatui dashboard (TTY) or plain text (--plain / pipes).\n\n\
-Tabs: 1 Overview · 2 Resources · 3 Telemetry · 4 Env (SMTP / .env.local).\n\n\
+Tabs: 1 Overview · 2 Resources · 3 Telemetry · 4 Env (SMTP / R2 / .env.local).\n\n\
 Overview → Next steps lists state-aware copy-paste commands.\n\
   ?  sync guide — after a Rust/UI/.env change, which command updates the running app\n\
      (parity refresh vs hot watch vs --no-build vs trunk for platform-admin)\n\
   x  run the first `refresh …` from Next steps (honors --no-build on that line)\n\
   r  reload this status panel only (does NOT recreate containers)\n\
   a  (Env tab) apply .env.local to backend (recreate backend)\n\
-  s/e (Env tab) set SMTP / open editor\n\
+  s/e (Env tab) set SMTP / open editor · env r2 for vault uploads\n\
   q  quit · tab / 1–4 switch tabs · auto-refresh panel every 3s\n\n\
 Modes: PARITY (`up`) baked binaries ≈ server — edit then `refresh`.\n\
        HOT (`up --hot` / `watch`) live mounts — use for tight Rust loops only.\n\n\
@@ -177,6 +177,11 @@ pub enum EnvCommands {
     Path,
     /// SMTP status + how to configure real delivery
     Smtp {
+        #[arg(long)]
+        reveal: bool,
+    },
+    /// Cloudflare R2 status for Folio vault / photo uploads
+    R2 {
         #[arg(long)]
         reveal: bool,
     },
@@ -317,6 +322,7 @@ pub fn dispatch(cli: Cli) -> Result<()> {
             EnvCommands::Edit => env::cmd_edit(&root),
             EnvCommands::Path => env::cmd_path(&root),
             EnvCommands::Smtp { reveal } => env::cmd_smtp(&root, reveal),
+            EnvCommands::R2 { reveal } => env::cmd_r2(&root, reveal),
         },
     }
 }

@@ -1,8 +1,8 @@
-# Atlas Platform — Current State (July 14, 2026 — Rev 13)
+# Atlas Platform — Current State (July 21, 2026 — Rev 15)
 
 **This is the single most important document for any new AI or developer to read first.**
 
-It provides a complete, up-to-date snapshot of the platform architecture after the **Folio Deal Ops (Wholesaling + Creative Finance)** work (Rev 13), building on the **Famtasm Creator Paywall Platform Specification + UI Specs** work (Rev 12).
+It provides a complete, up-to-date snapshot of the platform architecture after the **Hired PM operator + landlord photos** work (Rev 15), building on **Delegate to PM** (Rev 14), **Folio Deal Ops** (Rev 13), and **Famtasm Creator Paywall** (Rev 12).
 
 ---
 
@@ -26,6 +26,16 @@ It provides a complete, up-to-date snapshot of the platform architecture after t
 ---
 
 ## Executive Summary
+
+### What Changed Since Rev 14 (Rev 15)
+
+- **Hired PM operator (end-to-end)** ✅ **NEW** — Accepting a landlord hire lands the PM on `/l` (not `/pmc`): `user_account` Member on employer book, tenant resolve prefers `client_account_id`, `/me` exposes `is_hired_pm` + `employer_display_name` and forces onboarding complete, LandlordShell allows hired PM, asset lists/gets honor `atlas_user_asset_access`, account-admin (Team invites / Delegate / Account) stays landlord-only.
+- **PhotoMediaCard** ✅ **NEW** — Drag-and-drop vault photos on property hub, units, building systems, and renovation projects (G-14; unit uploads stamp `parent_asset_id` for property aggregate).
+
+### What Changed Since Rev 13 (Rev 14)
+
+- **Delegate to PM (same-tenant)** ✅ — Property Hub Management hires a PM onto the landlord’s Folio book (this property or entire portfolio). Reuses G-11 `management_agreement` + G-32 role/`atlas_user_asset_access` + invite codes — **no new G-number**. Service: `services/pm/management_delegation.rs`. API: `GET|DELETE /api/folio/assets/{id}/manager`, `POST|DELETE …/manager/invite`. Folio: hub sheet + Team optional property scope. Migration: `m20261104_fix_management_agreement_contract_type` (legacy `property_management_agreement` → `management_agreement`).
+- **Backlog (external PMC handoff)** — Landlord → external PMC tenant / Owner-lite (`/o`) remains deferred; see [`docs/backlog/README.md`](backlog/README.md).
 
 ### What Changed Since Rev 12 (Rev 13)
 
@@ -126,7 +136,7 @@ It provides a complete, up-to-date snapshot of the platform architecture after t
 
 | ID | Name | Tables | Service | Backend Status | Frontend Status |
 |----|------|--------|---------|----------------|-----------------|
-| G32 | `atlas_rbac` | `atlas_role_profiles`, `atlas_role_profile_permissions`, `atlas_user_app_roles`, `atlas_user_asset_access` (NEW Rev 10 — per-asset cohost/delegate/vendor scope grants) | `RbacService` (`services/rbac.rs`) | Deployed with API | Partial UI (integrated in folio auth shells + role redirect; property_owner portal uses G-32 for owner-lite role NEW) |
+| G32 | `atlas_rbac` | `atlas_role_profiles`, `atlas_role_profile_permissions`, `atlas_user_app_roles`, `atlas_user_asset_access` (per-asset cohost/delegate/vendor/PM scope grants) | `RbacService` + `ManagementDelegationService` | Deployed with API | Partial UI (auth shells + owner-lite; **Rev 14** Property Hub Delegate to PM writes asset grants on hire) |
 | G33 | `atlas_app_deployment_config` | `atlas_app_deployment_config` (`folio_mode` column: `standard\|pmc\|brokerage`; `deployment_mode`: `standard\|internal_operator`; `account_id` FK added m20260918) | Axum extractor `app_config.rs` + `PATCH /admin/app-instances/{id}/operational-config` | **Deployed with API** | **Partial UI** (InstanceOperationalConfigPanel + InstanceSyndicationPanel + TenantUsersPanel in platform-admin + Internal Instances UI) |
 | G34 | `atlas_vendor_marketplace` | `atlas_service_providers` fields (`is_marketplace_visible`, `marketplace_bio`, `marketplace_trade_types`, `marketplace_location`) | none (G-12 database extension) | Deployed | **Partial UI** (`landlord/contractor_marketplace.rs` + `vendor/network_profile.rs` + `property_owner/find_vendor.rs` NEW in folio) |
 
@@ -1026,7 +1036,7 @@ This is a controlled migration bridge, not the final state.
 - **The `brokerage` FolioMode** enables agent (`/a`) and broker (`/br`) portals in `apps/folio`. A Folio instance cannot be `pmc` AND `brokerage` simultaneously — enforced by DB CHECK constraint.
 - **The STR host portal** (`/str`) is a new 8th portal in `apps/folio`. It is separate from the landlord portal STR compliance page — `str_host/` covers operational hosting (bookings, pricing, channel management), while `landlord/str_compliance.rs` covers regulatory licensing (G-16).
 - **Property owner portal** (`/po`) is the 9th role portal in folio (Rev 10). It surfaces property value, vendor search, and review submission for property owners distinct from the owner equity portal (`/o`).
-- **`atlas_user_asset_access`** (Rev 10) — per-asset access grants table for cohost/delegate/vendor scoping. Entity defined at `entities/atlas_user_asset_access.rs`; no management UI yet.
+- **`atlas_user_asset_access`** (Rev 10) — per-asset access grants for cohost/delegate/vendor/PM scoping. Entity at `entities/atlas_user_asset_access.rs`. **Rev 14:** written on same-tenant PM hire accept; hub revoke deactivates grants.
 - **`atlas_bookings`** (Rev 10) — a separate table from `atlas_reservations`. Bookings are confirmed; reservations are holds/availability.
 - **Platform-admin `get_session()`** — ALWAYS use `get_session()` (not raw `validate_session()`) in platform-admin components. 15-second TTL. Call `cache_clear()` before `logout()`.
 - **Tachys hydration in Leptos SSR** — Use `<Show>` component for conditional rendering, NOT `if` blocks returning `Option<impl IntoView>`. Plain `if` blocks cause hydration mismatches (panic at hydration.rs:227 “internal error: entered unreachable code”). See `docs/leptos_architecture_decisions.md §5.5`.
